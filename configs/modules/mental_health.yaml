@@ -1,0 +1,28 @@
+module: mental_health
+version: mental-health-risk-v0.1
+
+scope:
+  output_type: risk_warning
+  diagnosis: false
+  requires_manual_review_for_high_risk: true
+
+inputs:
+  required:
+    - person_id
+    - timestamp
+  feature_groups:
+    - activity_rhythm
+    - sleep_rhythm
+    - social_interaction
+    - routine_regularity
+    - self_report_optional
+    - voice_text_optional
+
+thresholds:
+  medium_score: 0.45
+  high_score: 0.65
+  emergency_score: 0.90
+
+runtime:
+  update_frequency: daily
+  fallback_strategy: rule_scorecard

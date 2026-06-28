@@ -1,0 +1,26 @@
+[project]
+name = "elderly-monitoring-algorithms"
+version = "0.1.0"
+description = "Algorithm prototypes for fall risk and mental health risk warning."
+requires-python = ">=3.10"
+dependencies = [
+  "PyYAML==6.0.3"
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest==9.1.1"
+]
+vision = [
+  "opencv-python==4.13.0.92",
+  "ultralytics==8.4.78"
+]
+ml = [
+  "numpy==2.4.6",
+  "scikit-learn==1.9.0",
+  "lightgbm==4.6.0"
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

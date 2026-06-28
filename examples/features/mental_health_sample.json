@@ -1,0 +1,13 @@
+{
+  "person_id": "p01",
+  "timestamp": "2026-06-26",
+  "activity_drop_score": 0.72,
+  "sleep_disturbance_score": 0.76,
+  "social_withdrawal_score": 0.66,
+  "routine_irregularity_score": 0.62,
+  "negative_affect_score": 0.2,
+  "self_report_risk_score": 0.0,
+  "feature_coverage": 0.78,
+  "baseline_quality": 0.74,
+  "review_support": 0.0
+}

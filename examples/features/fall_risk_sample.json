@@ -1,0 +1,16 @@
+{
+  "device_id": "cam_001",
+  "person_id": "p01",
+  "timestamp": "2026-06-26T14:20:00+08:00",
+  "scene_region": "bedroom_bedside",
+  "gait_risk_score": 0.62,
+  "sit_stand_risk_score": 0.35,
+  "near_fall_event_score": 0.82,
+  "baseline_deviation_score": 0.54,
+  "scene_risk_score": 0.45,
+  "activity_rhythm_score": 0.22,
+  "keypoint_quality": 0.88,
+  "feature_coverage": 0.84,
+  "start_time": 15.2,
+  "end_time": 17.6
+}

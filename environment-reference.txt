@@ -1,0 +1,64 @@
+项目环境参考
+============
+
+本文档记录本机已经验证过的开发环境，供中文开发者复现和排查环境问题使用。
+标准环境定义以 `environment.yml` 为准。
+
+Conda 环境
+----------
+
+环境名称：
+
+  eldercare-ai
+
+Conda channel：
+
+  conda-forge
+
+已验证 Python 版本：
+
+  Python 3.11.15
+
+创建或更新环境
+--------------
+
+从零创建环境：
+
+  /Users/guai/miniforge3/bin/mamba env create -f environment.yml
+
+更新已有环境：
+
+  /Users/guai/miniforge3/bin/mamba env update -n eldercare-ai -f environment.yml
+
+激活环境：
+
+  source /Users/guai/miniforge3/bin/activate eldercare-ai
+
+验证项目：
+
+  conda run -n eldercare-ai python -m pytest -q
+
+本机已验证关键包
+----------------
+
+  elderly-monitoring-algorithms==0.1.0
+  PyYAML==6.0.3
+  pytest==9.1.1
+  numpy==2.4.6
+  pandas==3.0.3
+  scikit-learn==1.9.0
+  lightgbm==4.6.0
+  opencv-python==4.13.0.92
+  ultralytics==8.4.78
+  torch==2.12.1
+
+说明
+----
+
+- `environment.yml` 是重建项目环境的唯一标准来源。
+- `pyproject.toml` 定义 Python 包元数据和可选依赖组。
+- `torch` 是 `ultralytics` 的传递依赖。
+- 本文件不是完整锁文件，因为传递依赖可能因平台而变化。
+- 如果需要生成当前平台的精确环境锁文件，可以运行：
+
+  /Users/guai/miniforge3/bin/conda list -n eldercare-ai --explicit > conda-lock-explicit.txt

@@ -1,0 +1,25 @@
+project:
+  name: elderly_multimodal_risk_warning
+  timezone: Asia/Shanghai
+  modules:
+    - fall_risk
+    - mental_health
+
+risk_levels:
+  0: normal
+  1: low
+  2: medium
+  3: high
+  4: emergency
+
+recommended_actions:
+  record_only: only record the event
+  observe: keep observing
+  remind_user: recommend user-side reminder
+  notify_guardian: recommend guardian notification
+  emergency_alert: recommend emergency escalation
+  manual_review: recommend manual review
+
+interfaces:
+  event_schema: docs/interfaces/算法事件输出接口.md
+  output_format: json

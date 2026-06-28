@@ -1,0 +1,33 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Sensitive or generated algorithm data.
+data/raw_videos/**/*
+data/processed/**/*
+data/external/**/*
+data/documents/**/*
+
+# Local experiment outputs.
+reports/**/*.csv
+reports/**/*.json
+reports/**/*.jsonl
+reports/**/*.xlsx
+reports/**/*.png
+reports/**/*.mp4
+tmp/
+
+# Local model weights.
+*.pt
+*.pth
+*.onnx
+*.engine
+*.ckpt
+
+# Local environment files.
+.env
+.DS_Store

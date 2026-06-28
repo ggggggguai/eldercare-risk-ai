@@ -1,0 +1,95 @@
+module: fall_risk
+version: fall-risk-v0.1
+
+inputs:
+  required:
+    - device_id
+    - person_id
+    - timestamp
+    - scene_region
+  feature_groups:
+    - gait
+    - sit_stand
+    - near_fall
+    - activity_rhythm
+    - scene_risk
+    - personal_baseline
+  available_stages:
+    - tracking
+    - pose
+    - pose_quality
+    - gait
+    - sit_stand
+
+thresholds:
+  medium_score: 0.45
+  high_score: 0.65
+  emergency_score: 0.85
+  near_fall_high: 0.70
+  fall_event_high: 0.80
+
+runtime:
+  target_latency_ms: 1000
+  fallback_strategy: rule_scorecard
+
+tracking:
+  detector: yolov8
+  detector_model: yolov8n.pt
+  tracker: bytetrack
+  confidence_threshold: 0.25
+  iou_threshold: 0.50
+  output_format: jsonl
+  output_fields:
+    - frame_id
+    - person_id
+    - track_id
+    - bbox
+    - scene_region
+    - track_confidence
+    - center
+    - speed_px_per_sec
+    - timestamp_sec
+
+pose:
+  preferred_model_family: rtmpose
+  current_backend: ultralytics_yolov8_pose
+  model: yolov8n-pose.pt
+  tracker: bytetrack
+  confidence_threshold: 0.25
+  iou_threshold: 0.50
+  normalize_coordinates: true
+  output_format: jsonl
+  output_fields:
+    - frame_id
+    - person_id
+    - track_id
+    - bbox
+    - scene_region
+    - keypoints
+    - pose_confidence
+    - keypoint_quality
+    - timestamp_sec
+
+sit_stand:
+  current_backend: rule_baseline
+  model_version: sit-stand-risk-rule-v0.1
+  input_format: cleaned_pose_jsonl
+  output_format: jsonl
+  output_fields:
+    - person_id
+    - track_id
+    - scene_region
+    - start_time
+    - end_time
+    - transition_type
+    - sit_stand_risk_score
+    - duration
+    - failed_attempts
+    - trunk_forward_angle
+    - post_stand_sway
+    - support_usage
+    - stabilization_time
+    - sit_stand_features
+    - quality_coverage
+    - risk_factors
+    - model_version
