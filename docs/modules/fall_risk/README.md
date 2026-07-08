@@ -73,17 +73,32 @@ conda run -n eldercare-ai python scripts/collect/run_fall_tracking.py \
   --scene-region home
 ```
 
-姿态关键点提取：
+姿态关键点提取默认仍使用已验证的 YOLOv8-pose 后端：
 
 ```bash
 conda run -n eldercare-ai python scripts/collect/run_fall_pose.py \
   --input "data/external/le2i_imvia/raw/FallDataset/Home_01/Videos/video (1).avi" \
   --output data/processed/fall_risk/poses/home_01_video_1_poses.jsonl \
+  --backend yolov8-pose \
   --model yolov8n-pose.pt \
   --scene-region home
 ```
 
-研发计划中的目标姿态模型是 RTMPose。当前工程入口先使用项目环境已有的 Ultralytics YOLOv8 pose 后端跑通结构化关键点输出，后续可在不改变 JSONL 输出字段的前提下增加 RTMPose 适配器。
+研发计划中的目标姿态模型是 RTMPose。当前工程已新增 RTMPose/MMPose 可选后端，输出仍复用同一套 pose JSONL 契约：`frame_id`、`person_id`、`track_id`、`bbox`、`scene_region`、`keypoints`、`pose_confidence`、`keypoint_quality` 和 `timestamp_sec`。默认坐标为 0-1 归一化坐标，增加 `--absolute-coordinates` 后输出像素坐标。
+
+RTMPose 后端当前只做预训练权重推理，不包含训练或微调流程。若已在 `eldercare-ai` 环境安装 MMPose、MMCV 和 MMEngine，可直接运行：
+
+```bash
+conda run -n eldercare-ai python scripts/collect/run_fall_pose.py \
+  --input "data/external/le2i_imvia/raw/FallDataset/Home_01/Videos/video (1).avi" \
+  --output data/processed/fall_risk/poses/home_01_video_1_rtmpose_poses.jsonl \
+  --backend rtmpose \
+  --pose-config human \
+  --device cpu \
+  --scene-region home
+```
+
+也可以通过 `--pose-config` 指向具体 RTMPose config 或 MMPose 模型别名，通过 `--pose-checkpoint` 指向对应预训练权重。当前 RTMPose CLI 使用 MMPose 推理结果直接适配为统一 JSONL；若 MMPose 输出中没有稳定 `track_id`，会按帧内人体序号生成 `track_id/person_id`，后续接入 tracking JSONL 时可复用同一适配层替换为稳定轨迹 ID。若这些可选依赖未安装，脚本会在选择 `--backend rtmpose` 时抛出清晰的 `RuntimeError`，提示安装 MMPose 相关依赖；YOLOv8-pose 后端和普通姿态单元测试不受影响。
 
 关键点质量控制与时序平滑：
 

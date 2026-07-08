@@ -11,7 +11,7 @@ from elderly_monitoring.modules.fall_risk.near_fall import (
     extract_near_fall_events,
     run_near_fall_jsonl,
 )
-from elderly_monitoring.modules.fall_risk.pose import PoseObservation, run_yolov8_pose
+from elderly_monitoring.modules.fall_risk.pose import PoseObservation, run_rtmpose_pose, run_yolov8_pose
 from elderly_monitoring.modules.fall_risk.pose_quality import (
     PoseQualityConfig,
     process_pose_records,
@@ -42,6 +42,7 @@ __all__ = [
     "run_gait_jsonl",
     "run_near_fall_jsonl",
     "run_pose_quality_jsonl",
+    "run_rtmpose_pose",
     "run_sit_stand_jsonl",
     "score_baseline_deviation",
     "run_yolov8_bytetrack",

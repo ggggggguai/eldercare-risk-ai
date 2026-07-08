@@ -52,9 +52,20 @@ tracking:
 
 pose:
   preferred_model_family: rtmpose
-  current_backend: ultralytics_yolov8_pose
+  current_backend: yolov8-pose
+  available_backends:
+    - yolov8-pose
+    - rtmpose
   model: yolov8n-pose.pt
   tracker: bytetrack
+  rtmpose:
+    pose_config: human
+    pose_checkpoint: null
+    device: null
+    requires_optional_dependencies:
+      - mmpose
+      - mmcv
+      - mmengine
   confidence_threshold: 0.25
   iou_threshold: 0.50
   normalize_coordinates: true

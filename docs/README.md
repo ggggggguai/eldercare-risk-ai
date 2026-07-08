@@ -34,9 +34,8 @@ docs/
 - `modules/fall_risk/README.md`：模块说明、运行命令和字段契约。
 - `modules/fall_risk/guides/跌倒风险算法协作开发指南.md`：新同事或新任务的第一入口。
 - `modules/fall_risk/plans/跌倒风险算法研发计划.md`：完整算法路线、研发阶段和评价指标。
-- `modules/fall_risk/data/数据采集与标注规范.md`：自采数据和标注口径。
-- `modules/fall_risk/data/数据集使用标注与训练方案.md`：公开数据集、标注、训练和评估计划。
-- `modules/fall_risk/data/公开跌倒事件数据集使用说明.md`：本地公开数据集用途和限制。
+- `modules/fall_risk/data/数据集标注规范.md`：每个数据集怎么标、谁来标、产出什么统一标注文件。
+- `modules/fall_risk/data/跌倒风险标签字典.md`：动作级、事件级、风险级标签和判定规则。
 
 ## 根目录保留文件
 

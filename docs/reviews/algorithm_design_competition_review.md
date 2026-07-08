@@ -36,10 +36,10 @@
 | 配置 | `configs/modules/fall_risk.yaml`, `configs/modules/mental_health.yaml` | ~100 |
 | 环境 | `environment.yml`, `pyproject.toml`, `environment-reference.txt` | ~80 |
 | 研发计划 | `docs/modules/fall_risk/plans/跌倒风险算法研发计划.md` | 1052 |
-| 数据标注规范 | `docs/modules/fall_risk/data/数据采集与标注规范.md` | 739 |
 | 模块文档 | `docs/modules/fall_risk/README.md` | 461 |
 | 协作指南 | `docs/modules/fall_risk/guides/跌倒风险算法协作开发指南.md` | 648 |
-| 数据集方案 | `docs/modules/fall_risk/data/数据集使用标注与训练方案.md` | 1033 |
+| 数据集标注规范 | `docs/modules/fall_risk/data/数据集标注规范.md` | 新版 |
+| 标签字典 | `docs/modules/fall_risk/data/跌倒风险标签字典.md` | 新版 |
 | 执行计划 | `docs/modules/fall_risk/plans/近跌倒事件检测执行计划.md`、`docs/modules/fall_risk/plans/坐站转换能力分析执行计划.md`、`docs/modules/fall_risk/plans/关键点质量控制与时序平滑研发计划.md` | (抽样) |
 | 心理健康文档 | `docs/modules/mental_health/README.md` | 38 |
 | 接口文档 | `docs/interfaces/算法事件输出接口.md` | 63 |
@@ -57,7 +57,7 @@
 ### 未阅读/未验证
 
 - 比赛方案 PDF（`docs/reference/competition/XH-202617-基于多模态AI监测的老年人跌倒风险、心理健康、诈骗识别及预警研究比赛方案.pdf`）：为 PDF 文件，未在本轮审查中逐页阅读。
-- 外部数据集 README（5 个）：仅通过 `docs/modules/fall_risk/data/数据集使用标注与训练方案.md` 间接了解。
+- 外部数据集 README（5 个）：仅通过当时的数据集方案文档间接了解；新版已拆分为 `docs/modules/fall_risk/data/数据集标注规范.md` 和 `docs/modules/fall_risk/data/跌倒风险标签字典.md`。
 - 真实视频烟测：本轮未实际运行视频推理脚本（仅确认脚本和视频文件存在）。
 
 ---
@@ -191,7 +191,7 @@
 ### 缺陷 1：无训练脚本、无评估脚本、无实验指标（严重度：致命）
 
 - **问题：** `scripts/train/` 不存在，`scripts/evaluate/` 只有 README。研发计划中列出的 6 个训练任务（fall_event、near_fall、gait_risk、sit_stand_risk、baseline、fusion）全部未实现。无 Accuracy、Precision、Recall、F1、AUC、误报率、漏报率、提前预警时间等任何实验指标。
-- **证据：** `ls scripts/train/` → No such file or directory；`scripts/evaluate/README.md` 仅 340 字节；`docs/modules/fall_risk/data/数据集使用标注与训练方案.md` 第 7-8 行明确承认"还没有完整的训练脚本和评估脚本"。
+- **证据：** `ls scripts/train/` → No such file or directory；`scripts/evaluate/README.md` 仅 340 字节；当时的数据集方案文档明确承认"还没有完整的训练脚本和评估脚本"。新版数据集标注文档已拆出训练方案，避免与标注规范混写。
 - **为什么影响：** 挑战杯评审几乎必然追问"你的模型准确率多少？"。规则 baseline 没有对照实验就无法证明算法有效性。所有文档中 `>= 90%` 高风险召回率、`>= 80%` 近跌倒 F1 的目标指标均无实测数据支撑。
 - **建议修复方向：** 优先用公开数据（Fall Detection 2017, 997 Fall + 1017 ADL）训练 `fall_event_score` 二分类模型并报告指标。这是最快能产出"有数字的实验结果"的路径。
 

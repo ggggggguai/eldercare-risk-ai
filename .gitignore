@@ -10,6 +10,8 @@ venv/
 data/raw_videos/**/*
 data/processed/**/*
 data/external/**/*
+!data/external/ltmm/
+!data/external/ltmm/README.md
 data/documents/**/*
 
 # Local experiment outputs.
