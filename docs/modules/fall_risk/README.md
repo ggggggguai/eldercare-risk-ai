@@ -2,6 +2,8 @@
 
 本模块承接 `docs/modules/fall_risk/plans/跌倒风险算法研发计划.md`。
 
+各任务的检测、跟踪、姿态、平滑、步态、坐站、近跌倒、个体基线和风险融合模型候选，见 `docs/modules/fall_risk/plans/跌倒风险各任务模型调研与选型矩阵.md`。该文档区分当前主线、短期对照和数据充足后的增强实验，不能把候选清单理解为已实现能力。
+
 新同事加入或开始较大改动前，建议先阅读 `docs/modules/fall_risk/guides/跌倒风险算法协作开发指南.md`。该文档汇总了当前实现状态、固定算法路线、开发注意事项、验证命令和后续优化方向。
 
 ## 算法主线
@@ -426,18 +428,27 @@ payload = event.to_dict()
 
 ## 判断频率与输出策略
 
-当前代码中的 `FallRiskPipeline.predict_from_features()` 是单次特征输入触发式推理：调用一次，输出一条风险事件 JSON。当前版本尚未实现实时视频流上的自动滑窗调度。
-
-后续实时主路径建议采用：
+`FallRiskPipeline.predict_from_features()` 仍保留单次特征推理 API；实时入口已经实现内存滑窗调度，使用以下策略：
 
 | 场景 | 策略 |
 |---|---|
-| 轨迹和姿态关键点 | 按帧输出结构化 JSONL，演示时可降采样到 5-10 FPS |
+| 轨迹和姿态关键点 | 同一次 YOLOv8-pose + ByteTrack 推理生成内存对象，默认最多 8 FPS |
 | 动作识别 | 使用 1-2 秒滑窗滚动判断 |
 | 风险融合 | 默认每 2 秒更新一次内部风险状态 |
-| 普通状态 | 每 5 秒输出一次状态型风险 JSON |
+| 普通状态 | 0 级不回调 |
 | 风险等级升高或触发事件变化 | 立即输出事件 JSON |
 | 近跌倒、疑似跌倒、长时间静止 | 不等待节流周期，立即输出 |
+
+HTTP 入口为 `elderly_monitoring.service.app:app`，支持创建、查询、更新地址和幂等停止单路直播会话。真实视频全生命周期烟测：
+
+```bash
+conda run -n eldercare-ai python scripts/collect/run_fall_service_smoke.py \
+  --input "data/external/le2i_imvia/raw/FallDataset/Home_01/Videos/video (1).avi" \
+  --model yolov8n-pose.pt \
+  --max-frames 30
+```
+
+当前实现未完成真实萤石平台直播联调；需要业务侧提供算法容器可直接解码的短期直播地址和可接收回调的 HTTP 端点。服务不会把 `ezopen` 地址转换为直播地址。
 
 ## 运行方式
 

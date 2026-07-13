@@ -11,6 +11,11 @@ inputs:
     - gait
     - sit_stand
     - near_fall
+    - personal_baseline
+    - risk_fusion
+    - realtime_streaming
+    - http_service
+    - near_fall
     - activity_rhythm
     - scene_risk
     - personal_baseline

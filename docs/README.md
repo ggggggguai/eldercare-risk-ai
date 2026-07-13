@@ -7,10 +7,11 @@
 1. `../README.md`：项目定位、工程结构和运行环境。
 2. `architecture/算法工程骨架.md`：算法工程边界和模块划分。
 3. `interfaces/算法事件输出接口.md`：算法模块统一输出的事件 JSON。
-4. `modules/fall_risk/guides/跌倒风险算法协作开发指南.md`：跌倒风险方向的开发入口。
-5. `modules/fall_risk/plans/跌倒风险算法研发计划.md`：跌倒风险算法主计划。
-6. `modules/mental_health/README.md`：心理健康风险模块当前边界。
-7. `tasks/待解决问题.md`：仍需落实或验证的问题。
+4. `interfaces/跌倒风险算法服务后端对接说明.md`：风险回调契约及后端调用算法服务的方法。
+5. `modules/fall_risk/guides/跌倒风险算法协作开发指南.md`：跌倒风险方向的开发入口。
+6. `modules/fall_risk/plans/跌倒风险算法研发计划.md`：跌倒风险算法主计划。
+7. `modules/mental_health/README.md`：心理健康风险模块当前边界。
+8. `tasks/待解决问题.md`：仍需落实或验证的问题。
 
 ## 目录分布
 

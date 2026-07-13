@@ -1,6 +1,6 @@
 [project]
 name = "elderly-monitoring-algorithms"
-version = "0.1.0"
+version = "0.2.0"
 description = "Algorithm prototypes for fall risk and mental health risk warning."
 requires-python = ">=3.10"
 dependencies = [
@@ -14,6 +14,11 @@ dev = [
 vision = [
   "opencv-python==4.13.0.92",
   "ultralytics==8.4.78"
+]
+service = [
+  "fastapi==0.116.1",
+  "uvicorn==0.35.0",
+  "httpx==0.28.1"
 ]
 ml = [
   "numpy==2.4.6",

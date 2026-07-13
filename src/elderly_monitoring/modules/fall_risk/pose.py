@@ -447,6 +447,8 @@ def run_yolov8_pose(
     model = YOLO(model_name)
 
     def iter_records() -> Iterable[dict[str, Any]]:
+        from elderly_monitoring.runtime.streaming_pose import adapt_yolo_pose_result
+
         results = model.track(
             source=str(video_path),
             stream=True,
@@ -460,39 +462,15 @@ def run_yolov8_pose(
             if max_frames is not None and frame_count >= max_frames:
                 break
             frame_id = int(getattr(result, "frame_id", frame_count) or frame_count)
-            keypoints = result.keypoints
-            boxes = result.boxes
-            if keypoints is None or keypoints.xy is None:
-                continue
-
-            xy_values = keypoints.xy.cpu().tolist()
-            score_values = keypoints.conf.cpu().tolist() if keypoints.conf is not None else []
-            bbox_values = boxes.xyxy.cpu().tolist() if boxes is not None and boxes.xyxy is not None else []
-            box_confidences = boxes.conf.cpu().tolist() if boxes is not None and boxes.conf is not None else []
-            track_ids = boxes.id.cpu().tolist() if boxes is not None and boxes.id is not None else []
-
-            for person_index, points_xy in enumerate(xy_values):
-                scores = score_values[person_index] if person_index < len(score_values) else [0.0] * len(points_xy)
-                bbox = bbox_values[person_index] if person_index < len(bbox_values) else None
-                confidence = box_confidences[person_index] if person_index < len(box_confidences) else None
-                raw_track_id = track_ids[person_index] if person_index < len(track_ids) else None
-                track_id = int(raw_track_id) if raw_track_id is not None else person_index + 1
-                person_id = f"{person_id_prefix}_{track_id:03d}"
-                pose_keypoints = build_keypoints(
-                    points_xy,
-                    scores,
-                    normalize_by=(width, height) if normalize_coordinates else None,
-                )
-                observation = build_pose_observation(
-                    frame_id=frame_id,
-                    person_id=person_id,
-                    keypoints=pose_keypoints,
-                    timestamp_sec=(frame_id / fps) if fps > 0 else 0.0,
-                    scene_region=scene_region,
-                    track_id=track_id,
-                    bbox=bbox,
-                    pose_confidence=confidence,
-                )
+            _, observations = adapt_yolo_pose_result(
+                result,
+                frame_id=frame_id,
+                timestamp_sec=(frame_id / fps) if fps > 0 else 0.0,
+                frame_size=(width, height) if normalize_coordinates else (0.0, 0.0),
+                scene_region=scene_region,
+                person_id_prefix=person_id_prefix,
+            )
+            for observation in observations:
                 yield observation.to_dict()
 
     return write_jsonl(iter_records(), output_path)

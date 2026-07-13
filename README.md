@@ -43,3 +43,31 @@ conda run -n eldercare-ai python -m pytest -q
 - 不实现 App、后台、消息推送、账号权限或工单系统。
 - 不把心理健康输出定义为医学诊断，只输出风险预警和人工复核建议。
 - 不把复杂深度模型作为第一版单点依赖，先保留可解释、可复现的轻量主线。
+
+## 跌倒风险 HTTP 服务
+
+安装服务与视觉依赖：
+
+```bash
+conda run -n eldercare-ai python -m pip install -e ".[vision,service]"
+```
+
+必需环境变量为 `ALGORITHM_API_TOKEN` 和 `CALLBACK_TOKEN`；模型路径由 `MODEL_PATH` 指定，默认是仓库根目录的 `yolov8n-pose.pt`。可选的 `BASELINE_HISTORY_PATH` 指向个体历史 JSONL。启动单 worker 服务：
+
+```bash
+ALGORITHM_API_TOKEN=replace-me CALLBACK_TOKEN=replace-me \
+conda run -n eldercare-ai uvicorn elderly_monitoring.service.app:app \
+  --host 0.0.0.0 --port 8080 --workers 1
+```
+
+Docker 镜像不包含模型，运行时只读挂载固定路径：
+
+```bash
+docker run --rm -p 8080:8080 \
+  -e ALGORITHM_API_TOKEN=replace-me \
+  -e CALLBACK_TOKEN=replace-me \
+  -v "$PWD/yolov8n-pose.pt:/models/yolov8n-pose.pt:ro" \
+  elderly-monitoring-algorithm:0.2.0
+```
+
+服务支持单路会话的创建、查询、直播地址更新和停止。输入必须是容器可解码的 `rtsp`、`rtmp`、`http` 或 `https` 地址，不负责转换 `ezopen` 地址。

@@ -1,0 +1,29 @@
+model_path: yolov8n-pose.pt
+api_token: change-me
+callback_token: change-me
+max_inference_fps: 8.0
+pose_window_sec: 10.0
+analysis_interval_sec: 0.5
+fusion_interval_sec: 2.0
+primary_lost_timeout_sec: 2.0
+event_cooldown_sec: 30.0
+callback_timeout_sec: 5.0
+callback_retry_delays_sec: [0.5, 1.0, 2.0]
+stream_open_timeout_ms: 5000
+stream_read_timeout_ms: 5000
+reconnect_attempts: 3
+reconnect_delay_sec: 1.0
+scene_risk_scores:
+  bathroom: 0.7
+  bedroom_bedside: 0.5
+  stairs: 0.8
+  living_room: 0.1
+  home: 0.1
+fall_state:
+  observation_window_sec: 1.0
+  min_quality: 0.6
+  hip_drop_threshold: 0.18
+  center_drop_threshold: 0.15
+  horizontal_angle_threshold: 60.0
+  static_duration_sec: 10.0
+  static_motion_threshold: 0.02

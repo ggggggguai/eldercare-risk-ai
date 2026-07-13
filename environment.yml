@@ -12,4 +12,4 @@ dependencies:
   - lightgbm=4.6.0
   - pytest=9.1.1
   - pip:
-      - -e ".[vision]"
+      - -e ".[vision,service]"
