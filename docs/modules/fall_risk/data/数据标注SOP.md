@@ -1,6 +1,6 @@
 # 跌倒风险数据标注 SOP
 
-更新时间：2026-06-29
+更新时间：2026-07-15
 
 本文是跌倒风险视频数据标注的执行 SOP，面向标注员、复核人员和工程转换人员。标签定义以 `docs/modules/fall_risk/data/跌倒风险标签字典.md` 为准，数据集选择和统一输出格式以 `docs/modules/fall_risk/data/数据集标注规范.md` 为准。本文只说明怎么把云端标注工作从账号注册、项目创建、实际标注、复核、导出到归档完整执行起来。
 
@@ -79,7 +79,7 @@ admin_fall_risk
 | 角色    | CVAT 权限建议           | 说明                   |
 | ----- | ------------------- | -------------------- |
 | 数据管理员 | Owner/Admin         | 创建项目、标签、任务和导出        |
-| 复核人员  | Maintainer/Reviewer | 复核、修改、导出 reviewed 标注 |
+| 复核人员  | Maintainer/Reviewer | 复核、记录决定和导出源标注；不能仅凭 CVAT 状态提升正式资格 |
 | 标注员   | Worker/Annotator    | 只负责分配给自己的 task       |
 
 标注员不要自行新建标签、删除 task 或修改项目配置。发现标签缺失时，在工作群或 issue 中反馈给数据管理员。
@@ -155,23 +155,32 @@ fall_risk__le2i_imvia__home_01__le2i_home_01_video_1
 data/annotations/fall_risk/
 ```
 
-建议 CVAT 导出临时归档到：
+CVAT 原始导出按批次归档到不可变来源目录：
 
 ```text
-data/annotations/fall_risk/cvat_exports/raw/
-data/annotations/fall_risk/cvat_exports/reviewed/
+data/annotations/fall_risk/cvat_exports/raw/<batch-id>/
 ```
 
-最终训练和评估只能读取：
+转换结果先落到来源专属候选目录：
+
+```text
+data/annotations/fall_risk/generated/v1/cvat_<export-id>/
+data/annotations/fall_risk/generated/v1/le2i_official/
+```
+
+候选目录按源导出批次命名，不按 subset 自动拆分。现有 `cvat_coffee_01_02/` 实际同时包含 `Coffee_room_01`、`Coffee_room_02` 和 `Home_02`；必须按每条记录关联的 manifest subset 统计，不能从目录名推断数据归属。
+
+通过人工确认、双人独立复核和正式校验后，发布版本才使用根目录统一契约：
 
 ```text
 data/annotations/fall_risk/action_labels.jsonl
 data/annotations/fall_risk/event_labels.jsonl
 data/annotations/fall_risk/risk_labels.jsonl
+data/annotations/fall_risk/subject_profiles.json
 data/annotations/fall_risk/annotation_review_log.jsonl
 ```
 
-不要让训练脚本直接读取 CVAT XML、ZIP 或人工 Excel。
+自动生成候选固定为 `pending` 或 `auto_imported`、`eligibility=false`、`review_evidence_ids=[]`。不要让训练脚本直接读取 CVAT XML、ZIP、人工 Excel 或未经发布的候选，也不得让转换脚本直接覆盖根目录标签。
 
 ### 5.4 AVI 无法上传时的处理
 
@@ -393,6 +402,7 @@ CVAT 中的每个动作片段用一个 rectangle track 表示。
 | 跌倒、近跌倒、起身失败      | 全量复核                             |
 | `U01` 超过 20% 的视频 | 必须复核                             |
 | 冲突样本             | 写入 `annotation_review_log.jsonl` |
+| 拟发布为 `eligibility=true` 的标签 | 不同 reviewer 双人独立复核 |
 
 ### 9.2 复核检查项
 
@@ -416,17 +426,32 @@ CVAT 中的每个动作片段用一个 rectangle track 表示。
 3. 正常动作 vs `U01`：以可观察证据为准。
 4. 仍无法判断：保留 `U01` 或事件级 `uncertain`，不要强行判定。
 
-仲裁记录写入：
+所有批准、冲突和仲裁记录写入：
 
 ```text
 data/annotations/fall_risk/annotation_review_log.jsonl
 ```
 
-示例：
+每条 review 必填：
 
-```json
-{"video_id":"le2i_home_01_video_1","segment_id":"seg_0007","labeler_a":"C03","labeler_b":"D01","final_label":"D01","reason":"身体已失去支撑并接触地面","reviewer":"reviewer_01","review_time":"2026-06-29"}
+```text
+review_id                 label_id
+label_type                reviewer_id
+decision                  reviewed_at
+reason_code               note
 ```
+
+可选链路字段为 `previous_record_sha256`、`result_record_sha256` 和 `supersedes_review_id`。`approve/adjudicate` 必须写 `result_record_sha256`，并与最终完整标签的规范化 JSON SHA-256 一致。标签内的 `review_evidence_ids` 必须精确列出当前有效的批准/仲裁 review ID。
+
+正式标签至少需要两个不同 `reviewer_id` 的有效决定；同一人提交两个 review ID 不算双人复核。出现冲突时按以下链路处理：
+
+1. 冲突 review 用 `supersedes_review_id` 指向前一 review，并让 `previous_record_sha256` 等于前一 review 的 `result_record_sha256`。
+2. `decision=conflict` 不能作为正式证据，必须由直接后继的 `decision=adjudicate` 解决。
+3. 仲裁人的 `reviewer_id` 必须不同于整条前置链的所有 reviewer，`reviewed_at` 必须更晚。
+4. 仲裁完成后还需另一名独立 reviewer 对同一最终记录作有效 `approve`，才能达到双人门槛。
+5. 标签任一字段改变都会改变 `result_record_sha256`；变更后必须重新复核，不能只改 review log。
+
+`risk_labels.jsonl` 与 `annotation_review_log.jsonl` 没有真实人工结果时保持空 JSONL，不放示例行。完整 schema 见 `跌倒风险标签字典.md`。
 
 ## 10. 导出 CVAT 标注
 
@@ -451,20 +476,22 @@ data/annotations/fall_risk/annotation_review_log.jsonl
 导出文件命名：
 
 ```text
-cvat_export__{task_name}__{labeler_or_reviewed}__v{YYYYMMDD}.zip
+cvat_export__{task_name}__{export_id}__v{YYYYMMDD}.zip
 ```
 
 示例：
 
 ```text
-cvat_export__fall_risk__le2i_imvia__home_01__le2i_home_01_video_1__reviewed__v20260629.zip
+cvat_export__fall_risk__le2i_imvia__home_01__le2i_home_01_video_1__exp01__v20260715.zip
 ```
 
 保存位置：
 
 ```text
-data/annotations/fall_risk/cvat_exports/reviewed/
+data/annotations/fall_risk/cvat_exports/raw/<batch-id>/
 ```
+
+文件名或 CVAT 页面状态只描述源导出版本，不代表统一标签已经获得 `reviewed/final` 资格。原始 ZIP/XML 归档后视为不可变输入；不得覆盖或就地清理，发现身份元数据时只记录脱敏风险并按数据治理流程处理。
 
 ### 10.3 云端数据留存
 
@@ -478,86 +505,92 @@ data/annotations/fall_risk/cvat_exports/reviewed/
 
 任何含敏感信息的视频不得因为“标注方便”长期留在云端。删除前必须确认 CVAT 导出 ZIP、统一 JSONL 和复核记录均已归档。
 
-## 11. 转换为统一 JSONL
+## 11. 构建、转换与校验
 
-工程人员负责把 CVAT 导出转换为统一标注文件。转换前不要进入训练。
+工程人员必须按“manifest -> 来源候选 -> 审计 -> 人工复核/仲裁 -> 正式校验 -> 发布”的顺序处理。转换成功不等于可以进入训练。
 
-目标文件：
+### 11.1 构建统一 manifest
 
-```text
-data/annotations/fall_risk/action_labels.jsonl
-data/annotations/fall_risk/event_labels.jsonl
-data/annotations/fall_risk/risk_labels.jsonl
-data/annotations/fall_risk/annotation_review_log.jsonl
+先确认 editable 安装指向当前仓库，再构建 manifest：
+
+```bash
+conda run -n eldercare-ai python -m pip show elderly-monitoring-algorithms
+conda run -n eldercare-ai python scripts/annotation/build_fall_risk_manifest.py \
+  --repo-root . \
+  --output data/manifests/fall_risk_video_manifest.jsonl \
+  --ffprobe-bin ffprobe
 ```
 
-### 11.1 动作级 JSONL
+manifest 构建器读取逐视频真实 `fps_num/fps_den`、帧数、时长和分辨率，同时记录资产哈希、来源、许可、人员/组和资格状态。默认拒绝覆盖；重建正式 manifest 前先做版本决策。
 
-每个 CVAT action track 转成一条动作级记录。
+### 11.2 转换 CVAT 候选
 
-示例：
+每个源导出使用独立输出目录：
 
-```json
-{"video_id":"le2i_home_01_video_1","file_path":"data/external/le2i_imvia/raw/FallDataset/Home_01/Videos/video (1).avi","subject_id":"unknown","scene":"home","view":"fixed_camera","action_id":"C03","action_name":"stumble_recovery","start_time":5.2,"end_time":6.1,"start_frame":125,"end_frame":146,"labeler":"labeler_01","review_status":"reviewed","quality":"clear","note":"失衡后恢复"}
+```bash
+conda run -n eldercare-ai python scripts/annotation/convert_cvat_fall_labels.py \
+  --input data/annotations/fall_risk/cvat_exports/raw/le2i_home_01_first_2_videos_cvat.zip \
+  --manifest data/manifests/fall_risk_video_manifest.jsonl \
+  --output-dir data/annotations/fall_risk/generated/v1/cvat_home_01 \
+  --labeler labeler_fall_01
 ```
 
-必填字段：
+输出是 `action_labels.jsonl` 和从动作确定性映射的 `event_labels.jsonl`。转换器按 `video_id` 读取 manifest 的逐视频有理 FPS；正式批处理不得使用全局 `--fps` 或 `--file-root`。这两个参数只在同时显式给出 `--development-override` 时用于旧测试夹具。
 
-```text
-video_id
-file_path
-subject_id
-scene
-view
-action_id
-action_name
-start_time
-end_time
-labeler
-review_status
-quality
-note
+候选固定为 `review_status=pending`、`eligibility=false`、`review_evidence_ids=[]`。脚本默认拒绝覆盖输出，也拒绝 `--review-status reviewed/final`。不得把 `--action-output/--event-output` 指向根目录文件。
+
+当前 `generated/v1/cvat_coffee_01_02/` 在 100 条视频上各含 514 条动作候选和映射事件，按记录计为 `Coffee_room_01=233`、`Coffee_room_02=150`、`Home_02=131`，且各视频 FPS 分别来自 manifest。该目录按源导出命名，不得整体标成 Coffee。
+
+### 11.3 导入 LE2I 官方窗口候选
+
+官方 TXT 与人工 CVAT 边界独立保存：
+
+```bash
+conda run -n eldercare-ai python scripts/annotation/import_le2i_fall_labels.py \
+  --manifest data/manifests/fall_risk_video_manifest.jsonl \
+  --event-output data/annotations/fall_risk/generated/v1/le2i_official/event_labels.jsonl \
+  --report-output data/annotations/fall_risk/generated/v1/le2i_official/import_report.json
 ```
 
-### 11.2 事件级 JSONL
+导入器只生成 TXT 明确支持的 `event_type=fall`，并保留 `label_source=le2i_txt`、1-based 源帧与 0-based 统一帧。`0/0` 只计入报告的显式无跌倒窗口；`Lecture room/Office` 无 TXT，不生成官方事件。官方候选固定为 `auto_imported/false/[]`，不能替代人工动作标注。
 
-事件级标签来自两类来源：
+### 11.4 审计候选与正式标签
 
-- 官方 txt 自动导入，例如 LE2I 的跌倒开始帧和结束帧。
-- 人工动作标签映射，例如 `C03/C04/C05` 可映射为 `near_fall` 候选事件，`D01/D02/D03` 可映射为 `fall`。
+对 CVAT 来源候选执行审计：
 
-示例：
-
-```json
-{"video_id":"le2i_home_01_video_1","event_type":"fall","start_time":6.0,"end_time":6.83,"start_frame":144,"end_frame":164,"severity":4,"label_source":"manual_reviewed","review_status":"final","note":"明确倒地"}
+```bash
+conda run -n eldercare-ai python scripts/annotation/validate_fall_risk_labels.py \
+  --manifest data/manifests/fall_risk_video_manifest.jsonl \
+  --action-labels data/annotations/fall_risk/generated/v1/cvat_home_01/action_labels.jsonl \
+  --event-labels data/annotations/fall_risk/generated/v1/cvat_home_01/event_labels.jsonl \
+  --risk-labels data/annotations/fall_risk/risk_labels.jsonl \
+  --subject-profiles data/annotations/fall_risk/subject_profiles.json \
+  --review-log data/annotations/fall_risk/annotation_review_log.jsonl \
+  --config configs/data/fall_risk_label_validation_v1.yaml \
+  --mode audit \
+  --report-output reports/fall_risk/cvat_le2i_home_01_candidate_validation.json
 ```
 
-映射建议：
+`audit` 会报告缺少人工复核等 blocker，但结构、边界、来源哈希或 manifest 关联错误仍会失败。报告默认拒绝覆盖，复跑使用新的版本化文件名。
 
-| 动作标签          | 事件类型                                 |
-| ------------- | ------------------------------------ |
-| `A01-A04`     | `normal_activity`                    |
-| `B01-B04`     | `gait_instability`                   |
-| `B05`         | `unstable_turning`                   |
-| `B06/C01`     | `sit_stand_difficulty`               |
-| `C02/C04`     | `wall_support`                       |
-| `C03`         | `near_fall` 或 `sudden_stop_recovery` |
-| `C05`         | `rapid_body_drop`                    |
-| `D01/D02/D03` | `fall`                               |
-| `D04`         | `long_static`                        |
-| `U01`         | `uncertain`                          |
+完成真实人工复核和受控发布后，对根目录统一标签执行：
 
-### 11.3 风险级 JSONL
-
-第一阶段标注员不直接填写风险级标签。只有复核人员或项目负责人在证据充分时填写。
-
-示例：
-
-```json
-{"video_id":"self_livingroom_p02_C03_side_t01","subject_id":"p02","start_time":0.0,"end_time":8.4,"risk_level":3,"risk_score":0.82,"risk_factors":["stumble_recovery","gait_instability"],"label_source":"manual_consensus","review_status":"final"}
+```bash
+conda run -n eldercare-ai python scripts/annotation/validate_fall_risk_labels.py \
+  --manifest data/manifests/fall_risk_video_manifest.jsonl \
+  --action-labels data/annotations/fall_risk/action_labels.jsonl \
+  --event-labels data/annotations/fall_risk/event_labels.jsonl \
+  --risk-labels data/annotations/fall_risk/risk_labels.jsonl \
+  --subject-profiles data/annotations/fall_risk/subject_profiles.json \
+  --review-log data/annotations/fall_risk/annotation_review_log.jsonl \
+  --config configs/data/fall_risk_label_validation_v1.yaml \
+  --mode formal \
+  --report-output reports/fall_risk/annotation_validation_formal_v1.json
 ```
 
-风险级标签不用于替代动作事实。一个视频里可以有多个动作片段，但风险级标签应说明证据窗口和风险因子。
+`formal` 将 `pending/uncertain`、未知许可、已有人员画像缺少同意引用、缺少独立复核、来源不完整或 manifest 不合格视为阻塞。只有 formal 报告为 `valid=true` 的冻结发布版本才具备正式评估资格。
+
+action/event/risk/review/profile 的完整字段契约见 `跌倒风险标签字典.md`。其中人工 `risk_labels.jsonl` 禁止 `risk_score`；没有真实风险标签和 review 时两个 JSONL 保持零条记录，`subject_profiles.json` 保持 `fall-risk-subject-profiles-v1` 的空 `subjects` 模板。
 
 ## 12. 质检清单
 
@@ -577,13 +610,17 @@ note
 - `U01` 比例超过 20% 的视频必须回看。
 - 标注边界偏差大于 `0.5s` 的片段必须修正。
 - 标签冲突必须写入 `annotation_review_log.jsonl`。
+- 正式标签至少有两个不同 reviewer 的有效批准/仲裁，且 review 结果哈希与最终记录一致。
+- 冲突仲裁人独立于前置链所有 reviewer，冲突链的前后哈希和时间顺序完整。
 
 工程人员质检：
 
 - JSONL 每行都是合法 JSON。
-- `start_time < end_time`。
+- `start_time <= end_time`，且动作/事件帧号、时间和 manifest 有理 FPS 一致。
 - `action_id` 必须在标签字典中。
-- `video_id` 必须能在 manifest 中找到。
+- `asset_id` 必须能在 manifest 中找到；视频标签的 `video_id` 还必须匹配同一资产。
+- 来源文件存在且 `source_annotation_sha256` 与实际文件一致。
+- 人工风险标签没有 `risk_score`，空模板没有示例或伪造记录。
 - 训练、验证、测试划分按人员或样本组，不按窗口随机切分。
 - 不把 CVAT XML、官方 txt 或 Excel 直接作为训练输入。
 
@@ -599,7 +636,7 @@ note
 - 是否使用了项目管理员邀请的账号登录。
 - 浏览器是否拦截了第三方登录、弹窗或必要 cookie。
 
-如果仍无法登录，标注员不要重新创建私人项目，应把截图、账号邮箱和报错时间发给数据管理员处理。
+如果仍无法登录，标注员不要重新创建私人项目，应把脱敏截图、账号内部代号和报错时间发给数据管理员处理，不要把邮箱写入公共日志或文档。
 
 ### 13.2 视频上传后无法播放
 
@@ -637,7 +674,8 @@ note
 
 1. 标注员先独立标动作片段。
 2. 复核人员用官方 txt 对照跌倒窗口。
-3. 工程人员把官方 txt 导入 `event_labels.jsonl`，并保留 `label_source = le2i_txt`。
+3. 工程人员把官方 TXT 导入 `generated/v1/le2i_official/event_labels.jsonl`，并保留 `label_source=le2i_txt`。
+4. 官方窗口与人工边界独立复核，不能互相覆盖或自动提升。
 
 ## 14. 每日交付物
 
@@ -662,10 +700,10 @@ annotation_review_log.jsonl 新增记录
 工程人员提交：
 
 ```text
-更新后的 action_labels.jsonl
-更新后的 event_labels.jsonl
-格式检查结果
-标签分布统计
+来源专属 generated/v1 候选路径
+manifest 与源导出 SHA-256
+audit 报告路径和 blocker 摘要
+标签分布与质量统计
 ```
 
 ## 15. 完成标准
@@ -673,12 +711,13 @@ annotation_review_log.jsonl 新增记录
 一批标注数据只有同时满足以下条件，才算完成：
 
 - CVAT 原始导出已归档。
-- 动作级 JSONL 已生成。
-- 高风险动作和跌倒事件已复核。
-- 冲突样本已仲裁并写入 review log。
-- JSONL 格式检查通过。
+- 来源专属动作/事件候选已生成且没有覆盖根目录文件。
+- 高风险动作和跌倒事件已由不同人员双人复核，结果哈希绑定最终记录。
+- 冲突样本已由独立仲裁人解决并形成完整 review 链。
+- 严格 schema、来源、manifest 和边界审计通过。
 - 标签分布和 `U01` 比例已统计。
 - 数据划分不泄漏同一人员或同一样本组。
+- 只有受控发布且 `formal` 报告 `valid=true` 时，才可声明具备正式评估资格。
 
 ## 16. 外部工具参考
 

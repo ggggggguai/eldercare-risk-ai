@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from typing import Any, Literal
 
-ModuleName = Literal["fall_risk", "mental_health", "fusion"]
+ModuleName = Literal["fall_risk", "mental_health"]
 RecommendedAction = Literal[
     "record_only",
     "observe",

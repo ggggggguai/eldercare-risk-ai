@@ -18,11 +18,68 @@ inputs:
     - self_report_optional
     - voice_text_optional
 
-thresholds:
-  medium_score: 0.45
-  high_score: 0.65
-  emergency_score: 0.90
-
 runtime:
   update_frequency: daily
   fallback_strategy: rule_scorecard
+
+aggregation:
+  timezone: Asia/Shanghai
+  max_gap_seconds: 5.0
+  timestamp_conflict_tolerance_seconds: 1.0
+  min_keypoint_quality: 0.45
+  min_common_core_keypoints: 4
+  active_motion_threshold: 0.02
+  night_start: "22:00"
+  night_end: "06:00"
+  core_keypoints:
+    - left_shoulder
+    - right_shoulder
+    - left_hip
+    - right_hip
+    - left_knee
+    - right_knee
+    - left_ankle
+    - right_ankle
+
+baseline:
+  initial_days: 3
+  stable_days: 7
+  max_window_days: 14
+  abnormal_score_threshold: 0.6
+  zero_variance_relative_floor: 0.05
+  zero_variance_absolute_floor: 0.05
+  z_score_full_scale: 2.0
+  relative_change_full_scale: 0.50
+  lower_quantile: 0.10
+  upper_quantile: 0.90
+  missing_quality_default: 0.50
+
+scoring:
+  weights:
+    activity_drop_score: 0.24
+    sleep_disturbance_score: 0.22
+    social_withdrawal_score: 0.18
+    routine_irregularity_score: 0.16
+    negative_affect_score: 0.10
+    self_report_risk_score: 0.10
+  thresholds:
+    level_1: 0.25
+    level_2: 0.45
+    level_3: 0.65
+  min_persistent_days_for_level_3: 3
+  passive_max_level: 3
+  self_report_emergency_threshold: 0.90
+  confidence:
+    feature_coverage_weight: 0.45
+    baseline_quality_weight: 0.35
+    persistence_weight: 0.20
+  coverage_expected_features:
+    - activity_drop_score
+    - sleep_disturbance_score
+    - routine_irregularity_score
+  caps:
+    coverage_below_0_40: 1
+    coverage_below_0_60: 2
+    initial_baseline_not_ready: 1
+    stable_baseline_not_ready: 2
+    persistent_days_below_minimum: 2

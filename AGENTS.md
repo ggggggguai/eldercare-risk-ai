@@ -31,6 +31,18 @@ environment.yml
 environment-reference.txt
 ```
 
+项目使用 `src/` 布局。运行脚本前应确认 `elderly-monitoring-algorithms` 的 editable 安装指向当前仓库，而不是其他旧目录：
+
+```bash
+conda run -n eldercare-ai python -m pip show elderly-monitoring-algorithms
+```
+
+如果 editable 路径不是当前仓库，使用当前项目重新安装后再验证，不要长期用临时 `PYTHONPATH` 掩盖环境绑定问题：
+
+```bash
+conda run -n eldercare-ai python -m pip install -e ".[vision,service]"
+```
+
 ## 开发流程
 
 非平凡功能开发、缺陷修复、重构和发布准备需要遵循较完整的工程流程：
@@ -95,12 +107,45 @@ conda run -n eldercare-ai python scripts/collect/run_fall_pose.py \
 - 账号、权限、设备管理。
 - 消息推送、电话通知、工单流转和线下处置流程。
 
-跌倒风险相关工作需要对齐：
+两个算法模块共享 `AlgorithmEvent` 字段契约，但必须分别评分、分别验证、分别输出：
+
+- 跌倒风险只输出 `module=fall_risk` 事件。
+- 心理健康风险只输出 `module=mental_health` 事件。
+- 不增加综合模块、综合风险等级或跨模块动作协调逻辑。
+- 业务后端按 `module` 分别持久化和处置算法事件。
+
+项目工作首先需要对齐：
+
+```text
+docs/README.md
+docs/architecture/算法工程骨架.md
+docs/interfaces/算法事件输出接口.md
+docs/tasks/README.md
+```
+
+跌倒风险相关工作还需要对齐：
 
 ```text
 docs/modules/fall_risk/plans/跌倒风险算法研发计划.md
 docs/modules/fall_risk/README.md
 ```
+
+心理健康相关工作还需要对齐：
+
+```text
+docs/modules/mental_health/README.md
+configs/modules/mental_health.yaml
+```
+
+## 文档维护规则
+
+- `docs/README.md` 是文档唯一总入口；新增、移动或删除现行文档时必须同步更新。
+- 当前实现状态只写入工程架构、模块 README 和 `docs/tasks/README.md`，不要在多个计划或汇报中重复维护。
+- `plans/` 描述目标路线和实验设计，不能把计划内容当作已经实现的证据。
+- `docs/archive/` 只保存历史评审、阶段汇报、早期方案和已结束计划；归档内容不作为当前代码事实源。
+- 新实验指标、复现记录和失败案例写入 `reports/`，会议汇报和开发日志不要放入该目录。
+- 修改代码行为、字段、阈值、运行命令或已知限制时，同步更新对应模块 README、接口文档和任务状态。
+- 文档移动后必须检查 Markdown 链接和代码路径引用，不能留下指向不存在文件的入口。
 
 ## 跌倒风险固定算法路线
 
@@ -129,3 +174,5 @@ docs/modules/fall_risk/README.md
 ```
 
 实现时不要跳过中间层直接从视频给最终风险结论。若某一层暂时使用规则、轻量 baseline 或占位实现，必须在文档和结果说明中标明当前状态。
+
+这里的“风险融合”仅指跌倒模块内部对步态、坐站、近跌倒、个人基线、场景和活动节律特征的组合，不改变两个算法模块独立输出的边界。

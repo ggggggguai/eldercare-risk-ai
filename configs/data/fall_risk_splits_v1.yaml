@@ -1,0 +1,48 @@
+# Development-only protocol. Formal ratios, seed, strata and test governance
+# require human preregistration before any task is changed to frozen: true.
+schema_version: "1.0"
+protocol_status: provisional
+seed: fall-risk-data-v1-development-20260715
+
+partitions:
+  train: 0.70
+  validation: 0.15
+  test: 0.15
+
+tasks:
+  fall_event_v1:
+    task_type: fall_event
+    label_file: event_labels.jsonl
+    event_types:
+      - fall
+    label_task_types: []
+    stratify_by: []
+    frozen: false
+
+  near_fall_event_v1:
+    task_type: near_fall_event
+    label_file: event_labels.jsonl
+    event_types:
+      - near_fall
+      - recovery
+    label_task_types: []
+    stratify_by: []
+    frozen: false
+
+  functional_proxy_v1:
+    task_type: functional_proxy
+    label_file: risk_labels.jsonl
+    event_types: []
+    label_task_types:
+      - functional_proxy
+    stratify_by: []
+    frozen: false
+
+  longitudinal_baseline_v1:
+    task_type: longitudinal_baseline
+    label_file: risk_labels.jsonl
+    event_types: []
+    label_task_types:
+      - longitudinal_baseline
+    stratify_by: []
+    frozen: false

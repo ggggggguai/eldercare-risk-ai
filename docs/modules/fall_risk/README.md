@@ -1,6 +1,10 @@
 # 跌倒风险算法模块
 
+更新时间：2026-07-15
+
 本模块承接 `docs/modules/fall_risk/plans/跌倒风险算法研发计划.md`。
+
+面向 2026 年挑战杯揭榜挂帅赛题 `XH-202617` 的冲奖优先级、七周里程碑和验收门槛，见[挑战杯揭榜挂帅冲奖增强计划](plans/挑战杯揭榜挂帅冲奖增强计划.md)。该计划只描述未来工作，不能作为当前能力或实测指标的证据。
 
 各任务的检测、跟踪、姿态、平滑、步态、坐站、近跌倒、个体基线和风险融合模型候选，见 `docs/modules/fall_risk/plans/跌倒风险各任务模型调研与选型矩阵.md`。该文档区分当前主线、短期对照和数据充足后的增强实验，不能把候选清单理解为已实现能力。
 
@@ -19,12 +23,84 @@
   -> 风险事件 JSON
 ```
 
-## 第一版代码目标
+## 当前实现原则
 
-- 先跑通从结构化特征到风险 JSON 的闭环。
-- 姿态模型、检测模型、跟踪模型后续逐步接入。
+- 已保留结构化特征单次推理，并跑通视频姿态、内存滑窗、风险事件和 HTTP 回调原型。
+- 实时主线使用 YOLOv8-Pose + ByteTrack；RTMPose 作为可选离线后端。
 - 实时演示路径优先稳定，复杂模型只做增强实验。
 - 输出是风险提示/预警事件，不是医疗诊断结果。
+
+## 工作流 A：数据、标注与评估底座
+
+截至 2026-07-15，工作流 A 的自动化底座已经实现，但真实数据尚未通过正式评估门禁，`fall-risk-data-v1` 不能标记为冻结版本或工作流整体完成。当前事实以实际产物和审计结果为准，不以[工作流 A 执行任务书](plans/工作流A-Codex执行任务书.md)中的计划项作为完成证据。
+
+| 能力 | 当前状态 | 证据与限制 |
+|---|---|---|
+| 统一数据 manifest | 已实现并对本地数据运行 | `data/manifests/fall_risk_video_manifest.jsonl` 当前有 3,454 条资产，其中 2,440 条是视频；构建器为 `scripts/annotation/build_fall_risk_manifest.py`，逐视频保存有理数 FPS、媒体元数据、内容 hash、来源组和保守资格状态 |
+| 标注导入与严格校验 | 工具已实现；真实根标签未通过 | CVAT 候选转换和 LE2I 官方 TXT 独立导入结果位于 `data/annotations/fall_risk/generated/v1/`，未覆盖根标签；严格校验器为 `scripts/annotation/validate_fall_risk_labels.py`。`reports/fall_risk/label_validation_audit.json` 显示根目录动作/事件标签各 922 条、全部为 `pending`，共有 2,766 个 schema error，`schema_valid=false`、`formal_ready=false` |
+| 四任务独立 split | 构建器和 blocked 产物已实现 | `fall_event_v1`、`near_fall_event_v1`、`functional_proxy_v1`、`longitudinal_baseline_v1` 分别位于 `data/splits/fall_risk/`；当前均为 `status=blocked`、合格样本数为 0、`split_id=null`，不能当作正式或冻结 split |
+| 跌倒/近跌倒事件评估器 | 已实现；仅完成合成烟测 | 入口为 `scripts/evaluate/evaluate_fall_events.py`，开发协议位于 `configs/evaluation/`；`reports/fall_risk/workflow_a_synthetic_evaluation/bundle/` 证明 bundle 生成链路可运行，但协议是 `development_provisional`、输入是合成数据，任何数值都不是比赛指标或真实模型效果 |
+| 正式数据版本与指标 | 未就绪 | 需要先取得合格标签、正式校验报告、非空冻结 split、冻结评估协议和盲测治理证据，才能生成正式指标 |
+
+当前人工、法律和数据阻断包括：双人复核与仲裁证据、可靠来源链和人员/源组治理、公开数据许可证确认、CVAT 身份元数据处置、功能与纵向参考终点、测试集保管职责隔离，以及评估协议预注册。责任角色、解除条件和证据要求见[工作流 A 阻塞清单](../../../reports/fall_risk/workflow_a_blockers.md)。这些事项不能由脚本自动签字、自动补真值或把 `pending` 提升为 `reviewed/final`。
+
+自动化入口统一通过项目 conda 环境运行。先确认 editable 安装指向当前仓库：
+
+```bash
+conda run -n eldercare-ai python -m pip show elderly-monitoring-algorithms
+```
+
+使用非现行输出路径复跑 manifest，避免覆盖当前审计输入：
+
+```bash
+conda run -n eldercare-ai python scripts/annotation/build_fall_risk_manifest.py \
+  --repo-root . \
+  --output /tmp/fall_risk_video_manifest.jsonl
+```
+
+审计当前根标签；在上述 2,766 个错误和 `pending` 状态解除前，该命令预期以非零状态退出并留下审计报告：
+
+```bash
+conda run -n eldercare-ai python scripts/annotation/validate_fall_risk_labels.py \
+  --manifest data/manifests/fall_risk_video_manifest.jsonl \
+  --action-labels data/annotations/fall_risk/action_labels.jsonl \
+  --event-labels data/annotations/fall_risk/event_labels.jsonl \
+  --risk-labels data/annotations/fall_risk/risk_labels.jsonl \
+  --subject-profiles data/annotations/fall_risk/subject_profiles.json \
+  --review-log data/annotations/fall_risk/annotation_review_log.jsonl \
+  --config configs/data/fall_risk_label_validation_v1.yaml \
+  --mode audit \
+  --report-output /tmp/fall_risk_label_validation_audit.json
+```
+
+当前配置可复现四个 blocked split；这只验证门禁行为，不会产生虚假的 `split_id`：
+
+```bash
+conda run -n eldercare-ai python scripts/split/build_fall_risk_splits.py \
+  --manifest data/manifests/fall_risk_video_manifest.jsonl \
+  --annotations-dir data/annotations/fall_risk \
+  --config configs/data/fall_risk_splits_v1.yaml \
+  --output-dir /tmp/fall_risk_splits
+```
+
+事件评估器的完整 bundle 只能先用合成 fixture 做开发烟测：
+
+```bash
+conda run -n eldercare-ai python scripts/evaluate/build_synthetic_fall_event_fixture.py \
+  --output-dir /tmp/workflow_a_synthetic/input
+
+conda run -n eldercare-ai python scripts/evaluate/evaluate_fall_events.py \
+  --ground-truth /tmp/workflow_a_synthetic/input/ground_truth.jsonl \
+  --predictions /tmp/workflow_a_synthetic/input/predictions.jsonl \
+  --manifest /tmp/workflow_a_synthetic/input/manifest.jsonl \
+  --split /tmp/workflow_a_synthetic/input/split.json \
+  --assignments /tmp/workflow_a_synthetic/input/assignments.jsonl \
+  --partition validation \
+  --config configs/evaluation/fall_event_v1.provisional.yaml \
+  --output-dir /tmp/workflow_a_synthetic/bundle \
+  --label-version synthetic-labels-v1 \
+  --allow-provisional
+```
 
 ## 目录对应
 
@@ -55,6 +131,12 @@ src/elderly_monitoring/modules/fall_risk/near_fall.py
 
 src/elderly_monitoring/modules/fall_risk/baseline.py
   个体化行为基线建模，输出 baseline_deviation_score
+
+src/elderly_monitoring/runtime/
+  实时姿态跟踪、特征窗口、跌倒状态和事件节流
+
+src/elderly_monitoring/service/
+  直播流读取、单会话 HTTP 服务和风险回调
 
 data/annotations/fall_risk/
   动作级、事件级、风险级标注
@@ -479,8 +561,8 @@ conda run -n eldercare-ai python -m pytest \
 
 后续接入真实数据时，建议固定 `predict_from_features()` 的输入输出契约：
 
-1. 从 `data/annotations/fall_risk/risk_labels.jsonl` 和 `event_labels.jsonl` 建立训练、验证、测试划分。
-2. 用当前规则评分卡作为可复现 baseline，报告召回率、误报率、F1、AUC、提前预警时间和分级一致性。
+1. 先完成 `data/annotations/fall_risk/` 根标签的人工复核、来源与许可确认，使 formal 校验通过；再用现有 split builder 生成带稳定 `split_id` 的非空冻结划分。
+2. 在冻结协议和盲测治理下，用当前规则评分卡作为可复现 baseline，报告事件级 Precision、Recall、F1、PR-AUC、合法分母下的误报指标和提前预警时间；合成 bundle 不得进入结果表。
 3. 在不改变 `AlgorithmEvent` schema 的前提下，将内部 scorer 替换为 Logistic Regression、LightGBM 或姿态时序模型。
 4. 保留 `risk_factors`，通过规则命中、特征贡献或 SHAP/重要性分数提供解释。
 5. 对真实个人健康数据只保存脱敏 ID、聚合特征和授权记录，避免在样例文件和日志中写入个人身份信息。

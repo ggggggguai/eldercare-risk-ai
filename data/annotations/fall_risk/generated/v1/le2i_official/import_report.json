@@ -1,0 +1,8 @@
+{
+  "bbox_only_without_window": 0,
+  "excluded_unsupervised_subset": 60,
+  "explicit_no_fall_window": 31,
+  "imported_fall_windows": 99,
+  "manifest_le2i_videos": 190,
+  "missing_annotation_path": 0
+}

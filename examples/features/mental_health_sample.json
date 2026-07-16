@@ -1,13 +1,22 @@
 {
   "person_id": "p01",
-  "timestamp": "2026-06-26",
+  "timestamp": "2026-06-26T20:00:00+08:00",
+  "start_time": "2026-06-26T08:00:00+08:00",
+  "end_time": "2026-06-26T20:00:00+08:00",
   "activity_drop_score": 0.72,
   "sleep_disturbance_score": 0.76,
   "social_withdrawal_score": 0.66,
   "routine_irregularity_score": 0.62,
   "negative_affect_score": 0.2,
-  "self_report_risk_score": 0.0,
-  "feature_coverage": 0.78,
+  "self_report_risk_score": null,
+  "persistent_abnormal_days": 3,
   "baseline_quality": 0.74,
-  "review_support": 0.0
+  "initial_baseline_ready": true,
+  "stable_baseline_ready": true,
+  "baseline_window": {
+    "start_date": "2026-06-19",
+    "end_date": "2026-06-25",
+    "eligible_history_days": 7
+  },
+  "risk_factor_details": {}
 }

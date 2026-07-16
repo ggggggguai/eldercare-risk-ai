@@ -1,0 +1,38 @@
+[
+  {
+    "person_id": "p01",
+    "date": "2026-07-01",
+    "sleep_onset_latency": 20.0,
+    "night_awakenings": 2,
+    "sleep_efficiency": 0.85,
+    "device_source": "standardized_sleep_source",
+    "quality_score": 0.9
+  },
+  {
+    "person_id": "p01",
+    "date": "2026-07-02",
+    "sleep_onset_latency": 20.0,
+    "night_awakenings": 2,
+    "sleep_efficiency": 0.85,
+    "device_source": "standardized_sleep_source",
+    "quality_score": 0.9
+  },
+  {
+    "person_id": "p01",
+    "date": "2026-07-03",
+    "sleep_onset_latency": 20.0,
+    "night_awakenings": 2,
+    "sleep_efficiency": 0.85,
+    "device_source": "standardized_sleep_source",
+    "quality_score": 0.9
+  },
+  {
+    "person_id": "p01",
+    "date": "2026-07-04",
+    "sleep_onset_latency": 60.0,
+    "night_awakenings": 6,
+    "sleep_efficiency": 0.55,
+    "device_source": "standardized_sleep_source",
+    "quality_score": 0.9
+  }
+]
