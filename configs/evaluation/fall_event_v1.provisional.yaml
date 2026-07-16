@@ -6,18 +6,20 @@ task_type: fall_event
 # and freeze them before any formal test-set evaluation.
 score_threshold: 0.5
 iou_threshold: 0.5
-onset_tolerance_sec: 0.5
-search_window_before_sec: 2.0
-search_window_after_sec: 2.0
+onset_tolerance_sec: 0.25
+search_window_before_sec: 1.0
+search_window_after_sec: 1.0
 matching_operator: iou_or_onset
 one_to_one_assignment: maximum_cardinality_deterministic
 ground_truth_event_types:
   - fall
+  - near_fall
+  - recovery
 pr_auc_method: average_precision_step
 reset_rule_application: audit_only_postprocessed_predictions
 
 event_merge_enabled: false
-event_merge_gap_sec: 1.0
+event_merge_gap_sec: 0.5
 event_reset_gap_sec: 2.0
 duplicate_alert_policy: unmatched_is_false_positive
 
@@ -29,6 +31,6 @@ event_type_compatibility:
   recovery:
     - recovery
 
-bootstrap_iterations: 1000
-bootstrap_seed: 20260715
-minimum_clusters_for_inference: 20
+bootstrap_iterations: 50
+bootstrap_seed: 17
+minimum_clusters_for_inference: 5

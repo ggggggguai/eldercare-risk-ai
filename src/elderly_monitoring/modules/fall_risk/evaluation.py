@@ -257,6 +257,8 @@ def _remove_path(path: Path) -> None:
 
 
 def _fsync_directory(directory: Path) -> None:
+    if os.name == "nt":
+        return
     descriptor = os.open(directory, os.O_RDONLY)
     try:
         os.fsync(descriptor)
