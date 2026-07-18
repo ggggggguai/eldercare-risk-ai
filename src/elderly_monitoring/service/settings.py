@@ -28,6 +28,10 @@ class ServiceSettings:
     reconnect_delay_sec: float = 1.0
     scene_risk_scores: Mapping[str, float] = field(default_factory=dict)
     fall_state: Mapping[str, Any] = field(default_factory=dict)
+    ezviz_llm_api_key: str = ""
+    ezviz_llm_base_url: str = "https://openai.ezviz.com/v1"
+    ezviz_llm_model: str = "qwen3.6-plus"
+    ezviz_llm_timeout_sec: float = 30.0
 
     def __post_init__(self) -> None:
         if not isinstance(self.model_path, Path):
@@ -59,6 +63,10 @@ class ServiceSettings:
             "EVENT_COOLDOWN_SEC": ("event_cooldown_sec", float),
             "RECONNECT_ATTEMPTS": ("reconnect_attempts", int),
             "RECONNECT_DELAY_SEC": ("reconnect_delay_sec", float),
+            "EZVIZ_LLM_API_KEY": ("ezviz_llm_api_key", str),
+            "EZVIZ_LLM_BASE_URL": ("ezviz_llm_base_url", str),
+            "EZVIZ_LLM_MODEL": ("ezviz_llm_model", str),
+            "EZVIZ_LLM_TIMEOUT_SECONDS": ("ezviz_llm_timeout_sec", float),
         }
         for env_name, (field_name, converter) in overrides.items():
             if env_name in env:

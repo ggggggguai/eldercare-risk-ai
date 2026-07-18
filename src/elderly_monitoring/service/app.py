@@ -6,9 +6,33 @@ from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from elderly_monitoring.service.schemas import SessionAccepted, SessionStatusResponse, StartSessionRequest, StreamUrlUpdate
+from elderly_monitoring.modules.roi_annotation.ezviz_client import EzvizVisionModelClient
+from elderly_monitoring.modules.roi_annotation.service import RoiAnnotationError, annotate_roi_image
+from elderly_monitoring.service.daytime_activity import build_daytime_activity_result
+from elderly_monitoring.service.schemas import (
+    DaytimeActivityRequest,
+    DaytimeActivityResponse,
+    NightPhysiologyRequest,
+    NightPhysiologyResponse,
+    MentalHealthDailyRiskRequest,
+    MentalHealthDailyRiskResponse,
+    RoiAnnotateRequest,
+    RoiAnnotateResponse,
+    SessionAccepted,
+    SessionStatusResponse,
+    SleepRhythmRequest,
+    SleepRhythmResponse,
+    SocialConnectionRequest,
+    SocialConnectionResponse,
+    StartSessionRequest,
+    StreamUrlUpdate,
+)
 from elderly_monitoring.service.session import SessionManager, SessionStatus
 from elderly_monitoring.service.settings import ServiceSettings
+from elderly_monitoring.service.mental_health_daily import build_mental_health_daily_risk_result
+from elderly_monitoring.service.night_physiology import build_night_physiology_service_result
+from elderly_monitoring.service.sleep_rhythm import build_sleep_rhythm_service_result
+from elderly_monitoring.service.social_connection import build_social_connection_service_result
 
 
 def create_app(*, settings: ServiceSettings | None = None, session_manager: SessionManager | None = None) -> FastAPI:
@@ -83,6 +107,88 @@ def create_app(*, settings: ServiceSettings | None = None, session_manager: Sess
         if session is None:
             raise HTTPException(status_code=404, detail="session not found")
         return SessionAccepted(session_id=session.session_id, status=session.status.value)
+
+    @app.post("/v1/roi/annotate", response_model=RoiAnnotateResponse, dependencies=[Depends(require_token)])
+    def annotate_roi(request: RoiAnnotateRequest) -> RoiAnnotateResponse:
+        client = EzvizVisionModelClient(
+            api_key=service_settings.ezviz_llm_api_key,
+            base_url=service_settings.ezviz_llm_base_url,
+            model=service_settings.ezviz_llm_model,
+            timeout_seconds=service_settings.ezviz_llm_timeout_sec,
+        )
+        try:
+            result = annotate_roi_image(
+                image_base64=request.image_base64,
+                mime_type=request.mime_type,
+                image_width=request.image_width,
+                image_height=request.image_height,
+                scene_hint=request.scene_hint,
+                expected_types=list(request.expected_types),
+                client=client,
+            )
+        except RoiAnnotationError as exc:
+            raise HTTPException(status_code=exc.status_code, detail={"category": exc.category, "message": str(exc)}) from exc
+        return RoiAnnotateResponse(**result)
+
+    @app.post(
+        "/v1/mental-health/daytime-activity",
+        response_model=DaytimeActivityResponse,
+        dependencies=[Depends(require_token)],
+    )
+    def extract_daytime_activity(request: DaytimeActivityRequest) -> DaytimeActivityResponse:
+        try:
+            result = build_daytime_activity_result(request)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return DaytimeActivityResponse(**result)
+
+    @app.post(
+        "/v1/mental-health/sleep-rhythm",
+        response_model=SleepRhythmResponse,
+        dependencies=[Depends(require_token)],
+    )
+    def extract_sleep_rhythm(request: SleepRhythmRequest) -> SleepRhythmResponse:
+        try:
+            result = build_sleep_rhythm_service_result(request)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return SleepRhythmResponse(**result)
+
+    @app.post(
+        "/v1/mental-health/night-physiology",
+        response_model=NightPhysiologyResponse,
+        dependencies=[Depends(require_token)],
+    )
+    def extract_night_physiology(request: NightPhysiologyRequest) -> NightPhysiologyResponse:
+        try:
+            result = build_night_physiology_service_result(request)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return NightPhysiologyResponse(**result)
+
+    @app.post(
+        "/v1/mental-health/social-connection",
+        response_model=SocialConnectionResponse,
+        dependencies=[Depends(require_token)],
+    )
+    def extract_social_connection(request: SocialConnectionRequest) -> SocialConnectionResponse:
+        try:
+            result = build_social_connection_service_result(request)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return SocialConnectionResponse(**result)
+
+    @app.post(
+        "/v1/mental-health/daily-risk",
+        response_model=MentalHealthDailyRiskResponse,
+        dependencies=[Depends(require_token)],
+    )
+    def score_mental_health_daily(request: MentalHealthDailyRiskRequest) -> MentalHealthDailyRiskResponse:
+        try:
+            result = build_mental_health_daily_risk_result(request)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return MentalHealthDailyRiskResponse(**result)
 
     app.state.settings = service_settings
     app.state.session_manager = manager

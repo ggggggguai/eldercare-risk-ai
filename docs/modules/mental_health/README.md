@@ -39,6 +39,37 @@
 
 当分母为零时，相应比例返回 `None` 并添加机器可读质量标记；缺失数据不填成正常值 `0`。
 
+## 日间活动特征工程
+
+`feature_extraction.activity` 已提供 V1 日间活动工程入口，面向“情绪低落/社交退缩关注”模块使用。它不训练新的心理模型，而是把摄像头结构化结果先聚合为 10 秒活动窗口，再聚合为日间行为特征。
+
+Python 调用入口：
+
+```python
+from elderly_monitoring.modules.mental_health.feature_extraction.activity import (
+    aggregate_activity_windows,
+    aggregate_daytime_activity_from_windows,
+    extract_daytime_activity_features,
+)
+
+windows = aggregate_activity_windows(frame_or_second_records)
+daily_activity = aggregate_daytime_activity_from_windows(windows, sleep_records=sleep_records)
+```
+
+帧/秒级输入可包含 `person_id`、带时区 `timestamp` 或 `observed_at`、`camera_id`、`bbox`、`bbox_confidence`、`keypoints`、`keypoint_confidence`、`zone`、`room`、`posture` 和 `tracking_confidence`。`bbox` 默认按 `[x, y, width, height]` 解释；如输入为 `[x1, y1, x2, y2]`，需显式传入 `bbox_format: "xyxy"`。
+
+10 秒窗口输出 `active_score`、`motion_state`、`room`、`zone`、`posture`、`valid_detection_ratio` 和 `data_quality`。默认活动分公式为：
+
+```text
+active_score =
+  0.55 * center_motion_score
++ 0.30 * pose_motion_score
++ 0.10 * zone_transition_score
++ 0.05 * posture_change_score
+```
+
+日级输出包括 `daytime_active_minutes`、`weighted_daytime_activity`、`sedentary_*`、`daytime_bed_*`、`room_transition_count`、`bedroom_stay_ratio`、`outdoor_*`、`wake_activation_delay_minutes`、`routine_stability_score` 和进餐时段相关活动字段。低质量、离线、遮挡和身份不确定窗口只进入质量标记，不会被当作低运动。
+
 ## 睡眠适配
 
 睡眠适配只是标准字段校验，不代表已经接入萤石或其他真实设备协议。
@@ -59,6 +90,22 @@
 ## 可选自评输入
 
 自评记录使用 JSON 或 JSONL，每条记录包含稳定 `person_id`、严格 `YYYY-MM-DD` 日期，或带时区的 `observed_at` / `timestamp`。可选分数字段为 `social_withdrawal_score`、`negative_affect_score` 和 `self_report_risk_score`，均必须是 `0.0-1.0` 的有限数值；`manual_emergency_flag` 必须是显式布尔值。缺失字段保持不可用，不默认成 0。
+
+## 徘徊行为线索
+
+认知功能变化线索模块已提供 MVP 徘徊检测规则。输入是上游跟踪输出的中心点轨迹，输出是可解释的行为线索，不包含医学诊断：
+
+```python
+from elderly_monitoring.modules.mental_health import (
+    aggregate_daily_wandering,
+    detect_wandering_events,
+)
+
+events = detect_wandering_events(track_points)
+daily = aggregate_daily_wandering(events, history_daily_features=history_days)
+```
+
+默认规则按 120 秒窗口和 30 秒步长计算路径效率、转向次数、重复网格比例、闭环得分、长条往返比例和跟踪质量。事件分为 `wandering_candidate` 与 `wandering_event`，形态分为 `pacing`、`lapping`、`random` 和 `mixed`。低质量轨迹只记录低置信度候选，不进入确认事件。日级输出包含夜间徘徊次数、总分钟数、形态计数、连续夜间次数和个人历史基线偏离量，可作为评分卡中的安全行为线索之一。
 
 ## 配置与调用
 
@@ -160,3 +207,23 @@ PYTHONPATH=src conda run -n eldercare-ai python -m elderly_monitoring.inference.
 - 不实现跨镜 ReID、人脸识别或身份数据库。
 - 不实现真实睡眠设备协议、外部 API、数据库、推送或处置系统。
 - 尚未经过真实设备数据、临床标签或临床有效性验证。
+
+## Motor-Cognitive Gait Clues
+
+`feature_extraction.gait_transfer` provides the cognitive-change clue module's gait feature entry points. It reuses upstream pose records and the fall-risk gait/sit-stand feature extractors, but produces independent `mental_health`-side daily features rather than fall-risk events or diagnosis labels.
+
+Python entry points:
+
+```python
+from elderly_monitoring.modules.mental_health import (
+    CognitiveGaitConfig,
+    detect_turn_events,
+    extract_cognitive_gait_features,
+)
+
+daily_features = extract_cognitive_gait_features(pose_records)
+```
+
+Daily output fields include `gait_speed_norm_per_sec`, optional `gait_speed_mps` when a per-scene meter scale is provided, `sit_stand_duration_seconds`, `turn_duration_seconds`, `turn_stability_score`, `gait_cycle_stability_score`, `motor_cognitive_clue_score`, event/window counts, quality flags, `diagnosis: false`, and `model_version`.
+
+The current implementation is an engineering baseline for behavioral trend clues. It does not infer dementia, cognitive impairment, depression, or any medical diagnosis.

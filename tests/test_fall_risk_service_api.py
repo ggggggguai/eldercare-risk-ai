@@ -120,6 +120,55 @@ class ServiceApiTest(unittest.TestCase):
     def test_ready_requires_model(self):
         self.assertEqual(self.client.get("/health/ready").status_code, 503)
 
+    def test_mental_health_daily_risk_endpoint_scores_current_day(self):
+        history = [
+            {
+                "person_id": "elder-1",
+                "date": f"2026-07-{day:02d}",
+                "start_time": f"2026-07-{day:02d}T08:00:00+08:00",
+                "end_time": f"2026-07-{day:02d}T20:00:00+08:00",
+                "valid_observation_seconds": 3600.0,
+                "activity_volume": 100.0,
+                "active_ratio": 0.5,
+                "nighttime_activity_ratio": 0.2,
+                "scene_transition_count": 4,
+                "observation_coverage": 1.0,
+                "sleep_onset_latency": 20.0,
+                "night_awakenings": 2,
+                "sleep_efficiency": 0.85,
+                "quality_score": 1.0,
+            }
+            for day in range(1, 8)
+        ]
+        current = {
+            **history[-1],
+            "date": "2026-07-08",
+            "start_time": "2026-07-08T08:00:00+08:00",
+            "end_time": "2026-07-08T20:00:00+08:00",
+            "activity_volume": 35.0,
+            "active_ratio": 0.2,
+            "sleep_onset_latency": 75.0,
+            "night_awakenings": 7,
+            "sleep_efficiency": 0.45,
+        }
+
+        response = self.client.post(
+            "/v1/mental-health/daily-risk",
+            json={
+                "person_id": "elder-1",
+                "history_daily_features": history,
+                "current_daily_features": [current],
+            },
+            headers=self.headers(),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body["person_id"], "elder-1")
+        self.assertEqual(body["results"][0]["date"], "2026-07-08")
+        self.assertGreaterEqual(body["results"][0]["event"]["mental_safety_level"], 1)
+        self.assertFalse(body["results"][0]["event"]["diagnosis"])
+
 
 if __name__ == "__main__":
     unittest.main()

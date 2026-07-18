@@ -56,12 +56,14 @@ baseline:
 
 scoring:
   weights:
-    activity_drop_score: 0.24
+    activity_drop_score: 0.22
     sleep_disturbance_score: 0.22
     social_withdrawal_score: 0.18
-    routine_irregularity_score: 0.16
-    negative_affect_score: 0.10
-    self_report_risk_score: 0.10
+    routine_irregularity_score: 0.12
+    night_physiology_score: 0.10
+    movement_vitality_score: 0.20
+    negative_affect_score: 0.08
+    self_report_risk_score: 0.08
   thresholds:
     level_1: 0.25
     level_2: 0.45

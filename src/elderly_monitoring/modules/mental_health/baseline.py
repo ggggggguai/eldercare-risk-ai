@@ -18,22 +18,91 @@ from elderly_monitoring.modules.mental_health.config import (
 _METRIC_SPECS = {
     "activity_volume": ("decrease", "behavior"),
     "active_ratio": ("decrease", "behavior"),
+    "daytime_active_minutes": ("decrease", "behavior"),
+    "weighted_daytime_activity": ("decrease", "behavior"),
+    "bedroom_stay_ratio": ("increase", "behavior"),
+    "outdoor_event_count": ("decrease", "behavior"),
+    "outdoor_total_duration_minutes": ("decrease", "behavior"),
     "sleep_onset_latency": ("increase", "sleep"),
     "night_awakenings": ("increase", "sleep"),
     "sleep_efficiency": ("decrease", "sleep"),
+    "night_leave_bed_count": ("increase", "sleep"),
+    "night_leave_bed_minutes": ("increase", "sleep"),
+    "sleep_midpoint_minute_of_day": ("two_sided", "sleep"),
+    "sleep_midpoint_shift_minutes": ("increase", "sleep"),
     "nighttime_activity_ratio": ("two_sided", "behavior"),
     "scene_transition_count": ("two_sided", "behavior"),
+    "call_count_7d": ("decrease", "social"),
+    "answered_call_count_7d": ("decrease", "social"),
+    "call_answer_rate_7d": ("decrease", "social"),
+    "call_duration_minutes_7d": ("decrease", "social"),
+    "active_call_count_7d": ("decrease", "social"),
+    "missed_call_count_7d": ("increase", "social"),
+    "mean_heart_rate": ("two_sided", "physiology"),
+    "mean_breath_rate": ("two_sided", "physiology"),
+    "heart_rate_std": ("increase", "physiology"),
+    "breath_rate_std": ("increase", "physiology"),
+    "heart_rate_range": ("increase", "physiology"),
+    "breath_rate_range": ("increase", "physiology"),
+    "heart_rate_outlier_ratio": ("increase", "physiology"),
+    "breath_rate_outlier_ratio": ("increase", "physiology"),
+    "abnormal_heart_rate_count": ("increase", "physiology"),
+    "abnormal_breath_rate_count": ("increase", "physiology"),
+    "gait_speed_norm_per_sec": ("decrease", "movement"),
+    "sit_stand_duration_seconds": ("increase", "movement"),
+    "turn_duration_seconds": ("increase", "movement"),
+    "turn_stability_score": ("decrease", "movement"),
+    "gait_cycle_stability_score": ("decrease", "movement"),
 }
 _GROUP_METRICS = {
-    "activity_drop_score": ("activity_volume", "active_ratio"),
+    "activity_drop_score": (
+        "activity_volume",
+        "active_ratio",
+        "daytime_active_minutes",
+        "weighted_daytime_activity",
+        "outdoor_event_count",
+        "outdoor_total_duration_minutes",
+    ),
     "sleep_disturbance_score": (
         "sleep_onset_latency",
         "night_awakenings",
         "sleep_efficiency",
+        "night_leave_bed_count",
+        "night_leave_bed_minutes",
+        "sleep_midpoint_minute_of_day",
+        "sleep_midpoint_shift_minutes",
+    ),
+    "social_withdrawal_score": (
+        "call_count_7d",
+        "answered_call_count_7d",
+        "call_answer_rate_7d",
+        "call_duration_minutes_7d",
+        "active_call_count_7d",
+        "missed_call_count_7d",
     ),
     "routine_irregularity_score": (
         "nighttime_activity_ratio",
         "scene_transition_count",
+        "bedroom_stay_ratio",
+    ),
+    "night_physiology_score": (
+        "mean_heart_rate",
+        "mean_breath_rate",
+        "heart_rate_std",
+        "breath_rate_std",
+        "heart_rate_range",
+        "breath_rate_range",
+        "heart_rate_outlier_ratio",
+        "breath_rate_outlier_ratio",
+        "abnormal_heart_rate_count",
+        "abnormal_breath_rate_count",
+    ),
+    "movement_vitality_score": (
+        "gait_speed_norm_per_sec",
+        "sit_stand_duration_seconds",
+        "turn_duration_seconds",
+        "turn_stability_score",
+        "gait_cycle_stability_score",
     ),
 }
 _OPTIONAL_FEATURES = (
@@ -41,6 +110,12 @@ _OPTIONAL_FEATURES = (
     "negative_affect_score",
     "self_report_risk_score",
 )
+_REJECTING_SOCIAL_FLAGS = {
+    "invalid",
+    "low_quality",
+    "data_missing",
+    "social_connection_score_unavailable",
+}
 _REJECTING_DAY_FLAGS = {
     "daily_quality_rejected",
     "invalid_daily_observation",
@@ -164,7 +239,7 @@ def _score_day(
             score_details[group_name] = metric_details
 
     optional_values = {
-        name: _optional_score(current, name)
+        name: _optional_score(current, name) if _optional_score(current, name) is not None else group_scores.get(name)
         for name in _OPTIONAL_FEATURES
     }
     manual_emergency_flag = _optional_manual_flag(current)
@@ -264,9 +339,70 @@ def _eligible_window(
 ) -> list[tuple[date, Mapping[str, Any]]]:
     eligible: list[tuple[date, Mapping[str, Any]]] = []
     for day, record in sorted(dated_records, key=lambda item: item[0]):
-        if _source_state(record, config, set())["qualified"]:
-            eligible.append((day, record))
+        if not _source_state(record, config, set())["qualified"]:
+            continue
+        if _exclude_from_baseline(record, eligible, config):
+            continue
+        eligible.append((day, record))
     return eligible[-config.baseline.max_window_days :]
+
+
+def _exclude_from_baseline(
+    record: Mapping[str, Any],
+    accepted_history: list[tuple[date, Mapping[str, Any]]],
+    config: MentalHealthConfig,
+) -> bool:
+    flags = set(_record_flags(record))
+    if flags.intersection(
+        {
+            "baseline_excluded",
+            "baseline_excluded_abnormal",
+            "abnormal_day",
+            "manual_exclude_from_baseline",
+        }
+    ):
+        return True
+    if record.get("exclude_from_baseline") is True:
+        return True
+    if _optional_manual_flag(record) is True:
+        return True
+    for field in _OPTIONAL_FEATURES:
+        value = _optional_score(record, field)
+        if value is not None and value >= config.baseline.abnormal_score_threshold:
+            return True
+    if len(accepted_history) < config.baseline.initial_days:
+        return False
+
+    state = _source_state(record, config, set())
+    prior_records = [item[1] for item in accepted_history]
+    for group_name, metric_names in _GROUP_METRICS.items():
+        scores: list[float] = []
+        for metric_name in metric_names:
+            _, source = _METRIC_SPECS[metric_name]
+            if not state[f"{source}_qualified"]:
+                continue
+            current_value = _metric_number(record, metric_name)
+            if current_value is None:
+                continue
+            values = [
+                value
+                for prior in prior_records
+                if _source_state(prior, config, set())[f"{source}_qualified"]
+                for value in [_metric_number(prior, metric_name)]
+                if value is not None
+            ]
+            if len(values) < config.baseline.initial_days:
+                continue
+            detail = _scalar_deviation(
+                metric_name,
+                current_value,
+                _metric_stats(values, config.baseline),
+                config.baseline,
+            )
+            scores.append(float(detail["score"]))
+        if scores and max(scores) >= config.baseline.abnormal_score_threshold:
+            return True
+    return False
 
 
 def _source_state(
@@ -282,10 +418,13 @@ def _source_state(
     ]
     coverage = _bounded_number(record, "observation_coverage", 0.0, 1.0)
     valid_seconds = _nonnegative_number(record, "valid_observation_seconds")
+    valid_daytime_minutes = _nonnegative_number(record, "valid_daytime_detection_minutes")
     behavior_qualified = (
         any(value is not None for value in behavior_values)
-        and coverage is not None
-        and coverage > 0.0
+        and (
+            (coverage is not None and coverage > 0.0)
+            or (valid_daytime_minutes is not None and valid_daytime_minutes > 0.0)
+        )
         and (valid_seconds is None or valid_seconds > 0.0)
         and not flags.intersection(_REJECTING_DAY_FLAGS)
     )
@@ -300,9 +439,67 @@ def _source_state(
         and not flags.intersection(_REJECTING_SLEEP_FLAGS)
     )
 
+    physiology_values = [
+        _metric_number(record, name)
+        for name, (_, source) in _METRIC_SPECS.items()
+        if source == "physiology"
+    ]
+    physiology_qualified = (
+        any(value is not None for value in physiology_values)
+        and not flags.intersection(_REJECTING_SLEEP_FLAGS)
+    )
+
+    social_values = [
+        _metric_number(record, name)
+        for name, (_, source) in _METRIC_SPECS.items()
+        if source == "social"
+    ]
+    social_qualified = (
+        any(value is not None for value in social_values)
+        and not flags.intersection(_REJECTING_SOCIAL_FLAGS)
+    )
+
+    movement_values = [
+        _metric_number(record, name)
+        for name, (_, source) in _METRIC_SPECS.items()
+        if source == "movement"
+    ]
+    movement_quality = _bounded_number(record, "pose_quality_coverage", 0.0, 1.0)
+    if movement_quality is None:
+        movement_quality = _bounded_number(record, "pose_quality_score", 0.0, 1.0)
+    movement_qualified = (
+        any(value is not None for value in movement_values)
+        and not flags.intersection(_REJECTING_DAY_FLAGS)
+        and not flags.intersection({"movement_vitality_insufficient_data"})
+    )
+
     if behavior_qualified:
-        quality = coverage
+        if coverage is None:
+            quality = config.baseline.missing_quality_default
+            generated_flags.add("missing_source_quality")
+        else:
+            quality = coverage
+    elif movement_qualified:
+        if movement_quality is None:
+            quality = config.baseline.missing_quality_default
+            generated_flags.add("missing_movement_quality")
+        else:
+            quality = movement_quality
     elif sleep_qualified:
+        quality_score = _bounded_number(record, "quality_score", 0.0, 1.0)
+        if quality_score is None:
+            quality = config.baseline.missing_quality_default
+            generated_flags.add("missing_source_quality")
+        else:
+            quality = quality_score
+    elif physiology_qualified:
+        quality_score = _bounded_number(record, "quality_score", 0.0, 1.0)
+        if quality_score is None:
+            quality = config.baseline.missing_quality_default
+            generated_flags.add("missing_source_quality")
+        else:
+            quality = quality_score
+    elif social_qualified:
         quality_score = _bounded_number(record, "quality_score", 0.0, 1.0)
         if quality_score is None:
             quality = config.baseline.missing_quality_default
@@ -314,7 +511,16 @@ def _source_state(
     return {
         "behavior_qualified": behavior_qualified,
         "sleep_qualified": sleep_qualified,
-        "qualified": behavior_qualified or sleep_qualified,
+        "physiology_qualified": physiology_qualified,
+        "social_qualified": social_qualified,
+        "movement_qualified": movement_qualified,
+        "qualified": (
+            behavior_qualified
+            or sleep_qualified
+            or physiology_qualified
+            or social_qualified
+            or movement_qualified
+        ),
         "quality": float(quality),
     }
 
@@ -526,15 +732,56 @@ def _metric_number(record: Mapping[str, Any], field: str) -> float | None:
     ranges = {
         "activity_volume": (0.0, None),
         "active_ratio": (0.0, 1.0),
+        "daytime_active_minutes": (0.0, 1440.0),
+        "weighted_daytime_activity": (0.0, None),
+        "bedroom_stay_ratio": (0.0, 1.0),
+        "outdoor_event_count": (0.0, None),
+        "outdoor_total_duration_minutes": (0.0, 1440.0),
         "sleep_onset_latency": (0.0, 720.0),
         "night_awakenings": (0.0, 100.0),
         "sleep_efficiency": (0.0, 1.0),
+        "night_leave_bed_count": (0.0, 100.0),
+        "night_leave_bed_minutes": (0.0, 1440.0),
+        "sleep_midpoint_minute_of_day": (0.0, 1440.0),
+        "sleep_midpoint_shift_minutes": (0.0, 720.0),
         "nighttime_activity_ratio": (0.0, 1.0),
         "scene_transition_count": (0.0, None),
+        "call_count_7d": (0.0, None),
+        "answered_call_count_7d": (0.0, None),
+        "call_answer_rate_7d": (0.0, 1.0),
+        "call_duration_minutes_7d": (0.0, None),
+        "active_call_count_7d": (0.0, None),
+        "missed_call_count_7d": (0.0, None),
+        "mean_heart_rate": (20.0, 240.0),
+        "mean_breath_rate": (4.0, 60.0),
+        "heart_rate_std": (0.0, 120.0),
+        "breath_rate_std": (0.0, 40.0),
+        "heart_rate_range": (0.0, 220.0),
+        "breath_rate_range": (0.0, 56.0),
+        "heart_rate_outlier_ratio": (0.0, 1.0),
+        "breath_rate_outlier_ratio": (0.0, 1.0),
+        "abnormal_heart_rate_count": (0.0, None),
+        "abnormal_breath_rate_count": (0.0, None),
+        "gait_speed_norm_per_sec": (0.0, None),
+        "sit_stand_duration_seconds": (0.0, 120.0),
+        "turn_duration_seconds": (0.0, 120.0),
+        "turn_stability_score": (0.0, 1.0),
+        "gait_cycle_stability_score": (0.0, 1.0),
     }
     minimum, maximum = ranges[field]
     number = _bounded_number(record, field, minimum, maximum)
-    if number is not None and field in {"night_awakenings", "scene_transition_count"}:
+    if number is not None and field in {
+        "night_awakenings",
+        "night_leave_bed_count",
+        "scene_transition_count",
+        "outdoor_event_count",
+        "call_count_7d",
+        "answered_call_count_7d",
+        "active_call_count_7d",
+        "missed_call_count_7d",
+        "abnormal_heart_rate_count",
+        "abnormal_breath_rate_count",
+    }:
         raw = record.get(field)
         if isinstance(raw, bool) or not isinstance(raw, int):
             raise _record_field_error(record, field, "must be an integer")

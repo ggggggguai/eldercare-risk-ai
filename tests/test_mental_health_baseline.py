@@ -158,6 +158,27 @@ class MentalHealthBaselineTest(unittest.TestCase):
         self.assertEqual(result["evidence_window"]["start_date"], "2026-07-08")
         self.assertEqual(result["evidence_window"]["end_date"], "2026-07-10")
 
+    def test_abnormal_history_days_do_not_enter_rolling_baseline(self) -> None:
+        stable = day_range("2026-07-01", 7)
+        degraded = {
+            "activity_volume": 20.0,
+            "active_ratio": 0.1,
+            "sleep_onset_latency": 80.0,
+            "night_awakenings": 8,
+            "sleep_efficiency": 0.4,
+        }
+        history = stable + day_range("2026-07-08", 10, **degraded)
+
+        result = score_daily_mental_health(
+            history,
+            [daily_record("2026-07-18", **degraded)],
+        )[0]
+
+        self.assertEqual(result["activity_drop_score"], 1.0)
+        self.assertEqual(result["sleep_disturbance_score"], 1.0)
+        self.assertEqual(result["baseline_window"]["start_date"], "2026-07-01")
+        self.assertEqual(result["baseline_window"]["end_date"], "2026-07-07")
+
     def test_missing_or_low_quality_day_breaks_persistence(self) -> None:
         degraded = {
             "activity_volume": 20.0,
@@ -228,7 +249,7 @@ class MentalHealthBaselineTest(unittest.TestCase):
         self.assertEqual(result["activity_drop_score"], 0.0)
         self.assertIsNone(result["sleep_disturbance_score"])
         self.assertEqual(result["routine_irregularity_score"], 0.0)
-        self.assertAlmostEqual(result["feature_coverage"], 0.40 / 0.62, places=4)
+        self.assertAlmostEqual(result["feature_coverage"], 0.34 / 0.56, places=4)
 
     def test_sleep_only_history_uses_configured_missing_quality_default(self) -> None:
         history = day_range(
@@ -270,6 +291,115 @@ class MentalHealthBaselineTest(unittest.TestCase):
         self.assertEqual([item["person_id"] for item in results], ["p01", "p02"])
         self.assertEqual(results[0]["activity_drop_score"], 1.0)
         self.assertEqual(results[1]["activity_drop_score"], 0.0)
+
+    def test_a_grade_daytime_fields_enter_unified_activity_and_routine_scores(self) -> None:
+        history = [
+            {
+                "person_id": "p01",
+                "date": f"2026-07-{index:02d}",
+                "start_time": f"2026-07-{index:02d}T08:00:00+08:00",
+                "end_time": f"2026-07-{index:02d}T20:00:00+08:00",
+                "valid_daytime_detection_minutes": 600.0,
+                "daytime_active_minutes": 160.0,
+                "weighted_daytime_activity": 80.0,
+                "bedroom_stay_ratio": 0.18,
+                "outdoor_event_count": 2,
+                "outdoor_total_duration_minutes": 70.0,
+                "data_quality_flags": [],
+            }
+            for index in range(1, 8)
+        ]
+        current = {
+            **history[-1],
+            "date": "2026-07-08",
+            "start_time": "2026-07-08T08:00:00+08:00",
+            "end_time": "2026-07-08T20:00:00+08:00",
+            "daytime_active_minutes": 40.0,
+            "weighted_daytime_activity": 20.0,
+            "bedroom_stay_ratio": 0.78,
+            "outdoor_event_count": 0,
+            "outdoor_total_duration_minutes": 0.0,
+        }
+
+        result = score_daily_mental_health(history, [current])[0]
+
+        self.assertGreaterEqual(result["activity_drop_score"], 0.6)
+        self.assertGreaterEqual(result["routine_irregularity_score"], 0.6)
+        self.assertIn("daytime_active_minutes", result["risk_factor_details"]["activity_drop_score"])
+        self.assertIn("outdoor_event_count", result["risk_factor_details"]["activity_drop_score"])
+        self.assertIn("bedroom_stay_ratio", result["risk_factor_details"]["routine_irregularity_score"])
+
+    def test_a_grade_sleep_drift_and_leave_bed_enter_unified_sleep_score(self) -> None:
+        history = [
+            daily_record(
+                f"2026-07-{index:02d}",
+                sleep_efficiency=0.88,
+                sleep_onset_latency=18.0,
+                night_awakenings=1,
+            )
+            | {
+                "night_leave_bed_count": 1,
+                "night_leave_bed_minutes": 5.0,
+                "sleep_midpoint_minute_of_day": 210.0,
+            }
+            for index in range(1, 8)
+        ]
+        current = daily_record(
+            "2026-07-08",
+            sleep_efficiency=0.70,
+            sleep_onset_latency=55.0,
+            night_awakenings=4,
+        ) | {
+            "night_leave_bed_count": 5,
+            "night_leave_bed_minutes": 35.0,
+            "sleep_midpoint_minute_of_day": 330.0,
+        }
+
+        result = score_daily_mental_health(history, [current])[0]
+
+        self.assertGreaterEqual(result["sleep_disturbance_score"], 0.6)
+        sleep_details = result["risk_factor_details"]["sleep_disturbance_score"]
+        self.assertIn("night_leave_bed_count", sleep_details)
+        self.assertIn("night_leave_bed_minutes", sleep_details)
+        self.assertIn("sleep_midpoint_minute_of_day", sleep_details)
+
+    def test_a_grade_social_call_metrics_derive_social_score_for_pipeline(self) -> None:
+        history = [
+            {
+                "person_id": "p01",
+                "date": f"2026-07-{index:02d}",
+                "start_time": f"2026-07-{index:02d}T08:00:00+08:00",
+                "end_time": f"2026-07-{index:02d}T20:00:00+08:00",
+                "call_count_7d": 9,
+                "answered_call_count_7d": 8,
+                "call_answer_rate_7d": 0.9,
+                "call_duration_minutes_7d": 45.0,
+                "active_call_count_7d": 4,
+                "missed_call_count_7d": 1,
+                "quality_score": 1.0,
+            }
+            for index in range(1, 8)
+        ]
+        current = {
+            **history[-1],
+            "date": "2026-07-08",
+            "start_time": "2026-07-08T08:00:00+08:00",
+            "end_time": "2026-07-08T20:00:00+08:00",
+            "call_count_7d": 2,
+            "answered_call_count_7d": 1,
+            "call_answer_rate_7d": 0.5,
+            "call_duration_minutes_7d": 4.0,
+            "active_call_count_7d": 0,
+            "missed_call_count_7d": 4,
+        }
+
+        [features] = score_daily_mental_health(history, [current])
+        event = MentalHealthRiskPipeline().predict_from_features(features)
+
+        self.assertGreaterEqual(features["social_withdrawal_score"], 0.6)
+        self.assertIn("call_duration_minutes_7d", features["risk_factor_details"]["social_withdrawal_score"])
+        self.assertIn("call_answer_rate_7d", features["risk_factor_details"]["social_withdrawal_score"])
+        self.assertIn("social_interaction_decline", event.risk_factors)
 
     def test_end_to_end_degradation_reaches_level_three_after_three_days(self) -> None:
         degraded = {
