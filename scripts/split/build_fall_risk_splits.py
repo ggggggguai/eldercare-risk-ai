@@ -51,7 +51,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument(
         "--validation-config",
         type=Path,
-        default=Path("configs/data/fall_risk_label_validation_v1.yaml"),
+        default=Path("configs/data/fall_risk_label_validation_v2.yaml"),
         help="Validator config whose SHA-256 is bound by a frozen formal report.",
     )
     args = parser.parse_args(argv)

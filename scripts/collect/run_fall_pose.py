@@ -27,7 +27,7 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="RTMPose 预训练权重路径或 URL；仅 --backend rtmpose 时使用。",
     )
-    parser.add_argument("--device", default=None, help="RTMPose 推理设备，例如 cpu、cuda:0 或 mps。")
+    parser.add_argument("--device", default=None, help="推理设备，例如 cpu、cuda:0 或 mps。")
     parser.add_argument("--scene-region", default="unknown", help="写入每条姿态记录的场景区域标签。")
     parser.add_argument("--person-prefix", default="elder", help="生成 person_id 使用的前缀。")
     parser.add_argument("--confidence", type=float, default=0.25, help="姿态模型检测置信度阈值。")
@@ -72,6 +72,7 @@ def main() -> None:
                 tracker_config=args.tracker,
                 max_frames=args.max_frames,
                 normalize_coordinates=not args.absolute_coordinates,
+                device=args.device,
             )
     except RuntimeError as exc:
         parser.exit(1, f"错误：{exc}\n")

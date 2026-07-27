@@ -39,12 +39,10 @@ def build_fixture(output_dir: Path, evaluation_config: Path) -> dict[str, str]:
     )
     try:
         truth = {
-            "eligibility": True,
             "end_time": 12.0,
             "event_type": "fall",
             "label_id": "synthetic-ground-truth-1",
             "onset_time": 10.0,
-            "review_status": "final",
             "source_group_id": "synthetic-group-1",
             "start_time": 10.0,
             "subject_id": "synthetic-subject-1",

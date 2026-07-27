@@ -1,0 +1,87 @@
+schema_version: "1.0"
+acceptance_id: fall-risk-runtime-20260724
+status: development_candidate
+purpose: engineering_regression_only
+
+runtime:
+  conda_environment: eldercare-ai
+  service_config: configs/modules/fall_risk_service.yaml
+  pose_backend: yolov8_pose_bytetrack
+  pose_model: yolov8n-pose.pt
+  frame_queue_capacity: 2
+  max_inference_fps: 8.0
+
+clock_contract:
+  source_action_time: source_pts_sec
+  queue_and_processing_time: monotonic_clock
+  callback_confirmation_time: monotonic_clock
+  absolute_event_time: requires_source_capture_time_mapping
+  missing_source_pts_fallback: epoch_relative_monotonic_time
+  reject_cross_epoch_windows: true
+  reject_non_increasing_source_pts: true
+
+branch_quality_contract:
+  branch_states: [valid, unavailable, inference_error]
+  gait:
+    min_window_frames: 8
+    min_usable_frame_ratio: 0.6
+    min_keypoint_coverage: 0.7
+    min_window_coverage_sec: 1.0
+    min_effective_fps: 4.0
+    max_source_gap_sec: 1.0
+  sit_stand:
+    min_window_frames: 8
+    min_usable_frame_ratio: 0.6
+    min_keypoint_coverage: 0.7
+    min_window_coverage_sec: 1.0
+    min_effective_fps: 4.0
+    max_source_gap_sec: 1.0
+  near_fall:
+    min_window_frames: 5
+    min_usable_frame_ratio: 0.6
+    min_keypoint_coverage: 0.6
+    min_window_coverage_sec: 0.5
+    min_effective_fps: 6.0
+    max_source_gap_sec: 0.75
+  fall_state:
+    min_window_frames: 2
+    min_usable_frame_ratio: 0.6
+    min_keypoint_coverage: 0.6
+    min_window_coverage_sec: 0.1
+    min_effective_fps: 6.0
+    max_source_gap_sec: 0.75
+
+fixed_inputs:
+  - input_id: le2i_home_01_video_1
+    path: data/external/le2i_imvia/raw/FallDataset/Home_01/Videos/video (1).avi
+    input_type: offline_replay
+    scene_region: home
+    max_frames: 30
+    expected_invariants:
+      - session_reaches_running
+      - stream_epoch_isolated
+      - at_least_one_pose_processed
+      - bounded_frame_queue
+      - bounded_stop
+
+fault_injection:
+  required:
+    - duplicate_source_pts
+    - source_pts_regression
+    - slow_inference_queue_pressure
+    - reconnect_epoch_boundary
+
+budgets:
+  stop_timeout_sec: 5.0
+  frame_queue_max_depth: 2
+  continuous_run_sec: 3600
+
+external_acceptance:
+  status: blocked_external
+  required:
+    - fixed_hardware_profile_and_resource_sampler
+    - one_hour_continuous_run
+    - authorized_ezviz_live_url
+    - authorized_callback_endpoint
+    - live_stream_reconnect_and_url_refresh
+    - weak_network_run

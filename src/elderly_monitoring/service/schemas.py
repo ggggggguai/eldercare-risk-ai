@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, StringConstraints, field_validator
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator
 
 NonEmptyString = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 SessionStatus = Literal["starting", "running", "reconnecting", "stopping", "stopped", "failed"]
@@ -61,3 +61,6 @@ class SessionStatusResponse(BaseModel):
     started_at: datetime
     last_frame_at: datetime | None = None
     last_error: str | None = None
+    stream_epoch: int = 0
+    frame_diagnostics: dict[str, Any] = Field(default_factory=dict)
+    runtime_diagnostics: dict[str, Any] = Field(default_factory=dict)

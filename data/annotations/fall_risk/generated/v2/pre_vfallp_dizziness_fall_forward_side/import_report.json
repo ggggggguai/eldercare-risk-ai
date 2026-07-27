@@ -1,0 +1,291 @@
+{
+  "action_id_counts": {
+    "B01": 36,
+    "B04": 3,
+    "D01": 18,
+    "D02": 18
+  },
+  "authorization_id": "internal_pre_vfallp_dizziness_falls_20260722",
+  "event_type_counts": {
+    "fall": 36,
+    "gait_instability": 39
+  },
+  "identity_metadata_tags_removed": {
+    "assignee": 36,
+    "email": 36,
+    "owner": 36,
+    "username": 36
+  },
+  "ignored_tracks": [],
+  "imported_action_labels": 75,
+  "imported_event_labels": 75,
+  "outputs": {
+    "action_labels": "data/annotations/fall_risk/generated/v2/pre_vfallp_dizziness_fall_forward_side/action_labels.jsonl",
+    "event_labels": "data/annotations/fall_risk/generated/v2/pre_vfallp_dizziness_fall_forward_side/event_labels.jsonl",
+    "redacted_export_dir": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_dizziness_fall_forward_side"
+  },
+  "provenance_status": "internal_authorized_source_unverified",
+  "redacted_task_exports": [
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_dizziness_fall_forward_side/001__task_19__1__CVAT_for_video_1_1.zip",
+      "sha256": "af32087af48c9dd9c7639850bd27caf9a3c10fa3d50a999387bf5ca67f8146d0",
+      "source_name": "FDFFM1.mp4",
+      "task_id": "19",
+      "video_id": "pre_vfallp_video_dizziness_fall_forward_fdffm1_77ff8ba7"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_dizziness_fall_forward_side/002__task_20__2__CVAT_for_video_1_1.zip",
+      "sha256": "f374240c4e35f5f54243adb0901c49358996fa70e44e66745a2f36c3014a673a",
+      "source_name": "FDFFM2.mp4",
+      "task_id": "20",
+      "video_id": "pre_vfallp_video_dizziness_fall_forward_fdffm2_e747ec4c"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_dizziness_fall_forward_side/003__task_21__3__CVAT_for_video_1_1.zip",
+      "sha256": "4396e093970e38cf5dbb0fbd336043bfd1043ff1681045f8774c5da847c318e8",
+      "source_name": "FDFFM3.mp4",
+      "task_id": "21",
+      "video_id": "pre_vfallp_video_dizziness_fall_forward_fdffm3_be35bee0"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_dizziness_fall_forward_side/004__task_22__4__CVAT_for_video_1_1.zip",
+      "sha256": "b814257cc13579e438da923e251c77c3ef55e6b5e08024dcd64edaf570eb81df",
+      "source_name": "FDFFM4.mp4",
+      "task_id": "22",
+      "video_id": "pre_vfallp_video_dizziness_fall_forward_fdffm4_c369bde6"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_dizziness_fall_forward_side/005__task_23__5__CVAT_for_video_1_1.zip",
+      "sha256": "d3c40205483bd988fc85b511ebd4c2aa6458c8b7490bde8f6da9c31bb43d7667",
+      "source_name": "FDFFM5.mp4",
+      "task_id": "23",
+      "video_id": "pre_vfallp_video_dizziness_fall_forward_fdffm5_db04b4e6"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_dizziness_fall_forward_side/006__task_24__6__CVAT_for_video_1_1.zip",
+      "sha256": "47b85b2ee34798aa19d82fe060e19afafa72d401f4e9ad5049a156de1991ea41",
+      "source_name": "FDFFM6.mp4",
+      "task_id": "24",
+      "video_id": "pre_vfallp_video_dizziness_fall_forward_fdffm6_0f22b5e7"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_dizziness_fall_forward_side/007__task_25__7__CVAT_for_video_1_1.zip",
+      "sha256": "ce667b9cf576d46b25089a02275f15789bde1c343cf3f8a15d4a76360f6e440f",
+      "source_name": "FDFFM7.mp4",
+      "task_id": "25",
+      "video_id": "pre_vfallp_video_dizziness_fall_forward_fdffm7_294e167f"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_dizziness_fall_forward_side/008__task_26__8__CVAT_for_video_1_1.zip",
+      "sha256": "453cc12f5cacd0b67d9b3198904e81acdbdf649b9566b760715241065dea1daa",
+      "source_name": "FDFFM8.mp4",
+      "task_id": "26",
+      "video_id": "pre_vfallp_video_dizziness_fall_forward_fdffm8_d85f3827"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_dizziness_fall_forward_side/009__task_27__9__CVAT_for_video_1_1.zip",
+      "sha256": "b6d77ca41495772c13a85cab1c23a12274fb3fd12daa25666832ef48ef397325",
+      "source_name": "FDFFM9.mp4",
+      "task_id": "27",
+      "video_id": "pre_vfallp_video_dizziness_fall_forward_fdffm9_ccfa4aed"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_dizziness_fall_forward_side/010__task_28__11__CVAT_for_video_1_1.zip",
+      "sha256": "fdea3ce1e551062a5e3a432008c5f1c43c13ccd7a9948c06c165ff7ab042a056",
+      "source_name": "FDFSM1.mp4",
+      "task_id": "28",
+      "video_id": "pre_vfallp_video_dizziness_fall_forward_fdfsm1_b722bc88"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_dizziness_fall_forward_side/011__task_29__12__CVAT_for_video_1_1.zip",
+      "sha256": "5e8a1f260142b373163da77fac3d7bdc4401435012e9b8aae6bc188bc2aa99b1",
+      "source_name": "FDFSM2.mp4",
+      "task_id": "29",
+      "video_id": "pre_vfallp_video_dizziness_fall_forward_fdfsm2_468d03ef"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_dizziness_fall_forward_side/012__task_30__13__CVAT_for_video_1_1.zip",
+      "sha256": "92c8b2d43b06cbc117f8669625eb6ea557cfd076edbd2a0763d04a91203a1d6c",
+      "source_name": "FDFSM3.mp4",
+      "task_id": "30",
+      "video_id": "pre_vfallp_video_dizziness_fall_forward_fdfsm3_97fed07d"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_dizziness_fall_forward_side/013__task_31__14__CVAT_for_video_1_1.zip",
+      "sha256": "c03c987a2c2629fc324523e5e99fe8937994134487d295cef63fb2ad6b59dd6b",
+      "source_name": "FDFSM4.mp4",
+      "task_id": "31",
+      "video_id": "pre_vfallp_video_dizziness_fall_forward_fdfsm4_c2531120"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_dizziness_fall_forward_side/014__task_32__15__CVAT_for_video_1_1.zip",
+      "sha256": "d676281f3754cf35343ea1860d0e7b8767330b0cb225a1e8d283eb453acc6877",
+      "source_name": "FDFSM5.mp4",
+      "task_id": "32",
+      "video_id": "pre_vfallp_video_dizziness_fall_forward_fdfsm5_78a786e0"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_dizziness_fall_forward_side/015__task_33__16__CVAT_for_video_1_1.zip",
+      "sha256": "8e7a728901c1e3158b831885cfc0829a88a9cd406605f9dc964f9fb8acd9f91a",
+      "source_name": "FDFSM6.mp4",
+      "task_id": "33",
+      "video_id": "pre_vfallp_video_dizziness_fall_forward_fdfsm6_9ff1cf81"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_dizziness_fall_forward_side/016__task_34__17__CVAT_for_video_1_1.zip",
+      "sha256": "f365ce5fb059e8da3d7fac8c1a6f77a1203644ee6e50979236448480b5d20ac1",
+      "source_name": "FDFSM7.mp4",
+      "task_id": "34",
+      "video_id": "pre_vfallp_video_dizziness_fall_forward_fdfsm7_98bfff7e"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_dizziness_fall_forward_side/017__task_35__18__CVAT_for_video_1_1.zip",
+      "sha256": "affe3b4f0c26060be0d7f29b8954d34b65187bfd362ee501fa7113cb19efa2c6",
+      "source_name": "FDFSM8.mp4",
+      "task_id": "35",
+      "video_id": "pre_vfallp_video_dizziness_fall_forward_fdfsm8_ec37bab9"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_dizziness_fall_forward_side/018__task_36__19__CVAT_for_video_1_1.zip",
+      "sha256": "07c2afd5998bc916151ba9303bc646c03b10ea46c4fcf4b7a05b453c38dc73f3",
+      "source_name": "FDFSM9.mp4",
+      "task_id": "36",
+      "video_id": "pre_vfallp_video_dizziness_fall_forward_fdfsm9_d98ac364"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_dizziness_fall_forward_side/019__task_37__21__CVAT_for_video_1_1.zip",
+      "sha256": "7282dcb442a5117d6c79915c2a0ecf754989345152ba254ee031abe35c082a8a",
+      "source_name": "FDSFM1.mp4",
+      "task_id": "37",
+      "video_id": "pre_vfallp_video_dizziness_fall_side_fdsfm1_5f1f50be"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_dizziness_fall_forward_side/020__task_38__22__CVAT_for_video_1_1.zip",
+      "sha256": "bd36575d934034c474cfdc9658f02f1fc667d2bad2e0f2324756914f3e4376e1",
+      "source_name": "FDSFM2.mp4",
+      "task_id": "38",
+      "video_id": "pre_vfallp_video_dizziness_fall_side_fdsfm2_59937e53"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_dizziness_fall_forward_side/021__task_39__23__CVAT_for_video_1_1.zip",
+      "sha256": "1bf27b01f2dc5af05aacb4eef22bb13d811de6d665d1910ae3e1fb438fa51fc7",
+      "source_name": "FDSFM3.mp4",
+      "task_id": "39",
+      "video_id": "pre_vfallp_video_dizziness_fall_side_fdsfm3_aa9c894c"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_dizziness_fall_forward_side/022__task_40__24__CVAT_for_video_1_1.zip",
+      "sha256": "b84433cd9cc7d9d4b340e2298d9f8a20e75c6ac8dab6dbe680023b14d5ec8b17",
+      "source_name": "FDSFM4.mp4",
+      "task_id": "40",
+      "video_id": "pre_vfallp_video_dizziness_fall_side_fdsfm4_eec817ba"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_dizziness_fall_forward_side/023__task_41__25__CVAT_for_video_1_1.zip",
+      "sha256": "d52d783e8564e709e7fb36dd4f0c7448134559bcb855c2e9f3078a7bdb4abb6b",
+      "source_name": "FDSFM5.mp4",
+      "task_id": "41",
+      "video_id": "pre_vfallp_video_dizziness_fall_side_fdsfm5_d1c87a97"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_dizziness_fall_forward_side/024__task_42__26__CVAT_for_video_1_1.zip",
+      "sha256": "56db7dc479870ba71c9ddb9ba166a9b1876724bd97fa411ce0810cf680923652",
+      "source_name": "FDSFM6.mp4",
+      "task_id": "42",
+      "video_id": "pre_vfallp_video_dizziness_fall_side_fdsfm6_99e2d4d9"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_dizziness_fall_forward_side/025__task_43__27__CVAT_for_video_1_1.zip",
+      "sha256": "78785f143bc01c2ae33ab9ade3559e7dc19273881abe69287c3dbda697d289e6",
+      "source_name": "FDSFM7.mp4",
+      "task_id": "43",
+      "video_id": "pre_vfallp_video_dizziness_fall_side_fdsfm7_1b9dbd01"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_dizziness_fall_forward_side/026__task_44__28__CVAT_for_video_1_1.zip",
+      "sha256": "8764ed4f13eb544094717920e53c325a6eec58f4f24d573b2fe64cd5172f2b56",
+      "source_name": "FDSFM8.mp4",
+      "task_id": "44",
+      "video_id": "pre_vfallp_video_dizziness_fall_side_fdsfm8_1fcaa3da"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_dizziness_fall_forward_side/027__task_45__29__CVAT_for_video_1_1.zip",
+      "sha256": "8845bde61d3ff5642c5faa56fc29b7911d6a44a7ccb08206da2432c5377ea7cf",
+      "source_name": "FDSFM9.mp4",
+      "task_id": "45",
+      "video_id": "pre_vfallp_video_dizziness_fall_side_fdsfm9_587ede75"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_dizziness_fall_forward_side/028__task_46__31__CVAT_for_video_1_1.zip",
+      "sha256": "a66bf87a03933cd84679b282a66790d3a77dc3227ec8abf2f4cba6035be9fb74",
+      "source_name": "FDSSM1.mp4",
+      "task_id": "46",
+      "video_id": "pre_vfallp_video_dizziness_fall_side_fdssm1_a1a29c71"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_dizziness_fall_forward_side/029__task_47__32__CVAT_for_video_1_1.zip",
+      "sha256": "65872eeffd3c990ee18e1920141c455b79269dbb24362b7cae5c91877c5354a2",
+      "source_name": "FDSSM2.mp4",
+      "task_id": "47",
+      "video_id": "pre_vfallp_video_dizziness_fall_side_fdssm2_8fb3628d"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_dizziness_fall_forward_side/030__task_48__33__CVAT_for_video_1_1.zip",
+      "sha256": "28bd4ed203bb0258d355c9b508d48868ed01edcce225629598329be82c6686b6",
+      "source_name": "FDSSM3.mp4",
+      "task_id": "48",
+      "video_id": "pre_vfallp_video_dizziness_fall_side_fdssm3_fef31b65"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_dizziness_fall_forward_side/031__task_49__34__CVAT_for_video_1_1.zip",
+      "sha256": "f30d2520b309c8ed829cee59b85a9bf5fa28dfb08e37f66b30e542fe7a06b9ae",
+      "source_name": "FDSSM4.mp4",
+      "task_id": "49",
+      "video_id": "pre_vfallp_video_dizziness_fall_side_fdssm4_b1e21118"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_dizziness_fall_forward_side/032__task_50__35__CVAT_for_video_1_1.zip",
+      "sha256": "c2ea2a64d8f46959fca6fef4d3b096a2060d09f793bd1c33ffce1422cca6b6fc",
+      "source_name": "FDSSM5.mp4",
+      "task_id": "50",
+      "video_id": "pre_vfallp_video_dizziness_fall_side_fdssm5_634584cb"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_dizziness_fall_forward_side/033__task_51__36__CVAT_for_video_1_1.zip",
+      "sha256": "0cbe3e3b962ee6bfea88722eecde57fc908d0369ef842df6727059f839b8638c",
+      "source_name": "FDSSM6.mp4",
+      "task_id": "51",
+      "video_id": "pre_vfallp_video_dizziness_fall_side_fdssm6_a2f3336e"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_dizziness_fall_forward_side/034__task_52__37__CVAT_for_video_1_1.zip",
+      "sha256": "60665d58fdcdbea9d44f96500b797ea0433ab654f6ef103527041a8716fe2086",
+      "source_name": "FDSSM7.mp4",
+      "task_id": "52",
+      "video_id": "pre_vfallp_video_dizziness_fall_side_fdssm7_c5740b4b"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_dizziness_fall_forward_side/035__task_53__38__CVAT_for_video_1_1.zip",
+      "sha256": "584736e15df04a9a7f206772aff6bbb4fc33c4f2b3587bd9a7b5863a671961b0",
+      "source_name": "FDSSM8.mp4",
+      "task_id": "53",
+      "video_id": "pre_vfallp_video_dizziness_fall_side_fdssm8_2bed56cc"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_dizziness_fall_forward_side/036__task_54__39__CVAT_for_video_1_1.zip",
+      "sha256": "2c2efe4d665b252c5ffcde0c337482332b10c811c98b4e644900fe7c5474a69a",
+      "source_name": "FDSSM9.mp4",
+      "task_id": "54",
+      "video_id": "pre_vfallp_video_dizziness_fall_side_fdssm9_915518e5"
+    }
+  ],
+  "schema_version": "pre-vfallp-cvat-import-v1",
+  "source_archive": {
+    "copied_into_repository": false,
+    "filename": "dizziness_fall_forward + side.zip",
+    "sha256": "6ef811ebaebdf227596b7019440dd4f4d6c8c7bb3cc4266de15d8c93eab5da85"
+  },
+  "source_group_ids": [
+    "pre_vfallp_unresolved"
+  ]
+}

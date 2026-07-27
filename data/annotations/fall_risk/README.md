@@ -1,42 +1,93 @@
 # 跌倒风险标注目录
 
-根目录文件是统一标签契约，不是转换脚本的默认落点：
+根目录统一标签包括：
 
 ```text
 action_labels.jsonl
 event_labels.jsonl
 risk_labels.jsonl
 subject_profiles.json
-annotation_review_log.jsonl
 ```
 
-其中 `risk_labels.jsonl` 和 `annotation_review_log.jsonl` 在没有真实人工结果时必须保持空 JSONL（零条记录，不写 `[]` 或示例行）；`subject_profiles.json` 的空模板为：
+结构正确、来源文件存在且 hash 匹配的明确标签默认可使用。`U01/uncertain` 不进入正式指标。
 
-```json
-{
-  "schema_version": "fall-risk-subject-profiles-v1",
-  "subjects": []
-}
-```
-
-`generated/v1/` 保存按来源隔离的自动转换候选，例如：
+供动作分类和 fall/near-fall 事件模型使用的训练版 v3 标签独立保存为：
 
 ```text
-generated/v1/cvat_<export-id>/action_labels.jsonl
-generated/v1/cvat_<export-id>/event_labels.jsonl
-generated/v1/le2i_official/action_labels.jsonl
-generated/v1/le2i_official/event_labels.jsonl
-generated/v1/le2i_official/import_report.json
+action_labels_v3.jsonl
+event_labels_v3.jsonl
 ```
 
-`le2i_official/action_labels.jsonl` 是零条记录的配套审计输入；LE2I 导入器本身只生成官方事件和导入报告，不会把 TXT 人体框伪装成动作标签。
+v3 不覆盖 v2，也不再把正常动作、步态、坐站、D04 和 U01 映射成同一平面的事件类别。当前迁移结果为 4,759 条动作和 464 条事件窗口：312 条 fall positive、152 条 task-specific ignore、0 条人工 negative、0 条 near-fall positive。71 个 LE2I/CVAT 重叠 fall 已合并，159 个 D04 均作为 `post_fall_immobile` 动作与唯一父 fall 双向关联。Pre_VFallp 的 13 条 C03 映射事件和 NTU 的 948 条 C03 精确动作片段都不会自动升级为 v3 near-fall 事件正例。
 
-目录名只标识源导出批次，不能代替记录关联的 manifest subset。现有 `generated/v1/cvat_coffee_01_02/` 实际覆盖 `Coffee_room_01`、`Coffee_room_02` 和 `Home_02`；不得因目录名而把其中 `Home_02` 候选误归为 Coffee。
+CaucaFall 的 100 个 AVI 已完成手工 CVAT 标注并进入主标签链，manifest 均为 `eligibility=true`、`label_source=cvat_manual`，并绑定 10 个脱敏任务 ZIP。导入生成 311 条动作和 311 条映射事件；100 个视频、10 名受试者均保留，目录动作名只保留为来源元数据。v2/v3 迁移对少量 v3 标签名做了显式别名归一，原始标签和映射记录在 `generated/v2/caucafall_manual/import_report.json` 中。
 
-生成记录必须保持 `pending` 或 `auto_imported`、`eligibility=false` 和空 `review_evidence_ids`。通过 `audit` 只证明结构和来源可检查，不代表已经成为正式真值；未经人工确认、双人独立复核和 `formal` 校验，不得复制、拼接或覆盖根目录标签。
+UR Fall 的人工 CVAT 导出已作为 `generated/v2/cvat_ur_fall/` 接入 v2 根标签：99 个视频生成 268 条动作和 268 条映射事件，`adl-07-cam0.mp4` 按人工决定不标注。包含账号/邮箱的原始 ZIP 不入库；仓库只保存规范化任务名、补齐 3 条空 `U01` 原因并移除身份节点后的脱敏 ZIP，原始与脱敏 SHA-256 及变更记录见批次 `import_report.json`。该批次现已随根标签迁移进入 v3 和统一 split。
 
-`cvat_exports/raw/` 保存不可变的原始 CVAT 导出。转换时若发现账号、邮箱等身份元数据，只记录脱敏风险，不得在标签、报告或文档中复制具体值。
+NTU RGB+D 单动作来源按项目负责人 2026-07-25 的人工复核决定接入主标签链：`generated/v2/ntu_rgbd_clip_labels/` 含 2,976 条人工精确全片动作，映射与决策元数据固定在 `configs/data/ntu_rgbd_clip_label_map_v2.json`。它们对应 `A008 -> A03` 948 条、`A009 -> A04` 948 条、`A042 -> C03` 948 条、`A080 -> A05` 132 条；v3 的 `training_tier`、`action_type_training_tier` 均为 `primary`，`boundary_precision=exact`、`review_status=single_annotated`。948 个 `A043` 明确排除且不再算待标。该来源只产生动作标签，不把 C03 自动派生为 near-fall 事件。当前外部 manifest 指向的解压媒体目录已不存在，只保留 8.5 GB `ntu.zip`，因此重新解压或重建媒体路径前，v2 文件存在性校验仍失败；这属于媒体可用性问题，不改变人工边界决定。
 
-标注规则以 `docs/modules/fall_risk/data/数据集标注规范.md`、`docs/modules/fall_risk/data/数据标注SOP.md` 和 `docs/modules/fall_risk/data/跌倒风险标签字典.md` 为准。
+动作父类与具体动作分别使用 `training_tier` 和 `action_type_training_tier`。具体动作少于 10 个独立 sample group 时忽略，10-29 个或来源少于 3 个 source group 时只作 auxiliary，至少 30 个 sample group且至少 3 个 source group才可作 primary；训练代码必须从 `action_labels_v3.jsonl` 读取该层级，不能只读取 split assignment 中的父类 tier。
 
-`quarantine/` 保存尚无法关联到本地原始视频的记录。这些记录不属于训练或评估输入；只有找回可验证的原始导出并完成重新映射后，才能回写到正式 JSONL。
+动作与事件共用 `data/splits/fall_risk/training_labels_v3/` 下的 v3 split：5,223 条标签分配覆盖 3,501 个有标签资产，按人员/来源组、内容 hash、sample group、physical event 及派生关系合并为 154 个保守泄漏组，当前跨分区泄漏为 0，primary fall 正例按 train/validation/test 分为 74/14/7。NTU 按受试者组划分且不跨 partition；Pre_VFallp 保持单一 `pre_vfallp_unresolved` 源组，CaucaFall 按 10 名受试者分组。旧 v2 `fall_event_v1` split 不得用于 v3 标签。
+
+当前 v3 schema、引用和 split 校验通过，但 `slow_walk` 在 test 分区没有 primary 样本，故 `training_ready.action_type=false`。`fall_event/near_fall_event` 也均为 `training_ready=false`，原因是 fall/near-fall hard negative 尚未人工确认，near-fall 正例仍为 0；不能把“结构合法”扩大解释为“数据已经可训练”。
+
+相关入口：
+
+```text
+configs/data/fall_risk_action_label_schema_v3.json
+configs/data/fall_risk_event_label_schema_v3.json
+scripts/annotation/migrate_fall_labels_v2_to_v3.py
+scripts/annotation/build_fall_training_split_v3.py
+scripts/annotation/validate_fall_labels_v3.py
+data/splits/fall_risk/training_labels_v3/assignments.jsonl
+data/splits/fall_risk/training_labels_v3/split.json
+reports/fall_risk/training-labels-v3-migration.json
+reports/fall_risk/training-labels-v3-validation.json
+```
+
+`generated/` 保存按来源批次隔离的转换结果：
+
+```text
+generated/v2/cvat_<export-id>/action_labels.jsonl
+generated/v2/cvat_<export-id>/event_labels.jsonl
+generated/v2/le2i_official/event_labels.jsonl
+generated/v2/le2i_official/import_report.json
+generated/v2/toaga_official_walking/action_labels.jsonl
+generated/v2/toaga_official_walking/import_report.json
+generated/v2/pre_vfallp_confusion_delirium/action_labels.jsonl
+generated/v2/pre_vfallp_confusion_delirium/event_labels.jsonl
+generated/v2/pre_vfallp_confusion_delirium/import_report.json
+generated/v2/pre_vfallp_confusion_nph/action_labels.jsonl
+generated/v2/pre_vfallp_confusion_nph/event_labels.jsonl
+generated/v2/pre_vfallp_confusion_nph/import_report.json
+generated/v2/pre_vfallp_dizziness_fall_forward_side/action_labels.jsonl
+generated/v2/pre_vfallp_dizziness_fall_forward_side/event_labels.jsonl
+generated/v2/pre_vfallp_dizziness_fall_forward_side/import_report.json
+generated/v2/pre_vfallp_weakness_fall_forward/action_labels.jsonl
+generated/v2/pre_vfallp_weakness_fall_forward/event_labels.jsonl
+generated/v2/pre_vfallp_weakness_fall_forward/import_report.json
+generated/v2/pre_vfallp_weakness_fall_side/action_labels.jsonl
+generated/v2/pre_vfallp_weakness_fall_side/event_labels.jsonl
+generated/v2/pre_vfallp_weakness_fall_side/import_report.json
+generated/v2/ntu_rgbd_clip_labels/action_labels.jsonl
+generated/v2/ntu_rgbd_clip_labels/import_report.json
+generated/v2/caucafall_manual/action_labels.jsonl
+generated/v2/caucafall_manual/event_labels.jsonl
+generated/v2/caucafall_manual/import_report.json
+generated/v2/cvat_ur_fall/action_labels.jsonl
+generated/v2/cvat_ur_fall/event_labels.jsonl
+generated/v2/cvat_ur_fall/import_report.json
+```
+
+`cvat_exports/raw/` 保存生成标签所依据的原始 CVAT ZIP/XML。转换器绑定来源路径与 SHA-256；原始文件缺失或 hash 不一致时标签校验失败。包含身份元数据的原件不得提交到公开版本库。
+
+含 CVAT 身份元数据的外部导出应先记录原始 SHA-256，再使用 `scripts/annotation/redact_cvat_identity.xslt` 生成脱敏 ZIP；转换和校验只引用脱敏副本。原始包不修改、不复制进仓库，脱敏包与原始 hash 的对应关系写入数据审计报告。
+
+原始 CVAT 文件中的项目名、导出工具元数据和历史任务备注不定义当前标签契约；当前唯一有效的标注 schema、映射版本和校验配置均以 v2 文件及本目录引用的标签字典为准。原始文件只作为不可变追溯证据保存。
+
+`quarantine/` 保存媒体或来源无法可靠关联的记录，不进入数据划分。当前 108 条 Pre_VFallp 已通过内部授权例外解除技术隔离，但仍不是已验证的公开来源；未来未列入授权清单的媒体仍保持隔离。技术可用性仍受 manifest 的重复内容、来源缺失、媒体探测失败和隔离状态约束。
+
+字段和时间边界见 `docs/modules/fall_risk/data/跌倒风险标签字典.md`。
+
+CVAT 项目标签配置见 `configs/data/fall_risk_cvat_labels_v2.json`。

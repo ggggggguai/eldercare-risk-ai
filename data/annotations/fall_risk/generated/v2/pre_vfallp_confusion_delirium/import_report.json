@@ -1,0 +1,166 @@
+{
+  "action_id_counts": {
+    "A01": 15,
+    "B02": 8,
+    "B04": 1,
+    "C03": 13
+  },
+  "authorization_id": "internal_pre_vfallp_confusion_delirium_20260722",
+  "event_type_counts": {
+    "gait_instability": 9,
+    "near_fall": 13,
+    "normal_activity": 15
+  },
+  "identity_metadata_tags_removed": {
+    "assignee": 18,
+    "email": 18,
+    "owner": 18,
+    "username": 18
+  },
+  "ignored_tracks": [],
+  "imported_action_labels": 37,
+  "imported_event_labels": 37,
+  "outputs": {
+    "action_labels": "data/annotations/fall_risk/generated/v2/pre_vfallp_confusion_delirium/action_labels.jsonl",
+    "event_labels": "data/annotations/fall_risk/generated/v2/pre_vfallp_confusion_delirium/event_labels.jsonl",
+    "redacted_export_dir": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_confusion_delirium"
+  },
+  "provenance_status": "internal_authorized_source_unverified",
+  "redacted_task_exports": [
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_confusion_delirium/cvat_export__fall_risk__le2i_imvia__home_02__{{CLFM1.mp4}}__le2i_imvia__home_02__v20260716.zip",
+      "sha256": "39b7e822ad4e17fefca44851da02c109a07eaa0dd18ab88f58b48fbc040e3955",
+      "source_name": "CLFM1.mp4",
+      "task_id": "1",
+      "video_id": "pre_vfallp_video_confusion_delirium_clfm1_de6a2022"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_confusion_delirium/cvat_export__fall_risk__le2i_imvia__home_02__{{CLFM2.mp4}}__le2i_imvia__home_02__v20260718.zip",
+      "sha256": "ba56d04ffb79cd458acd531484e3eabbf77e0d1e5226904219972912bb1a8e54",
+      "source_name": "CLFM2.mp4",
+      "task_id": "3",
+      "video_id": "pre_vfallp_video_confusion_delirium_clfm2_b84c55c7"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_confusion_delirium/cvat_export__fall_risk__le2i_imvia__home_02__{{CLFM3.mp4}}__le2i_imvia__home_02__v20260718.zip",
+      "sha256": "25786184ebb68f6c5fb4a145d6fef1b1754bc6701ca8635604139c5a221d10a7",
+      "source_name": "CLFM3.mp4",
+      "task_id": "4",
+      "video_id": "pre_vfallp_video_confusion_delirium_clfm3_1845b01f"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_confusion_delirium/cvat_export__fall_risk__le2i_imvia__home_02__{{CLFM4.mp4}}__le2i_imvia__home_02__v20260718.zip",
+      "sha256": "7330b5078a26564c84d328152582be94d6a4a3db4f5d81a221da5a8cb3f75b94",
+      "source_name": "CLFM4.mp4",
+      "task_id": "5",
+      "video_id": "pre_vfallp_video_confusion_delirium_clfm4_5115f01c"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_confusion_delirium/cvat_export__fall_risk__le2i_imvia__home_02__{{CLFM5.mp4}}__le2i_imvia__home_02__v20260718.zip",
+      "sha256": "5a3dcda935ab1179f48013718c12a99b76275c05c3a6ddbbd0c621ef2d726a58",
+      "source_name": "CLFM5.mp4",
+      "task_id": "6",
+      "video_id": "pre_vfallp_video_confusion_delirium_clfm5_c92ee44e"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_confusion_delirium/cvat_export__fall_risk__le2i_imvia__home_02__{{CLFM6.mp4}}__le2i_imvia__home_02__v20260718.zip",
+      "sha256": "e98c94e6c335a9fcbb02c73917ce6ff3aec9110a64caa1c3a21a164938d71e9f",
+      "source_name": "CLFM6.mp4",
+      "task_id": "7",
+      "video_id": "pre_vfallp_video_confusion_delirium_clfm6_3f58e2d4"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_confusion_delirium/cvat_export__fall_risk__le2i_imvia__home_02__{{CLFM7.mp4}}__le2i_imvia__home_02__v20260718.zip",
+      "sha256": "5a92cead269ed36c7e4a43a956b1b668d452715c964f58f3d18aa66c2960c9af",
+      "source_name": "CLFM7_resized.mp4",
+      "task_id": "9",
+      "video_id": "pre_vfallp_video_confusion_delirium_clfm7_94565081"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_confusion_delirium/cvat_export__fall_risk__le2i_imvia__home_02__{{CLFM8.mp4}}__le2i_imvia__home_02__v20260718.zip",
+      "sha256": "8b939912904922fcad7e07828ee7be2b52698c820dae49e2a15f6516c09ee08c",
+      "source_name": "CLFM8_resized.mp4",
+      "task_id": "10",
+      "video_id": "pre_vfallp_video_confusion_delirium_clfm8_0f20c204"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_confusion_delirium/cvat_export__fall_risk__le2i_imvia__home_02__{{CLFM9.mp4}}__le2i_imvia__home_02__v20260718.zip",
+      "sha256": "9fbeb44efc72807347be8ba2bf8ef5ca1912505ca3926cf52b6372af7a8862ca",
+      "source_name": "CLFM9_resized.mp4",
+      "task_id": "12",
+      "video_id": "pre_vfallp_video_confusion_delirium_clfm9_f4b02db0"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_confusion_delirium/cvat_export__fall_risk__le2i_imvia__home_02__{{CLSM1.mp4}}__le2i_imvia__home_02__v20260718.zip",
+      "sha256": "a3f378142a583452418c705616a5d002437ddd8a098b1ef739cd59a26a253e00",
+      "source_name": "CLSM1_resized.mp4",
+      "task_id": "8",
+      "video_id": "pre_vfallp_video_confusion_delirium_clsm1_eb34039a"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_confusion_delirium/cvat_export__fall_risk__le2i_imvia__home_02__{{CLSM2.mp4}}__le2i_imvia__home_02__v20260718.zip",
+      "sha256": "3a355a4687d6afda50b6e3dd040885cacd6931051f37f180e7a06ca128dae4d9",
+      "source_name": "CLSM2_resized.mp4",
+      "task_id": "13",
+      "video_id": "pre_vfallp_video_confusion_delirium_clsm2_89cd2101"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_confusion_delirium/cvat_export__fall_risk__le2i_imvia__home_02__{{CLSM3.mp4}}__le2i_imvia__home_02__v20260718.zip",
+      "sha256": "bc6fd3ddcd01b7273e9e85d451fd2f4d7c70d5e5739ea164e06de7c9fd25dc7d",
+      "source_name": "CLSM3_resized.mp4",
+      "task_id": "14",
+      "video_id": "pre_vfallp_video_confusion_delirium_clsm3_2dcb8b19"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_confusion_delirium/cvat_export__fall_risk__le2i_imvia__home_02__{{CLSM4.mp4}}__le2i_imvia__home_02__v20260718.zip",
+      "sha256": "89743fa079036b398b8affa5760298d78e1202895cde3c2c444bdf6ed88bc241",
+      "source_name": "CLSM4_resized.mp4",
+      "task_id": "15",
+      "video_id": "pre_vfallp_video_confusion_delirium_clsm4_3eeb7b93"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_confusion_delirium/cvat_export__fall_risk__le2i_imvia__home_02__{{CLSM5.mp4}}__le2i_imvia__home_02__v20260718.zip",
+      "sha256": "d704ca37bfe9d58208e568c4836d6f54b94abf0557b40b2f9ee415e37f895d0e",
+      "source_name": "CLSM5_resized.mp4",
+      "task_id": "16",
+      "video_id": "pre_vfallp_video_confusion_delirium_clsm5_0a10b5de"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_confusion_delirium/cvat_export__fall_risk__le2i_imvia__home_02__{{CLSM6.mp4}}__le2i_imvia__home_02__v20260718.zip",
+      "sha256": "ce0c05eef6a3e37eb73ced617ee43226e8c883708b6fa8422a264e1b212d8054",
+      "source_name": "CLSM6_resized.mp4",
+      "task_id": "17",
+      "video_id": "pre_vfallp_video_confusion_delirium_clsm6_1b50942d"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_confusion_delirium/cvat_export__fall_risk__le2i_imvia__home_02__{{CLSM7.mp4}}__le2i_imvia__home_02__v20260718.zip",
+      "sha256": "11e9e80277e8542f4b6329b3d45a9ae98b246cd33416683a96c215d5178c7147",
+      "source_name": "CLSM7_resized.mp4",
+      "task_id": "18",
+      "video_id": "pre_vfallp_video_confusion_delirium_clsm7_e4520a15"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_confusion_delirium/cvat_export__fall_risk__le2i_imvia__home_02__{{CLSM8.mp4}}__le2i_imvia__home_02__v20260718.zip",
+      "sha256": "25faa86242310c9c81cd7b0de4576f8c82a37790380c6a4b4267f6a644749a60",
+      "source_name": "CLSM8_resized.mp4",
+      "task_id": "19",
+      "video_id": "pre_vfallp_video_confusion_delirium_clsm8_22087aff"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_confusion_delirium/cvat_export__fall_risk__le2i_imvia__home_02__{{CLSM9.mp4}}__le2i_imvia__home_02__v20260718.zip",
+      "sha256": "846078c98b83ed3fa27c14129753b0e47accc88be00bc577fcf58fca79cbc408",
+      "source_name": "CLSM9_resized.mp4",
+      "task_id": "20",
+      "video_id": "pre_vfallp_video_confusion_delirium_clsm9_357851a6"
+    }
+  ],
+  "schema_version": "pre-vfallp-cvat-import-v1",
+  "source_archive": {
+    "copied_into_repository": false,
+    "filename": "confusion_delirium已经标注.zip",
+    "sha256": "cbb4d24f20a779fa66389d7942ef9845f4ed9de4ffc7c1794930afe86f025412"
+  },
+  "source_group_ids": [
+    "pre_vfallp_unresolved"
+  ]
+}

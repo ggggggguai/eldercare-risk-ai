@@ -15,7 +15,11 @@ data/processed/**/*
 data/external/**/*
 !data/external/ltmm/
 !data/external/ltmm/README.md
+!data/external/kinecal/
+data/external/kinecal/*
+!data/external/kinecal/README.md
 data/documents/**/*
+data/annotations/fall_risk/cvat_exports/raw/**/*
 
 # Local experiment outputs.
 reports/**/*.csv

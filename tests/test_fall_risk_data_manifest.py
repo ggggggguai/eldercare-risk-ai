@@ -12,7 +12,9 @@ from elderly_monitoring.modules.fall_risk.data_manifest import (
     VIDEO_METADATA_FIELDS,
     VideoMetadata,
     build_fall_risk_manifest,
+    build_ntu_rgbd_clip_manifest,
     probe_video_metadata,
+    write_pre_vfallp_media_inventory,
     write_fall_risk_manifest,
 )
 
@@ -40,9 +42,10 @@ class FallRiskDataManifestTest(unittest.TestCase):
                 "gstride",
                 "ltmm",
                 "pre_vfallp",
+                "caucafall",
             },
         )
-        self.assertEqual(len(rows), 20)
+        self.assertEqual(len(rows), 22)
         self.assertEqual(
             [row["path"] for row in rows],
             sorted(row["path"] for row in rows),
@@ -59,7 +62,6 @@ class FallRiskDataManifestTest(unittest.TestCase):
                 row["sha256"],
                 hashlib.sha256((self.repo / row["path"]).read_bytes()).hexdigest(),
             )
-            self.assertIn("license_id", row)
             self.assertIn("consent_id", row)
             self.assertIn("eligibility", row)
             self.assertIsInstance(row["exclusion_reasons"], list)
@@ -95,6 +97,22 @@ class FallRiskDataManifestTest(unittest.TestCase):
         )
         self.assertEqual(lecture["label_source"], "unlabeled")
         self.assertIsNone(lecture["annotation_path"])
+
+        caucafall = [row for row in rows if row["dataset"] == "caucafall"]
+        self.assertEqual(len(caucafall), 2)
+        self.assertEqual(
+            {row["subject_id"] for row in caucafall}, {"caucafall_s01"}
+        )
+        self.assertEqual(
+            {row["source_group_id"] for row in caucafall}, {"caucafall_s01"}
+        )
+        self.assertEqual(
+            {row["source_action_code"] for row in caucafall},
+            {"FallForward", "Walk"},
+        )
+        self.assertTrue(all(row["eligibility"] is True for row in caucafall))
+        self.assertTrue(all(row["label_source"] == "unlabeled" for row in caucafall))
+        self.assertTrue(all(row["annotation_path"] is None for row in caucafall))
 
     def test_structured_event_and_subject_grouping(self) -> None:
         rows = build_fall_risk_manifest(
@@ -195,19 +213,112 @@ class FallRiskDataManifestTest(unittest.TestCase):
         self.assertIsNone(gstride_table["video_id"])
         self.assertIsNone(gstride_table["annotation_path"])
 
-    def test_missing_license_pre_vfallp_and_duplicate_content_are_ineligible(self) -> None:
+    def test_ntu_rgbd_external_manifest_preserves_trial_and_subject_groups(self) -> None:
+        source_root = self.repo / "external-ntu"
+        first_view = source_root / "part_a" / "S006C001P016R001A042_rgb.avi"
+        second_view = source_root / "part_b" / "S006C002P016R001A042_rgb.avi"
+        squat = source_root / "part_c" / "S017C003P040R002A080_rgb.avi"
+        for path, payload in (
+            (first_view, b"first-view"),
+            (second_view, b"second-view"),
+            (squat, b"squat"),
+        ):
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(payload)
+
+        result = build_ntu_rgbd_clip_manifest(
+            source_root, probe_video=self._probe_video
+        )
+
+        self.assertEqual(len(result.rows), 3)
+        self.assertEqual(result.summary["version"], "ntu-rgbd-clip-manifest-v1")
+        by_video = {row["video_id"]: row for row in result.rows}
+        first = by_video["ntu_rgbd_s006_p016_r001_a042_c001"]
+        second = by_video["ntu_rgbd_s006_p016_r001_a042_c002"]
+        self.assertTrue(Path(first["path"]).is_absolute())
+        self.assertEqual(Path(first["path"]), first_view.resolve())
+        self.assertEqual(first["dataset"], "ntu_rgbd")
+        self.assertEqual(first["source_action_code"], "A042")
+        self.assertEqual(first["subject_id"], "ntu_rgbd_p016")
+        self.assertEqual(first["source_group_id"], "ntu_rgbd_subject_p016")
+        self.assertEqual(first["original_event_id"], "ntu_rgbd_s006_p016_r001_a042")
+        self.assertEqual(first["view"], "c001")
+        self.assertEqual(first["original_event_id"], second["original_event_id"])
+        self.assertEqual(first["source_group_id"], second["source_group_id"])
+        self.assertEqual(
+            by_video["ntu_rgbd_s017_p040_r002_a080_c003"]["source_action_code"],
+            "A080",
+        )
+
+    def test_main_manifest_includes_only_manually_reviewed_ntu_clips(self) -> None:
+        ntu_video = self.repo / "external-ntu" / "S006C001P016R001A042_rgb.avi"
+        excluded_video = self.repo / "external-ntu" / "S006C001P016R001A043_rgb.avi"
+        ntu_video.parent.mkdir(parents=True)
+        ntu_video.write_bytes(b"reviewed-ntu")
+        excluded_video.write_bytes(b"excluded-ntu")
+        external = build_ntu_rgbd_clip_manifest(
+            ntu_video.parent, probe_video=self._probe_video
+        )
+        manifest_path = self.repo / "data/manifests/ntu_rgbd_clip_manifest.jsonl"
+        manifest_path.parent.mkdir(parents=True, exist_ok=True)
+        manifest_path.write_bytes(external.content)
+        map_path = self.repo / "configs/data/ntu_rgbd_clip_label_map_v2.json"
+        map_path.parent.mkdir(parents=True, exist_ok=True)
+        map_path.write_text(
+            json.dumps(
+                {
+                    "schema_version": "ntu-rgbd-clip-label-map-v2",
+                    "mapping_id": "ntu-rgbd-clip-label-map-v2",
+                    "boundary_review": {
+                        "decision_id": "ntu-rgbd-manual-boundary-review-20260725",
+                        "reviewed_at": "2026-07-25",
+                        "reviewer_id": "project_owner",
+                        "boundary_precision": "exact",
+                        "training_tier": "primary",
+                    },
+                    "mappings": [
+                        {
+                            "source_action_code": "A042",
+                            "mode": "manual_exact",
+                            "action_id": "C03",
+                        },
+                        {
+                            "source_action_code": "A043",
+                            "mode": "excluded",
+                            "action_id": None,
+                        },
+                    ],
+                },
+                sort_keys=True,
+            ),
+            encoding="utf-8",
+        )
+
+        rows = build_fall_risk_manifest(
+            self.repo, probe_video=self._probe_video
+        ).rows
+        ntu_rows = [row for row in rows if row["dataset"] == "ntu_rgbd"]
+
+        self.assertEqual(len(ntu_rows), 1)
+        self.assertEqual(ntu_rows[0]["source_action_code"], "A042")
+        self.assertEqual(ntu_rows[0]["label_source"], "manual_exact_clip_boundary")
+
+    def test_missing_source_quarantine_and_duplicate_content_are_ineligible(self) -> None:
         rows = build_fall_risk_manifest(
             self.repo, probe_video=self._probe_video
         ).rows
 
-        for dataset in ("le2i_imvia", "toaga", "pre_vfallp"):
+        for dataset in ("le2i_imvia", "toaga"):
             affected = [row for row in rows if row["dataset"] == dataset]
             self.assertTrue(affected)
-            self.assertTrue(all(row["license_id"] is None for row in affected))
-            self.assertTrue(all(row["eligibility"] is False for row in affected))
-            self.assertTrue(
-                all("license_unknown" in row["exclusion_reasons"] for row in affected)
-            )
+            self.assertTrue(all(row["eligibility"] is True for row in affected))
+
+        pre_vfallp = [row for row in rows if row["dataset"] == "pre_vfallp"]
+        self.assertTrue(pre_vfallp)
+        self.assertTrue(all(row["eligibility"] is False for row in pre_vfallp))
+        self.assertTrue(
+            all("source_unknown" in row["exclusion_reasons"] for row in pre_vfallp)
+        )
 
         duplicates = [
             row
@@ -225,8 +336,135 @@ class FallRiskDataManifestTest(unittest.TestCase):
 
         ur_fall = [row for row in rows if row["dataset"] == "ur_fall"]
         self.assertTrue(ur_fall)
-        self.assertTrue(all(row["license_id"] == "CC-BY-NC-SA-4.0" for row in ur_fall))
         self.assertTrue(all(row["eligibility"] is True for row in ur_fall))
+
+    def test_internal_authorization_override_only_enables_listed_pre_vfallp_assets(self) -> None:
+        self._write(
+            "data/external/Pre_VFallp/unreviewed_subset/other.mp4",
+            b"unreviewed-pre-vfallp-video",
+        )
+        initial_rows = build_fall_risk_manifest(
+            self.repo, probe_video=self._probe_video
+        ).rows
+        authorized = next(
+            row
+            for row in initial_rows
+            if row["dataset"] == "pre_vfallp"
+            and row["subset"] == "dizziness_fall_forward"
+        )
+        config = self.repo / "configs/data/fall_risk_internal_authorizations.yaml"
+        config.parent.mkdir(parents=True, exist_ok=True)
+        config.write_text(
+            "\n".join(
+                [
+                    "schema_version: fall-risk-internal-authorizations-v2",
+                    "authorizations:",
+                    "  - authorization_id: internal_pre_vfallp_fixture",
+                    "    approval_reference: test_internal_authorization",
+                    "    approved_at: '2026-07-22'",
+                    "    source_uri: internal://authorization/internal_pre_vfallp_fixture",
+                    "    evidence:",
+                    "      kind: cvat_export_archive",
+                    "      name: fixture.zip",
+                    f"      sha256: {'a' * 64}",
+                    "    video_ids:",
+                    f"      - {authorized['video_id']}",
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        rows = build_fall_risk_manifest(self.repo, probe_video=self._probe_video).rows
+        by_video = {row["video_id"]: row for row in rows if row["video_id"]}
+        enabled = by_video[authorized["video_id"]]
+        remaining = next(
+            row
+            for row in rows
+            if row["dataset"] == "pre_vfallp"
+            and row["subset"] == "unreviewed_subset"
+        )
+
+        self.assertTrue(enabled["eligibility"])
+        self.assertEqual(enabled["exclusion_reasons"], [])
+        self.assertIsNone(enabled["consent_id"])
+        self.assertEqual(
+            enabled["source_uri"],
+            "internal://authorization/internal_pre_vfallp_fixture",
+        )
+        self.assertEqual(
+            enabled["internal_authorization"]["authorization_id"],
+            "internal_pre_vfallp_fixture",
+        )
+        self.assertEqual(
+            enabled["provenance_status"],
+            "internal_authorized_source_unverified",
+        )
+        self.assertEqual(
+            enabled["internal_authorization"]["evidence"]["kind"],
+            "cvat_export_archive",
+        )
+        self.assertFalse(remaining["eligibility"])
+        self.assertIn("source_unknown", remaining["exclusion_reasons"])
+
+    def test_media_inventory_authorization_requires_unchanged_listed_media(self) -> None:
+        authorized_path = self._write(
+            "data/external/Pre_VFallp/authorized_subset/one.mp4",
+            b"authorized-pre-vfallp-video",
+        )
+        inventory_path = Path(
+            "data/manifests/pre_vfallp_authorized_fixture_inventory.jsonl"
+        )
+        inventory = write_pre_vfallp_media_inventory(
+            self.repo,
+            inventory_path,
+            inventory_id="pre_vfallp_authorized_fixture_inventory",
+            subsets=["authorized_subset"],
+        )
+        config = self.repo / "configs/data/fall_risk_internal_authorizations.yaml"
+        config.parent.mkdir(parents=True, exist_ok=True)
+        config.write_text(
+            "\n".join(
+                [
+                    "schema_version: fall-risk-internal-authorizations-v2",
+                    "authorizations:",
+                    "  - authorization_id: internal_pre_vfallp_media_fixture",
+                    "    approval_reference: test_internal_authorization",
+                    "    approved_at: '2026-07-22'",
+                    "    source_uri: internal://authorization/internal_pre_vfallp_media_fixture",
+                    "    evidence:",
+                    "      kind: local_media_inventory",
+                    f"      name: {inventory_path.name}",
+                    f"      sha256: {inventory.sha256}",
+                    f"      path: {inventory_path.as_posix()}",
+                    "      inventory_id: pre_vfallp_authorized_fixture_inventory",
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        rows = build_fall_risk_manifest(self.repo, probe_video=self._probe_video).rows
+        enabled = next(row for row in rows if row["path"] == authorized_path.relative_to(self.repo).as_posix())
+        untouched = next(
+            row
+            for row in rows
+            if row["dataset"] == "pre_vfallp" and row["path"].endswith("sample.mp4")
+        )
+        self.assertTrue(enabled["eligibility"])
+        self.assertEqual(
+            enabled["internal_authorization"]["evidence"]["kind"],
+            "local_media_inventory",
+        )
+        self.assertEqual(
+            enabled["internal_authorization"]["evidence"]["path"],
+            inventory_path.as_posix(),
+        )
+        self.assertFalse(untouched["eligibility"])
+
+        authorized_path.write_bytes(b"mutated-pre-vfallp-video")
+        with self.assertRaisesRegex(ValueError, "media checksum"):
+            build_fall_risk_manifest(self.repo, probe_video=self._probe_video)
 
     def test_repeated_build_is_byte_for_byte_deterministic(self) -> None:
         first = build_fall_risk_manifest(self.repo, probe_video=self._probe_video)
@@ -376,6 +614,14 @@ class FallRiskDataManifestTest(unittest.TestCase):
         self._write(
             "data/external/Pre_VFallp/dizziness_fall_forward/sample.mp4",
             b"pre-vfallp-video",
+        )
+        self._write(
+            "data/external/caucafall/raw/Subject.1/WalkS1.avi",
+            b"caucafall-walk",
+        )
+        self._write(
+            "data/external/caucafall/raw/Subject.1/FallForwardS1.avi",
+            b"caucafall-forward-fall",
         )
 
     def _write(self, relative_path: str, content: bytes) -> Path:

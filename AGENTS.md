@@ -137,6 +137,12 @@ docs/modules/mental_health/README.md
 configs/modules/mental_health.yaml
 ```
 
+## 当前研发阶段
+
+当前项目处于跌倒风险算法的模型化增强阶段：在保留可解释规则和安全覆盖 fallback 的前提下，逐步将步态、坐站、近跌倒/跌倒事件等规则分支替换为经过固定数据划分和验证的时序模型（如 TCN、MS-TCN++ 或 ST-GCN）。
+
+模型候选只有在来源完整的标注、无泄漏的 train/validation/test split、冻结评估协议和延迟/稳定性证据具备后，才能替换主路径。个体行为基线和最终风险融合仍需对应的连续个人数据或 `risk_labels` 真值；在这些条件满足前，保留统计/规则 fallback，不把计划中的模型写成已完成能力。
+
 ## 文档维护规则
 
 - `docs/README.md` 是文档唯一总入口；新增、移动或删除现行文档时必须同步更新。
@@ -146,6 +152,12 @@ configs/modules/mental_health.yaml
 - 新实验指标、复现记录和失败案例写入 `reports/`，会议汇报和开发日志不要放入该目录。
 - 修改代码行为、字段、阈值、运行命令或已知限制时，同步更新对应模块 README、接口文档和任务状态。
 - 文档移动后必须检查 Markdown 链接和代码路径引用，不能留下指向不存在文件的入口。
+
+## 跌倒标注事实源
+
+- 跌倒风险标注当前唯一有效契约是 v2：以 `configs/data/fall_risk_label_validation_v2.yaml`、当前标签字典和现行转换/校验代码为准。
+- 不得从 Git 历史或 diff、`docs/archive/`、原始 CVAT 工具项目名或旧生成目录推断当前标注 schema；这些内容只用于追溯，不是现状依据。
+- 修改标注 schema 时，必须同步检查来源候选、根标签、发布报告和 split 的哈希引用。
 
 ## 跌倒风险固定算法路线
 

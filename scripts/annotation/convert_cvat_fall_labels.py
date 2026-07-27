@@ -10,7 +10,7 @@ from elderly_monitoring.modules.fall_risk.annotations import (
 
 
 DEFAULT_MANIFEST = Path("data/manifests/fall_risk_video_manifest.jsonl")
-DEFAULT_OUTPUT_DIR = Path("data/annotations/fall_risk/generated/v1")
+DEFAULT_OUTPUT_DIR = Path("data/annotations/fall_risk/generated/v2")
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -48,11 +48,6 @@ def _parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--file-root", type=Path, default=None)
     parser.add_argument("--labeler", default="unknown")
-    parser.add_argument(
-        "--review-status",
-        default="pending",
-        help="Compatibility option. Only pending is accepted by this converter.",
-    )
     parser.add_argument("--subject-id", default="unknown")
     parser.add_argument("--scene", default="home")
     parser.add_argument("--view", default="fixed_camera")
@@ -63,10 +58,6 @@ def _parser() -> argparse.ArgumentParser:
 def main() -> None:
     parser = _parser()
     args = parser.parse_args()
-    if args.review_status != "pending":
-        parser.error(
-            "cannot promote converted labels to reviewed/final; use a validated review log"
-        )
     if (args.fps is not None or args.file_root is not None) and not args.development_override:
         parser.error("--fps and --file-root require --development-override")
     if (args.action_output is None) != (args.event_output is None):
@@ -87,7 +78,6 @@ def main() -> None:
             fps=args.fps if manifest_path is not None else args.fps,
             file_root=args.file_root,
             labeler=args.labeler,
-            review_status="pending",
             default_subject_id=args.subject_id,
             default_scene=args.scene,
             default_view=args.view,

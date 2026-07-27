@@ -11,6 +11,9 @@ import yaml
 @dataclass(frozen=True)
 class ServiceSettings:
     model_path: Path = Path("yolov8n-pose.pt")
+    gait_model_path: Path | None = None
+    gait_model_device: str = "auto"
+    gait_model_window_frames: int = 64
     api_token: str = "change-me"
     callback_token: str = "change-me"
     baseline_history_path: Path | None = None
@@ -22,11 +25,16 @@ class ServiceSettings:
     event_cooldown_sec: float = 30.0
     callback_timeout_sec: float = 5.0
     callback_retry_delays_sec: tuple[float, ...] = (0.5, 1.0, 2.0)
+    outbox_capacity: int = 32
+    outbox_drain_timeout_sec: float = 3.0
+    session_stop_timeout_sec: float = 5.0
+    frame_queue_capacity: int = 2
     stream_open_timeout_ms: int = 5000
     stream_read_timeout_ms: int = 5000
     reconnect_attempts: int = 3
     reconnect_delay_sec: float = 1.0
     scene_risk_scores: Mapping[str, float] = field(default_factory=dict)
+    branch_quality: Mapping[str, Any] = field(default_factory=dict)
     fall_state: Mapping[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
@@ -34,6 +42,18 @@ class ServiceSettings:
             object.__setattr__(self, "model_path", Path(self.model_path))
         if self.baseline_history_path is not None and not isinstance(self.baseline_history_path, Path):
             object.__setattr__(self, "baseline_history_path", Path(self.baseline_history_path))
+        if self.gait_model_path is not None and not isinstance(self.gait_model_path, Path):
+            object.__setattr__(self, "gait_model_path", Path(self.gait_model_path))
+        if self.gait_model_window_frames < 2:
+            raise ValueError("gait_model_window_frames must be at least 2")
+        if self.frame_queue_capacity < 1:
+            raise ValueError("frame_queue_capacity must be at least 1")
+        if self.outbox_capacity < 1:
+            raise ValueError("outbox_capacity must be at least 1")
+        if self.outbox_drain_timeout_sec < 0:
+            raise ValueError("outbox_drain_timeout_sec must be non-negative")
+        if self.session_stop_timeout_sec <= 0:
+            raise ValueError("session_stop_timeout_sec must be positive")
 
     @classmethod
     def load(cls, path: Path | None = None, environ: Mapping[str, str] | None = None) -> "ServiceSettings":
@@ -48,6 +68,9 @@ class ServiceSettings:
 
         overrides: dict[str, tuple[str, Any]] = {
             "MODEL_PATH": ("model_path", Path),
+            "GAIT_MODEL_PATH": ("gait_model_path", Path),
+            "GAIT_MODEL_DEVICE": ("gait_model_device", str),
+            "GAIT_MODEL_WINDOW_FRAMES": ("gait_model_window_frames", int),
             "ALGORITHM_API_TOKEN": ("api_token", str),
             "CALLBACK_TOKEN": ("callback_token", str),
             "BASELINE_HISTORY_PATH": ("baseline_history_path", Path),
@@ -57,6 +80,11 @@ class ServiceSettings:
             "FUSION_INTERVAL_SEC": ("fusion_interval_sec", float),
             "PRIMARY_LOST_TIMEOUT_SEC": ("primary_lost_timeout_sec", float),
             "EVENT_COOLDOWN_SEC": ("event_cooldown_sec", float),
+            "CALLBACK_TIMEOUT_SEC": ("callback_timeout_sec", float),
+            "OUTBOX_CAPACITY": ("outbox_capacity", int),
+            "OUTBOX_DRAIN_TIMEOUT_SEC": ("outbox_drain_timeout_sec", float),
+            "SESSION_STOP_TIMEOUT_SEC": ("session_stop_timeout_sec", float),
+            "FRAME_QUEUE_CAPACITY": ("frame_queue_capacity", int),
             "RECONNECT_ATTEMPTS": ("reconnect_attempts", int),
             "RECONNECT_DELAY_SEC": ("reconnect_delay_sec", float),
         }
@@ -67,6 +95,8 @@ class ServiceSettings:
             raw["model_path"] = Path(raw["model_path"])
         if raw.get("baseline_history_path"):
             raw["baseline_history_path"] = Path(raw["baseline_history_path"])
+        if raw.get("gait_model_path"):
+            raw["gait_model_path"] = Path(raw["gait_model_path"])
         if "callback_retry_delays_sec" in raw:
             raw["callback_retry_delays_sec"] = tuple(float(value) for value in raw["callback_retry_delays_sec"])
         return cls(**raw)

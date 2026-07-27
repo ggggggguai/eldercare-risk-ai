@@ -1,0 +1,174 @@
+{
+  "action_id_counts": {
+    "A01": 10,
+    "B02": 12,
+    "B03": 1,
+    "B04": 5
+  },
+  "authorization_id": "internal_pre_vfallp_confusion_nph_20260722",
+  "event_type_counts": {
+    "gait_instability": 18,
+    "normal_activity": 10
+  },
+  "identity_metadata_tags_removed": {
+    "assignee": 18,
+    "email": 18,
+    "owner": 18,
+    "username": 18
+  },
+  "ignored_tracks": [
+    {
+      "filename": "cvat_export__fall_risk__le2i_imvia__home_02__{{CGSM3.mp4}}__le2i_imvia__home_02__v20260718.zip",
+      "label": "B02_dragging_walk",
+      "reason": "outside_only",
+      "source_name": "CGSM3_resized.mp4",
+      "task_id": "32",
+      "track_id": "1"
+    }
+  ],
+  "imported_action_labels": 28,
+  "imported_event_labels": 28,
+  "outputs": {
+    "action_labels": "data/annotations/fall_risk/generated/v2/pre_vfallp_confusion_nph/action_labels.jsonl",
+    "event_labels": "data/annotations/fall_risk/generated/v2/pre_vfallp_confusion_nph/event_labels.jsonl",
+    "redacted_export_dir": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_confusion_nph"
+  },
+  "provenance_status": "internal_authorized_source_unverified",
+  "redacted_task_exports": [
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_confusion_nph/cvat_export__fall_risk__le2i_imvia__home_02__{{CGFM1.mp4}}__le2i_imvia__home_02__v20260718.zip",
+      "sha256": "1b2fb65b22bd942a7603fdb2654045a22a0281d7c0c33648dc5d182d4f6eb505",
+      "source_name": "CGFM1_resized.mp4",
+      "task_id": "21",
+      "video_id": "pre_vfallp_video_confusion_nph_cgfm1_4d14998e"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_confusion_nph/cvat_export__fall_risk__le2i_imvia__home_02__{{CGFM2.mp4}}__le2i_imvia__home_02__v20260718.zip",
+      "sha256": "a6265cffedad084c3c584a04255a8343002bac6d7367c8f2cec3f4047cadf950",
+      "source_name": "CGFM2_resized.mp4",
+      "task_id": "22",
+      "video_id": "pre_vfallp_video_confusion_nph_cgfm2_bb1ac54f"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_confusion_nph/cvat_export__fall_risk__le2i_imvia__home_02__{{CGFM3.mp4}}__le2i_imvia__home_02__v20260718.zip",
+      "sha256": "eb49bb6f0eb9bcab69cce58b9aa1e89f5db421c3556f1bee431e1e7410474810",
+      "source_name": "CGFM3_resized.mp4",
+      "task_id": "23",
+      "video_id": "pre_vfallp_video_confusion_nph_cgfm3_766030da"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_confusion_nph/cvat_export__fall_risk__le2i_imvia__home_02__{{CGFM4.mp4}}__le2i_imvia__home_02__v20260718.zip",
+      "sha256": "3fa07c23f762947ed7c9401143fa520b84809f227a1b8f1b6b8e60bb351a6d45",
+      "source_name": "CGFM4_resized.mp4",
+      "task_id": "24",
+      "video_id": "pre_vfallp_video_confusion_nph_cgfm4_6d9bef46"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_confusion_nph/cvat_export__fall_risk__le2i_imvia__home_02__{{CGFM5.mp4}}__le2i_imvia__home_02__v20260718.zip",
+      "sha256": "7b087b7fe2e09c461745555ae89142eca9e06c7b8a04924b24209c60c3f79407",
+      "source_name": "CGFM5_resized.mp4",
+      "task_id": "25",
+      "video_id": "pre_vfallp_video_confusion_nph_cgfm5_6e0f12f2"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_confusion_nph/cvat_export__fall_risk__le2i_imvia__home_02__{{CGFM6.mp4}}__le2i_imvia__home_02__v20260718.zip",
+      "sha256": "d2f7714710b4d1fbc5fb338141c2c4261d49dc3cc5b8190d46c7fdcb4745ff42",
+      "source_name": "CGFM6_resized.mp4",
+      "task_id": "26",
+      "video_id": "pre_vfallp_video_confusion_nph_cgfm6_4bfefb99"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_confusion_nph/cvat_export__fall_risk__le2i_imvia__home_02__{{CGFM7.mp4}}__le2i_imvia__home_02__v20260718.zip",
+      "sha256": "7465e492a2fdbbe2c9a1de0b925b642f1245481f6117924e6ca6669b297c2f79",
+      "source_name": "CGFM7_resized.mp4",
+      "task_id": "27",
+      "video_id": "pre_vfallp_video_confusion_nph_cgfm7_1c31d248"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_confusion_nph/cvat_export__fall_risk__le2i_imvia__home_02__{{CGFM8.mp4}}__le2i_imvia__home_02__v20260718.zip",
+      "sha256": "4c79d71aeb125613ee4c927e1a117f4b55a3e497307a9ede8965b7c2141e7125",
+      "source_name": "CGFM8_resized.mp4",
+      "task_id": "28",
+      "video_id": "pre_vfallp_video_confusion_nph_cgfm8_62a225d4"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_confusion_nph/cvat_export__fall_risk__le2i_imvia__home_02__{{CGFM9.mp4}}__le2i_imvia__home_02__v20260718.zip",
+      "sha256": "c95ac143ce9956f357419cadf8c84c41565c4ae6529b23273c2d550eecea5982",
+      "source_name": "CGFM9_resized.mp4",
+      "task_id": "29",
+      "video_id": "pre_vfallp_video_confusion_nph_cgfm9_13a0d943"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_confusion_nph/cvat_export__fall_risk__le2i_imvia__home_02__{{CGSM1.mp4}}__le2i_imvia__home_02__v20260718.zip",
+      "sha256": "d9db0b16d009d3104f97ce69c7d047a098974a73b9b9eb279f32e0f77dd615cd",
+      "source_name": "CGSM1_resized.mp4",
+      "task_id": "30",
+      "video_id": "pre_vfallp_video_confusion_nph_cgsm1_5d1cc3ee"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_confusion_nph/cvat_export__fall_risk__le2i_imvia__home_02__{{CGSM2.mp4}}__le2i_imvia__home_02__v20260718.zip",
+      "sha256": "8557e95c2bd318747353e4473b5ac82906fbf4263a7c820bedc3066878aa76ff",
+      "source_name": "CGSM2_resized.mp4",
+      "task_id": "31",
+      "video_id": "pre_vfallp_video_confusion_nph_cgsm2_f3dba003"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_confusion_nph/cvat_export__fall_risk__le2i_imvia__home_02__{{CGSM3.mp4}}__le2i_imvia__home_02__v20260718.zip",
+      "sha256": "6fbedf8a9587f3831b67a1b1a5fc4e603a6e336127af72b290adbdb11c98d2c6",
+      "source_name": "CGSM3_resized.mp4",
+      "task_id": "32",
+      "video_id": "pre_vfallp_video_confusion_nph_cgsm3_72c7c0fb"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_confusion_nph/cvat_export__fall_risk__le2i_imvia__home_02__{{CGSM4.mp4}}__le2i_imvia__home_02__v20260718.zip",
+      "sha256": "5d082e88203464aaf0649354b28ada5360258fbe0451453af39e800b126885d0",
+      "source_name": "CGSM4_resized.mp4",
+      "task_id": "33",
+      "video_id": "pre_vfallp_video_confusion_nph_cgsm4_a5119bab"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_confusion_nph/cvat_export__fall_risk__le2i_imvia__home_02__{{CGSM5.mp4}}__le2i_imvia__home_02__v20260718.zip",
+      "sha256": "ada18aa5d6378984e191f8a2ef26aaa115d8588053e4d68f71e079b35fd6db15",
+      "source_name": "CGSM5_resized.mp4",
+      "task_id": "34",
+      "video_id": "pre_vfallp_video_confusion_nph_cgsm5_0f3ef530"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_confusion_nph/cvat_export__fall_risk__le2i_imvia__home_02__{{CGSM6.mp4}}__le2i_imvia__home_02__v20260718.zip",
+      "sha256": "0ab6a29e68309595b9e1343ee72b926cb6c9dba8cb4fa3e6d11b8de58e3b5d90",
+      "source_name": "CGSM6_resized.mp4",
+      "task_id": "35",
+      "video_id": "pre_vfallp_video_confusion_nph_cgsm6_e121f374"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_confusion_nph/cvat_export__fall_risk__le2i_imvia__home_02__{{CGSM7.mp4}}__le2i_imvia__home_02__v20260718.zip",
+      "sha256": "e472d74ce358f47ec1624a7d6532351449fcc25ef680b300ff727462205e861e",
+      "source_name": "CGSM7_resized.mp4",
+      "task_id": "36",
+      "video_id": "pre_vfallp_video_confusion_nph_cgsm7_f8a2e306"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_confusion_nph/cvat_export__fall_risk__le2i_imvia__home_02__{{CGSM8.mp4}}__le2i_imvia__home_02__v20260718.zip",
+      "sha256": "60c95dedd41f77185e1d716f4b34a166d14c606686bd7933b99516afe7e3fbbf",
+      "source_name": "CGSM8_resized.mp4",
+      "task_id": "37",
+      "video_id": "pre_vfallp_video_confusion_nph_cgsm8_61f956bb"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_confusion_nph/cvat_export__fall_risk__le2i_imvia__home_02__{{CGSM9.mp4}}__le2i_imvia__home_02__v20260718.zip",
+      "sha256": "07b5672cf7fa9fffc8bb7c676d6fafadb22c5829b68c36392e7ae6fd486636de",
+      "source_name": "CGSM9_resized.mp4",
+      "task_id": "38",
+      "video_id": "pre_vfallp_video_confusion_nph_cgsm9_28445a25"
+    }
+  ],
+  "schema_version": "pre-vfallp-cvat-import-v1",
+  "source_archive": {
+    "copied_into_repository": false,
+    "filename": "confusion_nph已经标注.zip",
+    "sha256": "2e263a26b5edff57c2165c3a585cd39b3b4fad81424832ef2681d9386df12a82"
+  },
+  "source_group_ids": [
+    "pre_vfallp_unresolved"
+  ]
+}

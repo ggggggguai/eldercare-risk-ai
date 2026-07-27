@@ -39,14 +39,9 @@ def main() -> None:
         default=Path("data/annotations/fall_risk/subject_profiles.json"),
     )
     parser.add_argument(
-        "--review-log",
-        type=Path,
-        default=Path("data/annotations/fall_risk/annotation_review_log.jsonl"),
-    )
-    parser.add_argument(
         "--config",
         type=Path,
-        default=Path("configs/data/fall_risk_label_validation_v1.yaml"),
+        default=Path("configs/data/fall_risk_label_validation_v2.yaml"),
     )
     parser.add_argument("--mode", choices=("audit", "formal"), default="audit")
     parser.add_argument(
@@ -54,6 +49,7 @@ def main() -> None:
         type=Path,
         default=Path("reports/fall_risk/annotation_validation.json"),
     )
+    parser.add_argument("--overwrite", action="store_true")
     args = parser.parse_args()
     try:
         report = validate_fall_risk_data(
@@ -62,11 +58,10 @@ def main() -> None:
             event_labels_path=args.event_labels,
             risk_labels_path=args.risk_labels,
             subject_profiles_path=args.subject_profiles,
-            review_log_path=args.review_log,
             mode=args.mode,
             config_path=args.config,
         )
-        write_validation_report(report, args.report_output, overwrite=False)
+        write_validation_report(report, args.report_output, overwrite=args.overwrite)
     except (FileExistsError, FileNotFoundError, ValueError) as exc:
         parser.error(str(exc))
 

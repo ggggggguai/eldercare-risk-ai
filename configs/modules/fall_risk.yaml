@@ -80,11 +80,33 @@ pose:
     - person_id
     - track_id
     - bbox
+    - bbox_pixels
+    - coordinate_system
     - scene_region
     - keypoints
     - pose_confidence
     - keypoint_quality
     - timestamp_sec
+
+gait:
+  primary_backend: lightweight_tcn
+  checkpoint: null
+  expected_task: gait_instability_vs_normal_activity
+  input_format: t_v_c
+  window_frames: 64
+  joint_count: 14
+  channels: [x, y, dx, dy, quality]
+  fallback_backend: rule_baseline
+  output_fields:
+    - gait_risk_score
+    - model_score
+    - fallback_score
+    - score_source
+    - fallback_reason
+    - gait_stability_features
+    - quality_coverage
+    - risk_factors
+    - model_version
 
 sit_stand:
   current_backend: rule_baseline

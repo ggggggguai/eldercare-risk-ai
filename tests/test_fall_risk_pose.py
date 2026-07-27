@@ -56,7 +56,8 @@ class FallRiskPoseTest(unittest.TestCase):
             timestamp_sec=0.5,
             scene_region="living_room",
             track_id=1,
-            bbox=[10, 20, 50, 80],
+            bbox=[0.1, 0.1, 0.5, 0.4],
+            bbox_pixels=[10, 20, 50, 80],
             pose_confidence=0.94321,
         )
         payload = observation.to_dict()
@@ -64,7 +65,9 @@ class FallRiskPoseTest(unittest.TestCase):
         self.assertEqual(payload["frame_id"], 12)
         self.assertEqual(payload["person_id"], "elder_001")
         self.assertEqual(payload["track_id"], 1)
-        self.assertEqual(payload["bbox"], [10.0, 20.0, 50.0, 80.0])
+        self.assertEqual(payload["bbox"], [0.1, 0.1, 0.5, 0.4])
+        self.assertEqual(payload["bbox_pixels"], [10.0, 20.0, 50.0, 80.0])
+        self.assertEqual(payload["coordinate_system"], "image_normalized_0_1")
         self.assertEqual(payload["scene_region"], "living_room")
         self.assertEqual(payload["pose_confidence"], 0.9432)
         self.assertEqual(payload["keypoint_quality"], 0.92)
@@ -156,7 +159,9 @@ class FallRiskPoseTest(unittest.TestCase):
         self.assertEqual(payload["frame_id"], 8)
         self.assertEqual(payload["person_id"], "elder_001")
         self.assertEqual(payload["track_id"], 1)
-        self.assertEqual(payload["bbox"], [10.0, 20.0, 110.0, 220.0])
+        self.assertEqual(payload["bbox"], [0.05, 0.05, 0.55, 0.55])
+        self.assertEqual(payload["bbox_pixels"], [10.0, 20.0, 110.0, 220.0])
+        self.assertEqual(payload["coordinate_system"], "image_normalized_0_1")
         self.assertEqual(payload["scene_region"], "home")
         self.assertEqual(payload["pose_confidence"], 0.88)
         self.assertEqual(payload["timestamp_sec"], 0.4)
@@ -196,6 +201,8 @@ class FallRiskPoseTest(unittest.TestCase):
         self.assertEqual(second_payload["person_id"], "elder_011")
         self.assertEqual(second_payload["track_id"], 11)
         self.assertEqual(second_payload["bbox"], [5.0, 6.0, 7.0, 8.0])
+        self.assertEqual(second_payload["bbox_pixels"], [5.0, 6.0, 7.0, 8.0])
+        self.assertEqual(second_payload["coordinate_system"], "image_pixels")
         self.assertEqual(second_payload["keypoints"][0]["x"], 30.0)
 
 

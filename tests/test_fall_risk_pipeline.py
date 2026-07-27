@@ -1,6 +1,9 @@
 import unittest
 
-from elderly_monitoring.modules.fall_risk.features import feature_coverage
+from elderly_monitoring.modules.fall_risk.features import (
+    feature_coverage,
+    weighted_fall_risk_score,
+)
 from elderly_monitoring.modules.fall_risk import FallRiskPipeline
 
 
@@ -62,6 +65,65 @@ class FallRiskPipelineTest(unittest.TestCase):
             ),
             0.5,
         )
+
+    def test_specific_gait_explanations_are_preserved_in_fused_event(self) -> None:
+        event = FallRiskPipeline().predict_from_features(
+            {
+                "person_id": "p01",
+                "gait_risk_score": 0.72,
+                "gait_risk_factors": [
+                    "gait_speed_reduced",
+                    "hip_lateral_sway",
+                    "turn_instability",
+                ],
+            }
+        )
+
+        self.assertIn("gait_instability", event.risk_factors)
+        self.assertIn("gait_speed_reduced", event.risk_factors)
+        self.assertIn("hip_lateral_sway", event.risk_factors)
+        self.assertIn("turn_instability", event.risk_factors)
+
+    def test_fusion_mask_excludes_unavailable_values_and_renormalizes_weights(self) -> None:
+        score = weighted_fall_risk_score(
+            {
+                "gait_risk_score": 0.6,
+                "sit_stand_risk_score": 0.0,
+                "near_fall_event_score": None,
+                "scene_risk_score": 0.2,
+                "fusion_mask": {
+                    "gait_risk_score": True,
+                    "sit_stand_risk_score": False,
+                    "near_fall_event_score": False,
+                    "baseline_deviation_score": False,
+                    "scene_risk_score": True,
+                    "activity_rhythm_score": False,
+                },
+            }
+        )
+
+        self.assertEqual(score, 0.4933)
+
+    def test_event_metadata_preserves_epoch_and_branch_statuses(self) -> None:
+        event = FallRiskPipeline().predict_from_features(
+            {
+                "person_id": "p01",
+                "stream_epoch": 4,
+                "gait_risk_score": 0.6,
+                "fusion_mask": {"gait_risk_score": True},
+                "branch_diagnostics": {
+                    "gait": {"status": "valid"},
+                    "near_fall": {"status": "unavailable"},
+                },
+            }
+        )
+
+        self.assertEqual(event.metadata["stream_epoch"], 4)
+        self.assertEqual(event.metadata["branch_statuses"]["gait"], "valid")
+        self.assertEqual(
+            event.metadata["branch_statuses"]["near_fall"], "unavailable"
+        )
+
 
 
 if __name__ == "__main__":

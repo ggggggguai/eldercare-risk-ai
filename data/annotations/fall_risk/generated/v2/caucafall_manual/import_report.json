@@ -1,0 +1,268 @@
+{
+  "alias_counts": {
+    "A06_normal_bend->A06_controlled_bend": 3
+  },
+  "event_count": 311,
+  "identity_metadata_tags_removed": {
+    "assignee": 110,
+    "email": 110,
+    "owner": 110,
+    "url": 100,
+    "username": 110
+  },
+  "normalized_label_counts": {
+    "A01_normal_walk": 60,
+    "A02_normal_turn": 38,
+    "A03_controlled_sit_down": 21,
+    "A04_normal_sit_to_stand": 26,
+    "A05_controlled_squat": 2,
+    "A06_controlled_bend": 8,
+    "A08_routine_support_contact": 4,
+    "A09_kneel_or_floor_activity": 10,
+    "A10_normal_step_adjustment": 30,
+    "A12_normal_hop": 10,
+    "C01_failed_sit_to_stand": 2,
+    "D01_forward_fall": 11,
+    "D02_lateral_fall": 19,
+    "D03_backward_fall": 10,
+    "D04_long_static_after_fall": 49,
+    "D05_seated_fall": 10,
+    "U01_unable_to_judge": 1
+  },
+  "outputs": {
+    "action_labels": "data/annotations/fall_risk/generated/v2/caucafall_manual/action_labels.jsonl",
+    "event_labels": "data/annotations/fall_risk/generated/v2/caucafall_manual/event_labels.jsonl",
+    "report": "data/annotations/fall_risk/generated/v2/caucafall_manual/import_report.json"
+  },
+  "provenance_status": "manual_cvat_source_verified",
+  "raw_label_counts": {
+    "A01_normal_walk": 60,
+    "A02_normal_turn": 38,
+    "A03_controlled_sit_down": 21,
+    "A04_normal_sit_to_stand": 26,
+    "A05_controlled_squat": 2,
+    "A06_controlled_bend": 5,
+    "A06_normal_bend": 3,
+    "A08_routine_support_contact": 4,
+    "A09_kneel_or_floor_activity": 10,
+    "A10_normal_step_adjustment": 30,
+    "A12_normal_hop": 10,
+    "C01_failed_sit_to_stand": 2,
+    "D01_forward_fall": 11,
+    "D02_lateral_fall": 19,
+    "D03_backward_fall": 10,
+    "D04_long_static_after_fall": 49,
+    "D05_seated_fall": 10,
+    "U01_unable_to_judge": 1
+  },
+  "redacted_exports": [
+    {
+      "box_count": 1663,
+      "filename": "CAUCAFalls1.zip",
+      "path": "data/annotations/fall_risk/cvat_exports/raw/caucafall_manual/CAUCAFalls1.zip",
+      "sha256": "01a61c4f001bbb4a5d009b271da8e64af470920086345f7a6e6073ef83f48935",
+      "source_names": [
+        "FallBackwardsS1.avi",
+        "FallForwardS1.avi",
+        "FallLeftS1.avi",
+        "FallRightS1.avi",
+        "FallSittingS1.avi",
+        "HopS1.avi",
+        "KneelS1.avi",
+        "PickupobjectS1.avi",
+        "SitDownS1.avi",
+        "WalkS1.avi"
+      ],
+      "task_count": 10,
+      "track_count": 29
+    },
+    {
+      "box_count": 2502,
+      "filename": "CAUCAFalls10.zip",
+      "path": "data/annotations/fall_risk/cvat_exports/raw/caucafall_manual/CAUCAFalls10.zip",
+      "sha256": "4e61713b798587168cc7bdd181569231cbaab13c45b8de2772ab4856d1349043",
+      "source_names": [
+        "FallBackwardsS10.avi",
+        "FallForwardS10.avi",
+        "FallLeftS10.avi",
+        "FallRightS10.avi",
+        "FallSittingS10.avi",
+        "HopS10.avi",
+        "KneelS10.avi",
+        "PickupobjectS10.avi",
+        "SitDownS10.avi",
+        "WalkS10.avi"
+      ],
+      "task_count": 10,
+      "track_count": 35
+    },
+    {
+      "box_count": 1478,
+      "filename": "CAUCAFalls2.zip",
+      "path": "data/annotations/fall_risk/cvat_exports/raw/caucafall_manual/CAUCAFalls2.zip",
+      "sha256": "8650cd6014f6930f266a9463790735b78c9205d08ed7847cf6540258a1f0f35e",
+      "source_names": [
+        "FallBackwardsS2.avi",
+        "FallForwardS2.avi",
+        "FallLeftS2.avi",
+        "FallRightS2.avi",
+        "FallSittingS2.avi",
+        "HopS2.avi",
+        "KneelS2.avi",
+        "PickupobjectS2.avi",
+        "SitDownS2.avi",
+        "WalkS2.avi"
+      ],
+      "task_count": 10,
+      "track_count": 28
+    },
+    {
+      "box_count": 1932,
+      "filename": "CAUCAFalls3.zip",
+      "path": "data/annotations/fall_risk/cvat_exports/raw/caucafall_manual/CAUCAFalls3.zip",
+      "sha256": "115f93092e88d01d37c0b18dd8c4a1a574de43fd358637708913082e1d5b1e6a",
+      "source_names": [
+        "FallBackwardsS3.avi",
+        "FallForwardS3.avi",
+        "FallLeftS3.avi",
+        "FallRightS3.avi",
+        "FallSittingS3.avi",
+        "HopS3.avi",
+        "KneelS3.avi",
+        "PickupobjectS3.avi",
+        "SitDownS3.avi",
+        "WalkS3.avi"
+      ],
+      "task_count": 10,
+      "track_count": 32
+    },
+    {
+      "box_count": 1878,
+      "filename": "CAUCAFalls4.zip",
+      "path": "data/annotations/fall_risk/cvat_exports/raw/caucafall_manual/CAUCAFalls4.zip",
+      "sha256": "2ca98c541cd59b89366a1f1706a9df4ae0c6a147b3f096e40af6379cdb713343",
+      "source_names": [
+        "FallBackwardsS4.avi",
+        "FallForwardS4.avi",
+        "FallLeftS4.avi",
+        "FallRightS4.avi",
+        "FallSittingS4.avi",
+        "HopS4.avi",
+        "KneelS4.avi",
+        "PickupobjectS4.avi",
+        "SitDownS4.avi",
+        "WalkS4.avi"
+      ],
+      "task_count": 10,
+      "track_count": 34
+    },
+    {
+      "box_count": 2219,
+      "filename": "CAUCAFalls5.zip",
+      "path": "data/annotations/fall_risk/cvat_exports/raw/caucafall_manual/CAUCAFalls5.zip",
+      "sha256": "f679d6b40019589d517d245aba52f1b258d2f5dff61e7f9a2257581dce58bb1f",
+      "source_names": [
+        "FallBackwardsS5.avi",
+        "FallForwardS5.avi",
+        "FallLeftS5.avi",
+        "FallRightS5.avi",
+        "FallSittingS5.avi",
+        "HopS5.avi",
+        "KneelS5.avi",
+        "PickupobjectS5.avi",
+        "SitDownS5.avi",
+        "WalkS5.avi"
+      ],
+      "task_count": 10,
+      "track_count": 33
+    },
+    {
+      "box_count": 2171,
+      "filename": "CAUCAFalls6.zip",
+      "path": "data/annotations/fall_risk/cvat_exports/raw/caucafall_manual/CAUCAFalls6.zip",
+      "sha256": "34435b0bd707014962387a1e81b7ccb5f1c51b3964e5c50aa6eda9d1e3890489",
+      "source_names": [
+        "FallBackwardsS6.avi",
+        "FallForwardS6.avi",
+        "FallLeftS6.avi",
+        "FallRightS6.avi",
+        "FallSittingS6.avi",
+        "HopS6.avi",
+        "KneelS6.avi",
+        "PickupobjectS6.avi",
+        "SitDownS6.avi",
+        "WalkS6.avi"
+      ],
+      "task_count": 10,
+      "track_count": 31
+    },
+    {
+      "box_count": 1958,
+      "filename": "CAUCAFalls7.zip",
+      "path": "data/annotations/fall_risk/cvat_exports/raw/caucafall_manual/CAUCAFalls7.zip",
+      "sha256": "0098cefe8ef759eb94c1e616ba2f36302c9c80e6927e9c157988958e0935b40d",
+      "source_names": [
+        "FallBackwardsS7.avi",
+        "FallForwardS7.avi",
+        "FallLeftS7.avi",
+        "FallRightS7.avi",
+        "FallSittingS7.avi",
+        "HopS7.avi",
+        "KneelS7.avi",
+        "PickupobjectS7.avi",
+        "SitDownS7.avi",
+        "WalkS7.avi"
+      ],
+      "task_count": 10,
+      "track_count": 30
+    },
+    {
+      "box_count": 2135,
+      "filename": "CAUCAFalls8.zip",
+      "path": "data/annotations/fall_risk/cvat_exports/raw/caucafall_manual/CAUCAFalls8.zip",
+      "sha256": "18e50b112d65e13c5f3d2f7f7ea4807f73d7a86cb9d6489aeb5a87b13ca74d60",
+      "source_names": [
+        "FallBackwardsS8.avi",
+        "FallForwardS8.avi",
+        "FallLeftS8.avi",
+        "FallRightS8.avi",
+        "FallSittingS8.avi",
+        "HopS8.avi",
+        "KneelS8.avi",
+        "PickupobjectS8.avi",
+        "SitDownS8.avi",
+        "WalkS8.avi"
+      ],
+      "task_count": 10,
+      "track_count": 30
+    },
+    {
+      "box_count": 2151,
+      "filename": "CAUCAFalls9.zip",
+      "path": "data/annotations/fall_risk/cvat_exports/raw/caucafall_manual/CAUCAFalls9.zip",
+      "sha256": "a92dcf37396db8a5fade0b7c80d94ea1296650e9adbcce480ce27a13dc67fb30",
+      "source_names": [
+        "FallBackwardsS9.avi",
+        "FallForwardS9.avi",
+        "FallLeftS9.avi",
+        "FallRightS9.avi",
+        "FallSittingS9.avi",
+        "HopS9.avi",
+        "KneelS9.avi",
+        "PickupobjectS9.avi",
+        "SitDownS9.avi",
+        "WalkS9.avi"
+      ],
+      "task_count": 10,
+      "track_count": 29
+    }
+  ],
+  "schema_version": "caucafall-cvat-import-v1",
+  "source_archive": {
+    "copied_into_repository": false,
+    "filename": "CAUCAFall标注.zip",
+    "sha256": "67b7ce1823820414fc373bafd94adfe104e88a186bd749c177b4227b981808b1"
+  },
+  "track_count": 311,
+  "video_count": 100
+}

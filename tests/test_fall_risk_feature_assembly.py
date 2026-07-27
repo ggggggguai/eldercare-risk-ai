@@ -44,15 +44,168 @@ class FeatureAssemblyTest(unittest.TestCase):
         )
         snapshot = assembler.add_pose(_record(1, 0.0), monotonic_sec=0.0)
         self.assertEqual(snapshot.features["scene_risk_score"], 0.7)
-        self.assertEqual(snapshot.features["baseline_deviation_score"], 0.0)
+        self.assertIsNone(snapshot.features["baseline_deviation_score"])
         self.assertLess(snapshot.features["feature_coverage"], 1.0)
         self.assertIn("insufficient_baseline_history", snapshot.quality_flags)
+        self.assertEqual(
+            snapshot.branch_diagnostics["baseline"]["status"], "unavailable"
+        )
+
+    def test_short_window_uses_unavailable_instead_of_zero_risk(self) -> None:
+        assembler = FeatureAssembler(
+            person_id="elder-1",
+            scene_region="home",
+            scene_risk_scores={},
+            config=FeatureAssemblyConfig(analysis_interval_sec=0.0),
+        )
+
+        snapshot = assembler.add_pose(_record(1, 0.0), monotonic_sec=0.0)
+
+        self.assertFalse(snapshot.usable)
+        self.assertIsNone(snapshot.features["gait_risk_score"])
+        self.assertIsNone(snapshot.features["near_fall_event_score"])
+        self.assertEqual(snapshot.branch_diagnostics["gait"]["status"], "unavailable")
+        self.assertIn(
+            "insufficient_frames",
+            snapshot.branch_diagnostics["gait"]["reasons"],
+        )
+        self.assertFalse(snapshot.features["fusion_mask"]["gait_risk_score"])
+
+    def test_scene_risk_is_not_fused_without_behavioral_or_baseline_signal(self) -> None:
+        from elderly_monitoring.modules.fall_risk.pipeline import FallRiskPipeline
+
+        assembler = FeatureAssembler(
+            person_id="elder-1",
+            scene_region="bathroom",
+            scene_risk_scores={"bathroom": 0.7},
+            config=FeatureAssemblyConfig(analysis_interval_sec=0.0),
+        )
+        assembler.add_pose(_record(1, 0.0), monotonic_sec=0.0)
+        snapshot = assembler.add_pose(_record(2, 0.1), monotonic_sec=0.1)
+
+        self.assertTrue(snapshot.usable)
+        self.assertEqual(snapshot.features["scene_risk_score"], 0.7)
+        self.assertFalse(snapshot.features["fusion_mask"]["scene_risk_score"])
+        self.assertEqual(
+            FallRiskPipeline().predict_from_features(snapshot.features).risk_level,
+            0,
+        )
+
+    def test_branch_exception_is_isolated_as_inference_error(self) -> None:
+        class BrokenPredictor:
+            model_version = "broken-gait-test"
+
+            def predict_records(self, records):
+                raise AssertionError("unexpected model failure")
+
+        assembler = FeatureAssembler(
+            person_id="elder-1",
+            scene_region="home",
+            scene_risk_scores={},
+            config=FeatureAssemblyConfig(analysis_interval_sec=0.0),
+            gait_predictor=BrokenPredictor(),
+        )
+        snapshot = None
+        for frame_id in range(12):
+            snapshot = assembler.add_pose(
+                _record(frame_id, frame_id * 0.2),
+                monotonic_sec=frame_id * 0.2,
+            )
+
+        self.assertIsNotNone(snapshot)
+        self.assertEqual(
+            snapshot.branch_diagnostics["gait"]["status"], "inference_error"
+        )
+        self.assertIsNone(snapshot.features["gait_risk_score"])
+        self.assertFalse(snapshot.features["fusion_mask"]["gait_risk_score"])
+        self.assertTrue(snapshot.usable)
+
+    def test_branch_diagnostics_include_window_quality_timing_and_versions(self) -> None:
+        assembler = FeatureAssembler(
+            person_id="elder-1",
+            scene_region="home",
+            scene_risk_scores={},
+            config=FeatureAssemblyConfig(analysis_interval_sec=0.0),
+        )
+        snapshot = None
+        for frame_id in range(12):
+            snapshot = assembler.add_pose(
+                _record(frame_id, frame_id * 0.2),
+                monotonic_sec=frame_id * 0.2,
+            )
+
+        gait = snapshot.branch_diagnostics["gait"]
+        self.assertEqual(gait["status"], "valid")
+        self.assertEqual(gait["input_frame_count"], 12)
+        self.assertGreaterEqual(gait["effective_fps"], 4.0)
+        self.assertEqual(gait["window_start_sec"], 0.0)
+        self.assertEqual(gait["window_end_sec"], 2.2)
+        self.assertIn("model_version", gait)
+        self.assertIn("duration_ms", gait)
+        self.assertIn("pose_quality", snapshot.stage_timings_ms)
+
+    def test_unchanged_window_reuses_cached_snapshot(self) -> None:
+        class Predictor:
+            model_version = "cache-test"
+
+            def __init__(self):
+                self.calls = 0
+
+            def predict_records(self, records):
+                self.calls += 1
+                return 0.4
+
+        predictor = Predictor()
+        assembler = FeatureAssembler(
+            person_id="elder-1",
+            scene_region="home",
+            scene_risk_scores={},
+            config=FeatureAssemblyConfig(analysis_interval_sec=0.0),
+            gait_predictor=predictor,
+        )
+        for frame_id in range(12):
+            assembler.add_pose(
+                _record(frame_id, frame_id * 0.2),
+                monotonic_sec=frame_id * 0.2,
+            )
+        calls_before = predictor.calls
+
+        first = assembler._assemble()
+        second = assembler._assemble()
+
+        self.assertIs(first, second)
+        self.assertEqual(predictor.calls, calls_before)
 
     def test_reset_clears_window(self) -> None:
         assembler = FeatureAssembler(person_id="elder-1", scene_region="home", scene_risk_scores={})
         assembler.add_pose(_record(1, 0.0), monotonic_sec=0.0)
         assembler.reset()
         self.assertEqual(list(assembler.records), [])
+
+    def test_configured_gait_predictor_is_used_by_runtime_assembly(self) -> None:
+        class Predictor:
+            model_version = "gait-tcn-test"
+
+            def predict_records(self, records):
+                return 0.73
+
+        assembler = FeatureAssembler(
+            person_id="elder-1",
+            scene_region="home",
+            scene_risk_scores={},
+            config=FeatureAssemblyConfig(analysis_interval_sec=0.0),
+            gait_predictor=Predictor(),
+        )
+        snapshot = None
+        for frame_id in range(12):
+            snapshot = assembler.add_pose(
+                _record(frame_id, frame_id * 0.1),
+                monotonic_sec=frame_id * 0.1,
+            )
+
+        self.assertIsNotNone(snapshot)
+        self.assertEqual(snapshot.features["gait_risk_score"], 0.73)
+        self.assertEqual(snapshot.features["gait_score_source"], "tcn")
 
 
 if __name__ == "__main__":

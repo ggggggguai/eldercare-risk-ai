@@ -1,0 +1,158 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://elderly-monitoring.local/schemas/fall-risk-action-label-v3.json",
+  "title": "Fall-risk training action label v3",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "label_id",
+    "asset_id",
+    "video_id",
+    "content_sha256",
+    "subject_id",
+    "source_group_id",
+    "sample_group_id",
+    "track_id",
+    "start_frame",
+    "end_frame_exclusive",
+    "frame_index_base",
+    "start_time",
+    "end_time_exclusive",
+    "target_status",
+    "boundary_precision",
+    "quality_flags",
+    "training_tier",
+    "source_refs",
+    "annotator_id",
+    "reviewer_ids",
+    "review_status",
+    "note",
+    "action_id",
+    "action_family",
+    "action_type",
+    "action_type_training_tier",
+    "action_attributes",
+    "linked_event_id"
+  ],
+  "properties": {
+    "schema_version": {"const": "fall-risk-action-label-v3"},
+    "label_id": {"type": "string", "pattern": "^actionv3_[0-9a-f]{24}$"},
+    "asset_id": {"type": "string", "minLength": 1},
+    "video_id": {"type": "string", "minLength": 1},
+    "content_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "subject_id": {"type": "string", "minLength": 1},
+    "source_group_id": {"type": "string", "minLength": 1},
+    "sample_group_id": {"type": "string", "pattern": "^samplegrp_[0-9a-f]{24}$"},
+    "track_id": {"type": ["string", "null"]},
+    "start_frame": {"type": "integer", "minimum": 0},
+    "end_frame_exclusive": {"type": "integer", "minimum": 1},
+    "frame_index_base": {"const": 0},
+    "start_time": {"type": "number", "minimum": 0},
+    "end_time_exclusive": {"type": "number", "exclusiveMinimum": 0},
+    "target_status": {
+      "enum": ["confirmed", "single_person_assumed", "uncertain"]
+    },
+    "boundary_precision": {"enum": ["exact", "approximate", "unknown"]},
+    "quality_flags": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "partial_occlusion",
+          "heavy_occlusion",
+          "low_light",
+          "motion_blur",
+          "low_resolution",
+          "off_screen",
+          "multi_person_uncertain",
+          "camera_cut"
+        ]
+      }
+    },
+    "training_tier": {"enum": ["primary", "auxiliary", "ignore"]},
+    "source_refs": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "source_type",
+          "source_record_id",
+          "source_annotation_path",
+          "source_annotation_sha256",
+          "source_label_id"
+        ],
+        "properties": {
+          "source_type": {
+            "enum": ["v2_cvat_action", "v2_cvat_action_mapping", "v2_le2i_txt", "v2_toaga_official_walking", "v2_ntu_rgbd_clip_label", "v2_ntu_rgbd_manual_clip_label", "manual_v3"]
+          },
+          "source_record_id": {"type": "string", "minLength": 1},
+          "source_annotation_path": {"type": "string", "minLength": 1},
+          "source_annotation_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "source_label_id": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "annotator_id": {"type": "string", "minLength": 1},
+    "reviewer_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "review_status": {
+      "enum": [
+        "unreviewed",
+        "single_annotated",
+        "source_verified",
+        "single_reviewed",
+        "double_reviewed",
+        "adjudicated"
+      ]
+    },
+    "note": {"type": "string"},
+    "action_id": {
+      "enum": [
+        "A01", "A02", "A03", "A04", "A05", "A06", "A07", "A08", "A09", "A10", "A11", "A12",
+        "B01", "B02", "B03", "B04", "B05", "B06",
+        "C01", "C02", "C03", "C04", "C05",
+        "D01", "D02", "D03", "D04", "D05", "U01"
+      ]
+    },
+    "action_family": {
+      "type": ["string", "null"],
+      "enum": [
+        "walk", "turn", "sit_down", "sit_to_stand", "squat", "bend", "lie_down",
+        "support_use", "floor_transition", "step_adjustment", "assisted_transition", "exercise",
+        "balance_loss", "fall", "post_fall_state", null
+      ]
+    },
+    "action_type": {
+      "type": ["string", "null"],
+      "enum": [
+        "normal_walk", "normal_turn", "controlled_sit_down", "normal_sit_to_stand",
+        "controlled_squat", "controlled_bend", "controlled_lie_down",
+        "routine_support_contact", "kneel_or_floor_activity", "normal_step_adjustment",
+        "assisted_sit_or_lowering", "slow_walk", "dragging_walk", "shuffling_walk",
+        "swaying_walk", "unstable_turn", "slow_sit_to_stand", "failed_sit_to_stand",
+        "sustained_support_walk", "stumble", "rapid_support_reaction", "rapid_body_drop",
+        "forward_fall", "lateral_fall", "backward_fall", "post_fall_immobile",
+        "normal_hop", "seated_fall", null
+      ]
+    },
+    "action_type_training_tier": {"enum": ["primary", "auxiliary", "ignore"]},
+    "action_attributes": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": ["assisted", "support_used", "rapid", "contact_observed", "contact_proxy"]
+      }
+    },
+    "linked_event_id": {
+      "type": ["string", "null"],
+      "pattern": "^eventv3_[0-9a-f]{24}$"
+    }
+  }
+}

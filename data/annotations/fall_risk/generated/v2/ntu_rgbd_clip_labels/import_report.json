@@ -1,0 +1,27 @@
+{
+  "boundary_review": {
+    "boundary_precision": "exact",
+    "decision_id": "ntu-rgbd-manual-boundary-review-20260725",
+    "reviewed_at": "2026-07-25",
+    "reviewer_id": "project_owner",
+    "training_tier": "primary"
+  },
+  "excluded_by_source_action_code": {
+    "A043": 948
+  },
+  "excluded_ineligible": 0,
+  "excluded_videos": 948,
+  "imported_action_labels": 2976,
+  "imported_by_source_action_code": {
+    "A008": 948,
+    "A009": 948,
+    "A042": 948,
+    "A080": 132
+  },
+  "manifest_ntu_rgbd_videos": 3924,
+  "manual_exact_action_labels": 2976,
+  "mapping_id": "ntu-rgbd-clip-label-map-v2",
+  "mapping_path": "configs/data/ntu_rgbd_clip_label_map_v2.json",
+  "mapping_sha256": "127809b86546d5930bbfa6a5c7d110ee7214b90bed3f826694ff5bd0ccaeb63f",
+  "schema_version": "ntu-rgbd-clip-import-report-v2"
+}

@@ -3,13 +3,21 @@ from __future__ import annotations
 import logging
 import time
 import uuid
-from typing import Any, Iterable
+from dataclasses import dataclass
+from typing import Any, Iterable, Mapping
 
 import httpx
 
 from elderly_monitoring.common.schemas import AlgorithmEvent
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class DeliveryAttempt:
+    success: bool
+    status_code: int | None = None
+    error: str | None = None
 
 
 class CallbackSender:
@@ -25,16 +33,33 @@ class CallbackSender:
         payload.update({"event_id": event_id, "session_id": session_id, "schema_version": "1.0"})
         headers = {"Authorization": f"Bearer {self.token}", "Content-Type": "application/json"}
         for attempt, delay in enumerate(self.retry_delays, start=1):
-            try:
-                response = self.client.post(callback_url, json=payload, headers=headers)
-                if 200 <= response.status_code < 300:
-                    return True
-            except httpx.HTTPError:
-                pass
+            result = self.send_once(callback_url, payload)
+            if result.success:
+                return True
             if attempt < len(self.retry_delays):
                 time.sleep(delay)
         logger.error("risk event callback failed after retries")
         return False
+
+    def send_once(self, callback_url: str, payload: Mapping[str, Any]) -> DeliveryAttempt:
+        headers = {
+            "Authorization": f"Bearer {self.token}",
+            "Content-Type": "application/json",
+        }
+        try:
+            response = self.client.post(callback_url, json=dict(payload), headers=headers)
+        except httpx.HTTPError as exc:
+            return DeliveryAttempt(
+                success=False,
+                error=f"{type(exc).__name__}: callback request failed",
+            )
+        if 200 <= response.status_code < 300:
+            return DeliveryAttempt(success=True, status_code=response.status_code)
+        return DeliveryAttempt(
+            success=False,
+            status_code=response.status_code,
+            error=f"callback_http_status_{response.status_code}",
+        )
 
     def close(self) -> None:
         if self._owns_client:

@@ -48,6 +48,7 @@ Conda channel：
   pandas==3.0.3
   scikit-learn==1.9.0
   lightgbm==4.6.0
+  interpret-core==0.7.8
   opencv-python==4.13.0.92
   ultralytics==8.4.78
   torch==2.12.1
