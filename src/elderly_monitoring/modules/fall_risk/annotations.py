@@ -1,11 +1,17 @@
 from __future__ import annotations
 
+import copy
 import hashlib
+import io
 import json
 import math
 import os
 import re
+import shutil
+import tempfile
+import uuid
 import zipfile
+from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 from tempfile import NamedTemporaryFile, TemporaryDirectory
@@ -16,8 +22,16 @@ import xml.etree.ElementTree as ET
 ACTION_NAMES: dict[str, str] = {
     "A01": "normal_walk",
     "A02": "normal_turn",
-    "A03": "normal_sit",
-    "A04": "normal_stand",
+    "A03": "controlled_sit_down",
+    "A04": "normal_sit_to_stand",
+    "A05": "controlled_squat",
+    "A06": "controlled_bend",
+    "A07": "controlled_lie_down",
+    "A08": "routine_support_contact",
+    "A09": "kneel_or_floor_activity",
+    "A10": "normal_step_adjustment",
+    "A11": "assisted_sit_or_lowering",
+    "A12": "normal_hop",
     "B01": "slow_walk",
     "B02": "dragging_walk",
     "B03": "shuffling_walk",
@@ -33,7 +47,16 @@ ACTION_NAMES: dict[str, str] = {
     "D02": "lateral_fall",
     "D03": "backward_fall",
     "D04": "long_static_after_fall",
+    "D05": "seated_fall",
     "U01": "unable_to_judge",
+}
+
+LEGACY_ACTION_LABEL_ALIASES: dict[str, str] = {
+    "A03_normal_sit": "A03_controlled_sit_down",
+    "A04_normal_stand": "A04_normal_sit_to_stand",
+    "A05_normal_squat": "A05_controlled_squat",
+    "A06_normal_bend": "A06_controlled_bend",
+    "A09_normal_kneel": "A09_kneel_or_floor_activity",
 }
 
 ACTION_EVENT_MAP: dict[str, tuple[str, int]] = {
@@ -41,6 +64,14 @@ ACTION_EVENT_MAP: dict[str, tuple[str, int]] = {
     "A02": ("normal_activity", 0),
     "A03": ("normal_activity", 0),
     "A04": ("normal_activity", 0),
+    "A05": ("normal_activity", 0),
+    "A06": ("normal_activity", 0),
+    "A07": ("normal_activity", 0),
+    "A08": ("wall_support", 3),
+    "A09": ("normal_activity", 0),
+    "A10": ("normal_activity", 0),
+    "A11": ("normal_activity", 0),
+    "A12": ("normal_activity", 0),
     "B01": ("gait_instability", 1),
     "B02": ("gait_instability", 2),
     "B03": ("gait_instability", 2),
@@ -56,10 +87,12 @@ ACTION_EVENT_MAP: dict[str, tuple[str, int]] = {
     "D02": ("fall", 4),
     "D03": ("fall", 4),
     "D04": ("long_static", 4),
+    "D05": ("fall", 4),
     "U01": ("uncertain", 0),
 }
 
-ACTION_EVENT_MAPPING_VERSION = "fall-action-event-v1"
+# Additive action labels keep mapping v2 so existing event IDs stay stable.
+ACTION_EVENT_MAPPING_VERSION = "fall-action-event-v2"
 QUALITY_VALUES = {
     "clear",
     "partial_occlusion",
@@ -68,7 +101,6 @@ QUALITY_VALUES = {
     "off_screen",
     "multi_person_uncertain",
 }
-REVIEW_STATUS_VALUES = {"pending", "reviewed", "final"}
 IDENTITY_METADATA_TAGS = {"owner", "assignee", "username", "email"}
 _PSEUDONYM_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$")
 _EMAIL_PATTERN = re.compile(r"(?i)\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b")
@@ -121,6 +153,45 @@ class Le2iImportResult:
     report: dict[str, int]
 
 
+@dataclass(frozen=True)
+class ToagaImportResult:
+    action_labels: list[dict[str, Any]]
+    report: dict[str, int]
+
+
+@dataclass(frozen=True)
+class NtuRgbdImportResult:
+    action_labels: list[dict[str, Any]]
+    report: dict[str, Any]
+
+
+@dataclass(frozen=True)
+class PreVFallpRedactedExport:
+    filename: str
+    payload: bytes
+    sha256: str
+    task_id: str
+    source_name: str
+    video_id: str
+
+
+@dataclass(frozen=True)
+class PreVFallpCvatImportResult:
+    action_labels: list[dict[str, Any]]
+    event_labels: list[dict[str, Any]]
+    redacted_exports: list[PreVFallpRedactedExport]
+    report: dict[str, Any]
+
+
+@dataclass(frozen=True)
+class _NtuRgbdClipLabelMap:
+    mapping_id: str
+    mapping_sha256: str
+    source_annotation_path: str
+    boundary_review: Mapping[str, str]
+    entries: Mapping[str, tuple[str, str | None]]
+
+
 def read_le2i_fall_window(annotation_path: Path | str) -> tuple[int, int] | None:
     """Return the official one-based LE2I fall window, or None when absent."""
     path = Path(annotation_path)
@@ -159,7 +230,6 @@ def convert_cvat_xml(
     manifest_path: Path | str | None = None,
     file_root: Path | str | None = None,
     labeler: str = "unknown",
-    review_status: str = "pending",
     default_subject_id: str = "unknown",
     default_scene: str = "home",
     default_view: str = "fixed_camera",
@@ -171,8 +241,6 @@ def convert_cvat_xml(
     manifest-backed conversion always uses each video's exact rational FPS and
     treats a non-null ``fps`` argument as an explicit override that must agree.
     """
-    if review_status not in REVIEW_STATUS_VALUES:
-        raise ValueError(f"invalid review_status: {review_status!r}")
     _require_pseudonymous_identifier(labeler, "labeler", allow_unknown=True)
     _require_pseudonymous_identifier(
         default_subject_id, "default_subject_id", allow_unknown=True
@@ -298,9 +366,6 @@ def convert_cvat_xml(
                 "end_frame": end_frame,
                 "frame_index_base": 0,
                 "labeler": labeler,
-                "review_status": review_status,
-                "eligibility": False,
-                "review_evidence_ids": [],
                 "quality": quality,
                 "note": note,
                 "source": "cvat",
@@ -331,9 +396,6 @@ def convert_cvat_xml(
                     "frame_index_base": 0,
                     "severity": severity,
                     "label_source": "cvat_action_mapping",
-                    "review_status": review_status,
-                    "eligibility": False,
-                    "review_evidence_ids": [],
                     "note": note or _event_note(action_id, action_name),
                     "source_action_id": action_id,
                     "source_action_name": action_name,
@@ -361,7 +423,6 @@ def write_fall_label_jsonl(
     manifest_path: Path | str | None = None,
     file_root: Path | str | None = None,
     labeler: str = "unknown",
-    review_status: str = "pending",
     default_subject_id: str = "unknown",
     default_scene: str = "home",
     default_view: str = "fixed_camera",
@@ -374,7 +435,6 @@ def write_fall_label_jsonl(
         manifest_path=manifest_path,
         file_root=file_root,
         labeler=labeler,
-        review_status=review_status,
         default_subject_id=default_subject_id,
         default_scene=default_scene,
         default_view=default_view,
@@ -406,6 +466,215 @@ def write_converted_fall_labels(
         "action_labels": len(converted.action_labels),
         "event_labels": len(converted.event_labels),
     }
+
+
+def import_pre_vfallp_cvat_labels(
+    input_path: Path | str,
+    *,
+    manifest_path: Path | str,
+    redacted_export_dir: Path | str,
+    labeler: str = "cvat_pre_vfallp_import_20260722",
+) -> PreVFallpCvatImportResult:
+    """Prepare a user-authorized Pre_VFallp CVAT export for v2 import.
+
+    The source archive is never copied. Nested task ZIPs and direct multi-task
+    project exports are normalized into per-task ZIPs with identity metadata
+    removed and manifest-resolvable task metadata, then converted through the
+    normal CVAT converter. The caller writes artifacts only after preflight succeeds.
+    """
+    _require_pseudonymous_identifier(labeler, "labeler", allow_unknown=False)
+    source_archive = Path(input_path)
+    if not source_archive.is_file():
+        raise FileNotFoundError(source_archive)
+    source_archive_sha256 = _sha256_file(source_archive)
+    destination_dir = Path(redacted_export_dir)
+    manifest = load_video_manifest(manifest_path)
+    by_source_name: dict[str, list[VideoMetadata]] = {}
+    for metadata in manifest.values():
+        row = metadata.manifest_record
+        if row.get("dataset") != "pre_vfallp":
+            continue
+        by_source_name.setdefault(Path(metadata.path).name, []).append(metadata)
+
+    redacted_exports: list[PreVFallpRedactedExport] = []
+    authorization_ids: set[str] = set()
+    authorized_counts: set[int] = set()
+    identity_tags_removed: Counter[str] = Counter()
+    ignored_tracks: list[dict[str, str]] = []
+    seen_video_ids: set[str] = set()
+    seen_export_filenames: set[str] = set()
+    try:
+        with zipfile.ZipFile(source_archive) as outer:
+            invalid_member = outer.testzip()
+            if invalid_member is not None:
+                raise ValueError(f"invalid CVAT archive member: {invalid_member}")
+            task_archives = _pre_vfallp_task_archives(outer)
+            for filename, payload in task_archives:
+                if filename in seen_export_filenames:
+                    raise ValueError(
+                        f"Pre_VFallp export has duplicate task ZIP basename: {filename}"
+                    )
+                seen_export_filenames.add(filename)
+                (
+                    redacted_export,
+                    removed_tags,
+                    authorization_id,
+                    authorized_count,
+                    ignored_for_export,
+                ) = (
+                    _prepare_pre_vfallp_cvat_task_export(
+                        payload,
+                        filename=filename,
+                        manifest_by_source_name=by_source_name,
+                        source_archive_name=source_archive.name,
+                        source_archive_sha256=source_archive_sha256,
+                    )
+                )
+                if redacted_export.video_id in seen_video_ids:
+                    raise ValueError(
+                        "nested CVAT export resolves multiple tasks to video_id: "
+                        + redacted_export.video_id
+                    )
+                seen_video_ids.add(redacted_export.video_id)
+                redacted_exports.append(redacted_export)
+                identity_tags_removed.update(removed_tags)
+                ignored_tracks.extend(ignored_for_export)
+                authorization_ids.add(authorization_id)
+                authorized_counts.add(authorized_count)
+    except zipfile.BadZipFile as exc:
+        raise ValueError(f"invalid Pre_VFallp CVAT ZIP: {source_archive}") from exc
+
+    if len(authorization_ids) != 1 or len(authorized_counts) != 1:
+        raise ValueError("Pre_VFallp export spans inconsistent internal authorizations")
+    authorization_id = next(iter(authorization_ids))
+    authorized_count = next(iter(authorized_counts))
+    if len(redacted_exports) != authorized_count:
+        raise ValueError(
+            "Pre_VFallp export task count does not match internal authorization: "
+            f"tasks={len(redacted_exports)} authorized_video_count={authorized_count}"
+        )
+
+    action_labels: list[dict[str, Any]] = []
+    event_labels: list[dict[str, Any]] = []
+    with TemporaryDirectory(prefix="pre_vfallp_cvat_import_") as temporary_dir:
+        temporary_root = Path(temporary_dir)
+        for export in redacted_exports:
+            temporary_export = temporary_root / export.filename
+            temporary_export.write_bytes(export.payload)
+            converted = convert_cvat_xml(
+                temporary_export,
+                manifest_path=manifest_path,
+                fps=None,
+                labeler=labeler,
+            )
+            if converted.identity_metadata_present:
+                raise ValueError("redacted Pre_VFallp CVAT export still has identity metadata")
+            final_source_path = _output_source_annotation_path(
+                destination_dir / export.filename
+            )
+            action_labels.extend(
+                _with_source_annotation_path(converted.action_labels, final_source_path)
+            )
+            event_labels.extend(
+                _with_source_annotation_path(converted.event_labels, final_source_path)
+            )
+
+    redacted_exports.sort(key=lambda item: item.filename)
+    action_labels.sort(key=_record_sort_key)
+    event_labels.sort(key=_record_sort_key)
+    report: dict[str, Any] = {
+        "schema_version": "pre-vfallp-cvat-import-v1",
+        "authorization_id": authorization_id,
+        "source_archive": {
+            "filename": source_archive.name,
+            "sha256": source_archive_sha256,
+            "copied_into_repository": False,
+        },
+        "redacted_task_exports": [
+            {
+                "path": _output_source_annotation_path(destination_dir / export.filename),
+                "sha256": export.sha256,
+                "task_id": export.task_id,
+                "source_name": export.source_name,
+                "video_id": export.video_id,
+            }
+            for export in redacted_exports
+        ],
+        "identity_metadata_tags_removed": dict(sorted(identity_tags_removed.items())),
+        "ignored_tracks": sorted(
+            ignored_tracks,
+            key=lambda row: (
+                row["filename"],
+                row["task_id"],
+                row["track_id"],
+            ),
+        ),
+        "imported_action_labels": len(action_labels),
+        "imported_event_labels": len(event_labels),
+        "action_id_counts": dict(
+            sorted(Counter(row["action_id"] for row in action_labels).items())
+        ),
+        "event_type_counts": dict(
+            sorted(Counter(row["event_type"] for row in event_labels).items())
+        ),
+        "source_group_ids": sorted(
+            {
+                str(manifest[export.video_id].source_group_id)
+                for export in redacted_exports
+            }
+        ),
+        "provenance_status": "internal_authorized_source_unverified",
+    }
+    return PreVFallpCvatImportResult(
+        action_labels=action_labels,
+        event_labels=event_labels,
+        redacted_exports=redacted_exports,
+        report=report,
+    )
+
+
+def write_pre_vfallp_cvat_labels(
+    imported: PreVFallpCvatImportResult,
+    *,
+    redacted_export_dir: Path | str,
+    action_output_path: Path | str,
+    event_output_path: Path | str,
+    report_output_path: Path | str,
+    overwrite: bool = False,
+) -> dict[str, Any]:
+    """Persist redacted task ZIPs and their paired candidate JSONL atomically per type."""
+    redacted_dir = Path(redacted_export_dir)
+    action_path = Path(action_output_path)
+    event_path = Path(event_output_path)
+    report_path = Path(report_output_path)
+    output_paths = (action_path, event_path, report_path)
+    if len({path.resolve() for path in output_paths}) != len(output_paths):
+        raise ValueError("action, event, and import report outputs must be different paths")
+    if not overwrite:
+        existing = [path for path in (*output_paths, redacted_dir) if path.exists()]
+        if existing:
+            raise FileExistsError(existing[0])
+
+    _write_redacted_pre_vfallp_exports(
+        imported.redacted_exports, redacted_dir, overwrite=overwrite
+    )
+    write_converted_fall_labels(
+        ConvertedFallLabels(
+            action_labels=imported.action_labels,
+            event_labels=imported.event_labels,
+        ),
+        action_output_path=action_path,
+        event_output_path=event_path,
+        overwrite=overwrite,
+    )
+    report = dict(imported.report)
+    report["outputs"] = {
+        "redacted_export_dir": _output_source_annotation_path(redacted_dir),
+        "action_labels": _output_source_annotation_path(action_path),
+        "event_labels": _output_source_annotation_path(event_path),
+    }
+    _atomic_write_bytes(report_path, _json_bytes(report), overwrite=overwrite)
+    return report
 
 
 def load_video_manifest(path: Path | str) -> dict[str, VideoMetadata]:
@@ -516,9 +785,6 @@ def import_le2i_fall_labels(manifest_path: Path | str) -> Le2iImportResult:
                 "source_frame_index_base": 1,
                 "severity": 4,
                 "label_source": "le2i_txt",
-                "review_status": "auto_imported",
-                "eligibility": False,
-                "review_evidence_ids": [],
                 "note": "Official LE2I TXT fall window.",
             }
         )
@@ -550,6 +816,361 @@ def write_le2i_fall_labels(
             overwrite=overwrite,
         )
     return dict(imported.report)
+
+
+def import_toaga_normal_walk_labels(manifest_path: Path | str) -> ToagaImportResult:
+    """Import eligible TOAGA walking videos as source-derived A01 candidates."""
+    videos = load_video_manifest(manifest_path)
+    actions: list[dict[str, Any]] = []
+    report = {
+        "manifest_toaga_walking_videos": 0,
+        "imported_normal_walk_labels": 0,
+        "excluded_ineligible": 0,
+        "missing_annotation_path": 0,
+    }
+    for metadata in sorted(videos.values(), key=lambda item: item.video_id):
+        row = metadata.manifest_record
+        if (
+            row.get("dataset") != "toaga"
+            or row.get("media_type") != "video"
+            or row.get("subset") != "walking"
+        ):
+            continue
+        report["manifest_toaga_walking_videos"] += 1
+        if row.get("eligibility") is not True:
+            report["excluded_ineligible"] += 1
+            continue
+        if not metadata.annotation_path:
+            report["missing_annotation_path"] += 1
+            raise ValueError(
+                f"TOAGA walking video {metadata.video_id} is missing its source table"
+            )
+        annotation_path = Path(metadata.annotation_path)
+        if not annotation_path.is_file():
+            raise FileNotFoundError(annotation_path)
+        annotation_sha256 = _sha256_file(annotation_path)
+        source_export_id = f"toaga_official_walking_{annotation_sha256[:24]}"
+        start_frame = 0
+        end_frame = metadata.frame_count - 1
+        source_record_id = (
+            f"{source_export_id}:video:{metadata.video_id}:full_video"
+        )
+        action_label_id = _stable_id(
+            "action",
+            "toaga_official_walking",
+            metadata.asset_id,
+            metadata.video_id,
+            str(row.get("sha256") or ""),
+            annotation_sha256,
+            start_frame,
+            end_frame,
+        )
+        actions.append(
+            {
+                "label_id": action_label_id,
+                "source_record_id": source_record_id,
+                "source_annotation_path": metadata.annotation_path,
+                "source_annotation_sha256": annotation_sha256,
+                "source_export_id": source_export_id,
+                "asset_id": metadata.asset_id,
+                "video_id": metadata.video_id,
+                "file_path": metadata.path,
+                "subject_id": metadata.subject_id,
+                "scene": metadata.scene_region,
+                "view": metadata.view,
+                "action_id": "A01",
+                "action_name": ACTION_NAMES["A01"],
+                "event_type": ACTION_EVENT_MAP["A01"][0],
+                "start_time": _frame_to_time(
+                    start_frame, metadata.fps_num, metadata.fps_den
+                ),
+                "end_time": _frame_to_time(
+                    end_frame, metadata.fps_num, metadata.fps_den
+                ),
+                "start_frame": start_frame,
+                "end_frame": end_frame,
+                "frame_index_base": 0,
+                "labeler": "official_toaga_source",
+                "quality": "clear",
+                "note": (
+                    "Source-derived TOAGA full-video normal-walk label; "
+                    "no frame-level CVAT review."
+                ),
+                "source": "toaga_official_walking",
+            }
+        )
+        report["imported_normal_walk_labels"] += 1
+    return ToagaImportResult(
+        action_labels=sorted(actions, key=_record_sort_key), report=report
+    )
+
+
+def write_toaga_normal_walk_labels(
+    manifest_path: Path | str,
+    *,
+    action_output_path: Path | str,
+    report_output_path: Path | str | None = None,
+    overwrite: bool = False,
+) -> dict[str, int]:
+    imported = import_toaga_normal_walk_labels(manifest_path)
+    action_path = Path(action_output_path)
+    if report_output_path is None:
+        _atomic_write_bytes(action_path, _jsonl_bytes(imported.action_labels), overwrite)
+    else:
+        _atomic_write_pair_bytes(
+            action_path,
+            _jsonl_bytes(imported.action_labels),
+            Path(report_output_path),
+            _json_bytes(imported.report),
+            overwrite=overwrite,
+        )
+    return dict(imported.report)
+
+
+def import_ntu_rgbd_clip_labels(
+    manifest_path: Path | str,
+    label_map_path: Path | str,
+) -> NtuRgbdImportResult:
+    """Import human-reviewed NTU RGB+D full-clip action labels.
+
+    This intentionally emits action labels only. A reviewed C03 action clip does
+    not independently establish a near-fall event label.
+    """
+    videos = load_video_manifest(manifest_path)
+    label_map = _load_ntu_rgbd_clip_label_map(label_map_path)
+    source_export_id = f"ntu_rgbd_clip_label_{label_map.mapping_sha256[:24]}"
+    actions: list[dict[str, Any]] = []
+    imported_by_code: dict[str, int] = {}
+    excluded_by_code: dict[str, int] = {}
+    report: dict[str, Any] = {
+        "schema_version": "ntu-rgbd-clip-import-report-v2",
+        "mapping_id": label_map.mapping_id,
+        "mapping_path": label_map.source_annotation_path,
+        "mapping_sha256": label_map.mapping_sha256,
+        "boundary_review": dict(label_map.boundary_review),
+        "manifest_ntu_rgbd_videos": 0,
+        "imported_action_labels": 0,
+        "manual_exact_action_labels": 0,
+        "excluded_videos": 0,
+        "excluded_ineligible": 0,
+        "imported_by_source_action_code": imported_by_code,
+        "excluded_by_source_action_code": excluded_by_code,
+    }
+    for metadata in sorted(videos.values(), key=lambda item: item.video_id):
+        row = metadata.manifest_record
+        if row.get("dataset") != "ntu_rgbd" or row.get("media_type") != "video":
+            continue
+        report["manifest_ntu_rgbd_videos"] += 1
+        source_action_code = str(row.get("source_action_code") or "").upper()
+        mapping = label_map.entries.get(source_action_code)
+        if mapping is None:
+            raise ValueError(
+                f"NTU RGB+D video {metadata.video_id} has unmapped source action "
+                f"code {source_action_code!r}"
+            )
+        mode, action_id = mapping
+        if mode == "excluded":
+            report["excluded_videos"] += 1
+            excluded_by_code[source_action_code] = (
+                excluded_by_code.get(source_action_code, 0) + 1
+            )
+            continue
+        if row.get("eligibility") is not True:
+            report["excluded_ineligible"] += 1
+            continue
+        if action_id is None:
+            raise ValueError(
+                f"NTU RGB+D manual mapping for {source_action_code} has no action_id"
+            )
+        start_frame = 0
+        end_frame = metadata.frame_count - 1
+        source_record_id = (
+            f"{source_export_id}:video:{metadata.video_id}:full_video"
+        )
+        action_label_id = _stable_id(
+            "action",
+            "ntu_rgbd_manual_clip_label",
+            metadata.asset_id,
+            metadata.video_id,
+            str(row.get("sha256") or ""),
+            label_map.mapping_sha256,
+            source_action_code,
+            action_id,
+            start_frame,
+            end_frame,
+        )
+        actions.append(
+            {
+                "label_id": action_label_id,
+                "source_record_id": source_record_id,
+                "source_annotation_path": label_map.source_annotation_path,
+                "source_annotation_sha256": label_map.mapping_sha256,
+                "source_export_id": source_export_id,
+                "asset_id": metadata.asset_id,
+                "video_id": metadata.video_id,
+                "file_path": metadata.path,
+                "subject_id": metadata.subject_id,
+                "scene": metadata.scene_region,
+                "view": metadata.view,
+                "action_id": action_id,
+                "action_name": ACTION_NAMES[action_id],
+                "event_type": ACTION_EVENT_MAP[action_id][0],
+                "start_time": _frame_to_time(
+                    start_frame, metadata.fps_num, metadata.fps_den
+                ),
+                "end_time": _frame_to_time(
+                    end_frame, metadata.fps_num, metadata.fps_den
+                ),
+                "start_frame": start_frame,
+                "end_frame": end_frame,
+                "frame_index_base": 0,
+                "labeler": "project_owner_ntu_rgbd_boundary_review_20260725",
+                "quality": "clear",
+                "note": (
+                    "Project-owner human-reviewed exact full-clip boundary for "
+                    f"NTU RGB+D {source_action_code}; decision "
+                    f"{label_map.boundary_review['decision_id']}."
+                ),
+                "source": "ntu_rgbd_manual_clip_label",
+            }
+        )
+        report["imported_action_labels"] += 1
+        report["manual_exact_action_labels"] += 1
+        imported_by_code[source_action_code] = (
+            imported_by_code.get(source_action_code, 0) + 1
+        )
+    report["imported_by_source_action_code"] = dict(sorted(imported_by_code.items()))
+    report["excluded_by_source_action_code"] = dict(
+        sorted(excluded_by_code.items())
+    )
+    return NtuRgbdImportResult(
+        action_labels=sorted(actions, key=_record_sort_key), report=report
+    )
+
+
+def write_ntu_rgbd_clip_labels(
+    manifest_path: Path | str,
+    label_map_path: Path | str,
+    *,
+    action_output_path: Path | str,
+    report_output_path: Path | str | None = None,
+    overwrite: bool = False,
+) -> dict[str, Any]:
+    imported = import_ntu_rgbd_clip_labels(manifest_path, label_map_path)
+    action_path = Path(action_output_path)
+    if report_output_path is None:
+        _atomic_write_bytes(action_path, _jsonl_bytes(imported.action_labels), overwrite)
+    else:
+        _atomic_write_pair_bytes(
+            action_path,
+            _jsonl_bytes(imported.action_labels),
+            Path(report_output_path),
+            _json_bytes(imported.report),
+            overwrite=overwrite,
+        )
+    return dict(imported.report)
+
+
+def _load_ntu_rgbd_clip_label_map(
+    label_map_path: Path | str,
+) -> _NtuRgbdClipLabelMap:
+    path = Path(label_map_path)
+    if not path.is_file():
+        raise FileNotFoundError(path)
+    raw = path.read_bytes()
+    try:
+        payload = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ValueError(f"invalid NTU RGB+D label map: {path}") from exc
+    if not isinstance(payload, dict):
+        raise ValueError("NTU RGB+D label map must be a JSON object")
+    expected_top_level = {
+        "schema_version",
+        "mapping_id",
+        "boundary_review",
+        "mappings",
+    }
+    if set(payload) != expected_top_level:
+        raise ValueError(
+            "NTU RGB+D v2 label map has an invalid top-level shape"
+        )
+    if payload.get("schema_version") != "ntu-rgbd-clip-label-map-v2":
+        raise ValueError("unsupported NTU RGB+D label map schema_version")
+    mapping_id = payload.get("mapping_id")
+    if not isinstance(mapping_id, str) or not mapping_id.strip():
+        raise ValueError("NTU RGB+D label map mapping_id must be a non-empty string")
+    boundary_review = payload.get("boundary_review")
+    expected_review = {
+        "decision_id",
+        "reviewed_at",
+        "reviewer_id",
+        "boundary_precision",
+        "training_tier",
+    }
+    if not isinstance(boundary_review, dict) or set(boundary_review) != expected_review:
+        raise ValueError("NTU RGB+D label map boundary_review has an invalid shape")
+    if any(
+        not isinstance(boundary_review.get(field), str)
+        or not boundary_review[field].strip()
+        for field in ("decision_id", "reviewer_id")
+    ):
+        raise ValueError("NTU RGB+D boundary review identifiers must be non-empty")
+    if re.fullmatch(r"\d{4}-\d{2}-\d{2}", boundary_review["reviewed_at"]) is None:
+        raise ValueError("NTU RGB+D boundary review date must use YYYY-MM-DD")
+    if boundary_review["boundary_precision"] != "exact":
+        raise ValueError("NTU RGB+D boundary review must declare exact precision")
+    if boundary_review["training_tier"] != "primary":
+        raise ValueError("NTU RGB+D boundary review must declare primary tier")
+    raw_entries = payload.get("mappings")
+    if not isinstance(raw_entries, list) or not raw_entries:
+        raise ValueError("NTU RGB+D label map mappings must be a non-empty list")
+
+    entries: dict[str, tuple[str, str | None]] = {}
+    for position, entry in enumerate(raw_entries, start=1):
+        if not isinstance(entry, dict) or set(entry) != {
+            "source_action_code",
+            "mode",
+            "action_id",
+        }:
+            raise ValueError(
+                f"NTU RGB+D label map entry {position} has an invalid shape"
+            )
+        source_action_code = entry.get("source_action_code")
+        mode = entry.get("mode")
+        action_id = entry.get("action_id")
+        if not isinstance(source_action_code, str) or re.fullmatch(
+            r"A\d{3}", source_action_code
+        ) is None:
+            raise ValueError(
+                f"NTU RGB+D label map entry {position} has an invalid source_action_code"
+            )
+        if source_action_code in entries:
+            raise ValueError(
+                f"duplicate NTU RGB+D source_action_code: {source_action_code}"
+            )
+        if mode == "manual_exact":
+            if not isinstance(action_id, str) or action_id not in ACTION_NAMES:
+                raise ValueError(
+                    f"NTU RGB+D manual mapping {source_action_code} has invalid action_id"
+                )
+        elif mode == "excluded":
+            if action_id is not None:
+                raise ValueError(
+                    f"NTU RGB+D excluded mapping {source_action_code} must use null action_id"
+                )
+        else:
+            raise ValueError(
+                f"NTU RGB+D label map entry {position} has invalid mode {mode!r}"
+            )
+        entries[source_action_code] = (mode, action_id)
+
+    return _NtuRgbdClipLabelMap(
+        mapping_id=mapping_id,
+        mapping_sha256=hashlib.sha256(raw).hexdigest(),
+        source_annotation_path=_portable_source_path(path),
+        boundary_review={key: str(value) for key, value in boundary_review.items()},
+        entries=entries,
+    )
 
 
 def _open_cvat_xml(input_path: Path | str):
@@ -593,6 +1214,397 @@ class _ZipXmlContext:
     def __exit__(self, exc_type, exc, tb) -> None:  # noqa: ANN001
         if self._tmpdir is not None:
             self._tmpdir.cleanup()
+
+
+def _prepare_pre_vfallp_cvat_task_export(
+    payload: bytes,
+    *,
+    filename: str,
+    manifest_by_source_name: Mapping[str, list[VideoMetadata]],
+    source_archive_name: str,
+    source_archive_sha256: str,
+) -> tuple[
+    PreVFallpRedactedExport,
+    Counter[str],
+    str,
+    int,
+    list[dict[str, str]],
+]:
+    try:
+        with zipfile.ZipFile(io.BytesIO(payload)) as archive:
+            invalid_member = archive.testzip()
+            if invalid_member is not None:
+                raise ValueError(
+                    f"invalid nested CVAT task ZIP member {invalid_member!r} in {filename}"
+                )
+            xml_names = [
+                name for name in archive.namelist() if name.lower().endswith(".xml")
+            ]
+            if len(xml_names) != 1:
+                raise ValueError(
+                    f"nested CVAT task ZIP {filename} must contain exactly one XML file"
+                )
+            root = ET.fromstring(archive.read(xml_names[0]))
+    except (zipfile.BadZipFile, ET.ParseError) as exc:
+        raise ValueError(f"invalid nested CVAT task ZIP: {filename}") from exc
+
+    task_elements = _cvat_task_elements(root)
+    if len(task_elements) != 1:
+        raise ValueError(
+            f"nested Pre_VFallp CVAT task ZIP {filename} must contain exactly one task"
+        )
+    tasks = _parse_tasks(root)
+    if len(tasks) != 1:
+        raise ValueError(
+            f"nested Pre_VFallp CVAT task ZIP {filename} has ambiguous task metadata"
+        )
+    task = next(iter(tasks.values()))
+    source_name = Path(task.source).name
+    candidates_by_video_id: dict[str, VideoMetadata] = {}
+    for candidate_name in _pre_vfallp_source_name_candidates(task):
+        for candidate in manifest_by_source_name.get(candidate_name, []):
+            candidates_by_video_id[candidate.video_id] = candidate
+    candidates = list(candidates_by_video_id.values())
+    if len(candidates) != 1:
+        raise ValueError(
+            f"CVAT source {task.source!r} in {filename} maps to {len(candidates)} "
+            "Pre_VFallp manifest records"
+        )
+    metadata = candidates[0]
+    if task.size != metadata.frame_count:
+        raise ValueError(
+            f"CVAT task {task.task_id} frame count {task.size} does not match "
+            f"manifest frame_count {metadata.frame_count} for {metadata.video_id}"
+        )
+    authorization_id, authorized_count = _pre_vfallp_internal_authorization(
+        metadata,
+        source_archive_name=source_archive_name,
+        source_archive_sha256=source_archive_sha256,
+    )
+    name_element = task_elements[0].find("name")
+    if name_element is None:
+        raise ValueError(f"nested CVAT task {filename} is missing a name element")
+    source_element = task_elements[0].find("source")
+    if source_element is None:
+        raise ValueError(f"nested CVAT task {filename} is missing a source element")
+    subset = _sanitize_identifier(str(metadata.manifest_record.get("subset", "")))
+    if not subset:
+        raise ValueError(f"Pre_VFallp manifest row {metadata.video_id} has no subset")
+    name_element.text = f"fall_risk__pre_vfallp__{subset}__{metadata.video_id}"
+    source_element.text = Path(metadata.path).name
+    ignored_tracks = _remove_pre_vfallp_outside_only_tracks(
+        root,
+        task=task,
+        filename=filename,
+    )
+    removed_tags = _remove_cvat_identity_metadata(root)
+    redacted_payload = _deterministic_cvat_zip(root)
+    return (
+        PreVFallpRedactedExport(
+            filename=filename,
+            payload=redacted_payload,
+            sha256=hashlib.sha256(redacted_payload).hexdigest(),
+            task_id=task.task_id,
+            source_name=source_name,
+            video_id=metadata.video_id,
+        ),
+        removed_tags,
+        authorization_id,
+        authorized_count,
+        ignored_tracks,
+    )
+
+
+def _remove_pre_vfallp_outside_only_tracks(
+    root: ET.Element,
+    *,
+    task: CvatTaskInfo,
+    filename: str,
+) -> list[dict[str, str]]:
+    ignored: list[dict[str, str]] = []
+    for track in list(root.findall("track")):
+        boxes = track.findall("box")
+        if not boxes or any(box.attrib.get("outside") != "1" for box in boxes):
+            continue
+        root.remove(track)
+        ignored.append(
+            {
+                "filename": filename,
+                "task_id": task.task_id,
+                "track_id": str(track.attrib.get("id") or "unknown"),
+                "label": str(track.attrib.get("label") or "unknown"),
+                "source_name": Path(task.source).name,
+                "reason": "outside_only",
+            }
+        )
+    return ignored
+
+
+def _pre_vfallp_task_archives(
+    archive: zipfile.ZipFile,
+) -> list[tuple[str, bytes]]:
+    inner_names = sorted(
+        name for name in archive.namelist() if name.lower().endswith(".zip")
+    )
+    if inner_names:
+        return [(Path(name).name, archive.read(name)) for name in inner_names]
+
+    xml_names = sorted(
+        name for name in archive.namelist() if name.lower().endswith(".xml")
+    )
+    if len(xml_names) != 1:
+        raise ValueError(
+            "Pre_VFallp export must contain task ZIPs or exactly one XML file; "
+            f"found {len(xml_names)} XML files"
+        )
+    try:
+        root = ET.fromstring(archive.read(xml_names[0]))
+    except ET.ParseError as exc:
+        raise ValueError("invalid direct Pre_VFallp CVAT XML export") from exc
+    return _split_pre_vfallp_project_export(root)
+
+
+def _split_pre_vfallp_project_export(
+    root: ET.Element,
+) -> list[tuple[str, bytes]]:
+    task_elements = _cvat_task_elements(root)
+    tasks = list(_parse_tasks(root).values())
+    if len(task_elements) != len(tasks):
+        raise ValueError("Pre_VFallp project task metadata is inconsistent")
+
+    for track in root.findall("track"):
+        task_id = track.attrib.get("task_id")
+        if len(tasks) > 1 and task_id is None:
+            raise ValueError(
+                f"track {track.attrib.get('id')} is missing task_id in project export"
+            )
+        if task_id is not None and task_id not in {task.task_id for task in tasks}:
+            raise ValueError(
+                f"track {track.attrib.get('id')} references unknown task_id {task_id}"
+            )
+
+    exports: list[tuple[str, bytes]] = []
+    for index, task in enumerate(tasks, 1):
+        task_root = copy.deepcopy(root)
+        task_container = task_root.find("./meta/project/tasks")
+        if task_container is not None:
+            copied_tasks = list(task_container.findall("task"))
+            for copied_index, copied_task in enumerate(copied_tasks):
+                if copied_index != index - 1:
+                    task_container.remove(copied_task)
+
+        for track in list(task_root.findall("track")):
+            track_task_id = track.attrib.get("task_id")
+            if track_task_id is not None and track_task_id != task.task_id:
+                task_root.remove(track)
+                continue
+            _normalize_project_track_frames(track, task)
+
+        source_stem = Path(_normalized_pre_vfallp_source_name(task.source)).stem
+        safe_source_stem = _sanitize_identifier(source_stem) or "video"
+        safe_task_id = _sanitize_identifier(task.task_id) or str(index)
+        filename = (
+            f"{index:03d}__task_{safe_task_id}__{safe_source_stem}"
+            "__CVAT_for_video_1_1.zip"
+        )
+        exports.append((filename, _deterministic_cvat_zip(task_root)))
+    return exports
+
+
+def _normalize_project_track_frames(
+    track: ET.Element,
+    task: CvatTaskInfo,
+) -> None:
+    for element in track.iter():
+        raw_value = element.attrib.get("frame")
+        if raw_value is None:
+            continue
+        try:
+            normalized_frame = int(raw_value) - task.frame_offset
+        except ValueError as exc:
+            raise ValueError(
+                f"track {track.attrib.get('id')} has invalid frame {raw_value!r}"
+            ) from exc
+        if not task.start_frame <= normalized_frame <= task.stop_frame:
+            raise ValueError(
+                f"track {track.attrib.get('id')} frames do not fit task {task.task_id}"
+            )
+        element.attrib["frame"] = str(normalized_frame)
+
+
+def _pre_vfallp_source_name_candidates(task: CvatTaskInfo) -> list[str]:
+    candidates = [Path(task.source).name]
+    normalized_source = _normalized_pre_vfallp_source_name(task.source)
+    if normalized_source not in candidates:
+        candidates.append(normalized_source)
+    for embedded_name in re.findall(r"\{\{([^{}]+)\}\}", task.name):
+        basename = Path(embedded_name).name
+        if basename not in candidates:
+            candidates.append(basename)
+    task_name = Path(task.name).name
+    if Path(task_name).suffix and task_name not in candidates:
+        candidates.append(task_name)
+    return candidates
+
+
+def _normalized_pre_vfallp_source_name(source: str) -> str:
+    path = Path(source)
+    stem = path.stem
+    if stem.lower().endswith("_resized"):
+        stem = stem[: -len("_resized")]
+    return f"{stem}{path.suffix}"
+
+
+def _cvat_task_elements(root: ET.Element) -> list[ET.Element]:
+    project_tasks = root.findall("./meta/project/tasks/task")
+    single_task = root.find("./meta/task")
+    if project_tasks:
+        return project_tasks
+    return [single_task] if single_task is not None else []
+
+
+def _pre_vfallp_internal_authorization(
+    metadata: VideoMetadata,
+    *,
+    source_archive_name: str,
+    source_archive_sha256: str,
+) -> tuple[str, int]:
+    row = metadata.manifest_record
+    if row.get("dataset") != "pre_vfallp" or row.get("eligibility") is not True:
+        raise ValueError(
+            f"Pre_VFallp video is not eligible for import: {metadata.video_id}"
+        )
+    authorization = row.get("internal_authorization")
+    if not isinstance(authorization, Mapping):
+        raise ValueError(
+            f"Pre_VFallp video lacks an internal authorization: {metadata.video_id}"
+        )
+    authorization_id = authorization.get("authorization_id")
+    authorized_count = authorization.get("authorized_video_count")
+    if (
+        not isinstance(authorization_id, str)
+        or not authorization_id
+        or not isinstance(authorized_count, int)
+        or isinstance(authorized_count, bool)
+        or authorized_count <= 0
+    ):
+        raise ValueError(
+            f"Pre_VFallp video has an invalid internal authorization: {metadata.video_id}"
+        )
+    if row.get("source_uri") != f"internal://authorization/{authorization_id}":
+        raise ValueError(
+            f"Pre_VFallp video has inconsistent authorization URI: {metadata.video_id}"
+        )
+    evidence = authorization.get("evidence")
+    if not isinstance(evidence, Mapping) or evidence.get("kind") != "cvat_export_archive":
+        raise ValueError(
+            "Pre_VFallp CVAT import requires CVAT archive authorization evidence"
+        )
+    if evidence.get("name") != source_archive_name:
+        raise ValueError("Pre_VFallp source archive filename does not match authorization")
+    if evidence.get("sha256") != source_archive_sha256:
+        raise ValueError("Pre_VFallp source archive checksum does not match authorization")
+    return authorization_id, authorized_count
+
+
+def _remove_cvat_identity_metadata(root: ET.Element) -> Counter[str]:
+    removed: Counter[str] = Counter()
+
+    def remove_from(parent: ET.Element) -> None:
+        for child in list(parent):
+            tag = _xml_local_name(child.tag)
+            if tag in IDENTITY_METADATA_TAGS:
+                for nested in child.iter():
+                    nested_tag = _xml_local_name(nested.tag)
+                    if nested_tag in IDENTITY_METADATA_TAGS:
+                        removed[nested_tag] += 1
+                parent.remove(child)
+            else:
+                remove_from(child)
+
+    remove_from(root)
+    return removed
+
+
+def _xml_local_name(tag: str) -> str:
+    return tag.rsplit("}", 1)[-1].lower()
+
+
+def _deterministic_cvat_zip(root: ET.Element) -> bytes:
+    xml_payload = ET.tostring(root, encoding="utf-8", xml_declaration=True)
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        info = zipfile.ZipInfo("annotations.xml", date_time=(1980, 1, 1, 0, 0, 0))
+        info.compress_type = zipfile.ZIP_DEFLATED
+        info.external_attr = 0o600 << 16
+        archive.writestr(
+            info,
+            xml_payload,
+            compress_type=zipfile.ZIP_DEFLATED,
+            compresslevel=9,
+        )
+    return buffer.getvalue()
+
+
+def _with_source_annotation_path(
+    records: Iterable[Mapping[str, Any]], source_annotation_path: str
+) -> list[dict[str, Any]]:
+    return [
+        {**record, "source_annotation_path": source_annotation_path}
+        for record in records
+    ]
+
+
+def _output_source_annotation_path(path: Path) -> str:
+    try:
+        return path.resolve().relative_to(Path.cwd().resolve()).as_posix()
+    except ValueError:
+        return path.resolve().as_posix()
+
+
+def _write_redacted_pre_vfallp_exports(
+    exports: Iterable[PreVFallpRedactedExport],
+    output_dir: Path,
+    *,
+    overwrite: bool,
+) -> None:
+    if output_dir.exists() and not output_dir.is_dir():
+        raise ValueError(f"redacted export output is not a directory: {output_dir}")
+    if output_dir.exists() and not overwrite:
+        raise FileExistsError(output_dir)
+    output_dir.parent.mkdir(parents=True, exist_ok=True)
+    staging_dir = Path(
+        tempfile.mkdtemp(prefix=f".{output_dir.name}-", dir=output_dir.parent)
+    )
+    backup_dir: Path | None = None
+    committed = False
+    try:
+        filenames: set[str] = set()
+        for export in exports:
+            if Path(export.filename).name != export.filename:
+                raise ValueError(f"invalid redacted export filename: {export.filename}")
+            if export.filename in filenames:
+                raise ValueError(f"duplicate redacted export filename: {export.filename}")
+            filenames.add(export.filename)
+            (staging_dir / export.filename).write_bytes(export.payload)
+        if output_dir.exists():
+            backup_dir = output_dir.parent / (
+                f".{output_dir.name}.backup-{uuid.uuid4().hex}"
+            )
+            os.replace(output_dir, backup_dir)
+        os.replace(staging_dir, output_dir)
+        committed = True
+    except Exception:
+        if backup_dir is not None and backup_dir.exists():
+            if output_dir.exists():
+                shutil.rmtree(output_dir)
+            os.replace(backup_dir, output_dir)
+        raise
+    finally:
+        if staging_dir.exists():
+            shutil.rmtree(staging_dir)
+        if committed and backup_dir is not None and backup_dir.exists():
+            shutil.rmtree(backup_dir)
 
 
 def _parse_tasks(root: ET.Element) -> dict[str, CvatTaskInfo]:
@@ -683,6 +1695,7 @@ def _normalized_active_boxes(
 
 
 def _parse_action_label(label: str) -> tuple[str, str]:
+    label = LEGACY_ACTION_LABEL_ALIASES.get(label, label)
     match = re.fullmatch(r"(?P<action_id>[A-DU]\d{2})[_-](?P<name>[A-Za-z0-9_]+)", label)
     if not match:
         raise ValueError(f"invalid CVAT action label: {label!r}")

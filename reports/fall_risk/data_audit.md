@@ -1,106 +1,113 @@
-# 跌倒风险数据审计（Workflow A）
+# 跌倒风险数据审计
 
-核验日期：2026-07-15
+核验日期：2026-07-25
 
-候选版本：`fall-risk-data-v1`
+## Manifest
 
-状态：数据与评估自动化候选；未冻结，不可作为正式比赛或临床指标来源。
+- 资产总数：3,554。
+- 视频：2,540。
+- 技术可用资产：3,540。
+- 技术排除资产：14。
+- 排除原因：`duplicate_content=14`。
+- manifest 保存媒体 hash、FPS、时长、人员/源组、来源地址和技术排除信息。
 
-## 环境与范围
+Pre_VFallp 的 108 条视频已按用户内部授权例外全部解除技术隔离，并由 `configs/data/fall_risk_internal_authorizations.yaml` 中 5 个 CVAT 压缩包授权组逐条绑定：dizziness forward/side 36 条，其余 confusion delirium、confusion NPH、weakness forward 和 weakness side 各 18 条。授权配置 SHA-256 为 `6258bcb36b64241894382b551ec467139eeebdadc8875895770d176c52add2bd`。108 条均保留 `provenance_status=internal_authorized_source_unverified`，不等于公开来源已验证，并继续共用 `source_group_id=pre_vfallp_unresolved`。旧的 72 条媒体清单只保留为取得四个 CVAT 压缩包前的历史审计证据，不再是现行授权事实源。
 
-- editable 安装：已由 `pip show` 确认绑定当前仓库
-- conda 环境：`eldercare-ai`
-- manifest：`data/manifests/fall_risk_video_manifest.jsonl`
-- manifest SHA-256：`6cbb45d7f5f11aabe0239426022e9df31ba9c4383078ae05dfce870bb5a7e049`
-- 资产总数：3,454；视频：2,440；表格：322；时序资产：692。
-- 资产级 `eligibility=true` 共 2,725 条，`false` 共 729 条。该字段只表示 manifest 来源/许可/重复检查结果，不代表标签已经通过人工复核。
+## 标签来源
 
-## 数据集清点
+| 批次 | 动作 | 事件 | 状态 |
+|---|---:|---:|---|
+| `generated/v2/cvat_coffee_01_02` | 514 | 514 | 原始 ZIP 已找回，来源 hash 匹配 |
+| `generated/v2/cvat_home_01` | 8 | 8 | 来源 hash 匹配 |
+| `generated/v2/cvat_lecture_room` | 250 | 250 | 27 条 Lecture room 视频；脱敏导出 hash 匹配 |
+| `generated/v2/cvat_office` | 158 | 158 | 33 条 Office 视频；脱敏导出 hash 匹配 |
+| `generated/v2/le2i_official` | 0 | 99 | 官方 TXT 来源 hash 匹配 |
+| `generated/v2/toaga_official_walking` | 28 | 0 | 14 位老人 top/bottom 全片 `A01/normal_walk`；`Table_1.xlsx` hash 匹配 |
+| `generated/v2/pre_vfallp_confusion_delirium` | 37 | 37 | 18 个 CVAT 视频；候选 formal 校验 `valid=true` |
+| `generated/v2/pre_vfallp_confusion_nph` | 28 | 28 | 18 个 CVAT 视频；1 个 outside-only 删除残留已审计忽略；候选 formal 校验 `valid=true` |
+| `generated/v2/pre_vfallp_dizziness_fall_forward_side` | 75 | 75 | 36 个 CVAT 视频；候选 formal 校验 `valid=true` |
+| `generated/v2/pre_vfallp_weakness_fall_forward` | 54 | 54 | 18 个 CVAT 视频；候选 formal 校验 `valid=true` |
+| `generated/v2/pre_vfallp_weakness_fall_side` | 52 | 52 | 18 个 CVAT 视频；候选 formal 校验 `valid=true` |
+| `generated/v2/caucafall_manual` | 311 | 311 | 100 个视频、10 名受试者；脱敏 CVAT 导入，原始包不入库 |
+| `generated/v2/cvat_ur_fall` | 268 | 268 | 99 个视频；`adl-07-cam0.mp4` 按人工决定不标注；规范化脱敏 CVAT 导入 |
+| `generated/v2/ntu_rgbd_clip_labels` | 2,976 | 0 | 2026-07-25 人工确认精确全片边界；进入根标签，A043 948 条排除 |
 
-| 数据集 | 资产 | 当前可用 | 当前隔离/排除 | 主要说明 |
-|---|---:|---:|---:|---|
-| Fall Detection 2017 | 2,014 | 2,012 | 2 | 重复内容保守排除 |
-| GSTRIDE | 475 | 475 | 0 | 视频、IMU、步态与分段资产均纳入 |
-| LE2I/IMViA | 190 | 0 | 190 | manifest 保守记录为待法律确认，不进入正式 split |
-| LTMM | 2 | 2 | 0 | 仅本地表格/报告；长期原始信号缺失 |
-| Pre_VFallp | 108 | 0 | 108 | 来源、许可与标签语义未确认，整体隔离 |
-| TOAGA | 423 | 0 | 423 | 许可状态待确认；394 份姿态 CSV 与参与者表已索引 |
-| UR Fall | 242 | 236 | 6 | 重复内容保守排除；142 份同步 CSV 已索引 |
+LE2I 官方 TXT 共 130 份，其中 99 个跌倒窗口、31 个 `0/0` 无跌倒窗口。Lecture room 导出包含 27 个有轨迹任务和 250 条轨迹；同一项目导出中的 33 个 Office 任务为空。Office 的 158 条轨迹来自独立的 33 任务导出。TOAGA 的 28 条动作只使用来源派生全片 `A01`，不伪造 CVAT 框或事件。CaucaFall 新增 311 条人工动作和 311 条映射事件，UR Fall 新增 268 条人工动作和 268 条映射事件。NTU RGB+D 新增 2,976 条人工精确全片动作，不生成事件；A043 的 948 条明确排除。可发布 v2 批次合并为 4,759 条根动作和 1,783 条根事件；71 条与官方窗口重叠的 CVAT `fall` 事件按官方来源优先级排除。发布明细和输入/输出 hash 见 `reports/fall_risk/fall-risk-data-v2-root-publish.json`。
 
-manifest 排除原因按资产计数：`license_unknown=721`、`dataset_quarantined=108`、`source_unknown=108`、`duplicate_content=14`；同一资产可有多个原因。已恢复 2,910 条资产的公开数据集伪名 subject，544 条保持 `unknown`；共有 282 个保守 `source_group_id`。
+### CaucaFall 来源与限制
 
-## 时间轴与官方标注
+- 官方来源：Mendeley Data v4，DOI `10.17632/7w7fccy7ky.4`，CC BY 4.0。
+- 本地 100 个 AVI 均完成媒体探测和 hash，按 10 名受试者建立保守 source group，全部 `eligibility=true`。
+- 100 条 manifest 记录均为 `label_source=cvat_manual`，按受试者绑定 10 个脱敏任务 ZIP；`source_action_code` 仍只保留目录来源信息。
+- 导入产生 311 条动作、311 条映射事件和 20,087 个逐帧 bbox；无结构、帧边界或 bbox 越界问题。
+- 原始包含账号/邮箱元数据，导入器只保留脱敏 ZIP，原始压缩包不复制进仓库；v3 标签别名归一和 1 条 U01 缺失原因均记录在导入报告。
 
-- manifest 保存每个视频的 `fps_num/fps_den/fps`、帧数、时长和画幅；转换器按 `video_id` 使用逐视频有理 FPS。
-- Coffee/Lecture/Office 使用视频实际 25 FPS，不再沿用 Home 的约 24 FPS。
-- LE2I 130 份官方 TXT 的结构化复核结果为：99 个官方跌倒窗口、31 个明确 `0/0` 无跌倒窗口、0 个 bbox-only 文件。
-- Lecture room 与 Office 共 60 个视频没有官方 TXT，官方事件导入器明确排除，不进入官方有监督事件指标。
-- Home_02 保留原始 `video (31)` 至 `video (60)` 编号。
+### UR Fall 来源与限制
 
-官方 LE2I 候选位于 `data/annotations/fall_risk/generated/v1/le2i_official/`，事件文件 SHA-256 为 `d69ad426a818e6e18d0105aa0d365b28a5f0794fd5f4a2500b8901144b5dc28a`。其 `label_source=le2i_txt`，不会覆盖 CVAT 人工来源。
+- manifest 含 100 个视频；本批次按人工决定只接收 99 个 CVAT 任务，`adl-07-cam0.mp4` 不标注。
+- 导入生成 268 条动作和 268 条映射事件，覆盖 99 个视频；动作包含 60 条明确跌倒和 33 条 `U01`。
+- 原始外部 ZIP SHA-256 为 `505112280219b7a24dde757d21a4f37ae54dbb55963f6145f6dc01d9298ef257`，因含身份元数据不复制进仓库。
+- 仓库内脱敏 ZIP SHA-256 为 `3ee9760d9718841988757674c1cb52e27aa155bd42ecdc1da331e4348b19e7a1`；规范化 99 个任务名、为 track `46/169/191` 补充 `U01` 原因并移除身份节点，其他标签语义按人工验收结果保留。
+- 本批次已随根标签迁移进入 v3 和统一训练 split。
 
-## 标签审计
+### Lecture room 来源追溯
 
-根目录现有 `action_labels.jsonl` 和 `event_labels.jsonl` 各 922 条，均为 `pending`；动作标签的 `subject_id` 全为 `unknown`。动作分布中 C/D 高风险动作共 204 条，`C03/C05` 为 0，`C04` 仅 1 条。
+- 原始外部 ZIP（仅保留文件名，不在仓库保存原始身份元数据）：`lecture_room (1).zip`
+- 原始 ZIP SHA-256：`a81a105c54c6dca055349dbb80f0e22c85dd03e10823a25184a9bbd3a4e38ddf`
+- 仓库内脱敏来源：`data/annotations/fall_risk/cvat_exports/raw/le2i_lecture_room_cvat_redacted.zip`
+- 脱敏 ZIP SHA-256：`c480f86939b7acc16aaf394e682fb99d33be7eca2778d5908a0368a25133cf63`
+- 脱敏只移除 CVAT `owner/assignee/username/email` 元数据；任务、轨迹、帧和标签数量保持 60/250。
+- 候选审计 `reports/fall_risk/cvat_lecture_room_candidate_validation.json`：`valid=true`、`errors=0`、`blockers=0`。
 
-根标签当前不是 v1 正式输入。严格 audit 报告为 2,766 个 schema 错误：1,844 次缺失新来源链/资格字段，922 次存在旧字段。输入哈希保持为：
+### Office 来源追溯
 
-| 文件 | SHA-256 |
-|---|---|
-| `action_labels.jsonl` | `e72eeed3067d8c1bc75ddca732deffc5a5defefe37fbd618e9ba2e05bccc885a` |
-| `event_labels.jsonl` | `a200a39b7119d7468232e487ef45c0a4e8dc728c2dc0610a15add1dbe64bede9` |
-| `risk_labels.jsonl` | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
-| `annotation_review_log.jsonl` | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
-| `subject_profiles.json` | `aa92c571bf1316e58af81866c6a3028b99f7ad3d8c03686f7333a513ec68c8f2` |
+- 原始外部 ZIP（仅保留文件名，不在仓库保存原始身份元数据）：`office标注.zip`
+- 原始 ZIP SHA-256：`1d8afd68f8c1f86b424a99bbaeca7e7259346d1b4025e5f0cf1a08497803691a`
+- 仓库内脱敏来源：`data/annotations/fall_risk/cvat_exports/raw/le2i_office_cvat_redacted.zip`
+- 脱敏 ZIP SHA-256：`004ad0dafcef38051c0d559d052564f30f3f2c025abadeb0d47b442a6b4fde36`
+- 脱敏时同时将 33 个旧格式 `fall_risk_office__...` task 名规范化为 manifest 约定格式；任务、轨迹、帧和标签数量保持 33/158。
+- 候选审计 `reports/fall_risk/cvat_office_candidate_validation.json`：`valid=true`、`errors=0`、`blockers=0`。
 
-`quarantine/` 另有 Home_02 缺来源链的 action/event 各 133 条；它们只作为待找回原始导出的证据，不属于训练或评估输入。
+### Pre_VFallp 内部授权与标注覆盖
 
-候选重导没有替换根标签：
+- `dizziness_fall_forward + side.zip`：36 个视频，75 条动作和 75 条映射事件，原始 SHA-256 为 `6ef811ebaebdf227596b7019440dd4f4d6c8c7bb3cc4266de15d8c93eab5da85`。
+- `confusion_delirium已经标注.zip`：18 个视频，37 条动作和 37 条映射事件，原始 SHA-256 为 `cbb4d24f20a779fa66389d7942ef9845f4ed9de4ffc7c1794930afe86f025412`。
+- `confusion_nph已经标注.zip`：18 个视频，28 条动作和 28 条映射事件，原始 SHA-256 为 `2e263a26b5edff57c2165c3a585cd39b3b4fad81424832ef2681d9386df12a82`。任务 32 的 track 1 只有一个 `outside=1` 框，没有可见区间，按删除残留记入 `ignored_tracks`，未生成标签。
+- `weakness_fall_forward.zip`：18 个视频，54 条动作和 54 条映射事件，原始 SHA-256 为 `25441d0854e02a0df00e8bacf3f85d9033061d8ee2678e9965b36a7be7333bf5`。
+- `weakness_fall_side.zip`：18 个视频，52 条动作和 52 条映射事件，原始 SHA-256 为 `806cb9212b64e49ba11f473755d8f124e74559b008cb8c7743c16e8d0ba3983d`。
+- 五个批次合计覆盖 108/108 个视频，产生 246 条动作和 246 条映射事件。动作分布为 `A01=25`、`B01=72`、`B02=20`、`B03=1`、`B04=43`、`C03=13`、`D01=36`、`D02=36`；事件分布为 fall=72、gait_instability=136、near_fall=13、normal_activity=25。
+- 原始外部 ZIP 不复制进仓库；108 个仓库内 task ZIP 已移除 `owner/assignee/username/email` 身份节点，复扫未发现身份标签或邮箱字符串。五份候选 formal 报告均为 `valid=true`、`errors=0`、`blockers=0`。
+- 内部授权只解除 manifest 技术隔离；未知人员、未知公开来源和单一保守源组限制继续保留。
 
-| 候选 | action / event | schema errors | 人审 blocker | action SHA / event SHA |
-|---|---:|---:|---:|---|
-| CVAT Home_01 | 8 / 8 | 0 | 6 | `09d168a9...e509` / `2fb62960...35d5` |
-| `cvat_coffee_01_02` 源导出 | 514 / 514 | 0 | 211 | `feabb732...2741` / `5f4adcce...2883` |
-| LE2I official | 0 / 99 | 0 | 99 | 空文件 / `d69ad426...2c28` |
+## 当前结论
 
-目录名按源导出文件命名，但该 514 条导出实际覆盖 `Coffee_room_01=233`、`Coffee_room_02=150`、`Home_02=131` 条动作，共关联 100 个视频；不能把整组简称为纯 Coffee 数据。Coffee 使用 25 FPS，Home_02 使用各自约 24 FPS 的 manifest 时间轴。
+v2 根标签已完成重建，正式校验结果为 `errors=5,952`、`blockers=179`、`formal_ready=false`。5,952 个 error 来自 2,976 条 NTU 记录的旧解压媒体路径不存在，在 manifest 和 action 层各计一次；这不否定人工边界，但在重新解压或重建路径前不能用于训练。blocker 还包括 `U01/uncertain` 和现有技术/治理限制；`risk_labels.jsonl` 和 subject profiles 仍为空，因此功能/纵向任务继续阻塞。当前仍是可追溯发布候选，不是 frozen 数据版本。
 
-blocker 来自尚无双人独立复核的高风险/跌倒候选。`risk_labels.jsonl` 与 `annotation_review_log.jsonl` 是空模板，`subject_profiles.json` 是零 subject 模板；没有生成任何虚构风险标签、人员档案或签字记录。
+## 模型训练标签 v3
 
-## 身份与许可风险
+现有 v3 由当前 v2 根标签确定性生成，未覆盖 v2；已包含 UR Fall 和 NTU RGB+D：
 
-两个受 Git 跟踪的 CVAT 原始导出和一个未跟踪导出均检测到非空用户名/邮箱类元数据；本报告不记录具体值。转换器确认这些字段未复制到候选标签，但原件的脱敏、移出版本库或受控留存仍需项目负责人决定。
+| 产物 | 数量 | 结果 |
+|---|---:|---|
+| `action_labels_v3.jsonl` | 4,759 | primary=4,297、auxiliary=349、ignore=113 |
+| `event_labels_v3.jsonl` | 464 | fall positive=312、task-specific ignore=152 |
 
-原始导出校验和：
+迁移合并了 71 个 LE2I/CVAT 重叠 fall，159 个 D04 均与唯一父 fall 双向关联；没有把 C03-C05 自动升级为 near-fall，也没有从未标注背景或 LE2I `0/0` 自动生成 negative。NTU 的 2,976 条动作全部为 `primary/exact/single_annotated`，具体动作 tier 也全部为 primary；TOAGA 的 28 条 `normal_walk` 保持 `auxiliary/source_verified/boundary_precision=unknown`。统一 v3 split 有 5,223 条标签分配、3,501 个资产和 154 个保守泄漏组，跨分区泄漏为 0，primary fall 正例按 train/validation/test 分为 74/14/7。v3 校验 `valid=true`、`issues=[]`，但 primary 动作类别未完整覆盖各分区，因此 `training_ready.action_type=false`；event negative=0、near-fall positive=0，两个事件任务也均为 false。
 
-- `annotations.xml`：`117e1e13d4c18a5d56f550403fb1524c72cdabf4b1ccc05b45c7d0a04a0611dd`
-- Home_01 ZIP：`24c06453391ac8f856fde9f2ca45353a754130874093d7ac9965242ee74dbdbf`
-- Coffee ZIP：`130a09aecc8ef68fbbccda2f5341280387857967afd17c626e1a76253cfeac1c`
+迁移与校验证据：
 
-## Split 与评估分母
-
-四类任务均生成了真实 blocked artifact，`eligible_sample_count=0`、`split_id=null`，没有制造空的 ready/frozen split。当前 manifest 中 `continuous_monitoring_eligible=true` 为 0，合法连续监控时长为 0；因此正式 `FP/摄像机小时`、`FP/家庭日` 和传统 FPR 均没有合法分母。
-
-评估器只使用 `eligibility=true` 的真值。`reports/fall_risk/workflow_a_synthetic_evaluation/` 已跑通一条合成 perfect-match 链路；其中 `F1=1.0` 仅为基础设施烟测，不是模型性能或比赛结果。
-
-## 复现
-
-```bash
-conda run -n eldercare-ai python scripts/annotation/build_fall_risk_manifest.py \
-  --repo-root . \
-  --output /tmp/fall_risk_video_manifest_rebuild.jsonl \
-  --ffprobe-bin ffprobe
-
-conda run -n eldercare-ai python scripts/annotation/validate_fall_risk_labels.py \
-  --manifest data/manifests/fall_risk_video_manifest.jsonl \
-  --action-labels data/annotations/fall_risk/action_labels.jsonl \
-  --event-labels data/annotations/fall_risk/event_labels.jsonl \
-  --risk-labels data/annotations/fall_risk/risk_labels.jsonl \
-  --subject-profiles data/annotations/fall_risk/subject_profiles.json \
-  --review-log data/annotations/fall_risk/annotation_review_log.jsonl \
-  --config configs/data/fall_risk_label_validation_v1.yaml \
-  --mode audit \
-  --report-output /tmp/fall_risk_label_validation_audit.json
+```text
+reports/fall_risk/training-labels-v3-migration.json
+reports/fall_risk/training-labels-v3-validation.json
+data/splits/fall_risk/training_labels_v3/assignments.jsonl
+data/splits/fall_risk/training_labels_v3/split.json
 ```
 
-默认写入拒绝覆盖已有 manifest 和报告。需要验证确定性时，应输出到新的临时路径并比较 SHA-256，不要覆盖候选版本。
+## 根标签 hash
+
+| 文件 | 记录数 | SHA-256 |
+|---|---:|---|
+| `action_labels.jsonl` | 4,759 | `08a13d283e39f3aa1d7f91cf4077253a7eac923014201fb33e2426e9ed8ce23c` |
+| `event_labels.jsonl` | 1,783 | `eb431bedf9104c9cfbd7bf166b1555f1c824b1d23a2a1d21784bb54ab88fd8ea` |
+
+正式校验报告由以下命令生成到 `reports/fall_risk/label_validation_formal_v2.json`；该报告只反映当前输入，不代表模型指标或临床有效性。

@@ -1,4 +1,9 @@
 model_path: yolov8n-pose.pt
+# 只有通过步态稳定性验证门禁的 gait_instability_vs_normal_activity
+# checkpoint 才能配置为主分支；null 时规则 baseline 自动兜底。
+gait_model_path: null
+gait_model_device: auto
+gait_model_window_frames: 64
 api_token: change-me
 callback_token: change-me
 max_inference_fps: 8.0
@@ -9,6 +14,12 @@ primary_lost_timeout_sec: 2.0
 event_cooldown_sec: 30.0
 callback_timeout_sec: 5.0
 callback_retry_delays_sec: [0.5, 1.0, 2.0]
+# 进程内 outbox。容量满时普通版本可被受保护的紧急/终止版本替换；
+# 紧急和 episode 唯一终止版本自身不会被静默覆盖。
+outbox_capacity: 32
+outbox_drain_timeout_sec: 3.0
+session_stop_timeout_sec: 5.0
+frame_queue_capacity: 2
 stream_open_timeout_ms: 5000
 stream_read_timeout_ms: 5000
 reconnect_attempts: 3
@@ -19,6 +30,35 @@ scene_risk_scores:
   stairs: 0.8
   living_room: 0.1
   home: 0.1
+branch_quality:
+  gait:
+    min_frames: 8
+    min_valid_frame_ratio: 0.6
+    min_keypoint_coverage: 0.7
+    min_window_coverage_sec: 1.0
+    min_effective_fps: 4.0
+    max_gap_sec: 1.0
+  sit_stand:
+    min_frames: 8
+    min_valid_frame_ratio: 0.6
+    min_keypoint_coverage: 0.7
+    min_window_coverage_sec: 1.0
+    min_effective_fps: 4.0
+    max_gap_sec: 1.0
+  near_fall:
+    min_frames: 5
+    min_valid_frame_ratio: 0.6
+    min_keypoint_coverage: 0.6
+    min_window_coverage_sec: 0.5
+    min_effective_fps: 6.0
+    max_gap_sec: 0.75
+  fall_state:
+    min_frames: 2
+    min_valid_frame_ratio: 0.6
+    min_keypoint_coverage: 0.6
+    min_window_coverage_sec: 0.1
+    min_effective_fps: 6.0
+    max_gap_sec: 0.75
 fall_state:
   observation_window_sec: 1.0
   min_quality: 0.6
@@ -27,3 +67,8 @@ fall_state:
   horizontal_angle_threshold: 60.0
   static_duration_sec: 10.0
   static_motion_threshold: 0.02
+  # 工程生命周期语义，不是医学确认或效果阈值。
+  recovery_upright_angle_threshold: 45.0
+  recovery_motion_threshold: 0.05
+  recovery_confirmation_sec: 3.0
+  episode_ttl_sec: 30.0

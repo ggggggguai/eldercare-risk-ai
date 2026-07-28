@@ -7,7 +7,6 @@ import os
 import re
 from collections import Counter
 from dataclasses import dataclass
-from datetime import datetime
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Any, Iterable, Mapping
@@ -24,22 +23,11 @@ from elderly_monitoring.modules.fall_risk.annotations import (
 
 
 DEFAULT_CONFIG: dict[str, Any] = {
-    "schema_version": "fall-risk-label-validation-v1",
+    "schema_version": "fall-risk-label-validation-v2",
     "time_tolerance_sec": 0.001,
-    "formal_review_statuses": ["reviewed", "final"],
-    "ineligible_review_statuses": [
-        "pending",
-        "uncertain",
-        "missing",
-        "license_unknown",
-    ],
-    "unknown_license_values": ["", "unknown", "license_unknown", "missing", "none"],
-    "review_approval_decisions": ["approve", "adjudicate"],
-    "minimum_independent_reviewers": 2,
-    "high_risk_action_prefixes": ["C", "D"],
 }
 
-ACTION_REQUIRED = {
+ACTION_COMMON_REQUIRED = {
     "label_id",
     "source_record_id",
     "source_annotation_path",
@@ -60,18 +48,21 @@ ACTION_REQUIRED = {
     "end_frame",
     "frame_index_base",
     "labeler",
-    "review_status",
     "quality",
     "note",
     "source",
+}
+ACTION_CVAT_REQUIRED = ACTION_COMMON_REQUIRED | {
     "cvat_task_id",
     "cvat_track_id",
     "bbox_start",
     "bbox_end",
-    "eligibility",
-    "review_evidence_ids",
 }
-ACTION_ALLOWED = set(ACTION_REQUIRED)
+ACTION_TOAGA_REQUIRED = set(ACTION_COMMON_REQUIRED)
+ACTION_NTU_RGBD_REQUIRED = set(ACTION_COMMON_REQUIRED)
+ACTION_CVAT_ALLOWED = set(ACTION_CVAT_REQUIRED)
+ACTION_TOAGA_ALLOWED = set(ACTION_TOAGA_REQUIRED)
+ACTION_NTU_RGBD_ALLOWED = set(ACTION_NTU_RGBD_REQUIRED)
 
 EVENT_COMMON_REQUIRED = {
     "label_id",
@@ -88,10 +79,7 @@ EVENT_COMMON_REQUIRED = {
     "frame_index_base",
     "severity",
     "label_source",
-    "review_status",
     "note",
-    "eligibility",
-    "review_evidence_ids",
 }
 EVENT_MAPPED_REQUIRED = EVENT_COMMON_REQUIRED | {
     "source_export_id",
@@ -119,62 +107,32 @@ RISK_REQUIRED = {
     "risk_level",
     "risk_factors",
     "label_source",
-    "review_status",
-    "eligibility",
-    "review_evidence_ids",
 }
 RISK_ALLOWED = RISK_REQUIRED | {
     "video_id",
-    "review_record_ids",
     "note",
     "risk_score",
-}
-
-REVIEW_REQUIRED = {
-    "review_id",
-    "label_id",
-    "label_type",
-    "reviewer_id",
-    "decision",
-    "reviewed_at",
-    "reason_code",
-    "note",
-}
-REVIEW_ALLOWED = REVIEW_REQUIRED | {
-    "previous_record_sha256",
-    "result_record_sha256",
-    "supersedes_review_id",
 }
 
 EVENT_TYPES = {event_type for event_type, _ in ACTION_EVENT_MAP.values()} | {
     "sudden_stop_recovery",
     "recovery",
 }
-REVIEW_STATUSES = {
-    "pending",
-    "reviewed",
-    "final",
-    "auto_imported",
-    "uncertain",
-    "missing",
-    "license_unknown",
-    "rejected",
-}
 _PSEUDONYM_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$")
 _EMAIL_PATTERN = re.compile(r"(?i)\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b")
 _PHONE_PATTERN = re.compile(r"(?<!\d)(?:\+?86[- ]?)?1[3-9]\d{9}(?!\d)")
+_INTERNAL_AUTHORIZATION_URI_PREFIX = "internal://authorization/"
+_SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
+_INTERNAL_AUTHORIZATION_EVIDENCE_TYPES = {
+    "cvat_export_archive",
+    "local_media_inventory",
+}
 
 
 @dataclass(frozen=True)
 class ValidationConfig:
     time_tolerance_sec: float
-    formal_review_statuses: frozenset[str]
-    ineligible_review_statuses: frozenset[str]
-    unknown_license_values: frozenset[str]
-    review_approval_decisions: frozenset[str]
-    minimum_independent_reviewers: int
-    high_risk_action_prefixes: frozenset[str]
-    schema_version: str = "fall-risk-label-validation-v1"
+    schema_version: str = "fall-risk-label-validation-v2"
 
 
 def load_validation_config(path: Path | str | None = None) -> ValidationConfig:
@@ -218,72 +176,17 @@ def _load_validation_config_with_hash(
     ):
         raise ValueError(
             "time_tolerance_sec must be finite, non-negative, and no greater "
-            "than the v1 governance maximum"
+            "than the v2 contract maximum"
         )
-    minimum_reviewers = raw["minimum_independent_reviewers"]
-    if not _exact_int(minimum_reviewers) or minimum_reviewers < 2:
-        raise ValueError("minimum_independent_reviewers must be at least 2")
     if raw["schema_version"] != DEFAULT_CONFIG["schema_version"]:
         raise ValueError("unsupported validation config schema_version")
-    formal_review_statuses = _config_string_set(raw, "formal_review_statuses")
-    ineligible_review_statuses = _config_string_set(
-        raw, "ineligible_review_statuses"
-    )
-    unknown_license_values = frozenset(
-        value.lower()
-        for value in _config_string_set(
-            raw, "unknown_license_values", allow_empty=True
-        )
-    )
-    review_approval_decisions = _config_string_set(
-        raw, "review_approval_decisions"
-    )
-    high_risk_action_prefixes = _config_string_set(
-        raw, "high_risk_action_prefixes"
-    )
-    default_formal = frozenset(DEFAULT_CONFIG["formal_review_statuses"])
-    default_ineligible = frozenset(DEFAULT_CONFIG["ineligible_review_statuses"])
-    default_unknown_licenses = frozenset(
-        str(value).lower() for value in DEFAULT_CONFIG["unknown_license_values"]
-    )
-    default_approval = frozenset(DEFAULT_CONFIG["review_approval_decisions"])
-    default_high_risk = frozenset(DEFAULT_CONFIG["high_risk_action_prefixes"])
-    if not formal_review_statuses or not formal_review_statuses <= default_formal:
-        raise ValueError("formal_review_statuses may only contain reviewed/final")
-    if not ineligible_review_statuses >= default_ineligible:
-        raise ValueError("ineligible_review_statuses cannot remove v1 blockers")
-    if not unknown_license_values >= default_unknown_licenses:
-        raise ValueError("unknown_license_values cannot remove v1 unknown values")
-    if not review_approval_decisions or not review_approval_decisions <= default_approval:
-        raise ValueError("review_approval_decisions may only contain approve/adjudicate")
-    if not high_risk_action_prefixes >= default_high_risk:
-        raise ValueError("high_risk_action_prefixes must include C and D")
     return (
         ValidationConfig(
             schema_version=str(raw["schema_version"]),
             time_tolerance_sec=tolerance,
-            formal_review_statuses=formal_review_statuses,
-            ineligible_review_statuses=ineligible_review_statuses,
-            unknown_license_values=unknown_license_values,
-            review_approval_decisions=review_approval_decisions,
-            minimum_independent_reviewers=minimum_reviewers,
-            high_risk_action_prefixes=high_risk_action_prefixes,
         ),
         config_sha256,
     )
-
-
-def _config_string_set(
-    raw: Mapping[str, Any], field: str, *, allow_empty: bool = False
-) -> frozenset[str]:
-    value = raw[field]
-    if not isinstance(value, list) or any(
-        not isinstance(item, str) or (not item and not allow_empty) for item in value
-    ):
-        raise ValueError(f"{field} must be a list of non-empty strings")
-    if len(set(value)) != len(value):
-        raise ValueError(f"{field} must not contain duplicates")
-    return frozenset(value)
 
 
 def validate_fall_risk_data(
@@ -293,7 +196,6 @@ def validate_fall_risk_data(
     event_labels_path: Path | str,
     risk_labels_path: Path | str,
     subject_profiles_path: Path | str,
-    review_log_path: Path | str,
     mode: str = "audit",
     config_path: Path | str | None = None,
 ) -> dict[str, Any]:
@@ -314,27 +216,15 @@ def validate_fall_risk_data(
     risk_rows, risk_input_hash = _load_jsonl_strict(
         Path(risk_labels_path), "risk", issues
     )
-    review_rows, review_input_hash = _load_jsonl_strict(
-        Path(review_log_path), "review", issues
-    )
     profiles, profiles_input_hash = _load_json_object_strict(
         Path(subject_profiles_path), "profiles", issues
     )
 
     manifest = _manifest_index(manifest_rows, issues, config)
-    review_evidence = _validate_reviews(
-        review_rows,
-        action_rows=action_rows,
-        event_rows=event_rows,
-        risk_rows=risk_rows,
-        config=config,
-        issues=issues,
-    )
     source_hash_cache: dict[Path, str] = {}
     action_index = _validate_actions(
         action_rows,
         manifest,
-        review_evidence,
         source_hash_cache,
         config,
         mode,
@@ -344,15 +234,12 @@ def validate_fall_risk_data(
         event_rows,
         manifest,
         action_index,
-        review_evidence,
         source_hash_cache,
         config,
         mode,
         issues,
     )
-    _validate_risk_labels(
-        risk_rows, manifest, review_evidence, config, mode, issues
-    )
+    _validate_risk_labels(risk_rows, manifest, config, mode, issues)
     _validate_profiles(profiles, config, mode, issues)
 
     counts = {
@@ -360,7 +247,6 @@ def validate_fall_risk_data(
         "action_labels": len(action_rows),
         "event_labels": len(event_rows),
         "risk_labels": len(risk_rows),
-        "review_records": len(review_rows),
         "subject_profiles": len(profiles.get("subjects", []))
         if isinstance(profiles, dict) and isinstance(profiles.get("subjects"), list)
         else 0,
@@ -371,7 +257,7 @@ def validate_fall_risk_data(
     invalid_severities = {"error"} | ({"blocker"} if mode == "formal" else set())
     valid = not any(issue["severity"] in invalid_severities for issue in issues)
     return {
-        "schema_version": "fall-risk-label-validation-report-v1",
+        "schema_version": "fall-risk-label-validation-report-v2",
         "validation_config_version": config.schema_version,
         "mode": mode,
         "valid": valid,
@@ -381,7 +267,6 @@ def validate_fall_risk_data(
             "event_labels": event_input_hash,
             "risk_labels": risk_input_hash,
             "subject_profiles": profiles_input_hash,
-            "review_log": review_input_hash,
             "validation_config": config_input_hash,
         },
         "counts": counts,
@@ -392,7 +277,6 @@ def validate_fall_risk_data(
             action_rows,
             event_rows,
             risk_rows,
-            review_rows,
             issues,
         ),
         "issues": issues,
@@ -551,7 +435,6 @@ def _manifest_index(
             "path",
             "sha256",
             "source_uri",
-            "license_id",
             "eligibility",
             "exclusion_reasons",
         ]
@@ -606,11 +489,13 @@ def _manifest_index(
             )
         if row.get("eligibility") is True:
             source_uri = str(row.get("source_uri") or "").strip()
-            license_id = str(row.get("license_id") or "").strip().lower()
             exclusion_reasons = row.get("exclusion_reasons")
+            has_public_provenance = bool(re.match(r"^https?://", source_uri))
+            has_internal_authorization = _has_valid_internal_authorization_provenance(
+                row, source_uri
+            )
             if (
-                not re.match(r"^https?://", source_uri)
-                or license_id in config.unknown_license_values
+                not (has_public_provenance or has_internal_authorization)
                 or not isinstance(exclusion_reasons, list)
                 or bool(exclusion_reasons)
             ):
@@ -636,360 +521,58 @@ def _manifest_index(
     return index
 
 
-def _validate_reviews(
-    rows: list[dict[str, Any]],
-    *,
-    action_rows: list[dict[str, Any]],
-    event_rows: list[dict[str, Any]],
-    risk_rows: list[dict[str, Any]],
-    config: ValidationConfig,
-    issues: list[dict[str, Any]],
-) -> dict[tuple[str, str], set[str]]:
-    label_records = _review_target_records(action_rows, event_rows, risk_rows)
-    reviews: dict[str, dict[str, Any]] = {}
-    valid_review_ids: set[str] = set()
-    review_timestamps: dict[str, datetime] = {}
-    for position, row in enumerate(rows, 1):
-        if not _validate_shape(row, REVIEW_REQUIRED, REVIEW_ALLOWED, "review", position, issues):
-            continue
-        review_id = row["review_id"]
-        if not isinstance(review_id, str) or not review_id:
-            _issue(issues, "error", "invalid_id", "review", record_index=position)
-            continue
-        if review_id in reviews:
-            _issue(
-                issues,
-                "error",
-                "duplicate_label_id",
-                "review",
-                label_id=review_id,
-            )
-            continue
-        reviews[review_id] = row
-        row_valid = True
-        label_type = row["label_type"]
-        if not isinstance(label_type, str) or label_type not in {
-            "action",
-            "event",
-            "risk",
-        }:
-            _issue(issues, "error", "invalid_enum", "review", label_id=review_id)
-            row_valid = False
-        decision = row["decision"]
-        if not isinstance(decision, str) or decision not in {
-            "approve",
-            "revise",
-            "reject",
-            "conflict",
-            "adjudicate",
-        }:
-            _issue(issues, "error", "invalid_enum", "review", label_id=review_id)
-            row_valid = False
-        if not isinstance(row["reviewer_id"], str) or not row["reviewer_id"]:
-            _issue(issues, "error", "invalid_reviewer_id", "review", label_id=review_id)
-            row_valid = False
-        elif not _is_pseudonymous_identifier(row["reviewer_id"]):
-            _issue(issues, "error", "unsafe_identifier", "review", label_id=review_id)
-            row_valid = False
-        timestamp = _parse_review_timestamp(row["reviewed_at"])
-        if timestamp is None:
-            _issue(issues, "error", "invalid_review_timestamp", "review", label_id=review_id)
-            row_valid = False
-        else:
-            review_timestamps[review_id] = timestamp
-        if not isinstance(row["label_id"], str) or not row["label_id"]:
-            _issue(issues, "error", "invalid_review_label_id", "review", label_id=review_id)
-            row_valid = False
-        for field in ("reason_code", "note"):
-            if not isinstance(row[field], str):
-                _issue(
-                    issues,
-                    "error",
-                    "invalid_review_text",
-                    "review",
-                    label_id=review_id,
-                    message=field,
-                )
-                row_valid = False
-            elif _contains_contact_identifier(row[field]):
-                _issue(
-                    issues,
-                    "error",
-                    "potential_identity_data",
-                    "review",
-                    label_id=review_id,
-                    message=field,
-                )
-                row_valid = False
-        for field in ("previous_record_sha256", "result_record_sha256"):
-            value = row.get(field)
-            if value is not None and (
-                not isinstance(value, str)
-                or not re.fullmatch(r"[0-9a-f]{64}", value)
-            ):
-                _issue(
-                    issues,
-                    "error",
-                    f"invalid_{field}",
-                    "review",
-                    label_id=review_id,
-                )
-                row_valid = False
-        if (
-            isinstance(decision, str)
-            and decision in config.review_approval_decisions
-            and "result_record_sha256" not in row
-        ):
-            _issue(
-                issues,
-                "error",
-                "missing_review_result_hash",
-                "review",
-                label_id=review_id,
-            )
-            row_valid = False
-        if decision == "adjudicate" and not isinstance(
-            row.get("supersedes_review_id"), str
-        ):
-            _issue(
-                issues,
-                "error",
-                "adjudication_without_conflict",
-                "review",
-                label_id=review_id,
-            )
-            row_valid = False
-        if row_valid:
-            valid_review_ids.add(review_id)
-
-    superseded: set[str] = set()
-    successor_by_review: dict[str, str] = {}
-    for review_id in sorted(valid_review_ids):
-        row = reviews[review_id]
-        predecessor_id = row.get("supersedes_review_id")
-        if predecessor_id is None:
-            continue
-        predecessor = reviews.get(predecessor_id) if isinstance(predecessor_id, str) else None
-        if predecessor_id == review_id or predecessor is None:
-            _issue(
-                issues,
-                "error",
-                "invalid_supersedes_review_id",
-                "review",
-                label_id=review_id,
-            )
-            continue
-        if predecessor_id not in valid_review_ids or any(
-            row[field] != predecessor[field] for field in ("label_type", "label_id")
-        ):
-            _issue(
-                issues,
-                "error",
-                "review_supersession_mismatch",
-                "review",
-                label_id=review_id,
-            )
-            continue
-        predecessor_decision = predecessor["decision"]
-        if predecessor_decision == "conflict" and row["decision"] != "adjudicate":
-            _issue(
-                issues,
-                "error",
-                "invalid_review_transition",
-                "review",
-                label_id=review_id,
-                message="conflict must be followed by adjudicate",
-            )
-            continue
-        if row["decision"] == "adjudicate":
-            if predecessor_decision != "conflict":
-                _issue(
-                    issues,
-                    "error",
-                    "invalid_review_transition",
-                    "review",
-                    label_id=review_id,
-                    message="adjudicate must directly supersede conflict",
-                )
-                continue
-            prior_reviewers = _review_chain_reviewer_ids(predecessor_id, reviews)
-            if row["reviewer_id"] in prior_reviewers:
-                _issue(
-                    issues,
-                    "error",
-                    "non_independent_adjudicator",
-                    "review",
-                    label_id=review_id,
-                )
-                continue
-        predecessor_result = predecessor.get("result_record_sha256")
-        if (
-            not isinstance(predecessor_result, str)
-            or row.get("previous_record_sha256") != predecessor_result
-        ):
-            _issue(
-                issues,
-                "error",
-                "review_previous_hash_mismatch",
-                "review",
-                label_id=review_id,
-            )
-            continue
-        if review_timestamps[review_id] <= review_timestamps[predecessor_id]:
-            _issue(
-                issues,
-                "error",
-                "review_timestamp_not_increasing",
-                "review",
-                label_id=review_id,
-            )
-            continue
-        if predecessor_id in successor_by_review:
-            _issue(
-                issues,
-                "error",
-                "multiple_review_successors",
-                "review",
-                label_id=review_id,
-            )
-            continue
-        successor_by_review[predecessor_id] = review_id
-        superseded.add(predecessor_id)
-
-    for review_id in successor_by_review:
-        visited: set[str] = set()
-        current = review_id
-        while current in successor_by_review:
-            if current in visited:
-                _issue(
-                    issues,
-                    "error",
-                    "review_supersession_cycle",
-                    "review",
-                    label_id=review_id,
-                )
-                valid_review_ids.difference_update(visited)
-                break
-            visited.add(current)
-            current = successor_by_review[current]
-
-    active_review_ids = valid_review_ids - superseded
-    evidence: dict[tuple[str, str], set[str]] = {}
-    reviewers_by_target: dict[tuple[str, str], set[str]] = {}
-    for review_id in sorted(active_review_ids):
-        row = reviews[review_id]
-        if row["decision"] not in config.review_approval_decisions:
-            _issue(
-                issues,
-                "blocker",
-                "unresolved_review_decision",
-                "review",
-                label_id=review_id,
-                message=str(row["decision"]),
-            )
-            continue
-        key = (row["label_type"], row["label_id"])
-        target = label_records.get(key)
-        if target is None:
-            _issue(
-                issues,
-                "error",
-                "review_target_missing",
-                "review",
-                label_id=review_id,
-            )
-            continue
-        expected = _canonical_record_sha256(target)
-        if row.get("result_record_sha256") != expected:
-            _issue(
-                issues,
-                "error",
-                "review_result_hash_mismatch",
-                "review",
-                label_id=review_id,
-            )
-            continue
-        evidence.setdefault(key, set()).add(review_id)
-        reviewers_by_target.setdefault(key, set()).add(row["reviewer_id"])
-
-    for key, target in label_records.items():
-        if target.get("eligibility") is not True:
-            continue
-        reviewers = reviewers_by_target.get(key, set())
-        if len(reviewers) < config.minimum_independent_reviewers:
-            _issue(
-                issues,
-                "blocker",
-                "insufficient_independent_reviewers",
-                key[0],
-                label_id=key[1],
-                message=(
-                    f"required={config.minimum_independent_reviewers},"
-                    f"actual={len(reviewers)}"
-                ),
-            )
-    return evidence
-
-
-def _review_target_records(
-    action_rows: Iterable[dict[str, Any]],
-    event_rows: Iterable[dict[str, Any]],
-    risk_rows: Iterable[dict[str, Any]],
-) -> dict[tuple[str, str], dict[str, Any]]:
-    records: dict[tuple[str, str], dict[str, Any]] = {}
-    for kind, rows in (
-        ("action", action_rows),
-        ("event", event_rows),
-        ("risk", risk_rows),
-    ):
-        for row in rows:
-            label_id = row.get("label_id")
-            if isinstance(label_id, str) and label_id and (kind, label_id) not in records:
-                records[(kind, label_id)] = row
-    return records
-
-
-def _review_chain_reviewer_ids(
-    review_id: str, reviews: Mapping[str, Mapping[str, Any]]
-) -> set[str]:
-    reviewers: set[str] = set()
-    visited: set[str] = set()
-    current: str | None = review_id
-    while current is not None and current not in visited:
-        visited.add(current)
-        review = reviews.get(current)
-        if review is None:
-            break
-        reviewer_id = review.get("reviewer_id")
-        if isinstance(reviewer_id, str):
-            reviewers.add(reviewer_id)
-        predecessor = review.get("supersedes_review_id")
-        current = predecessor if isinstance(predecessor, str) else None
-    return reviewers
-
-
-def _canonical_record_sha256(row: Mapping[str, Any]) -> str:
-    payload = json.dumps(
-        row,
-        ensure_ascii=False,
-        sort_keys=True,
-        separators=(",", ":"),
-    ).encode("utf-8")
-    return hashlib.sha256(payload).hexdigest()
-
-
-def _parse_review_timestamp(value: Any) -> datetime | None:
-    if not isinstance(value, str) or not re.fullmatch(
-        r"\d{4}-\d{2}-\d{2}T.+(?:Z|[+-]\d{2}:\d{2})", value
-    ):
-        return None
-    try:
-        parsed = datetime.fromisoformat(value[:-1] + "+00:00" if value.endswith("Z") else value)
-    except ValueError:
-        return None
-    if parsed.tzinfo is None:
-        return None
-    return parsed
+def _has_valid_internal_authorization_provenance(
+    row: Mapping[str, Any], source_uri: str
+) -> bool:
+    authorization = row.get("internal_authorization")
+    if not isinstance(authorization, Mapping):
+        return False
+    required = (
+        "authorization_id",
+        "approval_reference",
+        "approved_at",
+        "evidence",
+        "authorized_video_count",
+    )
+    if any(key not in authorization for key in required):
+        return False
+    authorization_id = authorization.get("authorization_id")
+    approval_reference = authorization.get("approval_reference")
+    approved_at = authorization.get("approved_at")
+    evidence = authorization.get("evidence")
+    authorized_video_count = authorization.get("authorized_video_count")
+    if not isinstance(evidence, Mapping):
+        return False
+    evidence_kind = evidence.get("kind")
+    evidence_name = evidence.get("name")
+    evidence_sha256 = evidence.get("sha256")
+    evidence_is_valid = (
+        isinstance(evidence_kind, str)
+        and evidence_kind in _INTERNAL_AUTHORIZATION_EVIDENCE_TYPES
+        and isinstance(evidence_name, str)
+        and bool(evidence_name)
+        and isinstance(evidence_sha256, str)
+        and bool(_SHA256_PATTERN.fullmatch(evidence_sha256))
+    )
+    if evidence_kind == "local_media_inventory":
+        evidence_is_valid = evidence_is_valid and all(
+            isinstance(evidence.get(field), str) and bool(evidence[field])
+            for field in ("path", "inventory_id")
+        )
+    return (
+        isinstance(authorization_id, str)
+        and bool(authorization_id)
+        and source_uri == f"{_INTERNAL_AUTHORIZATION_URI_PREFIX}{authorization_id}"
+        and isinstance(approval_reference, str)
+        and bool(approval_reference)
+        and isinstance(approved_at, str)
+        and bool(re.fullmatch(r"\d{4}-\d{2}-\d{2}", approved_at))
+        and evidence_is_valid
+        and isinstance(authorized_video_count, int)
+        and authorized_video_count > 0
+        and row.get("provenance_status")
+        == "internal_authorized_source_unverified"
+    )
 
 
 def _stable_label_id(prefix: str, *parts: object) -> str:
@@ -1000,7 +583,6 @@ def _stable_label_id(prefix: str, *parts: object) -> str:
 def _validate_actions(
     rows: list[dict[str, Any]],
     manifest: Mapping[str, dict[str, Any]],
-    review_evidence: Mapping[tuple[str, str], set[str]],
     source_hash_cache: dict[Path, str],
     config: ValidationConfig,
     mode: str,
@@ -1008,8 +590,23 @@ def _validate_actions(
 ) -> dict[str, dict[str, Any]]:
     index: dict[str, dict[str, Any]] = {}
     for position, row in enumerate(rows, 1):
+        source = row.get("source")
+        required = (
+            ACTION_CVAT_REQUIRED
+            if source == "cvat"
+            else ACTION_NTU_RGBD_REQUIRED
+            if source in {"ntu_rgbd_clip_label", "ntu_rgbd_manual_clip_label"}
+            else ACTION_TOAGA_REQUIRED
+        )
+        allowed = (
+            ACTION_CVAT_ALLOWED
+            if source == "cvat"
+            else ACTION_NTU_RGBD_ALLOWED
+            if source in {"ntu_rgbd_clip_label", "ntu_rgbd_manual_clip_label"}
+            else ACTION_TOAGA_ALLOWED
+        )
         shape_valid = _validate_shape(
-            row, ACTION_REQUIRED, ACTION_ALLOWED, "action", position, issues
+            row, required, allowed, "action", position, issues
         )
         if not shape_valid:
             if mode == "formal":
@@ -1018,6 +615,13 @@ def _validate_actions(
         label_id = _register_label_id(row, index, "action", position, issues)
         if label_id is None:
             continue
+        if source not in {
+            "cvat",
+            "toaga_official_walking",
+            "ntu_rgbd_clip_label",
+            "ntu_rgbd_manual_clip_label",
+        }:
+            _issue(issues, "error", "invalid_action_source", "action", label_id=label_id)
         action_id = row["action_id"]
         expected_name = ACTION_NAMES.get(action_id)
         if expected_name is None or row["action_name"] != expected_name:
@@ -1026,8 +630,6 @@ def _validate_actions(
         if expected_event is None or row["event_type"] != expected_event[0]:
             _issue(issues, "error", "invalid_action_event_mapping", "action", label_id=label_id)
         if row["quality"] not in QUALITY_VALUES:
-            _issue(issues, "error", "invalid_enum", "action", label_id=label_id)
-        if row["review_status"] not in REVIEW_STATUSES:
             _issue(issues, "error", "invalid_enum", "action", label_id=label_id)
         for field in ("subject_id", "labeler"):
             if not _is_pseudonymous_identifier(row[field], allow_unknown=True):
@@ -1048,9 +650,6 @@ def _validate_actions(
                 label_id=label_id,
                 message="note",
             )
-        _validate_eligibility_and_reviews(
-            row, "action", label_id, review_evidence, issues
-        )
         if action_id == "U01" and not str(row["note"]).strip():
             _issue(issues, "error", "uncertain_reason_missing", "action", label_id=label_id)
         manifest_row = _validate_label_manifest_link(row, manifest, "action", label_id, issues)
@@ -1058,11 +657,9 @@ def _validate_actions(
         _validate_source_file(
             row, "action", label_id, source_hash_cache, issues
         )
-        _validate_bbox(row.get("bbox_start"), "action", label_id, issues)
-        _validate_bbox(row.get("bbox_end"), "action", label_id, issues)
-        high_risk_action = str(action_id)[:1] in config.high_risk_action_prefixes
-        if high_risk_action:
-            _require_review(label_id, review_evidence, "action", issues)
+        if source == "cvat":
+            _validate_bbox(row.get("bbox_start"), "action", label_id, issues)
+            _validate_bbox(row.get("bbox_end"), "action", label_id, issues)
         if mode == "formal":
             _formal_common(row, manifest_row, config, "action", label_id, issues)
             if row["event_type"] == "uncertain":
@@ -1074,7 +671,6 @@ def _validate_events(
     rows: list[dict[str, Any]],
     manifest: Mapping[str, dict[str, Any]],
     actions: Mapping[str, dict[str, Any]],
-    review_evidence: Mapping[tuple[str, str], set[str]],
     source_hash_cache: dict[Path, str],
     config: ValidationConfig,
     mode: str,
@@ -1104,8 +700,6 @@ def _validate_events(
             continue
         if row["event_type"] not in EVENT_TYPES:
             _issue(issues, "error", "invalid_enum", "event", label_id=label_id)
-        if row["review_status"] not in REVIEW_STATUSES:
-            _issue(issues, "error", "invalid_enum", "event", label_id=label_id)
         if _contains_contact_identifier(row["note"]):
             _issue(
                 issues,
@@ -1115,9 +709,6 @@ def _validate_events(
                 label_id=label_id,
                 message="note",
             )
-        _validate_eligibility_and_reviews(
-            row, "event", label_id, review_evidence, issues
-        )
         if not _exact_int(row["severity"]) or not 0 <= row["severity"] <= 4:
             _issue(issues, "error", "invalid_severity", "event", label_id=label_id)
         manifest_row = _validate_label_manifest_link(row, manifest, "event", label_id, issues)
@@ -1227,8 +818,6 @@ def _validate_events(
         else:
             _issue(issues, "error", "invalid_label_source", "event", label_id=label_id)
 
-        if row["event_type"] == "fall":
-            _require_review(label_id, review_evidence, "event", issues)
         if mode == "formal":
             _formal_common(row, manifest_row, config, "event", label_id, issues)
             if row["event_type"] == "uncertain":
@@ -1238,7 +827,6 @@ def _validate_events(
 def _validate_risk_labels(
     rows: list[dict[str, Any]],
     manifest: Mapping[str, dict[str, Any]],
-    review_evidence: Mapping[tuple[str, str], set[str]],
     config: ValidationConfig,
     mode: str,
     issues: list[dict[str, Any]],
@@ -1262,8 +850,6 @@ def _validate_risk_labels(
             )
         if not _exact_int(row["risk_level"]) or not 0 <= row["risk_level"] <= 4:
             _issue(issues, "error", "invalid_risk_level", "risk", label_id=label_id)
-        if row["review_status"] not in REVIEW_STATUSES:
-            _issue(issues, "error", "invalid_enum", "risk", label_id=label_id)
         if not _is_pseudonymous_identifier(row["subject_id"], allow_unknown=True):
             _issue(issues, "error", "unsafe_identifier", "risk", label_id=label_id)
         if _contains_contact_identifier(row.get("note", "")):
@@ -1275,9 +861,6 @@ def _validate_risk_labels(
                 label_id=label_id,
                 message="note",
             )
-        _validate_eligibility_and_reviews(
-            row, "risk", label_id, review_evidence, issues
-        )
         if row["label_source"] not in {"manual_consensus", "clinical_proxy"}:
             _issue(issues, "error", "invalid_label_source", "risk", label_id=label_id)
         if row["task_type"] not in {"functional_proxy", "longitudinal_baseline"}:
@@ -1292,7 +875,6 @@ def _validate_risk_labels(
             _issue(issues, "error", "invalid_time", "risk", label_id=label_id)
         elif row["start_time"] < 0 or row["end_time"] < row["start_time"]:
             _issue(issues, "error", "invalid_time", "risk", label_id=label_id)
-        _require_review(label_id, review_evidence, "risk", issues)
         if mode == "formal":
             _formal_common(row, manifest_row, config, "risk", label_id, issues)
 
@@ -1308,7 +890,7 @@ def _validate_profiles(
     if set(profiles) != {"schema_version", "subjects"}:
         _issue(issues, "error", "invalid_profile_schema", "profiles")
         return
-    if profiles.get("schema_version") != "fall-risk-subject-profiles-v1":
+    if profiles.get("schema_version") != "fall-risk-subject-profiles-v2":
         _issue(issues, "error", "invalid_profile_schema", "profiles")
     subjects = profiles.get("subjects")
     if not isinstance(subjects, list):
@@ -1319,7 +901,6 @@ def _validate_profiles(
         "subject_id",
         "profile_version",
         "profile_source",
-        "review_status",
         "consent_id",
         "features",
         "note",
@@ -1341,26 +922,10 @@ def _validate_profiles(
             _issue(issues, "error", "invalid_profile_version", "profile", record_index=position)
         if not _is_pseudonymous_identifier(subject["profile_source"]):
             _issue(issues, "error", "invalid_profile_source", "profile", record_index=position)
-        if subject["review_status"] not in REVIEW_STATUSES:
-            _issue(
-                issues,
-                "error",
-                "invalid_profile_review_status",
-                "profile",
-                record_index=position,
-            )
         consent_id = subject["consent_id"]
         if consent_id is not None and not _is_pseudonymous_identifier(consent_id):
             _issue(issues, "error", "invalid_consent_id", "profile", record_index=position)
         if mode == "formal":
-            if subject["review_status"] not in config.formal_review_statuses:
-                _issue(
-                    issues,
-                    "blocker",
-                    "formal_profile_review_status",
-                    "profile",
-                    record_index=position,
-                )
             if consent_id is None:
                 _issue(
                     issues,
@@ -1555,15 +1120,9 @@ def _formal_common(
     label_id: str,
     issues: list[dict[str, Any]],
 ) -> None:
-    status = str(row.get("review_status", "missing"))
-    if status in config.ineligible_review_statuses or status not in config.formal_review_statuses:
-        _issue(issues, "blocker", "formal_review_status", kind, label_id=label_id)
-    if row.get("eligibility") is not True:
-        _issue(issues, "blocker", "formal_label_ineligible", kind, label_id=label_id)
     if manifest_row is None:
         return
-    license_id = str(manifest_row.get("license_id") or "").lower()
-    if manifest_row.get("eligibility") is not True or license_id in config.unknown_license_values:
+    if manifest_row.get("eligibility") is not True:
         _issue(
             issues,
             "blocker",
@@ -1581,16 +1140,6 @@ def _formal_partial_record(
     issues: list[dict[str, Any]],
 ) -> None:
     label_id = row.get("label_id") if isinstance(row.get("label_id"), str) else None
-    status = str(row.get("review_status", "missing"))
-    if status in config.ineligible_review_statuses or status not in config.formal_review_statuses:
-        _issue(
-            issues,
-            "blocker",
-            "formal_review_status",
-            kind,
-            record_index=position,
-            label_id=label_id,
-        )
     if row.get("event_type") == "uncertain" or row.get("action_id") == "U01":
         _issue(
             issues,
@@ -1600,59 +1149,6 @@ def _formal_partial_record(
             record_index=position,
             label_id=label_id,
         )
-    high_risk_action = (
-        kind == "action"
-        and str(row.get("action_id", ""))[:1]
-        in config.high_risk_action_prefixes
-    )
-    fall_event = kind == "event" and row.get("event_type") == "fall"
-    if high_risk_action or fall_event:
-        _issue(
-            issues,
-            "blocker",
-            "missing_review_evidence",
-            kind,
-            record_index=position,
-            label_id=label_id,
-        )
-
-
-def _require_review(
-    label_id: str,
-    review_evidence: Mapping[tuple[str, str], set[str]],
-    kind: str,
-    issues: list[dict[str, Any]],
-) -> None:
-    if not review_evidence.get((kind, label_id)):
-        _issue(
-            issues,
-            "blocker",
-            "missing_review_evidence",
-            kind,
-            label_id=label_id,
-        )
-
-
-def _validate_eligibility_and_reviews(
-    row: Mapping[str, Any],
-    kind: str,
-    label_id: str,
-    review_evidence: Mapping[tuple[str, str], set[str]],
-    issues: list[dict[str, Any]],
-) -> None:
-    if not isinstance(row.get("eligibility"), bool):
-        _issue(issues, "error", "invalid_eligibility", kind, label_id=label_id)
-    declared = row.get("review_evidence_ids")
-    if not isinstance(declared, list) or any(
-        not isinstance(value, str) or not value for value in declared
-    ):
-        _issue(issues, "error", "invalid_review_references", kind, label_id=label_id)
-        return
-    if len(set(declared)) != len(declared):
-        _issue(issues, "error", "duplicate_review_reference", kind, label_id=label_id)
-    actual = review_evidence.get((kind, label_id), set())
-    if set(declared) != actual:
-        _issue(issues, "error", "review_reference_mismatch", kind, label_id=label_id)
 
 
 def _sha256_path(path: Path) -> str | None:
@@ -1708,7 +1204,6 @@ def _distributions(
     actions: list[dict[str, Any]],
     events: list[dict[str, Any]],
     risks: list[dict[str, Any]],
-    reviews: list[dict[str, Any]],
     issues: list[dict[str, Any]],
 ) -> dict[str, Any]:
     known_subjects = sum(
@@ -1725,9 +1220,6 @@ def _distributions(
     original_event_sizes = Counter(
         str(row.get("original_event_id", "missing")) for row in manifest
     )
-    review_decisions = Counter(str(row.get("decision", "missing")) for row in reviews)
-    conflict_count = review_decisions.get("conflict", 0)
-    adjudication_count = review_decisions.get("adjudicate", 0)
     return {
         "dataset": _counter(manifest, "dataset"),
         "scene": _counter(actions, "scene"),
@@ -1737,17 +1229,7 @@ def _distributions(
         "label_source": _counter(events, "label_source"),
         "risk_task_type": _counter(risks, "task_type"),
         "quality": _counter(actions, "quality"),
-        "review_decision": dict(sorted(review_decisions.items())),
-        "review_label_type": _counter(reviews, "label_type"),
         "issue_code": _counter(issues, "code"),
-        "review_status": dict(
-            sorted(
-                Counter(
-                    str(row.get("review_status", "missing"))
-                    for row in [*actions, *events, *risks]
-                ).items()
-            )
-        ),
         "subject_coverage": {
             "known": known_subjects,
             "unknown": len(manifest) - known_subjects,
@@ -1760,13 +1242,6 @@ def _distributions(
         "subject_group_size": _size_distribution(subject_sizes),
         "source_group_size": _size_distribution(source_group_sizes),
         "original_event_group_size": _size_distribution(original_event_sizes),
-        "adjudication": {
-            "conflict_records": conflict_count,
-            "adjudication_records": adjudication_count,
-            "adjudication_per_conflict": (
-                adjudication_count / conflict_count if conflict_count else None
-            ),
-        },
     }
 
 

@@ -1,0 +1,1092 @@
+[
+  {
+    "name": "A01_normal_walk",
+    "type": "rectangle",
+    "attributes": [
+      {
+        "name": "quality",
+        "input_type": "select",
+        "mutable": false,
+        "values": [
+          "clear",
+          "partial_occlusion",
+          "heavy_occlusion",
+          "low_light",
+          "off_screen",
+          "multi_person_uncertain"
+        ],
+        "default_value": "clear"
+      },
+      {
+        "name": "target_subject",
+        "input_type": "text",
+        "mutable": false,
+        "values": [
+          "unknown"
+        ],
+        "default_value": "unknown"
+      },
+      {
+        "name": "note",
+        "input_type": "text",
+        "mutable": false,
+        "values": [
+          ""
+        ],
+        "default_value": ""
+      }
+    ]
+  },
+  {
+    "name": "A02_normal_turn",
+    "type": "rectangle",
+    "attributes": [
+      {
+        "name": "quality",
+        "input_type": "select",
+        "mutable": false,
+        "values": [
+          "clear",
+          "partial_occlusion",
+          "heavy_occlusion",
+          "low_light",
+          "off_screen",
+          "multi_person_uncertain"
+        ],
+        "default_value": "clear"
+      },
+      {
+        "name": "target_subject",
+        "input_type": "text",
+        "mutable": false,
+        "values": [
+          "unknown"
+        ],
+        "default_value": "unknown"
+      },
+      {
+        "name": "note",
+        "input_type": "text",
+        "mutable": false,
+        "values": [
+          ""
+        ],
+        "default_value": ""
+      }
+    ]
+  },
+  {
+    "name": "A03_controlled_sit_down",
+    "type": "rectangle",
+    "attributes": [
+      {
+        "name": "quality",
+        "input_type": "select",
+        "mutable": false,
+        "values": [
+          "clear",
+          "partial_occlusion",
+          "heavy_occlusion",
+          "low_light",
+          "off_screen",
+          "multi_person_uncertain"
+        ],
+        "default_value": "clear"
+      },
+      {
+        "name": "target_subject",
+        "input_type": "text",
+        "mutable": false,
+        "values": [
+          "unknown"
+        ],
+        "default_value": "unknown"
+      },
+      {
+        "name": "note",
+        "input_type": "text",
+        "mutable": false,
+        "values": [
+          ""
+        ],
+        "default_value": ""
+      }
+    ]
+  },
+  {
+    "name": "A04_normal_sit_to_stand",
+    "type": "rectangle",
+    "attributes": [
+      {
+        "name": "quality",
+        "input_type": "select",
+        "mutable": false,
+        "values": [
+          "clear",
+          "partial_occlusion",
+          "heavy_occlusion",
+          "low_light",
+          "off_screen",
+          "multi_person_uncertain"
+        ],
+        "default_value": "clear"
+      },
+      {
+        "name": "target_subject",
+        "input_type": "text",
+        "mutable": false,
+        "values": [
+          "unknown"
+        ],
+        "default_value": "unknown"
+      },
+      {
+        "name": "note",
+        "input_type": "text",
+        "mutable": false,
+        "values": [
+          ""
+        ],
+        "default_value": ""
+      }
+    ]
+  },
+  {
+    "name": "A05_controlled_squat",
+    "type": "rectangle",
+    "attributes": [
+      {
+        "name": "quality",
+        "input_type": "select",
+        "mutable": false,
+        "values": [
+          "clear",
+          "partial_occlusion",
+          "heavy_occlusion",
+          "low_light",
+          "off_screen",
+          "multi_person_uncertain"
+        ],
+        "default_value": "clear"
+      },
+      {
+        "name": "target_subject",
+        "input_type": "text",
+        "mutable": false,
+        "values": [
+          "unknown"
+        ],
+        "default_value": "unknown"
+      },
+      {
+        "name": "note",
+        "input_type": "text",
+        "mutable": false,
+        "values": [
+          ""
+        ],
+        "default_value": ""
+      }
+    ]
+  },
+  {
+    "name": "A06_controlled_bend",
+    "type": "rectangle",
+    "attributes": [
+      {
+        "name": "quality",
+        "input_type": "select",
+        "mutable": false,
+        "values": [
+          "clear",
+          "partial_occlusion",
+          "heavy_occlusion",
+          "low_light",
+          "off_screen",
+          "multi_person_uncertain"
+        ],
+        "default_value": "clear"
+      },
+      {
+        "name": "target_subject",
+        "input_type": "text",
+        "mutable": false,
+        "values": [
+          "unknown"
+        ],
+        "default_value": "unknown"
+      },
+      {
+        "name": "note",
+        "input_type": "text",
+        "mutable": false,
+        "values": [
+          ""
+        ],
+        "default_value": ""
+      }
+    ]
+  },
+  {
+    "name": "A07_controlled_lie_down",
+    "type": "rectangle",
+    "attributes": [
+      {
+        "name": "quality",
+        "input_type": "select",
+        "mutable": false,
+        "values": [
+          "clear",
+          "partial_occlusion",
+          "heavy_occlusion",
+          "low_light",
+          "off_screen",
+          "multi_person_uncertain"
+        ],
+        "default_value": "clear"
+      },
+      {
+        "name": "target_subject",
+        "input_type": "text",
+        "mutable": false,
+        "values": [
+          "unknown"
+        ],
+        "default_value": "unknown"
+      },
+      {
+        "name": "note",
+        "input_type": "text",
+        "mutable": false,
+        "values": [
+          ""
+        ],
+        "default_value": ""
+      }
+    ]
+  },
+  {
+    "name": "A08_routine_support_contact",
+    "type": "rectangle",
+    "attributes": [
+      {
+        "name": "quality",
+        "input_type": "select",
+        "mutable": false,
+        "values": [
+          "clear",
+          "partial_occlusion",
+          "heavy_occlusion",
+          "low_light",
+          "off_screen",
+          "multi_person_uncertain"
+        ],
+        "default_value": "clear"
+      },
+      {
+        "name": "target_subject",
+        "input_type": "text",
+        "mutable": false,
+        "values": [
+          "unknown"
+        ],
+        "default_value": "unknown"
+      },
+      {
+        "name": "note",
+        "input_type": "text",
+        "mutable": false,
+        "values": [
+          ""
+        ],
+        "default_value": ""
+      }
+    ]
+  },
+  {
+    "name": "A09_kneel_or_floor_activity",
+    "type": "rectangle",
+    "attributes": [
+      {
+        "name": "quality",
+        "input_type": "select",
+        "mutable": false,
+        "values": [
+          "clear",
+          "partial_occlusion",
+          "heavy_occlusion",
+          "low_light",
+          "off_screen",
+          "multi_person_uncertain"
+        ],
+        "default_value": "clear"
+      },
+      {
+        "name": "target_subject",
+        "input_type": "text",
+        "mutable": false,
+        "values": ["unknown"],
+        "default_value": "unknown"
+      },
+      {
+        "name": "note",
+        "input_type": "text",
+        "mutable": false,
+        "values": [""],
+        "default_value": ""
+      }
+    ]
+  },
+  {
+    "name": "A10_normal_step_adjustment",
+    "type": "rectangle",
+    "attributes": [
+      {
+        "name": "quality",
+        "input_type": "select",
+        "mutable": false,
+        "values": [
+          "clear",
+          "partial_occlusion",
+          "heavy_occlusion",
+          "low_light",
+          "off_screen",
+          "multi_person_uncertain"
+        ],
+        "default_value": "clear"
+      },
+      {
+        "name": "target_subject",
+        "input_type": "text",
+        "mutable": false,
+        "values": [
+          "unknown"
+        ],
+        "default_value": "unknown"
+      },
+      {
+        "name": "note",
+        "input_type": "text",
+        "mutable": false,
+        "values": [
+          ""
+        ],
+        "default_value": ""
+      }
+    ]
+  },
+  {
+    "name": "A11_assisted_sit_or_lowering",
+    "type": "rectangle",
+    "attributes": [
+      {
+        "name": "quality",
+        "input_type": "select",
+        "mutable": false,
+        "values": [
+          "clear",
+          "partial_occlusion",
+          "heavy_occlusion",
+          "low_light",
+          "off_screen",
+          "multi_person_uncertain"
+        ],
+        "default_value": "clear"
+      },
+      {
+        "name": "target_subject",
+        "input_type": "text",
+        "mutable": false,
+        "values": [
+          "unknown"
+        ],
+        "default_value": "unknown"
+      },
+      {
+        "name": "note",
+        "input_type": "text",
+        "mutable": false,
+        "values": [
+          ""
+        ],
+        "default_value": ""
+      }
+    ]
+  },
+  {
+    "name": "A12_normal_hop",
+    "type": "rectangle",
+    "attributes": [
+      {
+        "name": "quality",
+        "input_type": "select",
+        "mutable": false,
+        "values": [
+          "clear",
+          "partial_occlusion",
+          "heavy_occlusion",
+          "low_light",
+          "off_screen",
+          "multi_person_uncertain"
+        ],
+        "default_value": "clear"
+      },
+      {
+        "name": "target_subject",
+        "input_type": "text",
+        "mutable": false,
+        "values": ["unknown"],
+        "default_value": "unknown"
+      },
+      {
+        "name": "note",
+        "input_type": "text",
+        "mutable": false,
+        "values": [""],
+        "default_value": ""
+      }
+    ]
+  },
+  {
+    "name": "B01_slow_walk",
+    "type": "rectangle",
+    "attributes": [
+      {
+        "name": "quality",
+        "input_type": "select",
+        "mutable": false,
+        "values": [
+          "clear",
+          "partial_occlusion",
+          "heavy_occlusion",
+          "low_light",
+          "off_screen",
+          "multi_person_uncertain"
+        ],
+        "default_value": "clear"
+      },
+      {
+        "name": "target_subject",
+        "input_type": "text",
+        "mutable": false,
+        "values": [
+          "unknown"
+        ],
+        "default_value": "unknown"
+      },
+      {
+        "name": "note",
+        "input_type": "text",
+        "mutable": false,
+        "values": [
+          ""
+        ],
+        "default_value": ""
+      }
+    ]
+  },
+  {
+    "name": "B02_dragging_walk",
+    "type": "rectangle",
+    "attributes": [
+      {
+        "name": "quality",
+        "input_type": "select",
+        "mutable": false,
+        "values": [
+          "clear",
+          "partial_occlusion",
+          "heavy_occlusion",
+          "low_light",
+          "off_screen",
+          "multi_person_uncertain"
+        ],
+        "default_value": "clear"
+      },
+      {
+        "name": "target_subject",
+        "input_type": "text",
+        "mutable": false,
+        "values": [
+          "unknown"
+        ],
+        "default_value": "unknown"
+      },
+      {
+        "name": "note",
+        "input_type": "text",
+        "mutable": false,
+        "values": [
+          ""
+        ],
+        "default_value": ""
+      }
+    ]
+  },
+  {
+    "name": "B03_shuffling_walk",
+    "type": "rectangle",
+    "attributes": [
+      {
+        "name": "quality",
+        "input_type": "select",
+        "mutable": false,
+        "values": [
+          "clear",
+          "partial_occlusion",
+          "heavy_occlusion",
+          "low_light",
+          "off_screen",
+          "multi_person_uncertain"
+        ],
+        "default_value": "clear"
+      },
+      {
+        "name": "target_subject",
+        "input_type": "text",
+        "mutable": false,
+        "values": [
+          "unknown"
+        ],
+        "default_value": "unknown"
+      },
+      {
+        "name": "note",
+        "input_type": "text",
+        "mutable": false,
+        "values": [
+          ""
+        ],
+        "default_value": ""
+      }
+    ]
+  },
+  {
+    "name": "B04_swaying_walk",
+    "type": "rectangle",
+    "attributes": [
+      {
+        "name": "quality",
+        "input_type": "select",
+        "mutable": false,
+        "values": [
+          "clear",
+          "partial_occlusion",
+          "heavy_occlusion",
+          "low_light",
+          "off_screen",
+          "multi_person_uncertain"
+        ],
+        "default_value": "clear"
+      },
+      {
+        "name": "target_subject",
+        "input_type": "text",
+        "mutable": false,
+        "values": [
+          "unknown"
+        ],
+        "default_value": "unknown"
+      },
+      {
+        "name": "note",
+        "input_type": "text",
+        "mutable": false,
+        "values": [
+          ""
+        ],
+        "default_value": ""
+      }
+    ]
+  },
+  {
+    "name": "B05_unstable_turn",
+    "type": "rectangle",
+    "attributes": [
+      {
+        "name": "quality",
+        "input_type": "select",
+        "mutable": false,
+        "values": [
+          "clear",
+          "partial_occlusion",
+          "heavy_occlusion",
+          "low_light",
+          "off_screen",
+          "multi_person_uncertain"
+        ],
+        "default_value": "clear"
+      },
+      {
+        "name": "target_subject",
+        "input_type": "text",
+        "mutable": false,
+        "values": [
+          "unknown"
+        ],
+        "default_value": "unknown"
+      },
+      {
+        "name": "note",
+        "input_type": "text",
+        "mutable": false,
+        "values": [
+          ""
+        ],
+        "default_value": ""
+      }
+    ]
+  },
+  {
+    "name": "B06_slow_sit_to_stand",
+    "type": "rectangle",
+    "attributes": [
+      {
+        "name": "quality",
+        "input_type": "select",
+        "mutable": false,
+        "values": [
+          "clear",
+          "partial_occlusion",
+          "heavy_occlusion",
+          "low_light",
+          "off_screen",
+          "multi_person_uncertain"
+        ],
+        "default_value": "clear"
+      },
+      {
+        "name": "target_subject",
+        "input_type": "text",
+        "mutable": false,
+        "values": [
+          "unknown"
+        ],
+        "default_value": "unknown"
+      },
+      {
+        "name": "note",
+        "input_type": "text",
+        "mutable": false,
+        "values": [
+          ""
+        ],
+        "default_value": ""
+      }
+    ]
+  },
+  {
+    "name": "C01_failed_sit_to_stand",
+    "type": "rectangle",
+    "attributes": [
+      {
+        "name": "quality",
+        "input_type": "select",
+        "mutable": false,
+        "values": [
+          "clear",
+          "partial_occlusion",
+          "heavy_occlusion",
+          "low_light",
+          "off_screen",
+          "multi_person_uncertain"
+        ],
+        "default_value": "clear"
+      },
+      {
+        "name": "target_subject",
+        "input_type": "text",
+        "mutable": false,
+        "values": [
+          "unknown"
+        ],
+        "default_value": "unknown"
+      },
+      {
+        "name": "note",
+        "input_type": "text",
+        "mutable": false,
+        "values": [
+          ""
+        ],
+        "default_value": ""
+      }
+    ]
+  },
+  {
+    "name": "C02_wall_support_walk",
+    "type": "rectangle",
+    "attributes": [
+      {
+        "name": "quality",
+        "input_type": "select",
+        "mutable": false,
+        "values": [
+          "clear",
+          "partial_occlusion",
+          "heavy_occlusion",
+          "low_light",
+          "off_screen",
+          "multi_person_uncertain"
+        ],
+        "default_value": "clear"
+      },
+      {
+        "name": "target_subject",
+        "input_type": "text",
+        "mutable": false,
+        "values": [
+          "unknown"
+        ],
+        "default_value": "unknown"
+      },
+      {
+        "name": "note",
+        "input_type": "text",
+        "mutable": false,
+        "values": [
+          ""
+        ],
+        "default_value": ""
+      }
+    ]
+  },
+  {
+    "name": "C03_stumble_recovery",
+    "type": "rectangle",
+    "attributes": [
+      {
+        "name": "quality",
+        "input_type": "select",
+        "mutable": false,
+        "values": [
+          "clear",
+          "partial_occlusion",
+          "heavy_occlusion",
+          "low_light",
+          "off_screen",
+          "multi_person_uncertain"
+        ],
+        "default_value": "clear"
+      },
+      {
+        "name": "target_subject",
+        "input_type": "text",
+        "mutable": false,
+        "values": [
+          "unknown"
+        ],
+        "default_value": "unknown"
+      },
+      {
+        "name": "note",
+        "input_type": "text",
+        "mutable": false,
+        "values": [
+          ""
+        ],
+        "default_value": ""
+      }
+    ]
+  },
+  {
+    "name": "C04_rapid_support_contact",
+    "type": "rectangle",
+    "attributes": [
+      {
+        "name": "quality",
+        "input_type": "select",
+        "mutable": false,
+        "values": [
+          "clear",
+          "partial_occlusion",
+          "heavy_occlusion",
+          "low_light",
+          "off_screen",
+          "multi_person_uncertain"
+        ],
+        "default_value": "clear"
+      },
+      {
+        "name": "target_subject",
+        "input_type": "text",
+        "mutable": false,
+        "values": [
+          "unknown"
+        ],
+        "default_value": "unknown"
+      },
+      {
+        "name": "note",
+        "input_type": "text",
+        "mutable": false,
+        "values": [
+          ""
+        ],
+        "default_value": ""
+      }
+    ]
+  },
+  {
+    "name": "C05_rapid_body_drop_recovery",
+    "type": "rectangle",
+    "attributes": [
+      {
+        "name": "quality",
+        "input_type": "select",
+        "mutable": false,
+        "values": [
+          "clear",
+          "partial_occlusion",
+          "heavy_occlusion",
+          "low_light",
+          "off_screen",
+          "multi_person_uncertain"
+        ],
+        "default_value": "clear"
+      },
+      {
+        "name": "target_subject",
+        "input_type": "text",
+        "mutable": false,
+        "values": [
+          "unknown"
+        ],
+        "default_value": "unknown"
+      },
+      {
+        "name": "note",
+        "input_type": "text",
+        "mutable": false,
+        "values": [
+          ""
+        ],
+        "default_value": ""
+      }
+    ]
+  },
+  {
+    "name": "D01_forward_fall",
+    "type": "rectangle",
+    "attributes": [
+      {
+        "name": "quality",
+        "input_type": "select",
+        "mutable": false,
+        "values": [
+          "clear",
+          "partial_occlusion",
+          "heavy_occlusion",
+          "low_light",
+          "off_screen",
+          "multi_person_uncertain"
+        ],
+        "default_value": "clear"
+      },
+      {
+        "name": "target_subject",
+        "input_type": "text",
+        "mutable": false,
+        "values": [
+          "unknown"
+        ],
+        "default_value": "unknown"
+      },
+      {
+        "name": "note",
+        "input_type": "text",
+        "mutable": false,
+        "values": [
+          ""
+        ],
+        "default_value": ""
+      }
+    ]
+  },
+  {
+    "name": "D02_lateral_fall",
+    "type": "rectangle",
+    "attributes": [
+      {
+        "name": "quality",
+        "input_type": "select",
+        "mutable": false,
+        "values": [
+          "clear",
+          "partial_occlusion",
+          "heavy_occlusion",
+          "low_light",
+          "off_screen",
+          "multi_person_uncertain"
+        ],
+        "default_value": "clear"
+      },
+      {
+        "name": "target_subject",
+        "input_type": "text",
+        "mutable": false,
+        "values": [
+          "unknown"
+        ],
+        "default_value": "unknown"
+      },
+      {
+        "name": "note",
+        "input_type": "text",
+        "mutable": false,
+        "values": [
+          ""
+        ],
+        "default_value": ""
+      }
+    ]
+  },
+  {
+    "name": "D03_backward_fall",
+    "type": "rectangle",
+    "attributes": [
+      {
+        "name": "quality",
+        "input_type": "select",
+        "mutable": false,
+        "values": [
+          "clear",
+          "partial_occlusion",
+          "heavy_occlusion",
+          "low_light",
+          "off_screen",
+          "multi_person_uncertain"
+        ],
+        "default_value": "clear"
+      },
+      {
+        "name": "target_subject",
+        "input_type": "text",
+        "mutable": false,
+        "values": [
+          "unknown"
+        ],
+        "default_value": "unknown"
+      },
+      {
+        "name": "note",
+        "input_type": "text",
+        "mutable": false,
+        "values": [
+          ""
+        ],
+        "default_value": ""
+      }
+    ]
+  },
+  {
+    "name": "D04_long_static_after_fall",
+    "type": "rectangle",
+    "attributes": [
+      {
+        "name": "quality",
+        "input_type": "select",
+        "mutable": false,
+        "values": [
+          "clear",
+          "partial_occlusion",
+          "heavy_occlusion",
+          "low_light",
+          "off_screen",
+          "multi_person_uncertain"
+        ],
+        "default_value": "clear"
+      },
+      {
+        "name": "target_subject",
+        "input_type": "text",
+        "mutable": false,
+        "values": [
+          "unknown"
+        ],
+        "default_value": "unknown"
+      },
+      {
+        "name": "note",
+        "input_type": "text",
+        "mutable": false,
+        "values": [
+          ""
+        ],
+        "default_value": ""
+      }
+    ]
+  },
+  {
+    "name": "D05_seated_fall",
+    "type": "rectangle",
+    "attributes": [
+      {
+        "name": "quality",
+        "input_type": "select",
+        "mutable": false,
+        "values": [
+          "clear",
+          "partial_occlusion",
+          "heavy_occlusion",
+          "low_light",
+          "off_screen",
+          "multi_person_uncertain"
+        ],
+        "default_value": "clear"
+      },
+      {
+        "name": "target_subject",
+        "input_type": "text",
+        "mutable": false,
+        "values": ["unknown"],
+        "default_value": "unknown"
+      },
+      {
+        "name": "note",
+        "input_type": "text",
+        "mutable": false,
+        "values": [""],
+        "default_value": ""
+      }
+    ]
+  },
+  {
+    "name": "U01_unable_to_judge",
+    "type": "rectangle",
+    "attributes": [
+      {
+        "name": "quality",
+        "input_type": "select",
+        "mutable": false,
+        "values": [
+          "clear",
+          "partial_occlusion",
+          "heavy_occlusion",
+          "low_light",
+          "off_screen",
+          "multi_person_uncertain"
+        ],
+        "default_value": "clear"
+      },
+      {
+        "name": "target_subject",
+        "input_type": "text",
+        "mutable": false,
+        "values": [
+          "unknown"
+        ],
+        "default_value": "unknown"
+      },
+      {
+        "name": "note",
+        "input_type": "text",
+        "mutable": false,
+        "values": [
+          ""
+        ],
+        "default_value": ""
+      }
+    ]
+  }
+]

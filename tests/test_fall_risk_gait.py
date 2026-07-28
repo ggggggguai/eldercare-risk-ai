@@ -1,5 +1,7 @@
 import json
 import math
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -34,11 +36,21 @@ def make_gait_record(
     valid: bool = True,
     source: str = "observed",
     core_quality: float = 0.9,
+    trunk_offset_x: float = 0.0,
+    shoulder_width: float = 0.08,
 ) -> dict[str, object]:
     phase = math.sin(frame_id * math.pi / 2.0)
     left_ankle_x = center_x - 0.05 + (left_swing * phase)
     right_ankle_x = center_x + 0.05 - (right_swing * phase)
     point_values = {
+        "left_shoulder": (
+            center_x + trunk_offset_x - (shoulder_width / 2.0),
+            center_y - 0.25,
+        ),
+        "right_shoulder": (
+            center_x + trunk_offset_x + (shoulder_width / 2.0),
+            center_y - 0.25,
+        ),
         "left_hip": (center_x - 0.035, center_y),
         "right_hip": (center_x + 0.035, center_y),
         "left_knee": (center_x - 0.04, center_y + 0.17),
@@ -91,7 +103,70 @@ class FallRiskGaitTest(unittest.TestCase):
         self.assertFalse(window["quality_coverage"]["insufficient_gait_quality"])
         self.assertIn("center_speed_cv", window["gait_stability_features"])
         self.assertIn("ankle_motion_asymmetry", window["gait_stability_features"])
+        self.assertEqual(
+            {
+                "gait_speed_norm_per_sec",
+                "cadence_steps_per_min_proxy",
+                "stride_length_norm_proxy",
+                "left_right_asymmetry",
+                "center_lateral_sway",
+                "trunk_tilt_mean_deg",
+                "path_deviation",
+                "turn_instability_proxy",
+            }
+            - set(window["gait_stability_features"]),
+            set(),
+        )
+        self.assertEqual(window["score_source"], "rule_fallback")
+        self.assertEqual(window["fallback_reason"], "model_unavailable")
+        self.assertEqual(window["fallback_score"], window["gait_risk_score"])
+        self.assertIsNone(
+            window["gait_stability_features"]["cadence_steps_per_min_proxy"]
+        )
+        self.assertNotIn("cadence_reduced", window["risk_factors"])
         self.assertEqual(window["risk_factors"], [])
+
+    def test_tcn_score_is_primary_while_rules_remain_explanations(self) -> None:
+        class Predictor:
+            model_version = "gait-tcn-test"
+
+            def predict_records(self, records):
+                self.record_count = len(records)
+                return 0.72
+
+        predictor = Predictor()
+
+        [window] = extract_gait_windows(
+            stable_sequence(),
+            config=GaitAnalysisConfig(window_frames=10),
+            model_predictor=predictor,
+        )
+
+        self.assertEqual(window["gait_risk_score"], 0.72)
+        self.assertEqual(window["model_score"], 0.72)
+        self.assertLess(window["fallback_score"], 0.25)
+        self.assertEqual(window["score_source"], "tcn")
+        self.assertIsNone(window["fallback_reason"])
+        self.assertEqual(window["model_version"], "gait-tcn-test")
+        self.assertEqual(predictor.record_count, 10)
+
+    def test_tcn_failure_uses_rule_fallback_and_reports_reason(self) -> None:
+        class FailingPredictor:
+            model_version = "gait-tcn-broken"
+
+            def predict_records(self, records):
+                raise RuntimeError("checkpoint is incompatible")
+
+        [window] = extract_gait_windows(
+            stable_sequence(),
+            config=GaitAnalysisConfig(window_frames=10),
+            model_predictor=FailingPredictor(),
+        )
+
+        self.assertEqual(window["score_source"], "rule_fallback")
+        self.assertEqual(window["fallback_reason"], "model_inference_failed")
+        self.assertIsNone(window["model_score"])
+        self.assertEqual(window["gait_risk_score"], window["fallback_score"])
 
     def test_variable_center_speed_increases_risk(self) -> None:
         centers = [0.30, 0.31, 0.31, 0.36, 0.361, 0.42, 0.421, 0.48, 0.481, 0.54]
@@ -123,6 +198,24 @@ class FallRiskGaitTest(unittest.TestCase):
         self.assertGreaterEqual(window["gait_stability_features"]["pause_frame_ratio"], 0.3)
         self.assertIn("pause_or_hesitation", window["risk_factors"])
 
+    def test_longer_window_produces_bounded_cadence_proxy(self) -> None:
+        records = [
+            make_gait_record(frame_id, center_x=0.30 + (0.005 * frame_id))
+            for frame_id in range(30)
+        ]
+
+        [window] = extract_gait_windows(
+            records,
+            config=GaitAnalysisConfig(window_frames=30),
+        )
+
+        cadence = window["gait_stability_features"][
+            "cadence_steps_per_min_proxy"
+        ]
+        self.assertIsNotNone(cadence)
+        self.assertGreaterEqual(cadence, 0.0)
+        self.assertLessEqual(cadence, 240.0)
+
     def test_low_quality_window_is_marked_insufficient_without_false_high_risk(self) -> None:
         records = [
             make_gait_record(frame_id, center_x=0.30, usable_for_gait=False, valid=False, core_quality=0.2)
@@ -134,6 +227,8 @@ class FallRiskGaitTest(unittest.TestCase):
         self.assertEqual(window["gait_risk_score"], 0.0)
         self.assertTrue(window["quality_coverage"]["insufficient_gait_quality"])
         self.assertIn("insufficient_gait_quality", window["risk_factors"])
+        self.assertEqual(window["score_source"], "unavailable")
+        self.assertEqual(window["fallback_reason"], "insufficient_gait_quality")
 
     def test_multiple_tracks_are_analyzed_independently(self) -> None:
         records = stable_sequence() + [
@@ -175,6 +270,20 @@ class FallRiskGaitTest(unittest.TestCase):
         self.assertIn("gait_risk_score", payload)
         self.assertIn("gait_stability_features", payload)
         self.assertIn("quality_coverage", payload)
+
+    def test_cli_exposes_tcn_primary_branch_options(self) -> None:
+        repo = Path(__file__).resolve().parents[1]
+        completed = subprocess.run(
+            [sys.executable, "scripts/collect/run_fall_gait.py", "--help"],
+            cwd=repo,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertIn("--tcn-checkpoint", completed.stdout)
+        self.assertIn("--tcn-window-frames", completed.stdout)
 
 
 if __name__ == "__main__":

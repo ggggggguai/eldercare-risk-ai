@@ -1,8 +1,4 @@
-"""基于清洗后姿态关键点的步态稳定性规则 baseline。
-
-本模块消费平滑后的关键点，并按窗口输出步态特征 JSONL。当前分数是
-可解释工程特征，不是经过医学标定的诊断结论。
-"""
+"""步态稳定性 TCN 主预测分支与可解释规则 fallback。"""
 
 from __future__ import annotations
 
@@ -11,7 +7,7 @@ import math
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Iterable, Mapping
+from typing import Any, Iterable, Mapping, Protocol, Sequence
 
 from elderly_monitoring.modules.fall_risk.pose import write_jsonl
 
@@ -24,6 +20,35 @@ GAIT_KEYPOINT_NAMES = (
     "left_ankle",
     "right_ankle",
 )
+
+GAIT_STABILITY_FEATURE_NAMES = (
+    "mean_center_speed_norm_per_sec",
+    "center_speed_std_norm_per_sec",
+    "center_speed_cv",
+    "pause_frame_ratio",
+    "hip_lateral_sway",
+    "path_deviation",
+    "left_ankle_motion_range",
+    "right_ankle_motion_range",
+    "ankle_motion_asymmetry",
+    "ankle_motion_mean",
+    "cadence_proxy_peaks_per_sec",
+    "hip_width_mean",
+    "gait_speed_norm_per_sec",
+    "cadence_steps_per_min_proxy",
+    "stride_length_norm_proxy",
+    "left_right_asymmetry",
+    "center_lateral_sway",
+    "trunk_tilt_mean_deg",
+    "trunk_tilt_std_deg",
+    "turn_instability_proxy",
+)
+
+
+class GaitModelPredictor(Protocol):
+    model_version: str
+
+    def predict_records(self, records: Sequence[Mapping[str, Any]]) -> float: ...
 
 
 @dataclass(frozen=True)
@@ -41,12 +66,18 @@ class GaitAnalysisConfig:
     hip_sway_risk_threshold: float = 0.035
     pause_ratio_risk_threshold: float = 0.25
     shuffling_motion_threshold: float = 0.018
+    low_speed_risk_threshold_norm_per_sec: float = 0.05
+    low_cadence_risk_threshold_steps_per_min: float = 40.0
+    trunk_tilt_risk_threshold_deg: float = 15.0
+    path_deviation_risk_threshold: float = 0.025
+    turn_instability_risk_threshold: float = 0.50
 
 
 def extract_gait_windows(
     records: Iterable[Mapping[str, Any]],
     *,
     config: GaitAnalysisConfig | None = None,
+    model_predictor: GaitModelPredictor | None = None,
 ) -> list[dict[str, Any]]:
     gait_config = config or GaitAnalysisConfig()
     indexed_records = [(index, dict(record)) for index, record in enumerate(records)]
@@ -58,7 +89,13 @@ def extract_gait_windows(
     windows: list[dict[str, Any]] = []
     for group_items in groups.values():
         sorted_items = sorted(group_items, key=lambda item: _record_sort_key(item[1], item[0]))
-        windows.extend(_extract_group_windows([record for _, record in sorted_items], gait_config))
+        windows.extend(
+            _extract_group_windows(
+                [record for _, record in sorted_items],
+                gait_config,
+                model_predictor,
+            )
+        )
 
     return sorted(windows, key=lambda item: (str(item.get("person_id", "")), int(item.get("track_id", -1)), float(item.get("start_time", 0.0))))
 
@@ -68,9 +105,14 @@ def run_gait_jsonl(
     input_path: Path,
     output_path: Path,
     config: GaitAnalysisConfig | None = None,
+    model_predictor: GaitModelPredictor | None = None,
 ) -> int:
     records = _read_jsonl(input_path)
-    gait_records = extract_gait_windows(records, config=config)
+    gait_records = extract_gait_windows(
+        records,
+        config=config,
+        model_predictor=model_predictor,
+    )
     return write_jsonl(gait_records, output_path)
 
 
@@ -84,7 +126,11 @@ def _read_jsonl(path: Path) -> list[dict[str, Any]]:
     return records
 
 
-def _extract_group_windows(records: list[dict[str, Any]], config: GaitAnalysisConfig) -> list[dict[str, Any]]:
+def _extract_group_windows(
+    records: list[dict[str, Any]],
+    config: GaitAnalysisConfig,
+    model_predictor: GaitModelPredictor | None,
+) -> list[dict[str, Any]]:
     windows: dict[int, list[dict[str, Any]]] = defaultdict(list)
     for position, record in enumerate(records):
         windows[_window_index(record, position, config)].append(record)
@@ -94,7 +140,14 @@ def _extract_group_windows(records: list[dict[str, Any]], config: GaitAnalysisCo
         window_records = windows[window_index]
         if len(window_records) < config.min_window_frames:
             continue
-        outputs.append(_analyze_window(window_index, window_records, config))
+        outputs.append(
+            _analyze_window(
+                window_index,
+                window_records,
+                config,
+                model_predictor,
+            )
+        )
     return outputs
 
 
@@ -102,6 +155,7 @@ def _analyze_window(
     window_index: int,
     records: list[dict[str, Any]],
     config: GaitAnalysisConfig,
+    model_predictor: GaitModelPredictor | None,
 ) -> dict[str, Any]:
     usable_records = [record for record in records if _usable_for_gait(record)]
     quality = _quality_coverage(records, usable_records, config)
@@ -117,14 +171,39 @@ def _analyze_window(
             "start_time": start_time,
             "end_time": end_time,
             "gait_risk_score": 0.0,
+            "model_score": None,
+            "fallback_score": 0.0,
+            "score_source": "unavailable",
+            "fallback_reason": "insufficient_gait_quality",
             "gait_stability_features": _empty_features(),
             "quality_coverage": quality,
             "risk_factors": ["insufficient_gait_quality"],
-            "model_version": "gait-risk-rule-v0.1",
+            "model_version": "gait-risk-unavailable-v0.2",
         }
 
     features = _gait_features(usable_records, config)
-    score, risk_factors = _score_gait(features, quality, config)
+    fallback_score, risk_factors = _score_gait(features, quality, config)
+    model_score: float | None = None
+    fallback_reason: str | None = None
+    if model_predictor is None:
+        score = fallback_score
+        score_source = "rule_fallback"
+        fallback_reason = "model_unavailable"
+        model_version = "gait-risk-rule-v0.2"
+    else:
+        try:
+            predicted = _optional_number(model_predictor.predict_records(records))
+            if predicted is None:
+                raise ValueError("model returned a non-finite score")
+            model_score = round(_clamp(predicted), 4)
+            score = model_score
+            score_source = "tcn"
+            model_version = str(model_predictor.model_version)
+        except (OSError, RuntimeError, TypeError, ValueError):
+            score = fallback_score
+            score_source = "rule_fallback"
+            fallback_reason = "model_inference_failed"
+            model_version = "gait-risk-rule-v0.2"
     return {
         "person_id": str(first_record.get("person_id", "unknown")),
         "track_id": first_record.get("track_id"),
@@ -132,10 +211,14 @@ def _analyze_window(
         "start_time": start_time,
         "end_time": end_time,
         "gait_risk_score": score,
+        "model_score": model_score,
+        "fallback_score": fallback_score,
+        "score_source": score_source,
+        "fallback_reason": fallback_reason,
         "gait_stability_features": features,
         "quality_coverage": quality,
         "risk_factors": risk_factors,
-        "model_version": "gait-risk-rule-v0.1",
+        "model_version": model_version,
     }
 
 
@@ -144,6 +227,8 @@ def _gait_features(records: list[dict[str, Any]], config: GaitAnalysisConfig) ->
     left_ankles: list[tuple[float, float, float]] = []
     right_ankles: list[tuple[float, float, float]] = []
     hip_widths: list[float] = []
+    trunk_tilts: list[float] = []
+    shoulder_width_ratios: list[tuple[float, float]] = []
 
     for index, record in enumerate(records):
         timestamp = _record_time(record, index)
@@ -151,6 +236,8 @@ def _gait_features(records: list[dict[str, Any]], config: GaitAnalysisConfig) ->
         right_hip = _point(record, "right_hip")
         left_ankle = _point(record, "left_ankle")
         right_ankle = _point(record, "right_ankle")
+        left_shoulder = _point(record, "left_shoulder")
+        right_shoulder = _point(record, "right_shoulder")
 
         # 用左右髋中心作为相机坐标系下的身体中心；脚踝运动相对身体中心计算，
         # 可以弱化整个人在画面中平移造成的影响。
@@ -160,7 +247,34 @@ def _gait_features(records: list[dict[str, Any]], config: GaitAnalysisConfig) ->
             right_hip_xy = _point_xy(right_hip)
             center = ((left_hip_xy[0] + right_hip_xy[0]) / 2.0, (left_hip_xy[1] + right_hip_xy[1]) / 2.0)
             centers.append((timestamp, center[0], center[1]))
-            hip_widths.append(abs(right_hip_xy[0] - left_hip_xy[0]))
+            hip_width = math.hypot(
+                right_hip_xy[0] - left_hip_xy[0],
+                right_hip_xy[1] - left_hip_xy[1],
+            )
+            hip_widths.append(hip_width)
+            if _has_point(left_shoulder) and _has_point(right_shoulder):
+                left_shoulder_xy = _point_xy(left_shoulder)
+                right_shoulder_xy = _point_xy(right_shoulder)
+                shoulder_center = (
+                    (left_shoulder_xy[0] + right_shoulder_xy[0]) / 2.0,
+                    (left_shoulder_xy[1] + right_shoulder_xy[1]) / 2.0,
+                )
+                trunk_tilts.append(
+                    math.degrees(
+                        math.atan2(
+                            abs(shoulder_center[0] - center[0]),
+                            max(abs(center[1] - shoulder_center[1]), 1e-6),
+                        )
+                    )
+                )
+                shoulder_width = math.hypot(
+                    right_shoulder_xy[0] - left_shoulder_xy[0],
+                    right_shoulder_xy[1] - left_shoulder_xy[1],
+                )
+                if hip_width > 1e-6:
+                    shoulder_width_ratios.append(
+                        (timestamp, shoulder_width / hip_width)
+                    )
 
         if center is not None and _has_point(left_ankle):
             left_xy = _point_xy(left_ankle)
@@ -181,7 +295,13 @@ def _gait_features(records: list[dict[str, Any]], config: GaitAnalysisConfig) ->
     ankle_motion_asymmetry = _asymmetry(left_ankle_motion, right_ankle_motion)
     ankle_motion_mean = _mean([left_ankle_motion, right_ankle_motion])
     cadence_proxy = _cadence_proxy(left_ankles, right_ankles)
+    cadence_steps_per_min = (
+        None if cadence_proxy is None else round(cadence_proxy * 60.0, 4)
+    )
     hip_width_mean = _mean(hip_widths)
+    trunk_tilt_mean = _mean(trunk_tilts)
+    trunk_tilt_std = _std(trunk_tilts)
+    turn_instability = _turn_instability_proxy(shoulder_width_ratios)
 
     return {
         "mean_center_speed_norm_per_sec": round(mean_speed, 4),
@@ -194,8 +314,18 @@ def _gait_features(records: list[dict[str, Any]], config: GaitAnalysisConfig) ->
         "right_ankle_motion_range": round(right_ankle_motion, 4),
         "ankle_motion_asymmetry": round(ankle_motion_asymmetry, 4),
         "ankle_motion_mean": round(ankle_motion_mean, 4),
-        "cadence_proxy_peaks_per_sec": round(cadence_proxy, 4),
+        "cadence_proxy_peaks_per_sec": (
+            None if cadence_proxy is None else round(cadence_proxy, 4)
+        ),
         "hip_width_mean": round(hip_width_mean, 4),
+        "gait_speed_norm_per_sec": round(mean_speed, 4),
+        "cadence_steps_per_min_proxy": cadence_steps_per_min,
+        "stride_length_norm_proxy": round(ankle_motion_mean, 4),
+        "left_right_asymmetry": round(ankle_motion_asymmetry, 4),
+        "center_lateral_sway": round(hip_lateral_sway, 4),
+        "trunk_tilt_mean_deg": round(trunk_tilt_mean, 4),
+        "trunk_tilt_std_deg": round(trunk_tilt_std, 4),
+        "turn_instability_proxy": round(turn_instability, 4),
     }
 
 
@@ -208,6 +338,31 @@ def _score_gait(
     asymmetry_component = _ratio_score(float(features["ankle_motion_asymmetry"]), config.ankle_asymmetry_risk_threshold)
     sway_component = _ratio_score(float(features["hip_lateral_sway"]), config.hip_sway_risk_threshold)
     pause_component = _ratio_score(float(features["pause_frame_ratio"]), config.pause_ratio_risk_threshold)
+    low_speed_component = _inverse_ratio_score(
+        float(features["gait_speed_norm_per_sec"]),
+        config.low_speed_risk_threshold_norm_per_sec,
+    )
+    cadence = _optional_number(features["cadence_steps_per_min_proxy"])
+    cadence_component = (
+        0.0
+        if cadence is None
+        else _inverse_ratio_score(
+            cadence,
+            config.low_cadence_risk_threshold_steps_per_min,
+        )
+    )
+    trunk_component = _ratio_score(
+        float(features["trunk_tilt_mean_deg"]),
+        config.trunk_tilt_risk_threshold_deg,
+    )
+    path_component = _ratio_score(
+        float(features["path_deviation"]),
+        config.path_deviation_risk_threshold,
+    )
+    turn_component = _ratio_score(
+        float(features["turn_instability_proxy"]),
+        config.turn_instability_risk_threshold,
+    )
 
     ankle_motion = float(features["ankle_motion_mean"])
     mean_speed = float(features["mean_center_speed_norm_per_sec"])
@@ -216,20 +371,28 @@ def _score_gait(
         shuffling_component = 1.0 - min(1.0, ankle_motion / max(config.shuffling_motion_threshold, 1e-6))
 
     quality_penalty = 1.0 - float(quality["usable_frame_ratio"])
-    # 下面的权重是透明规则 baseline。拿到有标签步态数据后，应替换或校准成
-    # 轻量学习模型/统计模型。
+    # 规则分只用于解释、对照和模型不可用时的 fallback。
     score = (
-        0.30 * speed_component
-        + 0.25 * asymmetry_component
-        + 0.20 * sway_component
-        + 0.15 * pause_component
+        0.18 * speed_component
+        + 0.08 * low_speed_component
+        + 0.14 * asymmetry_component
+        + 0.11 * sway_component
+        + 0.10 * pause_component
         + 0.10 * shuffling_component
-        + 0.10 * quality_penalty
+        + 0.08 * cadence_component
+        + 0.08 * trunk_component
+        + 0.05 * path_component
+        + 0.06 * turn_component
+        + 0.02 * quality_penalty
     )
 
     risk_factors: list[str] = []
     if speed_component >= 0.5:
         risk_factors.append("center_speed_instability")
+    if low_speed_component >= 0.5:
+        risk_factors.append("gait_speed_reduced")
+    if cadence_component >= 0.5:
+        risk_factors.append("cadence_reduced")
     if asymmetry_component >= 0.5:
         risk_factors.append("lower_limb_asymmetry")
     if sway_component >= 0.5:
@@ -238,6 +401,12 @@ def _score_gait(
         risk_factors.append("pause_or_hesitation")
     if shuffling_component >= 0.5:
         risk_factors.append("shuffling_or_dragging")
+    if trunk_component >= 0.5:
+        risk_factors.append("trunk_tilt_increased")
+    if path_component >= 0.5:
+        risk_factors.append("path_deviation")
+    if turn_component >= 0.5:
+        risk_factors.append("turn_instability")
     if quality_penalty >= 0.25:
         risk_factors.append("reduced_gait_quality_coverage")
 
@@ -420,37 +589,84 @@ def _asymmetry(left_value: float, right_value: float) -> float:
     return abs(left_value - right_value) / denominator
 
 
-def _cadence_proxy(left_points: list[tuple[float, float, float]], right_points: list[tuple[float, float, float]]) -> float:
-    peaks = _count_direction_changes(left_points) + _count_direction_changes(right_points)
+def _cadence_proxy(
+    left_points: list[tuple[float, float, float]],
+    right_points: list[tuple[float, float, float]],
+) -> float | None:
+    peaks = _count_motion_peaks(left_points) + _count_motion_peaks(right_points)
     timestamps = [point[0] for point in left_points + right_points]
     if len(timestamps) < 2:
-        return 0.0
+        return None
     duration = max(timestamps) - min(timestamps)
-    if duration <= 0:
+    if duration < 1.5:
+        return None
+    return min(4.0, peaks / duration)
+
+
+def _turn_instability_proxy(observations: list[tuple[float, float]]) -> float:
+    if len(observations) < 4:
         return 0.0
-    return peaks / duration
+    values = [value for _, value in observations]
+    if max(values) - min(values) < 0.08:
+        return 0.0
+    deltas = [
+        (current[1] - previous[1]) / (current[0] - previous[0])
+        for previous, current in zip(observations, observations[1:], strict=False)
+        if current[0] > previous[0]
+    ]
+    if len(deltas) < 2:
+        return 0.0
+    direction_changes = _direction_change_ratio(deltas)
+    magnitude_variation = _std(abs(value) for value in deltas) / max(
+        _mean(abs(value) for value in deltas),
+        1e-6,
+    )
+    return _clamp((0.6 * direction_changes) + (0.4 * magnitude_variation))
 
 
-def _count_direction_changes(points: list[tuple[float, float, float]]) -> int:
-    if len(points) < 3:
+def _direction_change_ratio(values: Sequence[float]) -> float:
+    signs = [1 if value > 1e-6 else -1 if value < -1e-6 else 0 for value in values]
+    non_zero = [sign for sign in signs if sign]
+    if len(non_zero) < 2:
+        return 0.0
+    changes = sum(
+        current != previous
+        for previous, current in zip(non_zero, non_zero[1:], strict=False)
+    )
+    return changes / (len(non_zero) - 1)
+
+
+def _count_motion_peaks(points: list[tuple[float, float, float]]) -> int:
+    if len(points) < 5:
         return 0
-    signs: list[int] = []
-    for previous, current in zip(points, points[1:], strict=False):
-        delta = current[1] - previous[1]
-        if abs(delta) <= 1e-6:
-            signs.append(0)
-        else:
-            signs.append(1 if delta > 0 else -1)
-
-    changes = 0
-    previous_sign = 0
-    for sign in signs:
-        if sign == 0:
+    smoothed = [
+        _mean(point[1] for point in points[max(0, index - 1) : index + 2])
+        for index in range(len(points))
+    ]
+    motion_range = max(smoothed) - min(smoothed)
+    min_prominence = max(0.002, motion_range * 0.10)
+    peak_times: list[float] = []
+    for index in range(1, len(points) - 1):
+        value = smoothed[index]
+        if value <= smoothed[index - 1] or value < smoothed[index + 1]:
             continue
-        if previous_sign != 0 and sign != previous_sign:
-            changes += 1
-        previous_sign = sign
-    return changes
+        local_floor = min(smoothed[index - 1], smoothed[index + 1])
+        if value - local_floor < min_prominence:
+            continue
+        timestamp = points[index][0]
+        if peak_times and timestamp - peak_times[-1] < 0.40:
+            if value > smoothed[_nearest_time_index(points, peak_times[-1])]:
+                peak_times[-1] = timestamp
+            continue
+        peak_times.append(timestamp)
+    return len(peak_times)
+
+
+def _nearest_time_index(
+    points: Sequence[tuple[float, float, float]],
+    timestamp: float,
+) -> int:
+    return min(range(len(points)), key=lambda index: abs(points[index][0] - timestamp))
 
 
 def _ratio_score(value: float, threshold: float) -> float:
@@ -459,21 +675,14 @@ def _ratio_score(value: float, threshold: float) -> float:
     return _clamp(value / threshold)
 
 
+def _inverse_ratio_score(value: float, threshold: float) -> float:
+    if threshold <= 0:
+        return 0.0
+    return _clamp((threshold - value) / threshold)
+
+
 def _empty_features() -> dict[str, Any]:
-    return {
-        "mean_center_speed_norm_per_sec": None,
-        "center_speed_std_norm_per_sec": None,
-        "center_speed_cv": None,
-        "pause_frame_ratio": None,
-        "hip_lateral_sway": None,
-        "path_deviation": None,
-        "left_ankle_motion_range": None,
-        "right_ankle_motion_range": None,
-        "ankle_motion_asymmetry": None,
-        "ankle_motion_mean": None,
-        "cadence_proxy_peaks_per_sec": None,
-        "hip_width_mean": None,
-    }
+    return {name: None for name in GAIT_STABILITY_FEATURE_NAMES}
 
 
 def _mean(values: Iterable[float]) -> float:

@@ -87,7 +87,6 @@ def _manifest(
         "dataset": "synthetic",
         "eligibility": eligibility,
         "source_uri": "https://example.test/dataset",
-        "license_id": "CC-BY-4.0",
         "exclusion_reasons": [],
         "subject_id": subject_id,
         "source_group_id": source_group_id or f"group-{asset_id}",
@@ -103,26 +102,20 @@ def _label(
     asset_id: str,
     *,
     label_id: str | None = None,
-    review_status: str = "final",
     event_type: str = "fall",
     task_type: str | None = None,
-    eligibility: bool | None = True,
     **extra: object,
 ) -> dict:
     row = {
         "label_id": label_id or f"label-{asset_id}",
         "asset_id": asset_id,
         "video_id": asset_id,
-        "review_status": review_status,
         "event_type": event_type,
         "start_time": 1.0,
         "end_time": 2.0,
-        "review_evidence_ids": [f"review-{asset_id}"],
     }
     if task_type is not None:
         row["task_type"] = task_type
-    if eligibility is not None:
-        row["eligibility"] = eligibility
     row.update(extra)
     return row
 
@@ -138,15 +131,11 @@ def _labels_for_all_tasks() -> tuple[list[dict], dict[str, list[dict]]]:
         _manifest("functional-ok", subject_id="functional-subject"),
         _manifest("longitudinal-ok", subject_id="longitudinal-subject"),
         _manifest("manifest-ineligible", eligibility=False),
-        _manifest("pending-label"),
-        _manifest("label-ineligible"),
     ]
     labels = {
         "fall_event_v1": [
             _label("fall-ok"),
             _label("manifest-ineligible"),
-            _label("pending-label", review_status="pending"),
-            _label("label-ineligible", eligibility=False),
         ],
         "near_fall_event_v1": [_label("near-ok", event_type="near_fall")],
         "functional_proxy_v1": [
@@ -187,8 +176,6 @@ class FallRiskSplitBuildTest(unittest.TestCase):
 
         fall_metadata = artifacts["fall_event_v1"]["metadata"]
         self.assertEqual(fall_metadata["excluded_counts"]["manifest_ineligible"], 1)
-        self.assertEqual(fall_metadata["excluded_counts"]["review_status"], 1)
-        self.assertEqual(fall_metadata["excluded_counts"]["label_eligibility"], 1)
 
     def test_unknown_subjects_use_source_group_and_missing_group_is_excluded(self) -> None:
         manifest = [
@@ -313,9 +300,9 @@ class FallRiskSplitBuildTest(unittest.TestCase):
         self.assertEqual(artifact["metadata"]["excluded_counts"]["invalid_content_hash"], 1)
 
     def test_no_eligible_data_produces_blocked_artifacts_without_split_id(self) -> None:
-        manifest = [_manifest("pending-only")]
+        manifest = [_manifest("ineligible-only", eligibility=False)]
         labels = _empty_labels()
-        labels["fall_event_v1"] = [_label("pending-only", review_status="pending")]
+        labels["fall_event_v1"] = [_label("ineligible-only")]
 
         artifacts = build_fall_risk_splits(manifest, labels, _config())
 
@@ -361,27 +348,23 @@ class FallRiskSplitBuildTest(unittest.TestCase):
         with self.assertRaises(SplitConfigError):
             build_fall_risk_splits([], _empty_labels(), config)
 
-    def test_labels_require_explicit_eligibility_and_review_evidence(self) -> None:
-        manifest = [_manifest("missing-eligibility"), _manifest("missing-review")]
+    def test_structured_labels_are_eligible_without_governance_fields(self) -> None:
+        manifest = [_manifest("plain-a"), _manifest("plain-b")]
         labels = _empty_labels()
         labels["fall_event_v1"] = [
-            _label("missing-eligibility", eligibility=None),
-            _label("missing-review", review_evidence_ids=[]),
+            _label("plain-a"),
+            _label("plain-b"),
         ]
 
         artifact = build_fall_risk_splits(manifest, labels, _config())["fall_event_v1"]
 
-        self.assertEqual(artifact["metadata"]["status"], "blocked")
-        self.assertEqual(artifact["metadata"]["excluded_counts"]["label_eligibility"], 1)
-        self.assertEqual(
-            artifact["metadata"]["excluded_counts"]["missing_review_evidence"], 1
-        )
+        self.assertEqual(artifact["metadata"]["status"], "ready")
+        self.assertEqual(len(artifact["assignments"]), 2)
 
-    def test_manifest_source_license_and_exclusions_fail_closed(self) -> None:
+    def test_manifest_source_and_technical_exclusions_fail_closed(self) -> None:
         manifest = [
             _manifest("missing-source", source_uri=None),
-            _manifest("missing-license", license_id=None),
-            _manifest("excluded", exclusion_reasons=["license_unknown"]),
+            _manifest("excluded", exclusion_reasons=["dataset_quarantined"]),
         ]
         labels = _empty_labels()
         labels["fall_event_v1"] = [_label(row["asset_id"]) for row in manifest]
@@ -390,7 +373,7 @@ class FallRiskSplitBuildTest(unittest.TestCase):
 
         self.assertEqual(artifact["metadata"]["status"], "blocked")
         self.assertEqual(
-            artifact["metadata"]["excluded_counts"]["manifest_provenance"], 3
+            artifact["metadata"]["excluded_counts"]["manifest_provenance"], 2
         )
 
     def test_provisional_protocol_cannot_create_frozen_task(self) -> None:
@@ -725,7 +708,6 @@ class FallRiskSplitWriteTest(unittest.TestCase):
             "event_labels",
             "risk_labels",
             "subject_profiles",
-            "review_log",
             "validation_config",
         )
         for field in fields:
@@ -763,14 +745,14 @@ class FallRiskSplitWriteTest(unittest.TestCase):
                 ):
                     build_splits_from_files(**paths)
 
-    def test_frozen_split_rejects_a_hash_bound_but_weakened_validator_config(self) -> None:
+    def test_frozen_split_rejects_unknown_validator_config_keys(self) -> None:
         manifest, labels = _labels_for_all_tasks()
         with tempfile.TemporaryDirectory() as tmpdir:
             paths, report = _write_formal_split_fixture(
                 Path(tmpdir), manifest=manifest, labels=labels
             )
             unsafe = dict(DEFAULT_CONFIG)
-            unsafe["minimum_independent_reviewers"] = 1
+            unsafe["removed_governance_key"] = True
             paths["validation_config_path"].write_text(
                 yaml.safe_dump(unsafe, sort_keys=False), encoding="utf-8"
             )
@@ -820,15 +802,16 @@ def _write_formal_split_fixture(
         "event_labels": annotation_dir / "event_labels.jsonl",
         "risk_labels": annotation_dir / "risk_labels.jsonl",
         "subject_profiles": annotation_dir / "subject_profiles.json",
-        "review_log": annotation_dir / "annotation_review_log.jsonl",
         "validation_config": validation_config_path,
     }
     _write_jsonl(manifest_path, manifest)
     _write_jsonl(input_paths["action_labels"], [])
     _write_jsonl(input_paths["event_labels"], event_labels)
     _write_jsonl(input_paths["risk_labels"], risk_labels)
-    _write_json(input_paths["subject_profiles"], {"schema_version": "1.0", "subjects": []})
-    _write_jsonl(input_paths["review_log"], [])
+    _write_json(
+        input_paths["subject_profiles"],
+        {"schema_version": "fall-risk-subject-profiles-v2", "subjects": []},
+    )
     validation_config_path.write_text(
         yaml.safe_dump(DEFAULT_CONFIG, sort_keys=False), encoding="utf-8"
     )
@@ -836,7 +819,7 @@ def _write_formal_split_fixture(
         yaml.safe_dump(_config(frozen=True), sort_keys=False), encoding="utf-8"
     )
     report = {
-        "schema_version": "fall-risk-label-validation-report-v1",
+        "schema_version": "fall-risk-label-validation-report-v2",
         "mode": "formal",
         "valid": True,
         "input_sha256": {

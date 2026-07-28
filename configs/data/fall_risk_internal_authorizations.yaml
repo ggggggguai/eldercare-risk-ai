@@ -1,0 +1,155 @@
+schema_version: fall-risk-internal-authorizations-v2
+authorizations:
+  - authorization_id: internal_pre_vfallp_dizziness_falls_20260722
+    approval_reference: user_authorized_internal_exception_2026_07_22
+    approved_at: "2026-07-22"
+    source_uri: internal://authorization/internal_pre_vfallp_dizziness_falls_20260722
+    evidence:
+      kind: cvat_export_archive
+      name: "dizziness_fall_forward + side.zip"
+      sha256: 6ef811ebaebdf227596b7019440dd4f4d6c8c7bb3cc4266de15d8c93eab5da85
+    video_ids:
+      - pre_vfallp_video_dizziness_fall_forward_fdffm1_77ff8ba7
+      - pre_vfallp_video_dizziness_fall_forward_fdffm2_e747ec4c
+      - pre_vfallp_video_dizziness_fall_forward_fdffm3_be35bee0
+      - pre_vfallp_video_dizziness_fall_forward_fdffm4_c369bde6
+      - pre_vfallp_video_dizziness_fall_forward_fdffm5_db04b4e6
+      - pre_vfallp_video_dizziness_fall_forward_fdffm6_0f22b5e7
+      - pre_vfallp_video_dizziness_fall_forward_fdffm7_294e167f
+      - pre_vfallp_video_dizziness_fall_forward_fdffm8_d85f3827
+      - pre_vfallp_video_dizziness_fall_forward_fdffm9_ccfa4aed
+      - pre_vfallp_video_dizziness_fall_forward_fdfsm1_b722bc88
+      - pre_vfallp_video_dizziness_fall_forward_fdfsm2_468d03ef
+      - pre_vfallp_video_dizziness_fall_forward_fdfsm3_97fed07d
+      - pre_vfallp_video_dizziness_fall_forward_fdfsm4_c2531120
+      - pre_vfallp_video_dizziness_fall_forward_fdfsm5_78a786e0
+      - pre_vfallp_video_dizziness_fall_forward_fdfsm6_9ff1cf81
+      - pre_vfallp_video_dizziness_fall_forward_fdfsm7_98bfff7e
+      - pre_vfallp_video_dizziness_fall_forward_fdfsm8_ec37bab9
+      - pre_vfallp_video_dizziness_fall_forward_fdfsm9_d98ac364
+      - pre_vfallp_video_dizziness_fall_side_fdsfm1_5f1f50be
+      - pre_vfallp_video_dizziness_fall_side_fdsfm2_59937e53
+      - pre_vfallp_video_dizziness_fall_side_fdsfm3_aa9c894c
+      - pre_vfallp_video_dizziness_fall_side_fdsfm4_eec817ba
+      - pre_vfallp_video_dizziness_fall_side_fdsfm5_d1c87a97
+      - pre_vfallp_video_dizziness_fall_side_fdsfm6_99e2d4d9
+      - pre_vfallp_video_dizziness_fall_side_fdsfm7_1b9dbd01
+      - pre_vfallp_video_dizziness_fall_side_fdsfm8_1fcaa3da
+      - pre_vfallp_video_dizziness_fall_side_fdsfm9_587ede75
+      - pre_vfallp_video_dizziness_fall_side_fdssm1_a1a29c71
+      - pre_vfallp_video_dizziness_fall_side_fdssm2_8fb3628d
+      - pre_vfallp_video_dizziness_fall_side_fdssm3_fef31b65
+      - pre_vfallp_video_dizziness_fall_side_fdssm4_b1e21118
+      - pre_vfallp_video_dizziness_fall_side_fdssm5_634584cb
+      - pre_vfallp_video_dizziness_fall_side_fdssm6_a2f3336e
+      - pre_vfallp_video_dizziness_fall_side_fdssm7_c5740b4b
+      - pre_vfallp_video_dizziness_fall_side_fdssm8_2bed56cc
+      - pre_vfallp_video_dizziness_fall_side_fdssm9_915518e5
+  - authorization_id: internal_pre_vfallp_confusion_delirium_20260722
+    approval_reference: user_authorized_internal_exception_2026_07_22
+    approved_at: "2026-07-22"
+    source_uri: internal://authorization/internal_pre_vfallp_confusion_delirium_20260722
+    evidence:
+      kind: cvat_export_archive
+      name: "confusion_delirium已经标注.zip"
+      sha256: cbb4d24f20a779fa66389d7942ef9845f4ed9de4ffc7c1794930afe86f025412
+    video_ids:
+      - pre_vfallp_video_confusion_delirium_clfm1_de6a2022
+      - pre_vfallp_video_confusion_delirium_clfm2_b84c55c7
+      - pre_vfallp_video_confusion_delirium_clfm3_1845b01f
+      - pre_vfallp_video_confusion_delirium_clfm4_5115f01c
+      - pre_vfallp_video_confusion_delirium_clfm5_c92ee44e
+      - pre_vfallp_video_confusion_delirium_clfm6_3f58e2d4
+      - pre_vfallp_video_confusion_delirium_clfm7_94565081
+      - pre_vfallp_video_confusion_delirium_clfm8_0f20c204
+      - pre_vfallp_video_confusion_delirium_clfm9_f4b02db0
+      - pre_vfallp_video_confusion_delirium_clsm1_eb34039a
+      - pre_vfallp_video_confusion_delirium_clsm2_89cd2101
+      - pre_vfallp_video_confusion_delirium_clsm3_2dcb8b19
+      - pre_vfallp_video_confusion_delirium_clsm4_3eeb7b93
+      - pre_vfallp_video_confusion_delirium_clsm5_0a10b5de
+      - pre_vfallp_video_confusion_delirium_clsm6_1b50942d
+      - pre_vfallp_video_confusion_delirium_clsm7_e4520a15
+      - pre_vfallp_video_confusion_delirium_clsm8_22087aff
+      - pre_vfallp_video_confusion_delirium_clsm9_357851a6
+  - authorization_id: internal_pre_vfallp_confusion_nph_20260722
+    approval_reference: user_authorized_internal_exception_2026_07_22
+    approved_at: "2026-07-22"
+    source_uri: internal://authorization/internal_pre_vfallp_confusion_nph_20260722
+    evidence:
+      kind: cvat_export_archive
+      name: "confusion_nph已经标注.zip"
+      sha256: 2e263a26b5edff57c2165c3a585cd39b3b4fad81424832ef2681d9386df12a82
+    video_ids:
+      - pre_vfallp_video_confusion_nph_cgfm1_4d14998e
+      - pre_vfallp_video_confusion_nph_cgfm2_bb1ac54f
+      - pre_vfallp_video_confusion_nph_cgfm3_766030da
+      - pre_vfallp_video_confusion_nph_cgfm4_6d9bef46
+      - pre_vfallp_video_confusion_nph_cgfm5_6e0f12f2
+      - pre_vfallp_video_confusion_nph_cgfm6_4bfefb99
+      - pre_vfallp_video_confusion_nph_cgfm7_1c31d248
+      - pre_vfallp_video_confusion_nph_cgfm8_62a225d4
+      - pre_vfallp_video_confusion_nph_cgfm9_13a0d943
+      - pre_vfallp_video_confusion_nph_cgsm1_5d1cc3ee
+      - pre_vfallp_video_confusion_nph_cgsm2_f3dba003
+      - pre_vfallp_video_confusion_nph_cgsm3_72c7c0fb
+      - pre_vfallp_video_confusion_nph_cgsm4_a5119bab
+      - pre_vfallp_video_confusion_nph_cgsm5_0f3ef530
+      - pre_vfallp_video_confusion_nph_cgsm6_e121f374
+      - pre_vfallp_video_confusion_nph_cgsm7_f8a2e306
+      - pre_vfallp_video_confusion_nph_cgsm8_61f956bb
+      - pre_vfallp_video_confusion_nph_cgsm9_28445a25
+  - authorization_id: internal_pre_vfallp_weakness_fall_forward_20260722
+    approval_reference: user_authorized_internal_exception_2026_07_22
+    approved_at: "2026-07-22"
+    source_uri: internal://authorization/internal_pre_vfallp_weakness_fall_forward_20260722
+    evidence:
+      kind: cvat_export_archive
+      name: weakness_fall_forward.zip
+      sha256: 25441d0854e02a0df00e8bacf3f85d9033061d8ee2678e9965b36a7be7333bf5
+    video_ids:
+      - pre_vfallp_video_weakness_fall_forward_fwffm1_335a2096
+      - pre_vfallp_video_weakness_fall_forward_fwffm2_34f1e49e
+      - pre_vfallp_video_weakness_fall_forward_fwffm3_c9e1c6a0
+      - pre_vfallp_video_weakness_fall_forward_fwffm4_4d27bd26
+      - pre_vfallp_video_weakness_fall_forward_fwffm5_08200d2c
+      - pre_vfallp_video_weakness_fall_forward_fwffm6_7e1329e7
+      - pre_vfallp_video_weakness_fall_forward_fwffm7_5898ee08
+      - pre_vfallp_video_weakness_fall_forward_fwffm8_a31c6f7c
+      - pre_vfallp_video_weakness_fall_forward_fwffm9_25cb4c65
+      - pre_vfallp_video_weakness_fall_forward_fwfsm1_f1dc3817
+      - pre_vfallp_video_weakness_fall_forward_fwfsm2_86477d10
+      - pre_vfallp_video_weakness_fall_forward_fwfsm3_60c358b5
+      - pre_vfallp_video_weakness_fall_forward_fwfsm4_44ca9fb6
+      - pre_vfallp_video_weakness_fall_forward_fwfsm5_315745e5
+      - pre_vfallp_video_weakness_fall_forward_fwfsm6_33c65a62
+      - pre_vfallp_video_weakness_fall_forward_fwfsm7_2379fc4e
+      - pre_vfallp_video_weakness_fall_forward_fwfsm8_817af5be
+      - pre_vfallp_video_weakness_fall_forward_fwfsm9_0297dced
+  - authorization_id: internal_pre_vfallp_weakness_fall_side_20260722
+    approval_reference: user_authorized_internal_exception_2026_07_22
+    approved_at: "2026-07-22"
+    source_uri: internal://authorization/internal_pre_vfallp_weakness_fall_side_20260722
+    evidence:
+      kind: cvat_export_archive
+      name: weakness_fall_side.zip
+      sha256: 806cb9212b64e49ba11f473755d8f124e74559b008cb8c7743c16e8d0ba3983d
+    video_ids:
+      - pre_vfallp_video_weakness_fall_side_fwsfm1_4a160408
+      - pre_vfallp_video_weakness_fall_side_fwsfm2_399542b1
+      - pre_vfallp_video_weakness_fall_side_fwsfm3_7ead33b4
+      - pre_vfallp_video_weakness_fall_side_fwsfm4_e51eaee7
+      - pre_vfallp_video_weakness_fall_side_fwsfm5_9ef48cb3
+      - pre_vfallp_video_weakness_fall_side_fwsfm6_10a4530e
+      - pre_vfallp_video_weakness_fall_side_fwsfm7_b8be7224
+      - pre_vfallp_video_weakness_fall_side_fwsfm8_22e8e824
+      - pre_vfallp_video_weakness_fall_side_fwsfm9_920a4766
+      - pre_vfallp_video_weakness_fall_side_fwssm1_06d337db
+      - pre_vfallp_video_weakness_fall_side_fwssm2_754b73c2
+      - pre_vfallp_video_weakness_fall_side_fwssm3_c0cfd99c
+      - pre_vfallp_video_weakness_fall_side_fwssm4_8b3130cc
+      - pre_vfallp_video_weakness_fall_side_fwssm5_82739af7
+      - pre_vfallp_video_weakness_fall_side_fwssm6_8656b324
+      - pre_vfallp_video_weakness_fall_side_fwssm7_71330d19
+      - pre_vfallp_video_weakness_fall_side_fwssm8_3a3d1e60
+      - pre_vfallp_video_weakness_fall_side_fwssm9_8619f89a

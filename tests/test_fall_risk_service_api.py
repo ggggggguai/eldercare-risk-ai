@@ -1,4 +1,5 @@
 import unittest
+from pathlib import Path
 
 from pydantic import ValidationError
 from fastapi.testclient import TestClient
@@ -112,7 +113,10 @@ class ServiceApiTest(unittest.TestCase):
         self.assertEqual(response.status_code, 202)
         self.assertEqual(self.client.post("/v1/monitoring/sessions", json=self.payload(), headers=self.headers()).status_code, 202)
         self.assertEqual(self.client.post("/v1/monitoring/sessions", json=self.payload("r2"), headers=self.headers()).status_code, 409)
-        self.assertEqual(self.client.get("/v1/monitoring/sessions/s1", headers=self.headers()).status_code, 200)
+        status_response = self.client.get("/v1/monitoring/sessions/s1", headers=self.headers())
+        self.assertEqual(status_response.status_code, 200)
+        self.assertEqual(status_response.json()["stream_epoch"], 0)
+        self.assertEqual(status_response.json()["frame_diagnostics"], {})
         self.assertEqual(self.client.put("/v1/monitoring/sessions/s1/stream-url", json={"stream_url": "https://camera/new"}, headers=self.headers()).status_code, 200)
         self.assertEqual(self.client.post("/v1/monitoring/sessions/s1/stop", headers=self.headers()).status_code, 202)
         self.assertEqual(self.client.post("/v1/monitoring/sessions/s1/stop", headers=self.headers()).status_code, 202)
@@ -168,6 +172,56 @@ class ServiceApiTest(unittest.TestCase):
         self.assertEqual(body["results"][0]["date"], "2026-07-08")
         self.assertGreaterEqual(body["results"][0]["event"]["mental_safety_level"], 1)
         self.assertFalse(body["results"][0]["event"]["diagnosis"])
+
+
+class ServiceSettingsTest(unittest.TestCase):
+    def test_loads_gait_model_runtime_overrides(self) -> None:
+        from elderly_monitoring.service.settings import ServiceSettings
+
+        settings = ServiceSettings.load(
+            path=Path("/path/that/does/not/exist.yaml"),
+            environ={
+                "GAIT_MODEL_PATH": "models/gait.pt",
+                "GAIT_MODEL_DEVICE": "cpu",
+                "GAIT_MODEL_WINDOW_FRAMES": "96",
+                "FRAME_QUEUE_CAPACITY": "4",
+            },
+        )
+
+        self.assertEqual(settings.gait_model_path, Path("models/gait.pt"))
+        self.assertEqual(settings.gait_model_device, "cpu")
+        self.assertEqual(settings.gait_model_window_frames, 96)
+        self.assertEqual(settings.frame_queue_capacity, 4)
+
+    def test_repository_config_freezes_stage_two_runtime_gates(self) -> None:
+        from elderly_monitoring.runtime.realtime_fall_risk import (
+            _feature_assembly_config,
+        )
+        from elderly_monitoring.service.settings import ServiceSettings
+
+        settings = ServiceSettings.load(
+            path=Path("configs/modules/fall_risk_service.yaml"), environ={}
+        )
+        assembly = _feature_assembly_config(
+            {
+                "pose_window_sec": settings.pose_window_sec,
+                "analysis_interval_sec": settings.analysis_interval_sec,
+                "branch_quality": settings.branch_quality,
+            }
+        )
+
+        self.assertEqual(settings.primary_lost_timeout_sec, 2.0)
+        self.assertEqual(settings.fall_state["static_duration_sec"], 10.0)
+        self.assertEqual(settings.fall_state["recovery_confirmation_sec"], 3.0)
+        self.assertEqual(settings.fall_state["episode_ttl_sec"], 30.0)
+        self.assertEqual(settings.fall_state["recovery_upright_angle_threshold"], 45.0)
+        self.assertEqual(settings.fall_state["recovery_motion_threshold"], 0.05)
+        self.assertEqual(settings.outbox_capacity, 32)
+        self.assertEqual(settings.outbox_drain_timeout_sec, 3.0)
+        self.assertEqual(assembly.gait_gate.min_frames, 8)
+        self.assertEqual(assembly.near_fall_gate.min_frames, 5)
+        self.assertEqual(assembly.near_fall_gate.min_effective_fps, 6.0)
+        self.assertEqual(assembly.fall_state_gate.max_gap_sec, 0.75)
 
 
 if __name__ == "__main__":

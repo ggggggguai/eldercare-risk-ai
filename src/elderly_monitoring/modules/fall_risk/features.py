@@ -7,7 +7,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Mapping
+from typing import Any, Mapping
 
 
 @dataclass(frozen=True)
@@ -51,15 +51,29 @@ def clamp_score(value: float | int | None) -> float:
     return max(0.0, min(1.0, float(value)))
 
 
-def weighted_fall_risk_score(features: Mapping[str, float | int]) -> float:
-    """把多个归一化风险特征融合成一个 baseline 风险分。"""
+def weighted_fall_risk_score(features: Mapping[str, Any]) -> float:
+    """Fuse available normalized inputs without treating missing branches as zero risk."""
+    mask = features.get("fusion_mask")
+    explicit_mask = mask if isinstance(mask, Mapping) else None
     score = 0.0
+    available_weight = 0.0
     for spec in FALL_RISK_FEATURE_SPECS:
+        if explicit_mask is not None and explicit_mask.get(spec.name) is not True:
+            continue
         score += clamp_score(features.get(spec.name)) * spec.weight
+        available_weight += spec.weight
+    if available_weight <= 0:
+        return 0.0
+    if explicit_mask is not None:
+        score /= available_weight
     return round(score, 4)
 
 
 def feature_coverage(features: Mapping[str, object]) -> float:
     """估计核心融合输入的覆盖率，用于置信度计算。"""
+    mask = features.get("fusion_mask")
+    if isinstance(mask, Mapping):
+        available = sum(mask.get(name) is True for name in FALL_RISK_FEATURES)
+        return round(available / len(FALL_RISK_FEATURES), 4)
     available = sum(1 for name in FALL_RISK_FEATURES if features.get(name) is not None)
     return round(available / len(FALL_RISK_FEATURES), 4)

@@ -1,0 +1,164 @@
+{
+  "action_id_counts": {
+    "B01": 18,
+    "B04": 16,
+    "D02": 18
+  },
+  "authorization_id": "internal_pre_vfallp_weakness_fall_side_20260722",
+  "event_type_counts": {
+    "fall": 18,
+    "gait_instability": 34
+  },
+  "identity_metadata_tags_removed": {
+    "assignee": 36,
+    "email": 36,
+    "owner": 36,
+    "username": 36
+  },
+  "ignored_tracks": [],
+  "imported_action_labels": 52,
+  "imported_event_labels": 52,
+  "outputs": {
+    "action_labels": "data/annotations/fall_risk/generated/v2/pre_vfallp_weakness_fall_side/action_labels.jsonl",
+    "event_labels": "data/annotations/fall_risk/generated/v2/pre_vfallp_weakness_fall_side/event_labels.jsonl",
+    "redacted_export_dir": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_weakness_fall_side"
+  },
+  "provenance_status": "internal_authorized_source_unverified",
+  "redacted_task_exports": [
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_weakness_fall_side/001__task_181__fwsfm1__CVAT_for_video_1_1.zip",
+      "sha256": "84a9e490b605bdf8147e6fa6cbfd0a99e8abcc992d519e37808e1a7e4176a45a",
+      "source_name": "FWSFM1.mp4",
+      "task_id": "181",
+      "video_id": "pre_vfallp_video_weakness_fall_side_fwsfm1_4a160408"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_weakness_fall_side/002__task_182__fwsfm2__CVAT_for_video_1_1.zip",
+      "sha256": "f351acbfc806dca22c919ae5fcc0576fbd1e11d2426af0779f1ab85576b198aa",
+      "source_name": "FWSFM2.mp4",
+      "task_id": "182",
+      "video_id": "pre_vfallp_video_weakness_fall_side_fwsfm2_399542b1"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_weakness_fall_side/003__task_183__fwsfm3__CVAT_for_video_1_1.zip",
+      "sha256": "da53b2cbedf2f7059df337b9f6daf2e2c8f21b6e47579e32fde7f1ea25f0a19b",
+      "source_name": "FWSFM3.mp4",
+      "task_id": "183",
+      "video_id": "pre_vfallp_video_weakness_fall_side_fwsfm3_7ead33b4"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_weakness_fall_side/004__task_184__fwsfm4__CVAT_for_video_1_1.zip",
+      "sha256": "6e0fd95cc977f6fbc948b034bfa57478b6465872b263f5a0b260358ecfc20cef",
+      "source_name": "FWSFM4.mp4",
+      "task_id": "184",
+      "video_id": "pre_vfallp_video_weakness_fall_side_fwsfm4_e51eaee7"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_weakness_fall_side/005__task_185__fwsfm5__CVAT_for_video_1_1.zip",
+      "sha256": "5de3d3c407cc62469863e018ded66b2f9d3b82085fdd7cb7ace19e058fb3fa8d",
+      "source_name": "FWSFM5.mp4",
+      "task_id": "185",
+      "video_id": "pre_vfallp_video_weakness_fall_side_fwsfm5_9ef48cb3"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_weakness_fall_side/006__task_186__fwsfm6__CVAT_for_video_1_1.zip",
+      "sha256": "941dc289fa17f2f330104e1ef3ddf90a12d142875cdd8d16cf689571f4d51b8b",
+      "source_name": "FWSFM6.mp4",
+      "task_id": "186",
+      "video_id": "pre_vfallp_video_weakness_fall_side_fwsfm6_10a4530e"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_weakness_fall_side/007__task_187__fwsfm7__CVAT_for_video_1_1.zip",
+      "sha256": "19f5947b2660c171116391ba78cd3470bb12b9db9a9a16b1b381fa1a9f7a0a06",
+      "source_name": "FWSFM7.mp4",
+      "task_id": "187",
+      "video_id": "pre_vfallp_video_weakness_fall_side_fwsfm7_b8be7224"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_weakness_fall_side/008__task_188__fwsfm8__CVAT_for_video_1_1.zip",
+      "sha256": "1807d271b2ffc06ca9f306776a9b24f5a64edb8331372ea25b1939653ebc5a9e",
+      "source_name": "FWSFM8.mp4",
+      "task_id": "188",
+      "video_id": "pre_vfallp_video_weakness_fall_side_fwsfm8_22e8e824"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_weakness_fall_side/009__task_189__fwsfm9__CVAT_for_video_1_1.zip",
+      "sha256": "b1c23e09cd9751b135765d913cf546de17d133d1e9020cca811566150e480268",
+      "source_name": "FWSFM9.mp4",
+      "task_id": "189",
+      "video_id": "pre_vfallp_video_weakness_fall_side_fwsfm9_920a4766"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_weakness_fall_side/010__task_190__fwssm1__CVAT_for_video_1_1.zip",
+      "sha256": "6a4c155adb5a2530fa667a4ef9cbabb979bdbfa419d3f659c69aff21c0fdcc4b",
+      "source_name": "FWSSM1.mp4",
+      "task_id": "190",
+      "video_id": "pre_vfallp_video_weakness_fall_side_fwssm1_06d337db"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_weakness_fall_side/011__task_191__fwssm2__CVAT_for_video_1_1.zip",
+      "sha256": "e966764fcb0db9fad8a4b7b65bc0c0c43775af09cbad18fa201174f97fd67e82",
+      "source_name": "FWSSM2.mp4",
+      "task_id": "191",
+      "video_id": "pre_vfallp_video_weakness_fall_side_fwssm2_754b73c2"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_weakness_fall_side/012__task_192__fwssm3__CVAT_for_video_1_1.zip",
+      "sha256": "2d70f71a48b458cc4b2fcee804ff093e49e902fb6a7a18fd8bba64c49bfaeea5",
+      "source_name": "FWSSM3.mp4",
+      "task_id": "192",
+      "video_id": "pre_vfallp_video_weakness_fall_side_fwssm3_c0cfd99c"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_weakness_fall_side/013__task_193__fwssm4__CVAT_for_video_1_1.zip",
+      "sha256": "d98a8bf38b61ebb4fa1f6d0bf3be848c764f86a173611c816429ef593ed2027f",
+      "source_name": "FWSSM4.mp4",
+      "task_id": "193",
+      "video_id": "pre_vfallp_video_weakness_fall_side_fwssm4_8b3130cc"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_weakness_fall_side/014__task_194__fwssm5__CVAT_for_video_1_1.zip",
+      "sha256": "be9eba27e262454161976c05f589605b41251442e33a524712b9c00c3713ccee",
+      "source_name": "FWSSM5.mp4",
+      "task_id": "194",
+      "video_id": "pre_vfallp_video_weakness_fall_side_fwssm5_82739af7"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_weakness_fall_side/015__task_195__fwssm6__CVAT_for_video_1_1.zip",
+      "sha256": "26693becdaa75f73be81f089cbf4dac710c689f81a622a5e125dc296cb71612e",
+      "source_name": "FWSSM6.mp4",
+      "task_id": "195",
+      "video_id": "pre_vfallp_video_weakness_fall_side_fwssm6_8656b324"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_weakness_fall_side/016__task_196__fwssm7__CVAT_for_video_1_1.zip",
+      "sha256": "35887b84394a72a5a09784ec0d8889db7dbf373886afab5b4f767a5eb033ef5f",
+      "source_name": "FWSSM7.mp4",
+      "task_id": "196",
+      "video_id": "pre_vfallp_video_weakness_fall_side_fwssm7_71330d19"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_weakness_fall_side/017__task_197__fwssm8__CVAT_for_video_1_1.zip",
+      "sha256": "aa41e28aa02b3da29cda22d0379378d4e2520f704da97d56533868d18fce969f",
+      "source_name": "FWSSM8.mp4",
+      "task_id": "197",
+      "video_id": "pre_vfallp_video_weakness_fall_side_fwssm8_3a3d1e60"
+    },
+    {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/pre_vfallp_weakness_fall_side/018__task_198__fwssm9__CVAT_for_video_1_1.zip",
+      "sha256": "ec0c890419c6322f40f76aabc9ba1765083f63183197a5529d68151797b3a517",
+      "source_name": "FWSSM9.mp4",
+      "task_id": "198",
+      "video_id": "pre_vfallp_video_weakness_fall_side_fwssm9_8619f89a"
+    }
+  ],
+  "schema_version": "pre-vfallp-cvat-import-v1",
+  "source_archive": {
+    "copied_into_repository": false,
+    "filename": "weakness_fall_side.zip",
+    "sha256": "806cb9212b64e49ba11f473755d8f124e74559b008cb8c7743c16e8d0ba3983d"
+  },
+  "source_group_ids": [
+    "pre_vfallp_unresolved"
+  ]
+}

@@ -45,6 +45,22 @@ class FallRiskPipeline:
 
         factors = self._risk_factors(sample, risk_level)
         confidence = self._confidence(sample, risk_score)
+        branch_diagnostics = sample.get("branch_diagnostics")
+        branch_statuses = {}
+        if isinstance(branch_diagnostics, Mapping):
+            branch_statuses = {
+                str(name): str(value.get("status", "unknown"))
+                for name, value in branch_diagnostics.items()
+                if isinstance(value, Mapping)
+            }
+        metadata = {
+            "stream_epoch": sample.get("stream_epoch"),
+            "feature_coverage": sample.get("feature_coverage", feature_coverage(sample)),
+            "fusion_mask": dict(sample.get("fusion_mask", {}))
+            if isinstance(sample.get("fusion_mask"), Mapping)
+            else {},
+            "branch_statuses": branch_statuses,
+        }
 
         return AlgorithmEvent(
             module="fall_risk",
@@ -63,6 +79,7 @@ class FallRiskPipeline:
                 end_time=sample.get("end_time"),
             ),
             model_version=self.model_version,
+            metadata=metadata,
         )
 
     def _risk_factors(self, sample: Mapping[str, Any], risk_level: int) -> list[str]:
@@ -77,6 +94,15 @@ class FallRiskPipeline:
             factors.append("near_fall_event")
         if clamp_score(sample.get("gait_risk_score")) >= 0.5:
             factors.append("gait_instability")
+            gait_factors = sample.get("gait_risk_factors", [])
+            if isinstance(gait_factors, (list, tuple)):
+                factors.extend(
+                    str(factor)
+                    for factor in gait_factors
+                    if isinstance(factor, str)
+                    and factor
+                    and not factor.startswith("insufficient_")
+                )
         if clamp_score(sample.get("sit_stand_risk_score")) >= 0.5:
             factors.append("sit_stand_difficulty")
         if clamp_score(sample.get("baseline_deviation_score")) >= 0.5:
@@ -87,7 +113,7 @@ class FallRiskPipeline:
             factors.append("high_risk_scene")
         if not factors and risk_level == 0:
             factors.append("no_obvious_risk")
-        return factors
+        return list(dict.fromkeys(factors))
 
     def _confidence(self, sample: Mapping[str, Any], risk_score: float) -> float:
         keypoint_quality = clamp_score(sample.get("keypoint_quality", 0.8))

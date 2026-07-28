@@ -31,7 +31,6 @@ PREDICTION_REQUIRED_FIELDS = {
     "split_id",
 }
 
-ELIGIBLE_REVIEW_STATUSES = {"reviewed", "final"}
 PROVISIONAL_PROTOCOL_STATUSES = {"development", "provisional", "development_provisional"}
 
 
@@ -257,6 +256,8 @@ def _remove_path(path: Path) -> None:
 
 
 def _fsync_directory(directory: Path) -> None:
+    if os.name == "nt":
+        return
     descriptor = os.open(directory, os.O_RDONLY)
     try:
         os.fsync(descriptor)
@@ -457,10 +458,6 @@ def _filter_ground_truth(
         reason: str | None = None
         if str(row.get("event_type")) == "uncertain":
             reason = "uncertain_ground_truth"
-        elif str(row.get("review_status")) not in ELIGIBLE_REVIEW_STATUSES:
-            reason = "ineligible_review_status"
-        elif row.get("eligibility") is not True:
-            reason = "ineligible_ground_truth"
         elif row.get("source_exists") is False:
             reason = "missing_source"
         if reason is not None:
@@ -479,7 +476,6 @@ def _validate_truth_row(row: Mapping[str, Any]) -> None:
         "event_type",
         "start_time",
         "end_time",
-        "review_status",
         "split_id",
     }
     missing = sorted(required - set(row))

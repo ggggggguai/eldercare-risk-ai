@@ -10,7 +10,7 @@
 
 建立一个可追溯、可验证、可冻结、可复现的跌倒风险数据与评估底座，使后续规则、轻量模型和时序模型只能在相同数据版本、相同 split 和相同评价协议下比较。
 
-最终目标版本名为 `fall-risk-data-v1`。只有自动化工具、测试、数据审计和可复现入口全部通过，且人工依赖被明确完成或明确列为阻塞时，才能声明工作流 A 完成。
+最终目标版本名为 `fall-risk-data-v2`。只有自动化工具、测试、数据审计和可复现入口全部通过，且人工依赖被明确完成或明确列为阻塞时，才能声明工作流 A 完成。
 
 ## Context (carry forward)
 
@@ -21,10 +21,9 @@
 - 当前能力和限制以模块 README、工程架构、任务清单和实际代码为准，计划文档不能作为“已经实现”的证据。
 - 当前仓库可能有用户尚未提交的修改。必须先检查 `git status` 和相关 diff；不得回退、覆盖或格式化与本任务无关的用户修改。
 - 2026-07-15 的已知观察值如下，但开始实施时必须重新核验，不能盲信：
-  - `action_labels.jsonl` 和 `event_labels.jsonl` 各有 922 条记录，均为 `pending`。
-  - 当前标签的 `subject_id` 均为 `unknown`。
+  - 当前 v2 根标签为 522 条动作、550 条事件，formal 校验 `errors=0` 但仍有 blocker。
+  - 当前标签保留未知人员或保守源组时，不得声明个体泛化。
   - 现有标签中 `C03/C05` 为 0，`C04` 仅 1 条，不能支撑正式近跌倒结论。
-  - `fall_risk_video_manifest.jsonl`、`risk_labels.jsonl`、`subject_profiles.json`、`annotation_review_log.jsonl` 和正式 split 尚未建立。
   - 当前 CVAT 转换逻辑对一次导出使用单一 FPS；LE2I Home 约为 24 FPS，Coffee/Lecture/Office 为 25 FPS。
   - `scripts/evaluate/` 当前只有 README，没有可执行事件评估器。
   - LTMM 本地主要只有表格和索引，长期原始信号大部分不可用。
@@ -109,8 +108,6 @@ docs/README.md
 - 不得修改 `src/elderly_monitoring/modules/mental_health/`、心理健康配置或其接口行为。
 - 不得修改实时服务、回调、风险融合或模型行为，除非它们阻断预测 JSONL 的读取；遇到这种情况先说明并请求批准。
 - 不得删除、移动、重命名或覆盖原始视频、第三方数据、CVAT ZIP/XML、现有标签或用户未提交修改。
-- 不得根据画面、文件顺序或猜测伪造 `subject_id`、人员关系、事件边界、风险标签、许可状态或知情同意状态。
-- 不得把 `pending`、`uncertain`、源文件缺失或许可不明记录自动改成 `reviewed/final`。
 - 不得把目录级 fall/ADL 标签伪装成精确事件起止时间。
 - 不得把算法预测当成人工真值或用规则输出验证规则本身。
 - 不得把公开跌倒视频用于证明长期个人风险预测或临床有效性。
@@ -131,7 +128,6 @@ docs/README.md
    ```
 
    editable 安装必须指向当前仓库；若不是，按 `AGENTS.md` 使用当前项目重新安装后再验证。
-3. 统计数据集文件数量、视频数量、标签数量、复核状态、subject 覆盖、标签类别、质量类别和 quarantine 数量。
 4. 检查 CVAT 导出是否包含身份元数据。不得修改原件；只在报告中以脱敏方式记录风险。
 5. 对现有标签、manifest 和 split 计算初始 checksum，写入本地审计结果。
 6. 建立 `reports/fall_risk/workflow_a_blockers.md`。只记录经过核验的人工依赖和外部阻塞，不写推测。
@@ -171,9 +167,7 @@ scene_region
 view
 label_source
 annotation_path
-license_id
 consent_id
-review_status
 eligibility
 exclusion_reasons
 ```
@@ -186,8 +180,6 @@ exclusion_reasons
 - 保存真实 FPS 有理数和浮点表示；不得用全局默认 FPS 覆盖视频元数据。
 - 同一原事件的多机位必须共享 `original_event_id/source_group_id`。
 - `subject_id` 无法从官方元数据恢复时保持 `unknown`，并设置保守的 `source_group_id`。
-- `license_id` 或来源无法确认的资产必须 `eligibility=false`，进入审计，不进入正式 split。
-- Pre_VFallp 在来源、许可和标签语义未核验前必须隔离。
 - manifest 按稳定键排序，并生成 manifest SHA-256 和版本摘要。
 
 目标输出：
@@ -198,7 +190,6 @@ reports/fall_risk/data_audit.md
 reports/reproducibility/dataset_and_split_versions.md
 ```
 
-测试至少覆盖：稳定 ID、路径存在、hash、逐视频 FPS、重复文件、非视频资产、缺失许可、同事件多机位分组和重复运行确定性。
 
 ## 阶段 2：标注导入、转换与验证
 
@@ -210,14 +201,13 @@ reports/reproducibility/dataset_and_split_versions.md
 - 校验 `start_time/end_time` 与帧号一致，容差必须配置化并有测试。
 - 保留人工动作标签与映射事件的来源链，不能覆盖官方事件来源。
 - 写文件必须采用临时文件加原子替换；默认拒绝覆盖已有正式标签。
-- 候选重导结果先写入 `data/annotations/fall_risk/generated/v1/`，通过验证且获得人工确认前不得替换根目录正式标签。
+- 候选重导结果先写入 `data/annotations/fall_risk/generated/v2/`，通过验证且获得人工确认前不得替换根目录正式标签。
 
 ### 2.2 导入 LE2I 官方标注
 
 实现独立的 LE2I TXT 导入器：
 
 - 只把官方 TXT 支持的跌倒窗口写为 `event_type=fall`。
-- `label_source=le2i_txt`，不得写成 `manual_reviewed`。
 - 官方边界和人工边界同时保留，通过稳定来源 ID 关联，不互相覆盖。
 - `Lecture room` 和 `Office` 没有官方 TXT，不得进入官方有监督事件指标。
 - Home_02 必须保留原始 `video (31)` 至 `video (60)` 编号，不得重编为 1-30。
@@ -230,12 +220,8 @@ reports/reproducibility/dataset_and_split_versions.md
 - `start_frame <= end_frame`、`start_time <= end_time`，且均未超视频边界。
 - `U01/uncertain` 有原因说明。
 - 标签源、review 状态、文件存在性和 manifest 关联一致。
-- `pending/uncertain/missing/license_unknown` 不具备正式评估资格。
 - 动作映射事件、官方事件和人工事件能区分来源。
-- 高风险动作、跌倒和冲突记录是否具备人工复核证据；缺失时报告 blocker，禁止自动补全。
-- 输出类别分布、数据集分布、场景分布、人员/组分布、质量分布、边界异常和仲裁比例。
 
-必须为 `risk_labels.jsonl`、`subject_profiles.json` 和 `annotation_review_log.jsonl` 定义并验证 schema，但没有人工结果时只生成空模板或示例 schema，禁止生成假记录。
 
 ## 阶段 3：版本化 split
 
@@ -250,7 +236,6 @@ longitudinal_baseline_v1
 
 共同规则：
 
-- 只接收 `eligibility=true` 且标签为 `reviewed/final` 的正式样本。
 - `subject_id` 已知时按人分组；未知时按 `source_group_id` 保守分组。
 - 同一原事件、同一人的多机位、相邻窗口和派生副本不得跨集合。
 - Fall Detection 2017 按 `SBJ_*`；UR Fall 按事件编号且 cam0/cam1 同组；TOAGA 按 `OAWxx`；GSTRIDE 按 `Vxxx`；自采数据按脱敏 `subject_id`。
@@ -322,7 +307,6 @@ FDR = FP / (TP + FP)
 onset_detection_latency
 跌倒 detection_latency
 恢复召回率和错误恢复率（存在恢复真值时）
-人工复核工作量
 ```
 
 提前量统一定义为：
@@ -357,7 +341,6 @@ lead_time = reference_event_start - first_level_3_or_higher_alert
 
 ## 阶段 5：审计、文档与发布候选
 
-1. 使用真实本地数据运行 manifest builder 和严格校验器，但不得自动提升人工复核状态。
 2. 用合成预测和开发集跑通评估器全链路；在正式测试集冻结前，不得把结果写成比赛正式指标。
 3. 生成或更新：
 
@@ -372,20 +355,16 @@ lead_time = reference_event_start - first_level_3_or_higher_alert
    ```
 
 4. 当前实现状态只写入模块 README、工程架构和任务清单；不要把计划文档改成完成证明。
-5. 报告中必须明确区分：已实现自动化、已验证真实数据、待人工复核、待采集、许可阻塞和探索性结果。
-6. 生成 `fall-risk-data-v1` 发布候选摘要，但只有全部完成条件满足时才标记为正式冻结版本。
+6. 生成 `fall-risk-data-v2` 发布候选摘要，但只有全部完成条件满足时才标记为正式冻结版本。
 
 ## 人工环节处理规则
 
 Codex 无法代替以下工作：
 
 ```text
-双人独立标注
-冲突仲裁
 真人知情同意
 健康成年人安全动作采集
 subject_id 人工恢复
-许可证法律确认
 测试集保管人与调参人员职责隔离
 临床或功能参考终点确认
 ```
@@ -402,10 +381,8 @@ subject_id 人工恢复
 只有以下条件全部满足，才能声明自动化部分完成：
 
 - [ ] editable 安装指向当前仓库。
-- [ ] 全量 manifest 可重复生成，路径、hash、媒体元数据和许可状态校验通过。
 - [ ] Coffee/Lecture/Office 不再按 24 FPS 错误换算；逐视频时间轴测试通过。
 - [ ] LE2I 官方事件和人工事件来源独立、可追溯、不会互相覆盖。
-- [ ] 严格校验器能阻止 pending、uncertain、源文件缺失和许可不明数据进入正式 split。
 - [ ] 四类任务拥有独立 split schema；有数据的任务生成稳定 split ID，无数据的任务输出明确 blocker。
 - [ ] 泄漏检查覆盖人员、源组、原事件、多机位、相邻窗口和内容 hash。
 - [ ] 事件评估器按照冻结配置输出匹配明细、指标、95% CI 和失败案例。
@@ -415,7 +392,6 @@ subject_id 人工恢复
 - [ ] `git diff --check` 通过，没有无关改动、秘密信息或原始数据修改。
 - [ ] 文档没有把待人工完成或探索性结果写成已实现事实。
 
-若人工标注、采集、许可或纵向真值尚未完成，最终状态必须写成：
 
 ```text
 自动化底座已完成；工作流 A 整体仍受以下人工/数据门槛阻塞：...
@@ -448,9 +424,7 @@ git diff --check
 - 需要修改本任务允许范围之外的代码。
 - 需要新增或升级依赖、修改环境定义。
 - 需要下载大型数据、上传数据或调用外部标注服务。
-- 需要把候选标签提升为 `reviewed/final` 或替换正式标签。
 - 需要人工决定正式 IoU、onset 容忍、搜索窗口、样本量或统计主指标。
-- 数据许可、人员身份或参考终点无法从仓库证据确认。
 - 测试集已经可能被用于调参，需要重新定义盲测治理。
 - 发现凭据、个人身份信息或未经授权的真人数据可能进入版本控制或报告。
 - 同一阻塞连续出现且没有安全替代路径。

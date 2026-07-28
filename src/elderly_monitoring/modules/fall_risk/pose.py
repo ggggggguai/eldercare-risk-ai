@@ -34,6 +34,8 @@ COCO_KEYPOINT_NAMES = (
 )
 
 DEFAULT_RTMPOSE_MODEL = "human"
+NORMALIZED_IMAGE_COORDINATES = "image_normalized_0_1"
+PIXEL_IMAGE_COORDINATES = "image_pixels"
 
 
 @dataclass(frozen=True)
@@ -55,6 +57,8 @@ class PoseObservation:
     timestamp_sec: float
     track_id: int | None = None
     bbox: list[float] | None = None
+    bbox_pixels: list[float] | None = None
+    coordinate_system: str = NORMALIZED_IMAGE_COORDINATES
     pose_confidence: float | None = None
     keypoint_quality: float | None = None
     scene_region: str = "unknown"
@@ -91,6 +95,26 @@ def build_keypoints(
     return keypoints
 
 
+def normalize_bbox(
+    bbox: Iterable[float] | None,
+    *,
+    normalize_by: tuple[float, float] | None = None,
+) -> list[float] | None:
+    """Return an ``xyxy`` box in the requested image coordinate system."""
+    if bbox is None:
+        return None
+    values = [float(value) for value in bbox]
+    width, height = normalize_by or (0.0, 0.0)
+    if len(values) >= 4 and width > 0 and height > 0:
+        values[:4] = [
+            values[0] / width,
+            values[1] / height,
+            values[2] / width,
+            values[3] / height,
+        ]
+    return [round(value, 3) for value in values]
+
+
 def keypoint_quality(keypoints: Iterable[PoseKeypoint], *, min_score: float = 0.30) -> float:
     """基于可见关键点覆盖率估计单帧姿态质量。"""
     keypoint_list = list(keypoints)
@@ -111,17 +135,20 @@ def build_pose_observation(
     scene_region: str = "unknown",
     track_id: int | None = None,
     bbox: Iterable[float] | None = None,
+    bbox_pixels: Iterable[float] | None = None,
+    coordinate_system: str = NORMALIZED_IMAGE_COORDINATES,
     pose_confidence: float | None = None,
 ) -> PoseObservation:
     keypoint_list = list(keypoints)
-    rounded_bbox = [round(float(value), 3) for value in bbox] if bbox is not None else None
     return PoseObservation(
         frame_id=frame_id,
         person_id=person_id,
         keypoints=keypoint_list,
         timestamp_sec=round(float(timestamp_sec), 4),
         track_id=track_id,
-        bbox=rounded_bbox,
+        bbox=normalize_bbox(bbox),
+        bbox_pixels=normalize_bbox(bbox_pixels),
+        coordinate_system=coordinate_system,
         pose_confidence=round(float(pose_confidence), 4) if pose_confidence is not None else None,
         keypoint_quality=keypoint_quality(keypoint_list),
         scene_region=scene_region,
@@ -150,13 +177,20 @@ def build_rtmpose_observations(
 ) -> list[PoseObservation]:
     """将 MMPose/RTMPose 单帧预测适配成项目统一姿态记录。"""
     width, height = frame_size
+    normalization_size = (
+        (width, height) if normalize_coordinates and width > 0 and height > 0 else None
+    )
     observations: list[PoseObservation] = []
     for person_index, prediction in enumerate(_iter_rtmpose_instances(predictions)):
         points_xy, scores = _extract_rtmpose_keypoints(prediction)
         if not points_xy:
             continue
 
-        bbox = _extract_rtmpose_bbox(prediction)
+        bbox_pixels = _extract_rtmpose_bbox(prediction)
+        bbox = normalize_bbox(
+            bbox_pixels,
+            normalize_by=normalization_size,
+        )
         confidence = _extract_first_number(
             prediction,
             ("bbox_score", "bbox_scores", "bbox_confidence", "score"),
@@ -167,7 +201,7 @@ def build_rtmpose_observations(
         pose_keypoints = build_keypoints(
             points_xy,
             scores,
-            normalize_by=(width, height) if normalize_coordinates else None,
+            normalize_by=normalization_size,
         )
         observations.append(
             build_pose_observation(
@@ -178,6 +212,12 @@ def build_rtmpose_observations(
                 scene_region=scene_region,
                 track_id=track_id,
                 bbox=bbox,
+                bbox_pixels=bbox_pixels,
+                coordinate_system=(
+                    NORMALIZED_IMAGE_COORDINATES
+                    if normalization_size is not None
+                    else PIXEL_IMAGE_COORDINATES
+                ),
                 pose_confidence=confidence,
             )
         )
@@ -426,10 +466,11 @@ def run_yolov8_pose(
     tracker_config: str = "bytetrack.yaml",
     max_frames: int | None = None,
     normalize_coordinates: bool = True,
+    device: str | None = None,
+    model: Any | None = None,
 ) -> int:
     try:
         import cv2
-        from ultralytics import YOLO
     except ImportError as exc:
         raise RuntimeError(
             "姿态关键点提取需要视觉依赖，请使用 eldercare-ai 环境或安装 vision 依赖。"
@@ -444,19 +485,31 @@ def run_yolov8_pose(
     height = float(capture.get(cv2.CAP_PROP_FRAME_HEIGHT) or 0.0)
     capture.release()
 
-    model = YOLO(model_name)
+    if model is None:
+        try:
+            from ultralytics import YOLO
+        except ImportError as exc:
+            raise RuntimeError(
+                "姿态关键点提取需要视觉依赖，请使用 eldercare-ai 环境或安装 vision 依赖。"
+            ) from exc
+        model = YOLO(model_name)
 
     def iter_records() -> Iterable[dict[str, Any]]:
         from elderly_monitoring.runtime.streaming_pose import adapt_yolo_pose_result
 
+        track_options: dict[str, Any] = {
+            "source": str(video_path),
+            "stream": True,
+            "persist": True,
+            "conf": confidence_threshold,
+            "iou": iou_threshold,
+            "tracker": tracker_config,
+            "verbose": False,
+        }
+        if device is not None:
+            track_options["device"] = device
         results = model.track(
-            source=str(video_path),
-            stream=True,
-            persist=True,
-            conf=confidence_threshold,
-            iou=iou_threshold,
-            tracker=tracker_config,
-            verbose=False,
+            **track_options,
         )
         for frame_count, result in enumerate(results):
             if max_frames is not None and frame_count >= max_frames:
@@ -466,9 +519,10 @@ def run_yolov8_pose(
                 result,
                 frame_id=frame_id,
                 timestamp_sec=(frame_id / fps) if fps > 0 else 0.0,
-                frame_size=(width, height) if normalize_coordinates else (0.0, 0.0),
+                frame_size=(width, height),
                 scene_region=scene_region,
                 person_id_prefix=person_id_prefix,
+                normalize_coordinates=normalize_coordinates,
             )
             for observation in observations:
                 yield observation.to_dict()

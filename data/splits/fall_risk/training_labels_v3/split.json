@@ -1,0 +1,133 @@
+{
+  "allocation_method": "deterministic_group_level_supervision_balance",
+  "asset_count": 3501,
+  "assignment_count": 5223,
+  "assignments_sha256": "6b7ed71c5442425f7d4112d52b64dfa0a8cd3ce9424f1d72144748e0dffd36af",
+  "group_count": 154,
+  "input_sha256": {
+    "action_labels": "ba787841b5146c6c462ba70f55499d4d2b0a47e5397055a0a7949ca4b6235310",
+    "event_labels": "4cbbda2f57bbeadc496c49f1de0732f685a5a71b1d78fc762348fecabc392cd9",
+    "manifest": "deac5fa3e271238087cdad5c883afa52aedc9a72cacf7eee8ab9bd0724b8111a"
+  },
+  "leakage_issues": [],
+  "partition_action_type_counts": {
+    "controlled_sit_down": {
+      "test": 431,
+      "train": 361,
+      "validation": 238
+    },
+    "controlled_squat": {
+      "test": 0,
+      "train": 119,
+      "validation": 18
+    },
+    "dragging_walk": {
+      "test": 3,
+      "train": 2,
+      "validation": 21
+    },
+    "forward_fall": {
+      "test": 5,
+      "train": 52,
+      "validation": 48
+    },
+    "lateral_fall": {
+      "test": 2,
+      "train": 49,
+      "validation": 57
+    },
+    "normal_sit_to_stand": {
+      "test": 424,
+      "train": 378,
+      "validation": 256
+    },
+    "normal_step_adjustment": {
+      "test": 0,
+      "train": 36,
+      "validation": 0
+    },
+    "normal_turn": {
+      "test": 14,
+      "train": 80,
+      "validation": 90
+    },
+    "normal_walk": {
+      "test": 16,
+      "train": 118,
+      "validation": 161
+    },
+    "seated_fall": {
+      "test": 0,
+      "train": 40,
+      "validation": 0
+    },
+    "slow_walk": {
+      "test": 0,
+      "train": 3,
+      "validation": 86
+    },
+    "stumble": {
+      "test": 420,
+      "train": 330,
+      "validation": 198
+    },
+    "swaying_walk": {
+      "test": 3,
+      "train": 2,
+      "validation": 45
+    },
+    "unstable_turn": {
+      "test": 2,
+      "train": 17,
+      "validation": 13
+    }
+  },
+  "partition_asset_counts": {
+    "test": 1290,
+    "train": 1409,
+    "validation": 802
+  },
+  "partition_label_counts": {
+    "test": 1398,
+    "train": 2208,
+    "validation": 1617
+  },
+  "partition_supervision_counts": {
+    "fall_event": {
+      "test": {
+        "primary_negative": 0,
+        "primary_positive": 7
+      },
+      "train": {
+        "primary_negative": 0,
+        "primary_positive": 74
+      },
+      "validation": {
+        "primary_negative": 0,
+        "primary_positive": 14
+      }
+    },
+    "near_fall_event": {
+      "test": {
+        "primary_negative": 0,
+        "primary_positive": 0
+      },
+      "train": {
+        "primary_negative": 0,
+        "primary_positive": 0
+      },
+      "validation": {
+        "primary_negative": 0,
+        "primary_positive": 0
+      }
+    }
+  },
+  "ratios": {
+    "test": 0.15,
+    "train": 0.7,
+    "validation": 0.15
+  },
+  "schema_version": "fall-risk-training-split-v3",
+  "seed": "fall-risk-training-labels-v3-20260721",
+  "split_id": "splitv3_23e61c44a3a44dd8ffba4b40"
+}

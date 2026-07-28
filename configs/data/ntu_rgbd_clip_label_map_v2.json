@@ -1,0 +1,38 @@
+{
+  "schema_version": "ntu-rgbd-clip-label-map-v2",
+  "mapping_id": "ntu-rgbd-clip-label-map-v2",
+  "boundary_review": {
+    "decision_id": "ntu-rgbd-manual-boundary-review-20260725",
+    "reviewed_at": "2026-07-25",
+    "reviewer_id": "project_owner",
+    "boundary_precision": "exact",
+    "training_tier": "primary"
+  },
+  "mappings": [
+    {
+      "source_action_code": "A008",
+      "mode": "manual_exact",
+      "action_id": "A03"
+    },
+    {
+      "source_action_code": "A009",
+      "mode": "manual_exact",
+      "action_id": "A04"
+    },
+    {
+      "source_action_code": "A042",
+      "mode": "manual_exact",
+      "action_id": "C03"
+    },
+    {
+      "source_action_code": "A080",
+      "mode": "manual_exact",
+      "action_id": "A05"
+    },
+    {
+      "source_action_code": "A043",
+      "mode": "excluded",
+      "action_id": null
+    }
+  ]
+}

@@ -26,8 +26,6 @@ TASK_TYPES: dict[str, str] = {
     "longitudinal_baseline_v1": "longitudinal_baseline",
 }
 PARTITION_ORDER = ("train", "validation", "test")
-ELIGIBLE_REVIEW_STATUSES = frozenset({"reviewed", "final"})
-
 _UNKNOWN_IDENTIFIERS = frozenset(
     {"", "unknown", "none", "null", "n/a", "na", "unavailable", "missing"}
 )
@@ -380,7 +378,7 @@ def build_splits_from_files(
     overwrite_development: bool = False,
     validation_report_path: Path | str | None = None,
     validation_config_path: Path | str = Path(
-        "configs/data/fall_risk_label_validation_v1.yaml"
+        "configs/data/fall_risk_label_validation_v2.yaml"
     ),
 ) -> dict[str, dict[str, Any]]:
     config = load_yaml(config_path)
@@ -431,7 +429,6 @@ def build_splits_from_files(
         ancillary_input_paths = {
             "action_labels": annotation_root / "action_labels.jsonl",
             "subject_profiles": annotation_root / "subject_profiles.json",
-            "review_log": annotation_root / "annotation_review_log.jsonl",
             "validation_config": Path(validation_config_path),
         }
         for field, path in ancillary_input_paths.items():
@@ -518,8 +515,8 @@ def _build_task_artifact(
             {
                 "code": "no_eligible_samples",
                 "message": (
-                    "No manifest assets have eligibility=true with reviewed/final "
-                    "task labels and conservative leakage identifiers."
+                    "No technically eligible manifest assets have matching task labels "
+                    "and conservative leakage identifiers."
                 ),
             }
         ]
@@ -604,18 +601,6 @@ def _eligible_candidates(
     eligible_labels: dict[str, list[dict[str, Any]]] = defaultdict(list)
     excluded: Counter[str] = Counter()
     for label in sorted((dict(row) for row in labels), key=_canonical_sort_key):
-        if str(label.get("review_status", "")).strip().lower() not in ELIGIBLE_REVIEW_STATUSES:
-            excluded["review_status"] += 1
-            continue
-        if label.get("eligibility") is not True:
-            excluded["label_eligibility"] += 1
-            continue
-        review_evidence = label.get("review_evidence_ids")
-        if not isinstance(review_evidence, list) or not any(
-            isinstance(value, str) and value.strip() for value in review_evidence
-        ):
-            excluded["missing_review_evidence"] += 1
-            continue
         reference = _label_asset_reference(label)
         if reference is None:
             excluded["missing_asset_reference"] += 1
@@ -628,13 +613,10 @@ def _eligible_candidates(
         if manifest.get("eligibility") is not True:
             excluded["manifest_ineligible"] += 1
             continue
-        license_id = str(manifest.get("license_id") or "").strip().lower()
         source_uri = str(manifest.get("source_uri") or "").strip()
         exclusion_reasons = manifest.get("exclusion_reasons")
         if (
             not source_uri
-            or not license_id
-            or "unknown" in license_id
             or not isinstance(exclusion_reasons, list)
             or bool(exclusion_reasons)
         ):
@@ -995,7 +977,7 @@ def _verify_formal_validation_report(
     if not isinstance(report, dict):
         raise SplitDataError("formal validation report must be a JSON object")
     if (
-        report.get("schema_version") != "fall-risk-label-validation-report-v1"
+        report.get("schema_version") != "fall-risk-label-validation-report-v2"
         or report.get("mode") != "formal"
         or report.get("valid") is not True
     ):
@@ -1028,7 +1010,6 @@ def _verify_formal_validation_report(
         "event_labels",
         "risk_labels",
         "subject_profiles",
-        "review_log",
         "validation_config",
     }
     if set(expected_input_sha256) != required_fields:

@@ -9,6 +9,7 @@ class StreamReader:
         self.open_timeout_ms = open_timeout_ms
         self.read_timeout_ms = read_timeout_ms
         self.capture: Any | None = None
+        self.source_pts_sec: float | None = None
 
     def open(self) -> None:
         import cv2
@@ -27,7 +28,15 @@ class StreamReader:
         if self.capture is None:
             return None
         ok, frame = self.capture.read()
+        if ok:
+            self.source_pts_sec = self._read_source_pts_sec()
         return frame if ok else None
+
+    def _read_source_pts_sec(self) -> float | None:
+        import cv2
+
+        value = float(self.capture.get(cv2.CAP_PROP_POS_MSEC)) / 1000.0
+        return value if value >= 0.0 else None
 
     def update_url(self, stream_url: str) -> None:
         self.release()
@@ -37,3 +46,4 @@ class StreamReader:
         if self.capture is not None:
             self.capture.release()
             self.capture = None
+        self.source_pts_sec = None

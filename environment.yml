@@ -13,3 +13,4 @@ dependencies:
   - pytest=9.1.1
   - pip:
       - -e ".[vision,service]"
+      - interpret-core==0.7.8

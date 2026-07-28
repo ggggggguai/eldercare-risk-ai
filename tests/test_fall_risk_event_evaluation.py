@@ -78,8 +78,6 @@ def _truth(
         "start_time": start_time,
         "end_time": end_time,
         "onset_time": start_time,
-        "review_status": "final",
-        "eligibility": True,
         "source_group_id": source_group_id,
         "subject_id": "unknown",
         "split_id": "split-1",
@@ -296,30 +294,10 @@ class FallRiskEventEvaluationTest(unittest.TestCase):
         self.assertEqual(result.metrics["fp"], 2)
         self.assertEqual(result.metrics["fn"], 1)
 
-    def test_uncertain_and_pending_truth_are_excluded(self) -> None:
+    def test_only_uncertain_truth_is_excluded(self) -> None:
         truths = [
             _truth("uncertain", event_type="uncertain", exclusion_reason="occluded"),
-            _truth("pending", review_status="pending"),
-        ]
-
-        result = evaluate_event_predictions(
-            truths, [], manifest=[], config=_config()
-        )
-
-        self.assertEqual(result.metrics["ground_truth_count"], 0)
-        self.assertEqual(len(result.excluded_samples), 2)
-        self.assertEqual(
-            {row["exclusion_reason"] for row in result.excluded_samples},
-            {"uncertain_ground_truth", "ineligible_review_status"},
-        )
-
-    def test_ground_truth_requires_explicit_true_eligibility(self) -> None:
-        missing_eligibility = _truth("missing-eligibility")
-        missing_eligibility.pop("eligibility")
-        truths = [
-            _truth("eligible"),
-            missing_eligibility,
-            _truth("ineligible", eligibility=False),
+            _truth("plain"),
         ]
 
         result = evaluate_event_predictions(
@@ -327,15 +305,25 @@ class FallRiskEventEvaluationTest(unittest.TestCase):
         )
 
         self.assertEqual(result.metrics["ground_truth_count"], 1)
-        self.assertEqual(result.metrics["fn"], 1)
-        self.assertEqual(
-            {row["label_id"] for row in result.excluded_samples},
-            {"missing-eligibility", "ineligible"},
-        )
+        self.assertEqual(len(result.excluded_samples), 1)
         self.assertEqual(
             {row["exclusion_reason"] for row in result.excluded_samples},
-            {"ineligible_ground_truth"},
+            {"uncertain_ground_truth"},
         )
+
+    def test_ground_truth_does_not_require_label_eligibility(self) -> None:
+        truths = [
+            _truth("plain"),
+            _truth("ineligible", eligibility=False),
+        ]
+
+        result = evaluate_event_predictions(
+            truths, [], manifest=[], config=_config()
+        )
+
+        self.assertEqual(result.metrics["ground_truth_count"], 2)
+        self.assertEqual(result.metrics["fn"], 2)
+        self.assertEqual(result.excluded_samples, [])
 
     def test_lead_time_uses_reference_start_minus_alert_time(self) -> None:
         truths = [
@@ -1052,7 +1040,7 @@ class FallRiskEventEvaluationTest(unittest.TestCase):
             validation_report_path.write_text(
                 json.dumps(
                     {
-                        "schema_version": "fall-risk-label-validation-report-v1",
+                        "schema_version": "fall-risk-label-validation-report-v2",
                         "mode": "audit",
                         "valid": True,
                     }

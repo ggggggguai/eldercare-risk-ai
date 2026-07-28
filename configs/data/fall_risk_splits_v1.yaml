@@ -2,7 +2,7 @@
 # require human preregistration before any task is changed to frozen: true.
 schema_version: "1.0"
 protocol_status: provisional
-seed: fall-risk-data-v1-development-20260715
+seed: fall-risk-data-v2-development-20260718
 
 partitions:
   train: 0.70

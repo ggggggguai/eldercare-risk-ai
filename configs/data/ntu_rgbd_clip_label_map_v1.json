@@ -1,0 +1,31 @@
+{
+  "schema_version": "ntu-rgbd-clip-label-map-v1",
+  "mapping_id": "ntu-rgbd-clip-label-map-v1",
+  "mappings": [
+    {
+      "source_action_code": "A008",
+      "mode": "automatic",
+      "action_id": "A03"
+    },
+    {
+      "source_action_code": "A009",
+      "mode": "automatic",
+      "action_id": "A04"
+    },
+    {
+      "source_action_code": "A042",
+      "mode": "automatic",
+      "action_id": "C03"
+    },
+    {
+      "source_action_code": "A080",
+      "mode": "automatic",
+      "action_id": "A05"
+    },
+    {
+      "source_action_code": "A043",
+      "mode": "manual_only",
+      "action_id": null
+    }
+  ]
+}

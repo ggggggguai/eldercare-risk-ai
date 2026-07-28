@@ -25,6 +25,36 @@ class EventPolicyTest(unittest.TestCase):
         self.assertFalse(policy.should_send(_event(1), monotonic_sec=7.0))
         self.assertTrue(policy.should_send(_event(2), monotonic_sec=37.0))
 
+    def test_episode_versions_share_episode_and_use_distinct_event_ids(self) -> None:
+        policy = EventPolicy(cooldown_sec=30.0)
+        first = policy.create_version(
+            _event(3), monotonic_sec=0.0, episode_id="episode-1",
+            stream_epoch=7, lifecycle_state="suspected", version_kind="initial",
+            force=True,
+        )
+        upgrade = policy.create_version(
+            _event(4), monotonic_sec=1.0, episode_id="episode-1",
+            stream_epoch=7, lifecycle_state="confirmed_static",
+            version_kind="confirmed_static", force=True,
+        )
+        recovered = policy.create_version(
+            _event(0, trigger="episode_recovered"), monotonic_sec=4.0,
+            episode_id="episode-1", stream_epoch=7,
+            lifecycle_state="recovered", version_kind="recovered", force=True,
+        )
+        unresolved = policy.create_version(
+            _event(0, trigger="episode_unresolved"), monotonic_sec=5.0,
+            episode_id="episode-1", stream_epoch=7,
+            lifecycle_state="unresolved", version_kind="unresolved", force=True,
+        )
+
+        versions = (first, upgrade, recovered, unresolved)
+        self.assertTrue(all(version is not None for version in versions))
+        self.assertEqual({version.episode_id for version in versions}, {"episode-1"})
+        self.assertEqual(len({version.event_id for version in versions}), 4)
+        self.assertEqual(recovered.payload["risk_level"], 0)
+        self.assertEqual(unresolved.payload["lifecycle_state"], "unresolved")
+
 
 if __name__ == "__main__":
     unittest.main()

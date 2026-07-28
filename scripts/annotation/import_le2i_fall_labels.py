@@ -6,7 +6,7 @@ from pathlib import Path
 from elderly_monitoring.modules.fall_risk.annotations import write_le2i_fall_labels
 
 
-DEFAULT_OUTPUT_DIR = Path("data/annotations/fall_risk/generated/v1")
+DEFAULT_OUTPUT_DIR = Path("data/annotations/fall_risk/generated/v2")
 
 
 def main() -> None:

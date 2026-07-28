@@ -72,6 +72,9 @@ class SessionStatusResponse(BaseModel):
     started_at: datetime
     last_frame_at: datetime | None = None
     last_error: str | None = None
+    stream_epoch: int = 0
+    frame_diagnostics: dict[str, Any] = Field(default_factory=dict)
+    runtime_diagnostics: dict[str, Any] = Field(default_factory=dict)
 
 
 class RoiAnnotateRequest(BaseModel):

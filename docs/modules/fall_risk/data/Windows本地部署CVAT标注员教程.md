@@ -29,10 +29,10 @@ CVAT 里的矩形框主要用于承载“动作片段时间段 + 目标对象身
 第一阶段主要标动作级标签：
 
 ```text
-A01-A04：正常动作
+A01-A12：正常与困难负样本动作
 B01-B06：轻到中度风险动作
 C01-C05：高风险前兆动作
-D01-D04：跌倒和跌倒后状态
+D01-D05：跌倒和跌倒后状态
 U01：无法判断
 ```
 
@@ -251,7 +251,7 @@ video (30).avi
 4. Project name 填：
 
 ```text
-fall_risk_action_annotation_v1
+fall_risk_action_annotation_v2
 ```
 
 5. Description 填：
@@ -260,7 +260,7 @@ fall_risk_action_annotation_v1
 跌倒风险动作级标注。标注员只标视频可见动作事实，不标医学诊断和最终风险等级。
 ```
 
-6. Labels 使用我提供的 CVAT label JSON 导入。
+6. Labels 导入仓库中的 `configs/data/fall_risk_cvat_labels_v2.json`。
 
 每个标签都应是 rectangle 类型，并带三个属性：
 
@@ -272,13 +272,21 @@ note
 
 ## 8. 标签配置检查
 
-项目中应该有 20 个动作标签：
+项目中应该有 29 个动作标签：
 
 ```text
 A01_normal_walk
 A02_normal_turn
-A03_normal_sit
-A04_normal_stand
+A03_controlled_sit_down
+A04_normal_sit_to_stand
+A05_controlled_squat
+A06_controlled_bend
+A07_controlled_lie_down
+A08_routine_support_contact
+A09_kneel_or_floor_activity
+A10_normal_step_adjustment
+A11_assisted_sit_or_lowering
+A12_normal_hop
 B01_slow_walk
 B02_dragging_walk
 B03_shuffling_walk
@@ -294,6 +302,7 @@ D01_forward_fall
 D02_lateral_fall
 D03_backward_fall
 D04_long_static_after_fall
+D05_seated_fall
 U01_unable_to_judge
 ```
 
@@ -372,7 +381,7 @@ fall_risk__le2i_imvia__home_02__{{file_name}}
 4. Project 选择：
 
 ```text
-fall_risk_action_annotation_v1
+fall_risk_action_annotation_v2
 ```
 
 5. 选择 Project 后，Labels 会自动继承项目标签，不需要重新添加。
@@ -403,7 +412,6 @@ Submit 1 task
 3. 第三遍开始创建 action track。
 4. 标完后从头回看一次，检查时间边界、漏标和标签混淆。
 5. 保存。
-6. 提交复核。
 
 不要第一次播放时边看边标，容易漏掉前后动作关系。
 
@@ -492,11 +500,12 @@ D04_long_static_after_fall:
 | 转身    | 身体或脚步开始改变朝向         | 朝向稳定且不再继续转动         |
 | 坐下    | 身体明显开始向下坐           | 坐稳，身体不再继续下降         |
 | 起身    | 身体离开座位或开始上升         | 站稳，身体不再明显晃动         |
+| 下蹲    | 身体开始可控屈膝并向下移动         | 蹲稳或恢复站立，且不再继续下沉         |
+| 俯身/弯腰 | 躯干或髋部开始可控地向前屈曲         | 恢复直立，或达到稳定俯身姿态且不再继续下沉         |
 | 近跌倒   | 失衡、急停、快速下沉或突然扶物开始   | 恢复稳定，或转为真正跌倒        |
 | 跌倒    | 身体开始失去支撑并倒向地面、床边或椅旁 | 身体接触并稳定在倒地或倒卧状态     |
 | 跌倒后静止 | 跌倒动作结束后开始静止         | 明显起身、移动或视频结束        |
 
-时间边界先精确到相邻几帧或约 `0.1s`。复核时允许小于 `0.5s` 的边界偏差由复核人员统一修正。
 
 ## 14. 标签选择规则
 
@@ -504,8 +513,16 @@ D04_long_static_after_fall:
 | ------------- | ------------------------------ |
 | 稳定连续走路        | `A01_normal_walk`              |
 | 正常稳定转身        | `A02_normal_turn`              |
-| 正常坐下          | `A03_normal_sit`               |
-| 正常起身          | `A04_normal_stand`             |
+| 正常坐下          | `A03_controlled_sit_down`               |
+| 正常起身          | `A04_normal_sit_to_stand`             |
+| 正常下蹲          | `A05_controlled_squat`             |
+| 正常俯身/弯腰      | `A06_controlled_bend`              |
+| 主动可控躺下      | `A07_controlled_lie_down`          |
+| 日常扶椅或正常扶物 | `A08_routine_support_contact`      |
+| 正常跪下/跪地      | `A09_kneel_or_floor_activity`             |
+| 正常调步或绕障     | `A10_normal_step_adjustment`       |
+| 被协助坐下或降低身体 | `A11_assisted_sit_or_lowering`     |
+| 正常单脚跳/跳跃     | `A12_normal_hop`               |
 | 明显慢但稳定        | `B01_slow_walk`                |
 | 脚抬不起来、拖着走     | `B02_dragging_walk`            |
 | 步幅很小、密集挪动     | `B03_shuffling_walk`           |
@@ -521,6 +538,7 @@ D04_long_static_after_fall:
 | 侧向明确失去支撑并倒下   | `D02_lateral_fall`             |
 | 向后明确失去支撑并倒下   | `D03_backward_fall`            |
 | 跌倒后持续不动       | `D04_long_static_after_fall`   |
+| 从坐姿失去支撑并跌倒   | `D05_seated_fall`              |
 | 看不清或无法确认      | `U01_unable_to_judge`          |
 
 ## 15. 质量属性填写
@@ -555,7 +573,6 @@ D04_long_static_after_fall:
 
 ```text
 疑似扶墙但手部不可见
-动作边界不确定，等待复核
 ```
 
 ## 17. 保存和自检
@@ -578,17 +595,14 @@ Ctrl + S
 - 近跌倒和跌倒没有混淆。
 - 没有把 `D01/D02/D03` 和 `D04` 合并成一段。
 
-## 18. 复核要求
 
-以下片段必须重点复核：
 
 - `C01-C05`
-- `D01-D04`
+- `D01-D05`
 - `U01`
 - 起止边界不确定的动作
 - 多人或遮挡场景
 
-复核人员检查：
 
 - 是否漏标明显动作片段。
 - 标签是否来自标签字典。
@@ -601,7 +615,6 @@ Ctrl + S
 
 ## 19. 导出标注
 
-复核通过后导出。
 
 在 CVAT task 页面：
 
@@ -613,18 +626,15 @@ Ctrl + S
 CVAT for video 1.1
 ```
 
-4. 不需要导出图片帧，除非复核人员要求。
 
 导出文件命名：
 
 ```text
-cvat_export__{task_name}__{labeler_or_reviewed}__v{YYYYMMDD}.zip
 ```
 
 示例：
 
 ```text
-cvat_export__fall_risk__le2i_imvia__home_01__le2i_home_01_video_1__reviewed__v20260630.zip
 ```
 
 ## 20. 常见问题
@@ -745,7 +755,6 @@ le2i_home_01_video_2
 完成一批任务后，需要交付：
 
 - CVAT task 已保存。
-- 复核要求的片段已标记清楚。
 - `U01` 均有 note。
 - 导出的 CVAT ZIP 文件。
 - 如有问题，提供视频名、帧号和简短说明。
@@ -754,5 +763,4 @@ le2i_home_01_video_2
 
 ```text
 video (4).avi，frame 132-148，人物被桌子遮挡，无法确认是否扶物，已标 U01。
-video (6).avi，frame 210 附近疑似跌倒开始边界不确定，等待复核。
 ```

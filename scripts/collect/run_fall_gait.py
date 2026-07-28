@@ -21,6 +21,24 @@ def main() -> None:
     parser.add_argument("--hip-sway-threshold", type=float, default=0.035, help="髋部相对路径摆动风险阈值。")
     parser.add_argument("--pause-ratio-threshold", type=float, default=0.25, help="停顿帧比例风险阈值。")
     parser.add_argument("--shuffling-motion-threshold", type=float, default=0.018, help="疑似拖步/小碎步踝部运动阈值。")
+    parser.add_argument(
+        "--tcn-checkpoint",
+        type=Path,
+        default=None,
+        help="可选步态稳定性 TCN checkpoint；未配置时使用规则 fallback。",
+    )
+    parser.add_argument(
+        "--tcn-device",
+        choices=("auto", "cpu", "cuda", "mps"),
+        default="auto",
+        help="TCN 推理设备。",
+    )
+    parser.add_argument(
+        "--tcn-window-frames",
+        type=int,
+        default=64,
+        help="送入 TCN 的固定窗口帧数。",
+    )
     args = parser.parse_args()
 
     config = GaitAnalysisConfig(
@@ -36,7 +54,22 @@ def main() -> None:
         pause_ratio_risk_threshold=args.pause_ratio_threshold,
         shuffling_motion_threshold=args.shuffling_motion_threshold,
     )
-    count = run_gait_jsonl(input_path=args.input, output_path=args.output, config=config)
+    model_predictor = None
+    if args.tcn_checkpoint is not None:
+        from elderly_monitoring.modules.fall_risk.gait_tcn import GaitTCNPredictor
+
+        model_predictor = GaitTCNPredictor(
+            args.tcn_checkpoint,
+            device=args.tcn_device,
+            window_frames=args.tcn_window_frames,
+            expected_task="gait_instability_vs_normal_activity",
+        )
+    count = run_gait_jsonl(
+        input_path=args.input,
+        output_path=args.output,
+        config=config,
+        model_predictor=model_predictor,
+    )
     print(f"已写入 {count} 条步态稳定性窗口记录：{args.output}")
 
 
