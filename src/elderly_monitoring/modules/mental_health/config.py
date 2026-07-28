@@ -27,6 +27,8 @@ MENTAL_HEALTH_SCORE_FEATURES = (
     "sleep_disturbance_score",
     "social_withdrawal_score",
     "routine_irregularity_score",
+    "night_physiology_score",
+    "movement_vitality_score",
     "negative_affect_score",
     "self_report_risk_score",
 )

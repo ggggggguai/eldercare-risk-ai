@@ -43,7 +43,9 @@ class MentalHealthRiskPipelineTest(unittest.TestCase):
         self.assertEqual(config.baseline.initial_days, 3)
         self.assertEqual(config.baseline.stable_days, 7)
         self.assertEqual(config.baseline.max_window_days, 14)
-        self.assertEqual(config.scoring.weights["activity_drop_score"], 0.24)
+        self.assertEqual(config.scoring.weights["activity_drop_score"], 0.22)
+        self.assertEqual(config.scoring.weights["night_physiology_score"], 0.10)
+        self.assertEqual(config.scoring.weights["movement_vitality_score"], 0.20)
         self.assertEqual(config.scoring.thresholds, (0.25, 0.45, 0.65))
         self.assertEqual(config.scoring.coverage_expected_features, (
             "activity_drop_score",
@@ -80,7 +82,7 @@ class MentalHealthRiskPipelineTest(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, pattern):
                     mental_health_config_from_mapping(values)
 
-    def test_custom_yaml_weights_change_the_normalized_score(self) -> None:
+    def test_custom_yaml_weights_change_the_submodule_fused_score(self) -> None:
         values = load_yaml(DEFAULT_CONFIG_PATH)
         values["scoring"]["weights"].update(
             {
@@ -101,6 +103,19 @@ class MentalHealthRiskPipelineTest(unittest.TestCase):
 
         self.assertEqual(event.risk_score, 0.75)
         self.assertEqual(event.risk_level, 3)
+        self.assertEqual(event.metadata["score_source"], "submodule_fusion_v2")
+        self.assertEqual(
+            event.metadata["submodules"]["mood_social_withdrawal"]["score"],
+            75,
+        )
+        self.assertEqual(
+            event.metadata["submodules"]["cognitive_change_clue"]["score"],
+            0,
+        )
+        self.assertEqual(
+            event.metadata["submodules"]["cognitive_change_clue"]["available_features"],
+            [],
+        )
 
     def test_behavioral_deviation_requires_manual_review_for_high_risk(self) -> None:
         event = MentalHealthRiskPipeline().predict_from_features(
@@ -113,6 +128,43 @@ class MentalHealthRiskPipelineTest(unittest.TestCase):
         self.assertIs(event.metadata["diagnosis"], False)
         self.assertIsNotNone(event.evidence_window)
 
+    def test_predict_mental_safety_returns_v2_result_and_algorithm_event_compatibility(self) -> None:
+        result = MentalHealthRiskPipeline().predict_mental_safety(
+            self.complete_sample(
+                activity_drop_score=0.8,
+                sleep_disturbance_score=0.7,
+                routine_irregularity_score=0.4,
+                movement_vitality_score=0.6,
+            )
+        )
+
+        self.assertEqual(result.mental_safety_level, 2)
+        self.assertEqual(result.mental_safety_score, 61)
+        self.assertEqual(result.baseline_confidence, "high")
+        self.assertIs(result.diagnosis, False)
+        self.assertIn("系统不作医学诊断", result.suggestion)
+        self.assertIn("mood_social_withdrawal", result.submodules)
+        self.assertIn("cognitive_change_clue", result.submodules)
+        self.assertGreaterEqual(result.submodules["mood_social_withdrawal"].score, 60)
+        self.assertIn(
+            "activity_drop",
+            result.submodules["mood_social_withdrawal"].factors,
+        )
+
+        payload = result.to_dict()
+        self.assertEqual(payload["mental_safety_level"], 2)
+        self.assertEqual(
+            payload["submodules"]["cognitive_change_clue"]["feature_scores"]["movement_vitality_score"],
+            0.6,
+        )
+
+        event = result.to_algorithm_event()
+        self.assertEqual(event.module, "mental_health")
+        self.assertEqual(event.risk_level, result.mental_safety_level)
+        self.assertEqual(event.risk_score, result.mental_safety_score / 100)
+        self.assertEqual(event.metadata["mental_safety_score"], result.mental_safety_score)
+        self.assertIn("submodules", event.metadata)
+
     def test_missing_optional_features_do_not_enter_coverage_denominator(self) -> None:
         event = MentalHealthRiskPipeline().predict_from_features(
             self.complete_sample(
@@ -123,7 +175,7 @@ class MentalHealthRiskPipelineTest(unittest.TestCase):
         )
 
         self.assertEqual(event.risk_score, 0.8)
-        self.assertAlmostEqual(event.metadata["feature_coverage"], 0.24 / 0.62, places=4)
+        self.assertAlmostEqual(event.metadata["feature_coverage"], 0.22 / 0.56, places=4)
         self.assertEqual(event.risk_level, 1)
         self.assertEqual(event.metadata["available_modalities"], ["activity_drop_score"])
         self.assertIn("social_withdrawal_score", event.metadata["missing_modalities"])
@@ -249,9 +301,175 @@ class MentalHealthRiskPipelineTest(unittest.TestCase):
             )
         )
 
-        coverage = (0.24 + 0.22) / 0.62
+        coverage = (0.22 + 0.22) / 0.56
         expected = 0.45 * coverage + 0.35 * 0.5 + 0.20 * (1 / 3)
         self.assertAlmostEqual(event.confidence, expected, places=4)
+
+    def test_strong_rule_activity_bedroom_social_can_raise_level_three(self) -> None:
+        event = MentalHealthRiskPipeline().predict_from_features(
+            self.complete_sample(
+                activity_drop_score=0.7,
+                sleep_disturbance_score=None,
+                routine_irregularity_score=None,
+                social_withdrawal_score=0.7,
+                bedroom_stay_increase_score=0.8,
+                persistent_abnormal_days=7,
+            )
+        )
+
+        self.assertEqual(event.risk_level, 3)
+        self.assertEqual(event.metadata["score_status"], "strong_rule_override")
+        self.assertIn("activity_bedroom_social_strong_rule", event.risk_factors)
+        self.assertEqual(
+            event.metadata["strong_rule_matches"][0]["rule_id"],
+            "activity_bedroom_social_7d",
+        )
+
+    def test_strong_rule_sleep_leave_bed_activity_can_raise_level_three(self) -> None:
+        event = MentalHealthRiskPipeline().predict_from_features(
+            self.complete_sample(
+                activity_drop_score=0.7,
+                sleep_disturbance_score=0.8,
+                routine_irregularity_score=None,
+                night_leave_bed_count=4,
+            )
+        )
+
+        self.assertEqual(event.risk_level, 3)
+        self.assertIn("sleep_leave_bed_activity_strong_rule", event.risk_factors)
+        self.assertEqual(
+            event.metadata["strong_rule_matches"][0]["rule_id"],
+            "sleep_leave_bed_activity_decline",
+        )
+
+    def test_strong_rule_high_risk_wandering_can_raise_level_three_without_score_features(self) -> None:
+        event = MentalHealthRiskPipeline().predict_from_features(
+            self.complete_sample(
+                activity_drop_score=None,
+                sleep_disturbance_score=None,
+                routine_irregularity_score=None,
+                consecutive_nights_with_wandering=2,
+                doorway_wandering_count=1,
+                bathroom_entrance_wandering_count=1,
+            )
+        )
+
+        self.assertEqual(event.risk_level, 3)
+        self.assertEqual(event.risk_score, 0.65)
+        self.assertEqual(event.metadata["score_status"], "strong_rule_override")
+        self.assertIn("high_risk_wandering_strong_rule", event.risk_factors)
+
+    def test_unverified_high_risk_wandering_score_does_not_bypass_evidence_rule(self) -> None:
+        event = MentalHealthRiskPipeline().predict_from_features(
+            self.complete_sample(
+                activity_drop_score=None,
+                sleep_disturbance_score=None,
+                routine_irregularity_score=None,
+                high_risk_wandering_score=0.9,
+                consecutive_nights_with_wandering=0,
+                doorway_wandering_count=0,
+                bathroom_entrance_wandering_count=0,
+            )
+        )
+
+        self.assertNotIn("high_risk_wandering_strong_rule", event.risk_factors)
+        self.assertFalse(event.metadata["strong_rule_matches"])
+
+    def test_verified_high_risk_wandering_score_can_raise_level_three(self) -> None:
+        event = MentalHealthRiskPipeline().predict_from_features(
+            self.complete_sample(
+                activity_drop_score=None,
+                sleep_disturbance_score=None,
+                routine_irregularity_score=None,
+                high_risk_wandering_score=0.9,
+                high_risk_wandering_verified=True,
+            )
+        )
+
+        self.assertEqual(event.risk_level, 3)
+        self.assertIn("high_risk_wandering_strong_rule", event.risk_factors)
+
+    def test_strong_rule_active_cognitive_task_with_motor_change(self) -> None:
+        event = MentalHealthRiskPipeline().predict_from_features(
+            self.complete_sample(
+                activity_drop_score=None,
+                sleep_disturbance_score=None,
+                routine_irregularity_score=None,
+                movement_vitality_score=0.7,
+                active_cognitive_task_score=0.8,
+            )
+        )
+
+        self.assertEqual(event.risk_level, 3)
+        self.assertIn("active_cognitive_motor_strong_rule", event.risk_factors)
+        self.assertEqual(
+            event.metadata["strong_rule_matches"][0]["rule_id"],
+            "active_cognitive_motor_decline",
+        )
+
+    def test_auxiliary_isolation_forest_scores_multimetric_anomaly(self) -> None:
+        history = [
+            {
+                "date": f"2026-06-{day:02d}",
+                "activity_drop_score": 0.10 + day * 0.005,
+                "sleep_disturbance_score": 0.12 + day * 0.004,
+                "routine_irregularity_score": 0.08 + day * 0.003,
+            }
+            for day in range(10, 20)
+        ]
+
+        event = MentalHealthRiskPipeline().predict_from_features(
+            self.complete_sample(
+                activity_drop_score=0.86,
+                sleep_disturbance_score=0.82,
+                routine_irregularity_score=0.78,
+                auxiliary_history=history,
+            )
+        )
+
+        isolation = event.metadata["auxiliary_models"]["isolation_forest"]
+        self.assertEqual(isolation["status"], "available")
+        self.assertTrue(isolation["is_anomaly"])
+        self.assertGreaterEqual(isolation["anomaly_score"], 0.8)
+        self.assertIn("activity_drop_score", isolation["factors"])
+        self.assertIn("multimetric_anomaly_auxiliary", event.risk_factors)
+        self.assertEqual(event.metadata["auxiliary_model_status"]["isolation_forest"], "available")
+
+    def test_auxiliary_change_point_detects_recent_upward_shift(self) -> None:
+        history = [
+            {"date": "2026-06-18", "activity_drop_score": 0.10, "sleep_disturbance_score": 0.12},
+            {"date": "2026-06-19", "activity_drop_score": 0.11, "sleep_disturbance_score": 0.11},
+            {"date": "2026-06-20", "activity_drop_score": 0.12, "sleep_disturbance_score": 0.10},
+            {"date": "2026-06-21", "activity_drop_score": 0.13, "sleep_disturbance_score": 0.12},
+            {"date": "2026-06-22", "activity_drop_score": 0.58, "sleep_disturbance_score": 0.14},
+            {"date": "2026-06-23", "activity_drop_score": 0.62, "sleep_disturbance_score": 0.13},
+            {"date": "2026-06-24", "activity_drop_score": 0.66, "sleep_disturbance_score": 0.12},
+        ]
+
+        event = MentalHealthRiskPipeline().predict_from_features(
+            self.complete_sample(
+                activity_drop_score=0.70,
+                sleep_disturbance_score=0.13,
+                routine_irregularity_score=None,
+                auxiliary_history=history,
+            )
+        )
+
+        change_point = event.metadata["auxiliary_models"]["change_point"]
+        self.assertEqual(change_point["status"], "available")
+        self.assertTrue(change_point["has_change"])
+        self.assertEqual(change_point["changes"][0]["feature"], "activity_drop_score")
+        self.assertEqual(change_point["changes"][0]["change_time"], "2026-06-22")
+        self.assertIn("trend_change_auxiliary", event.risk_factors)
+
+    def test_auxiliary_models_are_insufficient_without_history(self) -> None:
+        event = MentalHealthRiskPipeline().predict_from_features(self.complete_sample())
+
+        auxiliary = event.metadata["auxiliary_models"]
+        self.assertEqual(auxiliary["isolation_forest"]["status"], "insufficient_data")
+        self.assertEqual(auxiliary["change_point"]["status"], "insufficient_data")
+        self.assertNotIn("multimetric_anomaly_auxiliary", event.risk_factors)
+        self.assertNotIn("trend_change_auxiliary", event.risk_factors)
 
 
 if __name__ == "__main__":
