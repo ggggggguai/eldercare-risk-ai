@@ -48,6 +48,7 @@
 | 评估 | [KINECAL 轻量步态 TCN baseline](../reports/fall_risk/kinecal_gait_tcn/README.md) | 14 点时序模型的固定划分实测、失败结论和复现方式 |
 | 复现 | [实时链路工程回归](../reports/fall_risk/runtime/README.md) | 阶段 0/1 的固定输入 hash、离线服务烟测与时钟/队列诊断；不是效果指标 |
 | 心理健康 | [模块 README](modules/mental_health/README.md) | 日级聚合、基线、评分和离线 CLI |
+| 心理健康审计 | [公开数据集可用性与时序审计](../reports/mental_health/dataset_audit_2026-07-25/report.md) | PSYCHE-D、RESILIENT、NHANES 的哈希、标签、时序与冻结实验角色 |
 | 任务 | [当前任务](tasks/README.md) | 项目待办和验证缺口 |
 
 ## 目录约定

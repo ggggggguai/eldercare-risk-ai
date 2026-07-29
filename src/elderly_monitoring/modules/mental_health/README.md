@@ -43,4 +43,4 @@ mental_health/
 - `feature_extraction.activity`：日间活动、久坐/久卧、房间转换、外出与规律性特征。
 - `feature_extraction.movement_vitality`：情绪低落/社交退缩关注模块中的运动活力领域分，复用步速、坐站、转身和步态稳定性日级指标，输出 `movement_vitality_score`，不触发紧急安全告警。
 - `feature_extraction.physiology`：睡眠仪夜间心率/呼吸趋势辅助特征，基于个人参考基线输出 `night_physiology_score`，只作为情绪低落/社交退缩关注的低权重辅助证据。
-- `feature_extraction.wandering`：认知功能变化线索中的徘徊样走动规则检测，基于中心点轨迹输出 pacing、lapping、random、mixed 等行为线索，不保存原始视频、不输出医学诊断。
+- `feature_extraction.wandering`：认知功能变化线索中的徘徊样走动规则检测。当前代码仍接收旧 `x/y` 轨迹；模型化 P0 应新增落脚点轨迹构建器，按“双脚踝中点→单脚踝→人体框底边中心”生成单摄像头 `[0,1]²` 归一化轨迹，再输出 pacing、lapping、random、mixed 等行为线索。规则只作兜底，不保存原始视频、不输出医学诊断。

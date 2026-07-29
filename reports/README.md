@@ -26,3 +26,8 @@ Workflow A 当前入口：
 模型实验入口：
 
 - [`fall_risk/kinecal_gait_tcn/README.md`](fall_risk/kinecal_gait_tcn/README.md)：KINECAL 14 点轻量步态 TCN 的固定划分 baseline、失败结论和复现命令。
+
+心理健康当前入口：
+
+- [`mental_health/dataset_audit_2026-07-25/report.md`](mental_health/dataset_audit_2026-07-25/report.md)：PSYCHE-D、RESILIENT、NHANES 的文件哈希、标签样本、时间方向、特征冻结和实验角色审计。
+- [`mental_health/dataset_audit_2026-07-25/mental_health_dataset_audit.ipynb`](mental_health/dataset_audit_2026-07-25/mental_health_dataset_audit.ipynb)：已执行的聚合审计 notebook，不包含参与者级数据。

@@ -4,6 +4,8 @@
 
 跌倒风险与心理健康风险共享上游感知、人员身份和姿态质量数据，但分别评分并分别输出各自的 `AlgorithmEvent`。心理健康管线只产生 `module=mental_health` 的独立事件。
 
+量表监督智能模型尚未训练或接入正式推理路径。2026-07-25 已完成 PSYCHE-D、RESILIENT、NHANES 的本地文件、标签和时间方向审计：PSYCHE-D 用作主训练与参与者级内部验证；RESILIENT 只先做老人域反向时间迁移敏感性测试，之后才可内部适配；NHANES 只作量表后活动/睡眠关联和辅助表征。冻结数据角色、SHA-256、特征映射和待执行实验见[公开数据集可用性与时序审计](../../../reports/mental_health/dataset_audit_2026-07-25/report.md)。
+
 ## 数据来源与身份前提
 
 行为输入复用现有 YOLOv8 Pose、ByteTrack、`PoseObservation` 和姿态质量控制结果，不创建第二套人体检测、姿态模型或实时循环。每条记录必须包含上游已经绑定的非空业务 `person_id`。`track_id` 只表示单路视频内关联，不能代替 `person_id`，也不能用于跨设备合并。

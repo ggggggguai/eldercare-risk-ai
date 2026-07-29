@@ -40,3 +40,4 @@ tmp/
 # Local environment files.
 .env
 .DS_Store
+*.sqlite

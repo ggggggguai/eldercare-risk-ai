@@ -1,6 +1,6 @@
 # 当前任务
 
-更新时间：2026-07-24
+更新时间：2026-07-25
 
 本文件只记录尚未完成的工作。已经落地的能力写入模块 README；阶段结论和旧待办移入 `docs/archive/`。当前跌倒风险模块处于模型化增强阶段：规则 baseline 仍作为对照和安全 fallback，新增时序模型必须经过数据、split、评估和部署门禁后才能替换主路径。
 
@@ -14,8 +14,8 @@
 | 使训练标签 v3 达到模型门槛 | 对 fall/near-fall 分别逐窗补齐 hard negative；安全采集并双人复核 near-fall positive；校验报告中目标任务 `training_ready=true`，且不把未标注背景自动写成 negative |
 | 冻结四个跌倒任务 split | `fall_event_v1`、`near_fall_event_v1`、`functional_proxy_v1` 和 `longitudinal_baseline_v1` 分别取得合格样本、稳定 `split_id` 和无泄漏报告；没有真实参考终点的任务继续明确阻塞，不制造空壳正式 split |
 | 完成跌倒风险正式评估 | 预注册并冻结事件匹配与统计协议，指定测试集保管人与一次性发布流程；在真实冻结 split 上输出 Precision、Recall、F1、PR-AUC、合法分母下的误报指标、提前量、95% CI 和失败案例 bundle |
-| 解除 Workflow A 数据阻断 | 完成 CVAT 身份元数据处置、人员或保守源组说明、功能与纵向参考终点确认；解除证据写入 `reports/fall_risk/workflow_a_blockers.md` |
-| 建立心理健康评估口径 | 固定日级验证样本、人工复核标签和分层一致性指标，不使用医学诊断表述 |
+| 解除 Workflow A 数据与法律阻断 | 完成公开数据来源/许可证确认、CVAT 身份元数据处置、人员或保守源组说明、功能与纵向参考终点确认；解除证据写入 `reports/fall_risk/workflow_a_blockers.md` |
+| 冻结心理健康量表监督实验 | 按[公开数据集审计](../../reports/mental_health/dataset_audit_2026-07-25/report.md)生成 PSYCHE-D 参与者级固定测试 manifest，分别冻结 `sensor_state`、`forecast_1m`、`forecast_2m`；比较 sensor-only/start-only/start+sensor，报告校准、参与者 cluster bootstrap 和失败案例；RESILIENT/NHANES 的反向时间结果不得混入 past-only 主成绩 |
 | 完成真实萤石链路联调 | 使用真实设备或开放平台直播地址启动会话，后端收到并验收风险回调 |
 | 固定接口契约 | 后端确认字段、鉴权、时间格式、幂等规则和风险动作编码，并保存联调记录 |
 | 完成数据合规材料 | 在采集真人数据前准备知情同意、脱敏编号、访问控制、保留周期和退出删除流程 |
@@ -42,6 +42,8 @@
 - 扩充老人域、近跌倒、低光、遮挡、辅助器具和跨房间数据。
 - 恢复 NTU RGB+D 的可用媒体路径：当前 2,976 条精确动作标签及无泄漏 split 已生成，但外部 manifest 指向的旧解压目录不存在；需从 `ntu.zip` 重新解压或重建 manifest 后再做训练。A043 的 948 条已明确排除，不列为待标。
 - KINECAL 轻量 TCN 固定划分 baseline 已跑通，但 7 人测试集 balanced accuracy 仅 `0.333`、ROC-AUC `0.583`；进入主链前必须完成重复参与者级交叉验证、RGB 姿态微调和独立外部测试。
+- 在规则 baseline 和独立测试集稳定后，再比较 Logistic Regression、LightGBM、TCN 或姿态时序模型。
+- RESILIENT 先做一次冻结模型的老人域反向时间迁移敏感性测试；保存结果后才可用全部 73 人做内部嵌套交叉验证适配。48 对 ACE-III 纵向样本只作简单模型探索。
 - 补消融实验：完整跌倒管线、去掉个体基线、去掉近跌倒、仅事件检测。
 - 建立版本化实验报告、复现配置、误报漏报案例和资源成本记录。
 
