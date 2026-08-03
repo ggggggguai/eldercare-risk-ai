@@ -9,7 +9,6 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# 安装 CPU 版本 PyTorch，并单独建立缓存层
 RUN python -m pip install \
       --no-cache-dir \
       --no-compile \
@@ -25,13 +24,10 @@ RUN python -m pip install \
       /root/.cache \
       /tmp/*
 
-# 复制应用代码
 COPY pyproject.toml README.md ./
 COPY src ./src
 COPY configs ./configs
 
-# 安装运行依赖
-# lap 用于 Ultralytics 的 ByteTrack/BoT-SORT 目标跟踪
 RUN python -m pip install \
       --no-cache-dir \
       --no-compile \
