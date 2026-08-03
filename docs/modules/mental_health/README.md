@@ -4,6 +4,34 @@
 
 跌倒风险与心理健康风险共享上游感知、人员身份和姿态质量数据，但分别评分并分别输出各自的 `AlgorithmEvent`。心理健康管线只产生 `module=mental_health` 的独立事件。
 
+专项目标设计见[徘徊样行为识别技术方案](plans/徘徊样行为识别技术方案.md)，跨团队分工、交付物和验收条件见[徘徊模块协作交接与职责边界](徘徊模块协作交接与职责边界.md)。当前已建立隔离的 `mental_health.wandering` 实验子包，提供版本化 `TrajectorySample` 契约、严格且原子化的安全 JSONL 读写，以及 `wandering-source-manifest-v1`、`wandering-conversion-report-v1`、`wandering-split-v1` 三项严格契约。manifest/report 会绑定相对来源路径、来源和输出 SHA-256、转换器版本、样本计数、稳定 sample ID 与结构化警告；split 会绑定来源 manifest 哈希，拒绝重复、未知、遗漏和跨分区 sample ID，并把 `sealed_external_test` 作为独立互斥分区。所有 JSON 采用固定排序和原子写入，原始来源只读。
+
+方案步骤 2 已于 2026-08-03 完成。两个隔离转换器和真实产物通过自动验证：WanderingPatterns 写出 1,600 条，SmartCare 写出 210 条并拒绝 10 条；当前严格 reader 共读回 1,810 条，两次全新运行的 9 个 bundle 文件逐文件 SHA-256 一致。SmartCare 的 9 条极短轨迹、2 条越界轨迹及 1 条重叠关系均有结构化记录；WanderingPatterns 固定哈希 DataFrame 的实际列中没有人员、会话或其他受支持 group 字段。固定种子为 6 个类别各生成 20 条联系表，用户已确认 6 张均可通过，详见[步骤 2 转换与复核记录](../../../reports/mental_health/wandering_step2/README.md)和[人工复核记录](../../../reports/mental_health/wandering_step2/HUMAN_REVIEW.md)。该子包没有从本模块顶层重新导出，也没有接入现有聚合、评分或运行时；正式 split、轨迹预处理、分类模型、片段状态机、日级徘徊字段、摄像头接入和正式指标仍未实现，不能把转换产物当作徘徊识别能力。
+
+当前唯一下一任务是方案步骤 3：基于上述已验收产物建立固定 split。目标已收紧为 WP 每类 `280/60/60`、SmartCare 开发池按自然日替代组固定为 train 152/validation 38、官方 20 条全部封存，并生成逐样本分配、近邻审计、报告和哈希；具体输入路径、固定日期、测试门槛和禁止事项见[技术方案第 11 节](plans/徘徊样行为识别技术方案.md)。截至本段更新时这些 split 产物尚未实现，不得提前开始模型训练或把自然日替代组称作人员级无泄漏。
+
+## 徘徊步骤 2 命令
+
+所有命令必须在当前仓库的 `eldercare-ai` 环境中运行，并使用不存在的新输出目录；转换器不会覆盖现有目录。WanderingPatterns pickle 入口只支持 Linux/WSL 的 `unshare` 隔离。
+
+```bash
+conda run -n eldercare-ai python scripts/wandering/convert_smartcare.py \
+  --source-root "<SmartCare source root>" \
+  --output "<new SmartCare output>"
+
+conda run -n eldercare-ai python scripts/wandering/convert_wandering_patterns.py \
+  --source-root "<WanderingPatterns source root>" \
+  --output "<new WanderingPatterns output>"
+
+conda run -n eldercare-ai python scripts/wandering/visualize_converted.py \
+  --input "<strict JSONL>" \
+  --source-name "<source name>" \
+  --input-role "<role>" \
+  --output "<new visual-review output>" \
+  --samples-per-class 20 \
+  --seed 20260801
+```
+
 ## 数据来源与身份前提
 
 行为输入复用现有 YOLOv8 Pose、ByteTrack、`PoseObservation` 和姿态质量控制结果，不创建第二套人体检测、姿态模型或实时循环。每条记录必须包含上游已经绑定的非空业务 `person_id`。`track_id` 只表示单路视频内关联，不能代替 `person_id`，也不能用于跨设备合并。
