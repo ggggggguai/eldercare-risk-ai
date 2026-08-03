@@ -9,6 +9,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+# 安装 CPU 版本 PyTorch，并单独建立缓存层
 RUN python -m pip install \
       --no-cache-dir \
       --no-compile \
@@ -24,10 +25,13 @@ RUN python -m pip install \
       /root/.cache \
       /tmp/*
 
+# 复制应用代码
 COPY pyproject.toml README.md ./
 COPY src ./src
 COPY configs ./configs
 
+# 安装运行依赖
+# lap 用于 Ultralytics 的 ByteTrack/BoT-SORT 目标跟踪
 RUN python -m pip install \
       --no-cache-dir \
       --no-compile \
@@ -35,6 +39,7 @@ RUN python -m pip install \
       --index-url https://mirrors.cloud.tencent.com/pypi/simple/ \
       "PyYAML==6.0.3" \
       "opencv-python-headless==4.13.0.92" \
+      "lap==0.5.13" \
       "matplotlib==3.11.1" \
       "requests==2.34.2" \
       "psutil==7.2.2" \
@@ -56,6 +61,7 @@ RUN python -m pip install \
       --no-deps \
       --index-url https://mirrors.cloud.tencent.com/pypi/simple/ \
       . \
+    && python -c "import lap; print('lap installed:', lap.__version__)" \
     && rm -rf /root/.cache /tmp/* \
     && useradd --create-home --uid 10001 algorithm
 
