@@ -2,9 +2,129 @@
 
 本模块输出行为与睡眠变化的工程特征和独立心理健康风险事件，用于风险预警和人工复核，不输出医学诊断。当前已完成数据适配、日级聚合、个人基线、持续异常、风险评分和离线日级 CLI。
 
+## ASR 与认知文本接入
+
+中文 ASR 已作为独立算法模块落在 `src/elderly_monitoring/modules/asr/`，采用 Paraformer、FSMN-VAD 和 CT-Punc。认知 V3.3 通过 `modules.asr.api.transcribe()` 获取 `ASRTranscript v1`，再由 `cognitive_tasks.asr_adapter` 完成冻结文本规范化、`char_count`、`q_text` 和缺失模态掩码。ASR 不读取任务题目、用户、设备、数据库或留存字段，认知模块也不加载 FunASR 内部对象。
+
+`elderly_monitoring.modules.asr.api:app` 提供可在 `eldercare-asr` 环境独立启动的 `POST /v1/asr/transcribe`，启动阶段预热进程级模型单例。对外只接受临时 URL 或 base64 的 WAV/MP3/M4A，范围为 3–60 秒和 50 MiB。首阶段以 S10 主动小测和同进程 Python 调用为主；视频通话音轨、任务条件建模和完整认知三模态推理属于后续接线内容。字段和联调方式见[ASR 与认知模块开发协作文档](guides/ASR与认知模块开发协作文档V1.0.md)。
+
 跌倒风险与心理健康风险共享上游感知、人员身份和姿态质量数据，但分别评分并分别输出各自的 `AlgorithmEvent`。心理健康管线只产生 `module=mental_health` 的独立事件。
 
-量表监督智能模型尚未训练或接入正式推理路径。2026-07-25 已完成 PSYCHE-D、RESILIENT、NHANES 的本地文件、标签和时间方向审计：PSYCHE-D 用作主训练与参与者级内部验证；RESILIENT 只先做老人域反向时间迁移敏感性测试，之后才可内部适配；NHANES 只作量表后活动/睡眠关联和辅助表征。冻结数据角色、SHA-256、特征映射和待执行实验见[公开数据集可用性与时序审计](../../../reports/mental_health/dataset_audit_2026-07-25/report.md)。
+`M-ACT-001` ActivityExpert、`M-SLP-001` SleepExpert、`M-JNT-001` ActivitySleepJointExpert 和 `M-PHY-001` PhysiologyExpert 已训练并登记为 standalone active 工件，但其余专家、融合、ART-001 完整模型包和正式推理接入尚未完成。2026-07-25 的三套数据审计是历史事实记录，不再单独决定当前训练角色；情绪与社交关注新主线以项目级 V3.3.3 冻结文档和实现级接口契约为准。
+
+## V3.3.3 情绪与社交关注接口状态
+
+独立 `mood_social` 新包已经完成 V3.3.3 配置，以及 `mood_social_infer_request_v3`、`mood_social_infer_response_v3`、`mood_social_error_v1` 的严格 Pydantic 模型。CAM-001 已完成严格 V3 摄像头日级活动和场景化原始步态上游；MH-003 已完成统一日级/7 日特征 Schema、确定性映射、`feature_mask`、`day_mask` 和原始步态趋势上下文。这不表示端到端生产接入已经完成。`POST /v1/mental-health/mood-social/infer` 已注册为路由空壳：
+
+- 所有请求、响应和错误嵌套对象均拒绝未知字段；
+- V1、V2 和其他请求 schema 返回结构化 422；
+- 新路由的 401、422、500、503 使用独立 `mood_social_error_v1`；
+- 当前只有 standalone ActivityExpert、SleepExpert、ActivitySleepJointExpert 和 PhysiologyExpert，完整生产模型包和 V3 推理编排尚未完成，合法请求返回 `MODEL_ARTIFACT_UNAVAILABLE` 503；
+- 不调用旧 `MentalHealthRiskPipeline`、规则评分卡或 `/daily-risk`，也不伪造 HTTP 200 模型结果；
+- 旧 `/v1/mental-health/daily-risk` 及本文件后续所述评分卡/CLI 仍是 legacy 兼容能力，不是 V3.3.3 新生产结果。
+
+V3.3.3 默认配置仍位于项目根目录 `configs/modules/mood_social_v3_3_3.yaml`。源码运行和普通安装运行都会从当前工作目录及其父目录发现该外部配置；部署需要显式指定根目录时使用 `ELDERLY_MONITORING_PROJECT_ROOT`，只覆盖配置文件时使用 `MOOD_SOCIAL_CONFIG_PATH`。模型相对目录始终按项目根目录解析。
+
+实现位置：
+
+```text
+src/elderly_monitoring/modules/mental_health/mood_social/
+src/elderly_monitoring/modules/mental_health/feature_extraction/activity/mood_social_v3.py
+src/elderly_monitoring/service/app.py
+src/elderly_monitoring/service/schemas.py
+tests/test_mental_health_mood_social_api.py
+tests/test_mental_health_mood_social_camera.py
+tests/test_mental_health_mood_social_camera_gait.py
+tests/test_mental_health_mood_social_feature_schema.py
+tests/test_mental_health_mood_social_feature_mapper.py
+src/elderly_monitoring/modules/mental_health/mood_social/experts/activity.py
+configs/training/mood_social_activity_expert_v3_3_3.yaml
+scripts/train_mood_social_activity_expert_v3_3_3.py
+scripts/validate_mood_social_activity_expert_v3_3_3.py
+tests/test_mental_health_mood_social_activity_expert.py
+src/elderly_monitoring/modules/mental_health/mood_social/experts/sleep.py
+configs/training/mood_social_sleep_expert_v3_3_3.yaml
+scripts/train_mood_social_sleep_expert_v3_3_3.py
+scripts/validate_mood_social_sleep_expert_v3_3_3.py
+tests/test_mental_health_mood_social_sleep_expert.py
+src/elderly_monitoring/modules/mental_health/mood_social/experts/joint.py
+configs/training/mood_social_activity_sleep_joint_expert_v3_3_3.yaml
+scripts/train_mood_social_activity_sleep_joint_expert_v3_3_3.py
+scripts/validate_mood_social_activity_sleep_joint_expert_v3_3_3.py
+tests/test_mental_health_mood_social_activity_sleep_joint_expert.py
+src/elderly_monitoring/modules/mental_health/mood_social/experts/physiology.py
+configs/training/mood_social_physiology_expert_v3_3_3.yaml
+scripts/train_mood_social_physiology_expert_v3_3_3.py
+scripts/validate_mood_social_physiology_expert_v3_3_3.py
+tests/test_mental_health_mood_social_physiology_expert.py
+```
+
+统一特征入口为：
+
+```python
+from elderly_monitoring.modules.mental_health.mood_social import (
+    feature_schema_manifest,
+    map_mood_social_features,
+)
+
+manifest = feature_schema_manifest()
+mapped = map_mood_social_features(request)
+```
+
+mapper 始终输出自然日 D-6 至 D 的七个槽，缺失日保持 null/mask 0，不用更早记录补位。活动比例按字段自己的有效日期和分钟分母合并；睡眠时刻使用跨午夜中点和圆周编码；夜间生理按字段有效夜聚合；S10 区分无记录、未完成观测和真实零。`feature_coverage` 保留用于专家置信度但不进入监督专家列，`valid_days` / `valid_nights` 仍按冻结口径进入专家。D-28 至 D 的 `camera_gait_metrics` 按 `date + camera_id + scene_version` 稳定保存到内部上下文，其键、四个原始指标及风险方向由同一 manifest 冻结；这里不计算 Q10/Q90 或个人归一化。当前 HTTP 路由尚未调用该 mapper，真实接线属于 API-001/API-002。
+
+## V3.3.3 公开数据适配状态
+
+DATA-002 至 DATA-006 已完成五个当前训练来源的严格 canonical 适配。所有适配器位于 `src/elderly_monitoring/datasets/adapters/`；历史 `modules.mental_health.validation.public_datasets` 路径仅保留兼容重导出。DATA-007 已生成冻结的参与者级嵌套五折 split；MODEL-001 至 MODEL-004 已分别生成 ActivityExpert、SleepExpert、ActivitySleepJointExpert 和 PhysiologyExpert 的训练折预处理、模型、校准器和完整 OOF，其余专家仍未训练。
+
+| dataset_id | 来源 | 当前产物边界 |
+|---|---|---|
+| `psyche_d` | PSYCHE-D | 名义月份窗口；睡眠严格映射；步数只保留为训练折 `x_source` |
+| `resilient` | RESILIENT | 首个有效传感器日起 14 个 Europe/London 日历日；步数只保留为训练折 `x_source` |
+| `nhanes` | NHANES 2011-2014 DPQ+PAM | G/H 周期内连接；最多 7 个有效 PAM window；`M10VALUE` 只保留为训练折 `x_source` |
+| `shenzhen` | 深圳社区老人 | 横断面 SocialContext；冲突键整组排除；不创建 `x_source` 或 ECDF |
+| `nhanes_ssq_2005_2008` | NHANES 2005-2008 DPQ+SSQ | D/E 周期内连接；横断面 SocialContext；SSQ 只作受控来源字段；不创建 `x_source` 或 ECDF |
+
+DATA-006 的 12 个 CDC 官方 XPT/codebook 文件冻结在工作区 `数据集/心理/NHANES-SSQ-2005-2008/`。source manifest SHA-256 为 `5d95ffd6e86bd83e2221d30a91fe727deac7eed1e6ed7744e1bf624569577baa`，来源集合 SHA-256 为 `48b47b9904cbe91e679046e10ede1340b4401c1cb674fcaf1ff047cccfd31608`。正式 canonical 为 3,150 人、156 列，`PHQ-9>=10` 阳性 185；只映射年龄段、性别、婚姻和教育四个严格同义的 `social_context` 字段，收入代码及全部 SSQ 字段不进入生产特征，也不映射为 S10 `social_contact.*`。
+
+DATA-007 的正式 split 位于 `data/processed/mental_health/mood_social/v3.3.3/splits/split_manifest.json`。split ID 为 `mood-social-v3.3.3-participant-nested-5x5-seed-20260728-v1`，文件共 4,184,759 bytes，SHA-256 为 `e9915dbc590a6ea454c34d26558ac5866c57ee8a8e78f44cdcc79c859df77ee3`。它绑定五套 canonical、artifact manifest、mapping、逻辑 frame hash 和 MH-003 Schema，覆盖 15,361 名参与者、22,191 行、4,079 个阳性行。
+
+划分以 `dataset_id::participant_id` 为唯一单元，先按“数据集、参与者窗口数、参与者阳性窗口数”分层，再按随机种子 20260728 的 SHA-256 顺序和确定性分层偏移轮转到五折；每个外层训练集合都单独生成内层五折交叉拟合分配。DATA-007 没有拟合 ECDF、填补器、编码器、标准化器、特征选择器、校准器或模型。
+
+MODEL-001 运行 `MH-20260731-001` 只使用 `psyche_d`、`resilient`、`nhanes`，硬排除深圳和 `nhanes_ssq_2005_2008`。完整 OOF 为 13,714 行，其中 13,705 行可评价、9 行无活动证据固定 `expert_mask=0` 和概率 null。生产 bundle 使用 LightGBM + Isotonic，选中 `activity_volume_norm`、`relative_amplitude`、`interdaily_stability`、`intradaily_variability`、`activity_variability`、`valid_days`；不将 missing indicator、mask 或 `feature_coverage` 用作风险特征。
+
+正式模型为 `models/mental_health/mood_social/v3.3.3/activity_expert.joblib`，SHA-256 `906a3cc2b74cdd3beeba446ca32885c7d2f0388be230ab793a2728bfd711bc3a`；同目录 manifest 绑定 split、Schema、输入、代码和配置。报告位于 `reports/mental_health/mood_social/MH-20260731-001/`，汇总校准 AUPRC `0.3372883872`、Brier `0.2668652581`。该工件尚未接入 HTTP，也不等于 ART-001 完整 V3.3.3 模型包。
+
+MODEL-002 运行 `MH-20260731-002` 使用同三套来源并硬排除深圳自报睡眠和 `nhanes_ssq_2005_2008`。完整 OOF 为 13,714 行，其中 13,591 行可评价、123 行无睡眠证据固定 `expert_mask=0` 和概率 null。生产 bundle 使用 LightGBM + Isotonic，直接读取 canonical 同语义睡眠字段，并选中睡眠/在床时长、效率、入睡/起床/中点周期编码、碎片化、规律性和 `valid_nights` 共 12 个字段；`night_exit_count_mean` 因三来源均无训练证据被排除。
+
+正式睡眠模型为 `models/mental_health/mood_social/v3.3.3/sleep_expert.joblib`，SHA-256 `966ba9ecd32ac18ac63ed9a6733a2e84f859a657cdb664bc2e034f0857056ade`。报告位于 `reports/mental_health/mood_social/MH-20260731-002/`，汇总校准 AUPRC `0.3315803561`、Brier `0.2587572644`。两次正式构建的模型、OOF、指标和搜索结果 hash 一致；独立校验 92 项通过。该工件同样尚未接入 HTTP，也不等于完整模型包。
+
+MODEL-003 运行 `MH-20260731-003` 只使用上述三套来源同一 canonical 行的真实活动与睡眠证据。完整 OOF 为 13,714 行，其中 13,585 行联合可评价；129 行因至少一侧无证据固定 `expert_mask=0` 和概率 null。活动侧 ECDF、联合字段选择和填补均严格在对应训练折拟合；睡眠侧使用 canonical 同语义字段。联合输入不读取 standalone Activity/Sleep 概率，也不使用 missing indicator、mask 或 `feature_coverage`，且 `expert_mask=1` 必须要求活动和睡眠两侧均有真实模型输入。
+
+正式联合模型为 `models/mental_health/mood_social/v3.3.3/activity_sleep_joint_expert.joblib`，SHA-256 `2152e7a62ba6382d64ddb1ca865410fa99e0acf9b73db54ed4c25622c46e70c8`。报告位于 `reports/mental_health/mood_social/MH-20260731-003/`，汇总校准 AUPRC `0.3954505791`、AUROC `0.6356911435`、Brier `0.2659286996`。模型、manifest、OOF、指标、搜索结果和配置经无代码变化覆盖重建后 hash 一致；独立校验 149 项通过。该工件仍未接入 HTTP，也不等于 ART-001 完整模型包。
+
+MODEL-004 运行 `MH-20260731-004` 只使用 RESILIENT canonical 中真实存在的夜间生理字段；其他四个来源被硬排除，不能以全缺失填补行进入训练。完整 OOF 为 73 行，其中 71 行可评价、9 个可评价阳性，2 行无真实生理证据固定 `expert_mask=0` 和概率 null。各内外层训练集合独立完成有限非恒定字段选择、中位数填补、均值/标准差标准化、完整 20 候选 ElasticNet Logistic 搜索和 Platt 校准；两个无阳性的内层验证折保留 `AUPRC=null`，候选使用完整 pooled 严格内层 OOF 排名。最终选择 7 个真实字段，结构性全缺失的 `respiratory_abnormal_ratio`、`valid_nights` 被排除；missing indicator、mask、`feature_coverage`、活动和睡眠字段均不作为风险输入。
+
+正式生理模型为 `models/mental_health/mood_social/v3.3.3/physiology_expert.joblib`，SHA-256 `1596e4ecae67319818c672f0cfc1ca7177fb4481f21ca66363154e8290c69a9e`；manifest SHA-256 为 `2afdb2320f748932ff25d017ff60dd61e54e6e55e5104c72a3e7fec1d483192f`。报告位于 `reports/mental_health/mood_social/MH-20260731-004/`，汇总校准 AUPRC `0.1528603721`、AUROC `0.4964157706`、Brier `0.2381505785`。固定 5000 次上限的收敛审计和小样本警告均已保存；无性能晋级门槛。格式化后覆盖重训，模型、OOF、指标和搜索结果保持不变；随后 32 个确定性核心文件经无代码变化覆盖重建 hash 一致，独立校验 142 项通过。该工件仍未接入 HTTP，也不等于 ART-001 完整模型包。
+
+正式构建和独立校验入口：
+
+```bash
+conda run -n eldercare-ai python scripts/build_nhanes_ssq_v3_3_3.py
+conda run -n eldercare-ai python scripts/validate_nhanes_ssq_v3_3_3.py
+conda run -n eldercare-ai python scripts/build_mood_social_splits_v3_3_3.py
+conda run -n eldercare-ai python scripts/validate_mood_social_splits_v3_3_3.py
+conda run -n eldercare-ai python scripts/train_mood_social_activity_expert_v3_3_3.py
+conda run -n eldercare-ai python scripts/validate_mood_social_activity_expert_v3_3_3.py
+conda run -n eldercare-ai python scripts/train_mood_social_sleep_expert_v3_3_3.py
+conda run -n eldercare-ai python scripts/validate_mood_social_sleep_expert_v3_3_3.py
+conda run -n eldercare-ai python scripts/train_mood_social_activity_sleep_joint_expert_v3_3_3.py
+conda run -n eldercare-ai python scripts/validate_mood_social_activity_sleep_joint_expert_v3_3_3.py
+conda run -n eldercare-ai python scripts/train_mood_social_physiology_expert_v3_3_3.py
+conda run -n eldercare-ai python scripts/validate_mood_social_physiology_expert_v3_3_3.py
+```
+
+数据产物位于 `data/processed/mental_health/mood_social/v3.3.3/`。DATA-006 校验器直接从冻结 XPT 重建键、筛选、标签、字段、mask、Arrow Schema 和 artifact manifest；DATA-007 校验器不导入 split 构建实现，独立重算输入绑定、全部外层/内层分配、覆盖、互斥、统计和完整性 hash；MODEL-001/002/003/004 独立校验器分别复核配置、模型、完整 OOF、指标、搜索结果、折内审计及推理硬门控，共 128/92/149/142 项。
 
 ## 数据来源与身份前提
 
@@ -43,7 +163,25 @@
 
 ## 日间活动特征工程
 
-`feature_extraction.activity` 已提供 V1 日间活动工程入口，面向“情绪低落/社交退缩关注”模块使用。它不训练新的心理模型，而是把摄像头结构化结果先聚合为 10 秒活动窗口，再聚合为日间行为特征。
+`feature_extraction.activity` 同时提供严格 V3.3.3 生产格式 Python 上游和 V1 兼容路径。V3 路径使用以下入口：
+
+```python
+from elderly_monitoring.modules.mental_health.feature_extraction.activity import (
+    aggregate_mood_social_camera_daily,
+    aggregate_mood_social_camera_windows,
+    extract_mood_social_camera_features,
+)
+```
+
+V3 路径只计算本地 `[06:00, 18:00)` 的 10 秒窗口；严格区分完全无日记录的 `activity=null`、有记录但零有效覆盖的对象，以及有效观测下的真实 0。零覆盖对象中 `valid_daytime_detection_minutes=0`、小时覆盖全 0，其余日级活动语义和小时强度为 null、步态为空。原始帧覆盖按一秒支持区间并集计算，重复同一时刻的帧不能伪造覆盖；窗口必须达到 0.60 覆盖、至少两个不同时刻的有效样本，并同时具备中心和姿态运动量。
+
+多摄像头先分别生成 `camera_id + scene_version` 候选，再按身份置信度、核心姿态有效率、跟踪置信度和稳定场景键选择唯一活动来源。低活动只由 `active_score <= 0.20` 定义，缺测、无效和非低活动槽都会中断连续片段，达到 30 分钟才计入片段字段。两组小时数组和日级汇总来自同一组去重窗口；活动峰值按分钟活动质量取最大值、并列取最早分钟。
+
+步速、坐站、转身和姿态稳定性按 `camera_id + scene_version` 分别取日级中位数。图像速度不裁剪为 0–1，也不解释为米/秒；CAM-001 不计算个人 Q10/Q90 或 `walking_speed_norm_camera`。严格输出在返回前通过 `MoodSocialActivity` 自校验，并拒绝全天步数、V1 久坐/小时字段、`gait_speed_mps` 和预计算个人归一化值。完整输入、输出和自主冻结细节见源码同目录 [activity/README.md](../../../src/elderly_monitoring/modules/mental_health/feature_extraction/activity/README.md)。
+
+### V1 兼容入口
+
+旧入口继续供规则评分卡、ROI 调试和 `/v1/mental-health/daytime-activity` 使用。它不训练新的心理模型，而是把摄像头结构化结果先聚合为 10 秒活动窗口，再聚合为旧日间行为特征：
 
 Python 调用入口：
 
@@ -70,7 +208,7 @@ active_score =
 + 0.05 * posture_change_score
 ```
 
-日级输出包括 `daytime_active_minutes`、`weighted_daytime_activity`、`sedentary_*`、`daytime_bed_*`、`room_transition_count`、`bedroom_stay_ratio`、`outdoor_*`、`wake_activation_delay_minutes`、`routine_stability_score` 和进餐时段相关活动字段。低质量、离线、遮挡和身份不确定窗口只进入质量标记，不会被当作低运动。
+V1 日级输出包括 `daytime_active_minutes`、`weighted_daytime_activity`、`sedentary_*`、`daytime_bed_*`、`room_transition_count`、`bedroom_stay_ratio`、`outdoor_*`、`wake_activation_delay_minutes`、`routine_stability_score` 和进餐时段相关活动字段。低质量、离线、遮挡和身份不确定窗口只进入质量标记，不会被当作低运动。V1 输出不能直接提交到严格 V3 `activity` 对象。
 
 ## 睡眠适配
 
@@ -227,5 +365,7 @@ daily_features = extract_cognitive_gait_features(pose_records)
 ```
 
 Daily output fields include `gait_speed_norm_per_sec`, optional `gait_speed_mps` when a per-scene meter scale is provided, `sit_stand_duration_seconds`, `turn_duration_seconds`, `turn_stability_score`, `gait_cycle_stability_score`, `motor_cognitive_clue_score`, event/window counts, quality flags, `diagnosis: false`, and `model_version`.
+
+This optional `gait_speed_mps` belongs only to the legacy motor-cognitive clue path when an explicit scene scale exists. The V3.3.3 mood-social `camera_gait_metrics` producer is separate, never carries this field, and always preserves image-scale speed by `camera_id + scene_version`.
 
 The current implementation is an engineering baseline for behavioral trend clues. It does not infer dementia, cognitive impairment, depression, or any medical diagnosis.

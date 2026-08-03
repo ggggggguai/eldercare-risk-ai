@@ -1154,10 +1154,12 @@ class FallRiskEventEvaluationTest(unittest.TestCase):
                     path.write_bytes(b"\xff")
                 return content
 
-            with mock.patch.object(Path, "read_bytes", tracked_read_bytes):
-                result = evaluation_main([*arguments, "--allow-provisional"])
-            for path, content in original_inputs.items():
-                path.write_bytes(content)
+            try:
+                with mock.patch.object(Path, "read_bytes", tracked_read_bytes):
+                    result = evaluation_main([*arguments, "--allow-provisional"])
+            finally:
+                for path, content in original_inputs.items():
+                    path.write_bytes(content)
 
             metrics = json.loads(
                 (output_dir / "metrics.json").read_text(encoding="utf-8")

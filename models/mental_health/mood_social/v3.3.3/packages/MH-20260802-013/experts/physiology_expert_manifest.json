@@ -1,0 +1,118 @@
+{
+  "algorithm": "ElasticNet Logistic",
+  "calibrator": {
+    "classes": [
+      0,
+      1
+    ],
+    "coefficient": [
+      0.11950278989771193
+    ],
+    "fit_row_count": 71,
+    "intercept": [
+      0.020401398739145978
+    ],
+    "method": "platt",
+    "positive_participant_count": 9,
+    "probability_clip_epsilon": 1e-06,
+    "version": "mood-social-probability-calibrator-v1"
+  },
+  "code_bindings": {
+    "configs/training/mood_social_physiology_expert_v3_3_3.yaml": "5624214f4ba716f826cf414bae22ea68743d864935ad3f3834796d611904fad0",
+    "scripts/train_mood_social_physiology_expert_v3_3_3.py": "55f818a84a78444e393f9c6c3101d25a0ae227121ba85295db7088e78ebde2c1",
+    "scripts/validate_mood_social_physiology_expert_v3_3_3.py": "0d3f1494143d2eba3a0c13b18c8da6aa8d4a9ae73d0c2abc984d755db3a94811",
+    "src/elderly_monitoring/modules/mental_health/mood_social/experts/physiology.py": "5035d28ca94a065940d8b1ca56a39cc986a83a50858789f03d2ef415f34e9ec4"
+  },
+  "dataset_ids": [
+    "resilient"
+  ],
+  "dependencies": {
+    "joblib": "1.5.3",
+    "numpy": "2.4.6",
+    "pandas": "3.0.3",
+    "pyarrow": "21.0.0",
+    "scikit_learn": "1.9.0"
+  },
+  "excluded_dataset_ids": [
+    "psyche_d",
+    "nhanes",
+    "shenzhen_elderly",
+    "nhanes_ssq_2005_2008"
+  ],
+  "feature_schema_sha256": "d2ed18db72601ccb3b0cbb89907bc60ab336bd00f84f0b2c49dcea568bf339e9",
+  "feature_schema_version": "mood_social_feature_schema_v3_3_3",
+  "hyperparameters": {
+    "C": 0.01,
+    "l1_ratio": 1
+  },
+  "input_feature_names": [
+    "physiology.heart_rate_mean_bpm",
+    "physiology.heart_rate_min_bpm",
+    "physiology.heart_rate_sd_bpm",
+    "physiology.hrv_sdnn_ms",
+    "physiology.respiration_rate_mean_bpm",
+    "physiology.respiration_rate_sd_bpm",
+    "physiology.respiratory_abnormal_ratio",
+    "physiology.snoring_minutes_norm",
+    "physiology.valid_nights"
+  ],
+  "manifest_version": "mood-social-physiology-model-manifest-v1",
+  "metrics_sha256": "a9fc58acc6edcf372488defa6628fe7acec5270a7d3e58d9c8a9dd59371017df",
+  "model_file": "physiology_expert.joblib",
+  "model_id": "M-PHY-001",
+  "model_sha256": "1596e4ecae67319818c672f0cfc1ca7177fb4481f21ca66363154e8290c69a9e",
+  "model_version": "physiology-expert-v3.3.3",
+  "predictions_sha256": "0136667b081524ca38771f7ed181eb832ea1440d66351c3541b43f7fb297eebb",
+  "row_eligibility": "at_least_one_real_physiology_model_input",
+  "run_id": "MH-20260731-004",
+  "selected_feature_names": [
+    "physiology.heart_rate_mean_bpm",
+    "physiology.heart_rate_min_bpm",
+    "physiology.heart_rate_sd_bpm",
+    "physiology.hrv_sdnn_ms",
+    "physiology.respiration_rate_mean_bpm",
+    "physiology.respiration_rate_sd_bpm",
+    "physiology.snoring_minutes_norm"
+  ],
+  "source_transform": "resilient_canonical_same_semantics_identity",
+  "split_id": "mood-social-v3.3.3-participant-nested-5x5-seed-20260728-v1",
+  "split_manifest_sha256": "e9915dbc590a6ea454c34d26558ac5866c57ee8a8e78f44cdcc79c859df77ee3",
+  "status": "active",
+  "training_config_sha256": "5624214f4ba716f826cf414bae22ea68743d864935ad3f3834796d611904fad0",
+  "training_participant_count": 71,
+  "training_participant_sha256": "e04ca46f1d303bea934e15870b616e1fd50bd7f1a6f14e0d74a8e2cdf66c0286",
+  "training_row_count": 71,
+  "training_scope": "resilient_real_physiology_rows_for_production",
+  "upstream_expert_guards": {
+    "activity": {
+      "manifest_bytes": 5066,
+      "manifest_path": "models/mental_health/mood_social/v3.3.3/activity_expert_manifest.json",
+      "manifest_sha256": "eb2521a217083c784ecef1b93deef33aebec5dd4bcb614db5890ed47d5700b1b",
+      "model_bytes": 344264,
+      "model_id": "M-ACT-001",
+      "model_path": "models/mental_health/mood_social/v3.3.3/activity_expert.joblib",
+      "model_sha256": "906a3cc2b74cdd3beeba446ca32885c7d2f0388be230ab793a2728bfd711bc3a",
+      "model_version": "activity-expert-v3.3.3"
+    },
+    "joint": {
+      "manifest_bytes": 6845,
+      "manifest_path": "models/mental_health/mood_social/v3.3.3/activity_sleep_joint_expert_manifest.json",
+      "manifest_sha256": "f54149fc0e504d052ec763e56441fdc638e7b00a8c7801ded497e24943755e17",
+      "model_bytes": 355694,
+      "model_id": "M-JNT-001",
+      "model_path": "models/mental_health/mood_social/v3.3.3/activity_sleep_joint_expert.joblib",
+      "model_sha256": "2152e7a62ba6382d64ddb1ca865410fa99e0acf9b73db54ed4c25622c46e70c8",
+      "model_version": "activity-sleep-joint-expert-v3.3.3"
+    },
+    "sleep": {
+      "manifest_bytes": 3872,
+      "manifest_path": "models/mental_health/mood_social/v3.3.3/sleep_expert_manifest.json",
+      "manifest_sha256": "11096d9916e822be23d8c9acdc86bb9c3c2700bf7c0ea2bcad8abf315ce30459",
+      "model_bytes": 299913,
+      "model_id": "M-SLP-001",
+      "model_path": "models/mental_health/mood_social/v3.3.3/sleep_expert.joblib",
+      "model_sha256": "966ba9ecd32ac18ac63ed9a6733a2e84f859a657cdb664bc2e034f0857056ade",
+      "model_version": "sleep-expert-v3.3.3"
+    }
+  }
+}

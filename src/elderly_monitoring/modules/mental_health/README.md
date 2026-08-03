@@ -19,6 +19,18 @@ mental_health/
 └── orchestration/              # 日批、实时服务、周报/趋势报告编排
 ```
 
+## V3.3.3 监督专家进度
+
+`mood_social/experts/` 已完成五个可独立加载的 standalone 专家：
+
+- `M-ACT-001` ActivityExpert：LightGBM + Isotonic，活动 ECDF 和全部预处理只在对应训练折拟合；
+- `M-SLP-001` SleepExpert：LightGBM + Isotonic，直接使用 canonical 同语义睡眠字段；
+- `M-JNT-001` ActivitySleepJointExpert：LightGBM + Isotonic，只使用同一 canonical 行的真实活动与睡眠证据，双侧均有输入时 `expert_mask=1`。
+- `M-PHY-001` PhysiologyExpert：ElasticNet Logistic + Platt，只使用 RESILIENT 的真实生理字段；
+- `M-SOC-001` SocialContextExpert：CatBoost + Isotonic，只使用四来源严格同义档案字段。
+
+五者均绑定 `mood_social_feature_schema_v3_3_3` 和 DATA-007 参与者级嵌套五折 split，并由 EVAL-001 冻结为只读 active 基线。MODEL-006 已另行完成 PHQ-9 连续分值回归和五级等级多分类离线辅助 bundle；该 bundle 不 active、不进入融合或 HTTP 推理。TREND-001 已完成活动、睡眠、社会三分支 PersonalTrendExpert、严格 OOF、个人基线回放和 `personal_change_mask`；FUSION-001 已完成 22,191 行严格 OOF 证据表和来源/参与者/外折/标签/窗口对齐审计，公开汇总数据的 day mask 明确是窗口观测代理。社会分支仍仅为无直接 S10/PHQ-9 验证的工程代理。下一任务为 FUSION-002，完整模型包仍待 ART-001。
+
 ## V2 对应关系
 
 | V2 章节 | 工程包 |

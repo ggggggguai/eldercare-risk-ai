@@ -1,0 +1,119 @@
+task_id: FUSION-001
+run_id: MH-20260802-009
+table_version: mood-social-fusion-oof-table-v3.3.3-v1
+frozen_document_version: V3.3.3
+random_seed: 20260728
+
+feature_schema:
+  version: mood_social_feature_schema_v3_3_3
+  sha256: d2ed18db72601ccb3b0cbb89907bc60ab336bd00f84f0b2c49dcea568bf339e9
+
+split:
+  split_id: mood-social-v3.3.3-participant-nested-5x5-seed-20260728-v1
+  path: data/processed/mental_health/mood_social/v3.3.3/splits/split_manifest.json
+  sha256: e9915dbc590a6ea454c34d26558ac5866c57ee8a8e78f44cdcc79c859df77ee3
+  outer_folds: 5
+
+upstream:
+  personal_trend_config_path: configs/training/mood_social_personal_trend_v3_3_3.yaml
+  evaluation:
+    run_id: MH-20260801-006
+    report_core_sha256: 07bbcb88b7e41137d151e6c1775bcb805b0cd7e138476b802542a2b635e3a71e
+    baseline_protection_sha256: ba403f4ed6f75e2bd612e198db8af5893a01afd09bfd5bfb99730b9f736428f6
+  model006:
+    run_id: MH-20260801-007
+    model_sha256: 35b36840edf542349a128f770cb02fdcbdb87a371f606ee053ff1bb201d93835
+    manifest_sha256: 134d29c0174d483c0c343e20c48c9f0205c53511100199f69c12716f3a0c8806
+    report_core_sha256: a576f1d0835487e32d56678e1bb3bd61cc66afa97e332c69afbc6e86f637d883
+    enters_fusion: false
+  personal_trend:
+    run_id: MH-20260801-008
+    model_path: models/mental_health/mood_social/v3.3.3/personal_trend_expert.joblib
+    model_sha256: e924e2342077d5847650c3b650fb2f1ee0fa40ea2da5c4d406c26b0ba93ba58f
+    manifest_path: models/mental_health/mood_social/v3.3.3/personal_trend_expert_manifest.json
+    manifest_sha256: d9858a725c1bcd4cd883efadb03a379a1072b5b886c2e5ff232715aaf61d1846
+    oof_path: reports/mental_health/mood_social/MH-20260801-008/oof_predictions.parquet
+    oof_sha256: f23d79b7be21a6a863414e139f537d61c8a9cb06e9a64e061dc60627893d408a
+    report_path: reports/mental_health/mood_social/MH-20260801-008
+    report_core_sha256: bedeffc520f6fbff2df347554b8d40287ec32baff2f83e6b98ef48b172baff20
+  experts:
+    activity:
+      run_id: MH-20260731-001
+      prediction_schema_version: mood-social-activity-oof-predictions-v1
+      model_path: models/mental_health/mood_social/v3.3.3/activity_expert.joblib
+      model_sha256: 906a3cc2b74cdd3beeba446ca32885c7d2f0388be230ab793a2728bfd711bc3a
+      manifest_path: models/mental_health/mood_social/v3.3.3/activity_expert_manifest.json
+      manifest_sha256: eb2521a217083c784ecef1b93deef33aebec5dd4bcb614db5890ed47d5700b1b
+      oof_path: reports/mental_health/mood_social/MH-20260731-001/predictions.parquet
+      oof_sha256: c3c54f192785ea1336bddc01e7c4d0502dde3a22963ba69e3967a0d62a70275c
+    sleep:
+      run_id: MH-20260731-002
+      prediction_schema_version: mood-social-sleep-oof-predictions-v1
+      model_path: models/mental_health/mood_social/v3.3.3/sleep_expert.joblib
+      model_sha256: 966ba9ecd32ac18ac63ed9a6733a2e84f859a657cdb664bc2e034f0857056ade
+      manifest_path: models/mental_health/mood_social/v3.3.3/sleep_expert_manifest.json
+      manifest_sha256: 11096d9916e822be23d8c9acdc86bb9c3c2700bf7c0ea2bcad8abf315ce30459
+      oof_path: reports/mental_health/mood_social/MH-20260731-002/predictions.parquet
+      oof_sha256: f8f4c0de0f51d768383840504724ecac27798a7854abc2006dfd1a0c8f1da685
+    joint:
+      run_id: MH-20260731-003
+      prediction_schema_version: mood-social-activity-sleep-joint-oof-predictions-v1
+      model_path: models/mental_health/mood_social/v3.3.3/activity_sleep_joint_expert.joblib
+      model_sha256: 2152e7a62ba6382d64ddb1ca865410fa99e0acf9b73db54ed4c25622c46e70c8
+      manifest_path: models/mental_health/mood_social/v3.3.3/activity_sleep_joint_expert_manifest.json
+      manifest_sha256: f54149fc0e504d052ec763e56441fdc638e7b00a8c7801ded497e24943755e17
+      oof_path: reports/mental_health/mood_social/MH-20260731-003/predictions.parquet
+      oof_sha256: b55c53faabca77b48a1b630af9dfdbfcf3857975d01dd6d0623628119c3c0f64
+    physiology:
+      run_id: MH-20260731-004
+      prediction_schema_version: mood-social-physiology-oof-predictions-v1
+      model_path: models/mental_health/mood_social/v3.3.3/physiology_expert.joblib
+      model_sha256: 1596e4ecae67319818c672f0cfc1ca7177fb4481f21ca66363154e8290c69a9e
+      manifest_path: models/mental_health/mood_social/v3.3.3/physiology_expert_manifest.json
+      manifest_sha256: 2afdb2320f748932ff25d017ff60dd61e54e6e55e5104c72a3e7fec1d483192f
+      oof_path: reports/mental_health/mood_social/MH-20260731-004/predictions.parquet
+      oof_sha256: 0136667b081524ca38771f7ed181eb832ea1440d66351c3541b43f7fb297eebb
+    social_context:
+      run_id: MH-20260801-005
+      prediction_schema_version: mood-social-social-context-oof-predictions-v1
+      model_path: models/mental_health/mood_social/v3.3.3/social_context_expert.joblib
+      model_sha256: 7d5cc80ed99d46f2b8ecde67d6fdd8264cbc325a67c6dc5fcef5a38559263936
+      manifest_path: models/mental_health/mood_social/v3.3.3/social_context_expert_manifest.json
+      manifest_sha256: 5c1ae24a8f05fa92f3e10bf90676b0671464194827f939177f46e741efb2059f
+      oof_path: reports/mental_health/mood_social/MH-20260801-005/predictions.parquet
+      oof_sha256: fc8f9601ecc1753b77f002aea552c604eab82ff4a4de3a88fcc90ad62dc62937
+
+confidence:
+  probability_representation: current_calibrated
+  model_reliability:
+    method: outer_fold_excluded_source_auroc_excess
+    formula: clip(2 * (auroc - 0.5), 0, 1)
+    minimum_source_rows: 100
+    minimum_source_positive_rows: 5
+    minimum_source_negative_rows: 5
+    fallback: outer_fold_excluded_expert_pooled
+  formula: clip(model_reliability * observed_feature_fraction, 0, 1)
+
+mask_semantics:
+  feature_mask: exact_canonical_masks_for_each_upstream_branch
+  day_mask: aggregate_public_window_observed_proxy_not_runtime_daily_vector
+  expert_mask: exact_upstream_expert_oof_mask
+  personal_change_mask: exact_upstream_personal_trend_oof_mask
+  masks_as_risk_features: false
+
+production_boundary:
+  fit_stacking: false
+  select_threshold: false
+  change_active_experts: false
+  change_attention_levels: false
+  change_http_behavior: false
+  include_model006_predictions: false
+  include_scale_items: false
+  include_publisher_labels: false
+
+output:
+  report_directory: reports/mental_health/mood_social/MH-20260802-009
+  table_file: fusion_oof_table.parquet
+  manifest_file: fusion_table_manifest.json
+  overwrite: false
+  atomic_publish: true

@@ -22,7 +22,10 @@ from elderly_monitoring.modules.mental_health.feature_extraction.activity import
     DaytimeActivityConfig,
     aggregate_activity_windows,
     aggregate_daytime_activity_from_windows,
+    aggregate_mood_social_camera_daily,
+    aggregate_mood_social_camera_windows,
     extract_daytime_activity_features,
+    extract_mood_social_camera_features,
 )
 from elderly_monitoring.modules.mental_health.feature_extraction.gait_transfer import (
     CognitiveGaitConfig,
@@ -58,12 +61,6 @@ from elderly_monitoring.modules.mental_health.feature_extraction.wandering impor
     detect_wandering_events,
     extract_wandering_features,
 )
-from elderly_monitoring.modules.mental_health.pipeline import (
-    MentalHealthRiskPipeline,
-    MentalSafetyResult,
-    MentalSafetySubmoduleResult,
-)
-
 __all__ = [
     "AggregationConfig",
     "ActiveCognitiveTaskScore",
@@ -88,6 +85,8 @@ __all__ = [
     "aggregate_daily_behavior",
     "aggregate_daily_wandering",
     "aggregate_daytime_activity_from_windows",
+    "aggregate_mood_social_camera_daily",
+    "aggregate_mood_social_camera_windows",
     "build_personal_baselines",
     "build_movement_vitality_result",
     "build_active_cognitive_task_features",
@@ -96,6 +95,7 @@ __all__ = [
     "detect_wandering_events",
     "detect_turn_events",
     "extract_daytime_activity_features",
+    "extract_mood_social_camera_features",
     "extract_cognitive_gait_features",
     "extract_wandering_features",
     "load_aggregation_config",
@@ -109,3 +109,24 @@ __all__ = [
     "score_night_physiology_day",
     "score_sleep_rhythm_day",
 ]
+
+
+_LEGACY_PIPELINE_EXPORTS = {
+    "MentalHealthRiskPipeline",
+    "MentalSafetyResult",
+    "MentalSafetySubmoduleResult",
+}
+
+
+def __getattr__(name: str) -> object:
+    """Preserve legacy exports without loading scorecards for new subpackages."""
+
+    if name not in _LEGACY_PIPELINE_EXPORTS:
+        raise AttributeError(
+            f"module {__name__!r} has no attribute {name!r}"
+        )
+    from elderly_monitoring.modules.mental_health import pipeline
+
+    value = getattr(pipeline, name)
+    globals()[name] = value
+    return value

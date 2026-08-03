@@ -1,0 +1,356 @@
+"""V3.3.3 mood and social-attention contract foundation.
+
+This package is intentionally isolated from the legacy rule-scorecard pipeline.
+MH-001B provides the frozen configuration, MH-002 provides strict HTTP
+schemas plus an artifact-gated route shell, and MH-003 provides deterministic
+daily and seven-day feature mapping. Experts, fusion, and production inference
+orchestration remain dedicated follow-up tasks.
+"""
+
+from elderly_monitoring.modules.mental_health.mood_social.api import (
+    ERROR_HTTP_STATUS,
+    ERROR_MESSAGES,
+    MOOD_SOCIAL_INFER_PATH,
+    MoodSocialAPIError,
+    build_mood_social_error_response,
+    infer_mood_social,
+    validation_error_response,
+)
+from elderly_monitoring.modules.mental_health.mood_social.config import (
+    CURRENT_CONFIG_VERSION,
+    DEFAULT_CONFIG_PATH,
+    HISTORICAL_V3_3_2_CONFIG_PATH,
+    ActiveScoreWeights,
+    AttentionConfig,
+    BaselineConfig,
+    CameraConfig,
+    ChangePointConfig,
+    DeviceConfig,
+    EffectiveEvidenceConfig,
+    FusionConfig,
+    IsolationForestConfig,
+    MaskingConfig,
+    ModelArtifactsConfig,
+    MoodSocialConfig,
+    PersonalTrendConfig,
+    RuntimeConfig,
+    SchemaConfig,
+    SlopeConfig,
+    TrendConfig,
+    WalkingSpeedConfig,
+    load_mood_social_config,
+    mood_social_config_from_mapping,
+)
+from elderly_monitoring.modules.mental_health.mood_social.feature_mapper import (
+    map_mood_social_features,
+    map_mood_social_trend_days,
+)
+from elderly_monitoring.modules.mental_health.mood_social.evaluation import (
+    EVALUATION_VERSION,
+    LOSO_VERSION,
+    METRICS_VERSION,
+    MoodSocialEvaluationError,
+    run_expert_evaluation,
+)
+from elderly_monitoring.modules.mental_health.mood_social.feature_schema import (
+    ACTIVITY_DAILY_FEATURE_SPECS,
+    ACTIVITY_EXPERT_FEATURE_ORDER,
+    ACTIVITY_FEATURE_ORDER,
+    ACTIVITY_FEATURE_SPECS,
+    CAMERA_GAIT_FEATURE_ORDER,
+    CAMERA_GAIT_FEATURE_SPECS,
+    CAMERA_GAIT_KEY_ORDER,
+    CAMERA_DAYTIME_END,
+    CAMERA_DAYTIME_MINUTES,
+    CAMERA_DAYTIME_START,
+    DAILY_FEATURE_GROUP_SPECS,
+    FEATURE_GROUP_ORDER,
+    FEATURE_GROUP_SPECS,
+    FEATURE_SCHEMA_VERSION,
+    HISTORY_LOOKBACK_DAYS,
+    NO_EFFECTIVE_CONTACT_MAX_DAYS,
+    PHYSIOLOGY_DAILY_FEATURE_SPECS,
+    PHYSIOLOGY_EXPERT_FEATURE_ORDER,
+    PHYSIOLOGY_FEATURE_ORDER,
+    PHYSIOLOGY_FEATURE_SPECS,
+    SLEEP_DAILY_FEATURE_SPECS,
+    SLEEP_EXPERT_FEATURE_ORDER,
+    SLEEP_FEATURE_ORDER,
+    SLEEP_FEATURE_SPECS,
+    SOCIAL_CONTACT_FEATURE_ORDER,
+    SOCIAL_CONTACT_DAILY_FEATURE_SPECS,
+    SOCIAL_CONTACT_FEATURE_SPECS,
+    SOCIAL_CONTEXT_FEATURE_ORDER,
+    SOCIAL_CONTEXT_FEATURE_SPECS,
+    STATE_WINDOW_DAYS,
+    SUPERVISED_EXPERT_FEATURE_ORDER,
+    CameraGaitDay,
+    DailyMappedFeatures,
+    DayMask,
+    DomainFeatureVector,
+    FeatureRole,
+    FeatureSpec,
+    FeatureValue,
+    FeatureValueType,
+    MappedMoodSocialFeatures,
+    RiskDirection,
+    TrendContext,
+    feature_schema_manifest,
+)
+from elderly_monitoring.modules.mental_health.mood_social.model_package import (
+    MANIFEST_VERSION as MODEL_PACKAGE_MANIFEST_VERSION,
+    PACKAGE_VERSION as MODEL_PACKAGE_VERSION,
+    ModelPackageConfig,
+    ModelPackageError,
+    MoodSocialModelPackage,
+    build_model_package,
+    load_model_package_config,
+    load_mood_social_model_package,
+)
+from elderly_monitoring.modules.mental_health.mood_social.pipeline import (
+    DEFAULT_PACKAGE_DIRECTORY,
+    PACKAGE_ENVIRONMENT_VARIABLE,
+    MoodSocialPipeline,
+    MoodSocialPipelineError,
+    MoodSocialPipelineUnavailableError,
+)
+from elderly_monitoring.modules.mental_health.mood_social.runtime_policy import (
+    DEFAULT_RUNTIME_POLICY_PATH,
+    RUNTIME_POLICY_DEPLOYMENT_STATUS,
+    RUNTIME_POLICY_SCOPE,
+    RUNTIME_POLICY_VERSION,
+    RuntimePolicyConfig,
+    RuntimePolicyConfigError,
+    RuntimePolicyObservation,
+    RuntimePolicyResult,
+    RuntimeWorkpoint,
+    evaluate_runtime_policy,
+    load_runtime_policy_config,
+)
+try:
+    from elderly_monitoring.modules.mental_health.mood_social.offline_auxiliary import (
+        BUNDLE_VERSION as OFFLINE_AUXILIARY_BUNDLE_VERSION,
+        TRAINING_VERSION as OFFLINE_AUXILIARY_TRAINING_VERSION,
+        OfflineAuxiliaryBundle,
+        OfflineAuxiliaryError,
+        load_offline_auxiliary_config,
+        train_offline_auxiliary_models,
+    )
+except ModuleNotFoundError as exc:
+    if exc.name not in {"catboost", "lightgbm"}:
+        raise
+    OFFLINE_AUXILIARY_BUNDLE_VERSION = None
+    OFFLINE_AUXILIARY_TRAINING_VERSION = None
+    OfflineAuxiliaryBundle = None
+    OfflineAuxiliaryError = RuntimeError
+
+    def load_offline_auxiliary_config(*args, **kwargs):
+        raise RuntimeError("MODEL-006 optional dependencies are not installed")
+
+    def train_offline_auxiliary_models(*args, **kwargs):
+        raise RuntimeError("MODEL-006 optional dependencies are not installed")
+try:
+    from elderly_monitoring.modules.mental_health.mood_social.personal_trend import (
+        BUNDLE_VERSION as PERSONAL_TREND_BUNDLE_VERSION,
+        PersonalTrendBranchResult,
+        PersonalTrendBundle,
+        PersonalTrendError,
+        TrendComponents,
+        TrendObservation,
+        compute_trend_components,
+        load_personal_trend_bundle,
+        load_personal_trend_config,
+        train_personal_trend_expert,
+    )
+except ModuleNotFoundError as exc:
+    if exc.name not in {"catboost", "lightgbm"}:
+        raise
+    PERSONAL_TREND_BUNDLE_VERSION = None
+    PersonalTrendBranchResult = None
+    PersonalTrendBundle = None
+    PersonalTrendError = RuntimeError
+    TrendComponents = None
+    TrendObservation = None
+
+    def compute_trend_components(*args, **kwargs):
+        raise RuntimeError("TREND-001 optional dependencies are not installed")
+
+    def load_personal_trend_bundle(*args, **kwargs):
+        raise RuntimeError("TREND-001 optional dependencies are not installed")
+
+    def load_personal_trend_config(*args, **kwargs):
+        raise RuntimeError("TREND-001 optional dependencies are not installed")
+
+    def train_personal_trend_expert(*args, **kwargs):
+        raise RuntimeError("TREND-001 optional dependencies are not installed")
+from elderly_monitoring.modules.mental_health.mood_social.schemas import (
+    ERROR_SCHEMA_VERSION,
+    MOOD_SOCIAL_MODEL_VERSION,
+    MOOD_SOCIAL_MODULE,
+    MOOD_SOCIAL_TIMEZONE,
+    REQUEST_SCHEMA_VERSION,
+    RESPONSE_SCHEMA_VERSION,
+    CameraGaitMetric,
+    MoodSocialActivity,
+    MoodSocialDailyFeatures,
+    MoodSocialDomainScores,
+    MoodSocialErrorCode,
+    MoodSocialErrorDetail,
+    MoodSocialErrorItem,
+    MoodSocialErrorResponse,
+    MoodSocialHistoryAttentionIndex,
+    MoodSocialInferRequest,
+    MoodSocialInferResponse,
+    MoodSocialModelContribution,
+    MoodSocialPersonalChangeScores,
+    MoodSocialPhysiology,
+    MoodSocialProfile,
+    MoodSocialSleep,
+    MoodSocialSocial,
+)
+
+__all__ = [
+    "ACTIVITY_DAILY_FEATURE_SPECS",
+    "ACTIVITY_EXPERT_FEATURE_ORDER",
+    "ACTIVITY_FEATURE_ORDER",
+    "ACTIVITY_FEATURE_SPECS",
+    "CAMERA_GAIT_FEATURE_ORDER",
+    "CAMERA_GAIT_FEATURE_SPECS",
+    "CAMERA_GAIT_KEY_ORDER",
+    "CAMERA_DAYTIME_END",
+    "CAMERA_DAYTIME_MINUTES",
+    "CAMERA_DAYTIME_START",
+    "CURRENT_CONFIG_VERSION",
+    "DAILY_FEATURE_GROUP_SPECS",
+    "DEFAULT_PACKAGE_DIRECTORY",
+    "DEFAULT_RUNTIME_POLICY_PATH",
+    "DEFAULT_CONFIG_PATH",
+    "ERROR_HTTP_STATUS",
+    "ERROR_MESSAGES",
+    "ERROR_SCHEMA_VERSION",
+    "EVALUATION_VERSION",
+    "FEATURE_GROUP_ORDER",
+    "FEATURE_GROUP_SPECS",
+    "FEATURE_SCHEMA_VERSION",
+    "HISTORY_LOOKBACK_DAYS",
+    "HISTORICAL_V3_3_2_CONFIG_PATH",
+    "MOOD_SOCIAL_INFER_PATH",
+    "MOOD_SOCIAL_MODEL_VERSION",
+    "MOOD_SOCIAL_MODULE",
+    "MOOD_SOCIAL_TIMEZONE",
+    "LOSO_VERSION",
+    "METRICS_VERSION",
+    "MODEL_PACKAGE_MANIFEST_VERSION",
+    "MODEL_PACKAGE_VERSION",
+    "NO_EFFECTIVE_CONTACT_MAX_DAYS",
+    "OFFLINE_AUXILIARY_BUNDLE_VERSION",
+    "OFFLINE_AUXILIARY_TRAINING_VERSION",
+    "PACKAGE_ENVIRONMENT_VARIABLE",
+    "PERSONAL_TREND_BUNDLE_VERSION",
+    "REQUEST_SCHEMA_VERSION",
+    "RESPONSE_SCHEMA_VERSION",
+    "RUNTIME_POLICY_DEPLOYMENT_STATUS",
+    "RUNTIME_POLICY_SCOPE",
+    "RUNTIME_POLICY_VERSION",
+    "STATE_WINDOW_DAYS",
+    "SUPERVISED_EXPERT_FEATURE_ORDER",
+    "ActiveScoreWeights",
+    "AttentionConfig",
+    "BaselineConfig",
+    "CameraGaitMetric",
+    "CameraGaitDay",
+    "CameraConfig",
+    "ChangePointConfig",
+    "DeviceConfig",
+    "DailyMappedFeatures",
+    "DayMask",
+    "DomainFeatureVector",
+    "EffectiveEvidenceConfig",
+    "FusionConfig",
+    "FeatureRole",
+    "FeatureSpec",
+    "FeatureValue",
+    "FeatureValueType",
+    "IsolationForestConfig",
+    "MaskingConfig",
+    "ModelArtifactsConfig",
+    "MoodSocialAPIError",
+    "MoodSocialActivity",
+    "MoodSocialConfig",
+    "MoodSocialDailyFeatures",
+    "MoodSocialDomainScores",
+    "MoodSocialErrorCode",
+    "MoodSocialErrorDetail",
+    "MoodSocialErrorItem",
+    "MoodSocialErrorResponse",
+    "MoodSocialEvaluationError",
+    "MoodSocialHistoryAttentionIndex",
+    "MoodSocialInferRequest",
+    "MoodSocialInferResponse",
+    "MappedMoodSocialFeatures",
+    "MoodSocialModelContribution",
+    "MoodSocialModelPackage",
+    "MoodSocialPipeline",
+    "MoodSocialPipelineError",
+    "MoodSocialPipelineUnavailableError",
+    "ModelPackageConfig",
+    "ModelPackageError",
+    "MoodSocialPersonalChangeScores",
+    "MoodSocialPhysiology",
+    "MoodSocialProfile",
+    "MoodSocialSleep",
+    "MoodSocialSocial",
+    "OfflineAuxiliaryBundle",
+    "OfflineAuxiliaryError",
+    "PersonalTrendConfig",
+    "PersonalTrendBranchResult",
+    "PersonalTrendBundle",
+    "PersonalTrendError",
+    "PHYSIOLOGY_DAILY_FEATURE_SPECS",
+    "PHYSIOLOGY_EXPERT_FEATURE_ORDER",
+    "PHYSIOLOGY_FEATURE_ORDER",
+    "PHYSIOLOGY_FEATURE_SPECS",
+    "RiskDirection",
+    "RuntimeConfig",
+    "RuntimePolicyConfig",
+    "RuntimePolicyConfigError",
+    "RuntimePolicyObservation",
+    "RuntimePolicyResult",
+    "RuntimeWorkpoint",
+    "SchemaConfig",
+    "SlopeConfig",
+    "SLEEP_DAILY_FEATURE_SPECS",
+    "SLEEP_EXPERT_FEATURE_ORDER",
+    "SLEEP_FEATURE_ORDER",
+    "SLEEP_FEATURE_SPECS",
+    "SOCIAL_CONTACT_DAILY_FEATURE_SPECS",
+    "SOCIAL_CONTACT_FEATURE_ORDER",
+    "SOCIAL_CONTACT_FEATURE_SPECS",
+    "SOCIAL_CONTEXT_FEATURE_ORDER",
+    "SOCIAL_CONTEXT_FEATURE_SPECS",
+    "TrendConfig",
+    "TrendComponents",
+    "TrendContext",
+    "TrendObservation",
+    "WalkingSpeedConfig",
+    "build_mood_social_error_response",
+    "build_model_package",
+    "feature_schema_manifest",
+    "compute_trend_components",
+    "evaluate_runtime_policy",
+    "infer_mood_social",
+    "load_mood_social_config",
+    "load_model_package_config",
+    "load_mood_social_model_package",
+    "load_offline_auxiliary_config",
+    "load_personal_trend_bundle",
+    "load_personal_trend_config",
+    "load_runtime_policy_config",
+    "mood_social_config_from_mapping",
+    "map_mood_social_features",
+    "map_mood_social_trend_days",
+    "run_expert_evaluation",
+    "train_offline_auxiliary_models",
+    "train_personal_trend_expert",
+    "validation_error_response",
+]

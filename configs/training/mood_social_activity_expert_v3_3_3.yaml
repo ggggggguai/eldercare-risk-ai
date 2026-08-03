@@ -1,0 +1,83 @@
+config_version: mood-social-activity-training-config-v1
+task_id: MODEL-001
+model_id: M-ACT-001
+model_version: activity-expert-v3.3.3
+
+run:
+  run_id: MH-20260731-001
+
+data:
+  datasets:
+    - psyche_d
+    - resilient
+    - nhanes
+  excluded_datasets:
+    - shenzhen_elderly
+    - nhanes_ssq_2005_2008
+  target: binary_target
+  feature_schema_version: mood_social_feature_schema_v3_3_3
+  feature_schema_sha256: d2ed18db72601ccb3b0cbb89907bc60ab336bd00f84f0b2c49dcea568bf339e9
+  split_id: mood-social-v3.3.3-participant-nested-5x5-seed-20260728-v1
+  split_sha256: e9915dbc590a6ea454c34d26558ac5866c57ee8a8e78f44cdcc79c859df77ee3
+  sample_weighting: dataset_equal_then_class_equal_then_participant_class_equal_then_repeat_window_equal
+
+preprocessing:
+  ecdf: right_continuous_training_fold_only
+  imputation: training_fold_median
+  categorical_encoding: numeric_identity_no_categorical_inputs
+  standardization: none_for_lightgbm
+  feature_selection: training_fold_finite_nonconstant
+  add_missing_indicators: false
+  use_feature_masks_as_risk_inputs: false
+  use_feature_coverage_as_risk_input: false
+
+search:
+  traversal: deterministic_sha256_subset
+  candidate_count: 32
+  auprc_tie_tolerance: 1.0e-12
+  selection: highest_mean_inner_auprc_then_lowest_mean_inner_brier_then_candidate_id
+  final_selection: aggregate_inner_search_only_without_outer_test_metrics
+  space:
+    n_estimators: [200, 400]
+    learning_rate: [0.03, 0.05]
+    num_leaves: [7, 15, 31]
+    max_depth: [3, 5, -1]
+    min_child_samples: [20, 50]
+    subsample: [0.8, 1.0]
+    colsample_bytree: [0.8, 1.0]
+    reg_alpha: [0, 0.1]
+    reg_lambda: [0.1, 1.0]
+
+calibration:
+  aggregate_expert_selection: isotonic_if_positive_participants_at_least_threshold_else_platt
+  isotonic_min_positive_participants: 200
+  fit_input: strict_cross_fitted_raw_probability
+  fit_weighting: frozen_training_sample_weight
+  probability_clip_epsilon: 1.0e-6
+
+evaluation:
+  primary_metric: auprc
+  tie_break_metric: brier_score
+  decision_threshold: 0.5
+  ece_binning: equal_width
+  ece_bin_count: 10
+  metrics:
+    - auprc
+    - auroc
+    - macro_f1
+    - sensitivity
+    - specificity
+    - brier_score
+    - ece
+  report_scopes:
+    - overall
+    - by_dataset
+    - by_outer_fold
+  performance_gate: none
+
+runtime:
+  random_seed: 20260728
+  lightgbm_n_jobs: 1
+  deterministic: true
+  force_col_wise: true
+  subsample_freq: 1

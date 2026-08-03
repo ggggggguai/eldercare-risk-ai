@@ -5,6 +5,25 @@ from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator
 
+from elderly_monitoring.modules.mental_health.mood_social.schemas import (
+    CameraGaitMetric,
+    MoodSocialActivity,
+    MoodSocialDailyFeatures,
+    MoodSocialDomainScores,
+    MoodSocialErrorDetail,
+    MoodSocialErrorItem,
+    MoodSocialErrorResponse,
+    MoodSocialHistoryAttentionIndex,
+    MoodSocialInferRequest,
+    MoodSocialInferResponse,
+    MoodSocialModelContribution,
+    MoodSocialPersonalChangeScores,
+    MoodSocialPhysiology,
+    MoodSocialProfile,
+    MoodSocialSleep,
+    MoodSocialSocial,
+)
+
 NonEmptyString = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 SessionStatus = Literal["starting", "running", "reconnecting", "stopping", "stopped", "failed"]
 RoiType = Literal[

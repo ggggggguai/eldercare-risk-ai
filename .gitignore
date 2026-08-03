@@ -1,6 +1,8 @@
 __pycache__/
 *.py[cod]
 .pytest_cache/
+.pytest-tmp-*/
+.codex-tmp/
 .mypy_cache/
 .ruff_cache/
 .venv/
@@ -22,6 +24,7 @@ data/documents/**/*
 data/annotations/fall_risk/cvat_exports/raw/**/*
 
 # Local experiment outputs.
+reports/
 reports/**/*.csv
 reports/**/*.json
 reports/**/*.jsonl
@@ -36,6 +39,8 @@ tmp/
 *.onnx
 *.engine
 *.ckpt
+models/asr/asr-paraformer-zh-v1.0/**
+!models/asr/asr-paraformer-zh-v1.0/sha256sums.txt
 
 # Local environment files.
 .env

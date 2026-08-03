@@ -1,0 +1,15 @@
+[Unit]
+Description=Fun-ASR-Nano vLLM service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/FunASR
+Environment=CUDA_VISIBLE_DEVICES=0
+ExecStart=/opt/eldercare-asr-vllm/bin/python /opt/FunASR/examples/industrial_data_pretraining/fun_asr_nano/serve_vllm.py --port 8899 --model FunAudioLLM/Fun-ASR-Nano-2512 --gpu-memory-utilization 0.5 --spk-model=
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

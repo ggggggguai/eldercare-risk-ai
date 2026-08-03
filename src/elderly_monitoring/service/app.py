@@ -1,11 +1,24 @@
 from __future__ import annotations
 
-from typing import Any
+from collections.abc import Callable
 
 from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi.exception_handlers import request_validation_exception_handler
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
+from elderly_monitoring.modules.mental_health.mood_social import (
+    MOOD_SOCIAL_INFER_PATH,
+    MoodSocialAPIError,
+    MoodSocialErrorResponse,
+    MoodSocialInferRequest,
+    MoodSocialInferResponse,
+    infer_mood_social,
+    validation_error_response,
+)
+from elderly_monitoring.modules.asr import ASRRequest, ASRTranscript
+from elderly_monitoring.modules.asr.api import transcribe as transcribe_asr
 from elderly_monitoring.modules.roi_annotation.ezviz_client import EzvizVisionModelClient
 from elderly_monitoring.modules.roi_annotation.service import RoiAnnotationError, annotate_roi_image
 from elderly_monitoring.service.daytime_activity import build_daytime_activity_result
@@ -27,15 +40,19 @@ from elderly_monitoring.service.schemas import (
     StartSessionRequest,
     StreamUrlUpdate,
 )
-from elderly_monitoring.service.session import SessionManager, SessionStatus
+from elderly_monitoring.service.session import SessionManager
 from elderly_monitoring.service.settings import ServiceSettings
-from elderly_monitoring.service.mental_health_daily import build_mental_health_daily_risk_result
 from elderly_monitoring.service.night_physiology import build_night_physiology_service_result
 from elderly_monitoring.service.sleep_rhythm import build_sleep_rhythm_service_result
 from elderly_monitoring.service.social_connection import build_social_connection_service_result
 
 
-def create_app(*, settings: ServiceSettings | None = None, session_manager: SessionManager | None = None) -> FastAPI:
+def create_app(
+    *,
+    settings: ServiceSettings | None = None,
+    session_manager: SessionManager | None = None,
+    asr_transcriber: Callable[[ASRRequest], ASRTranscript] | None = None,
+) -> FastAPI:
     service_settings = settings or ServiceSettings.load()
     manager = session_manager or SessionManager(
         model_path=str(service_settings.model_path),
@@ -66,14 +83,44 @@ def create_app(*, settings: ServiceSettings | None = None, session_manager: Sess
     )
     app = FastAPI(title="Elderly Monitoring Fall Risk Service", version="0.2.0")
     bearer = HTTPBearer(auto_error=False)
+    run_asr = asr_transcriber or transcribe_asr
 
     def require_token(credentials: HTTPAuthorizationCredentials | None = Depends(bearer)) -> None:
         if credentials is None or credentials.scheme.lower() != "bearer" or credentials.credentials != service_settings.api_token:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="missing or invalid authorization")
 
-    @app.exception_handler(Exception)
-    async def internal_error(_: Request, __: Exception) -> JSONResponse:
-        return JSONResponse(status_code=500, content={"detail": "internal server error"})
+    def require_mood_social_token(
+        credentials: HTTPAuthorizationCredentials | None = Depends(bearer),
+    ) -> None:
+        if (
+            credentials is None
+            or credentials.scheme.lower() != "bearer"
+            or credentials.credentials != service_settings.api_token
+        ):
+            raise MoodSocialAPIError(code="AUTHENTICATION_FAILED")
+
+    @app.exception_handler(MoodSocialAPIError)
+    async def mood_social_api_error(
+        _: Request,
+        exception: MoodSocialAPIError,
+    ) -> JSONResponse:
+        return JSONResponse(
+            status_code=exception.status_code,
+            content=exception.as_response().model_dump(mode="json"),
+        )
+
+    @app.exception_handler(RequestValidationError)
+    async def request_validation_error(
+        request: Request,
+        exception: RequestValidationError,
+    ) -> JSONResponse:
+        if request.url.path != MOOD_SOCIAL_INFER_PATH:
+            return await request_validation_exception_handler(request, exception)
+        response = validation_error_response(exception)
+        return JSONResponse(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            content=response.model_dump(mode="json"),
+        )
 
     @app.get("/health/live")
     def live() -> dict[str, str]:
@@ -149,6 +196,14 @@ def create_app(*, settings: ServiceSettings | None = None, session_manager: Sess
         return RoiAnnotateResponse(**result)
 
     @app.post(
+        "/v1/asr/transcribe",
+        response_model=ASRTranscript,
+        dependencies=[Depends(require_token)],
+    )
+    def transcribe_audio(request: ASRRequest) -> ASRTranscript:
+        return run_asr(request)
+
+    @app.post(
         "/v1/mental-health/daytime-activity",
         response_model=DaytimeActivityResponse,
         dependencies=[Depends(require_token)],
@@ -202,14 +257,45 @@ def create_app(*, settings: ServiceSettings | None = None, session_manager: Sess
         dependencies=[Depends(require_token)],
     )
     def score_mental_health_daily(request: MentalHealthDailyRiskRequest) -> MentalHealthDailyRiskResponse:
+        from elderly_monitoring.service.mental_health_daily import (
+            build_mental_health_daily_risk_result,
+        )
+
         try:
             result = build_mental_health_daily_risk_result(request)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         return MentalHealthDailyRiskResponse(**result)
 
+    @app.post(
+        MOOD_SOCIAL_INFER_PATH,
+        response_model=MoodSocialInferResponse,
+        dependencies=[Depends(require_mood_social_token)],
+        responses={
+            401: {"model": MoodSocialErrorResponse},
+            422: {"model": MoodSocialErrorResponse},
+            500: {"model": MoodSocialErrorResponse},
+            503: {"model": MoodSocialErrorResponse},
+        },
+    )
+    def infer_mood_social_attention(
+        payload: MoodSocialInferRequest,
+        http_request: Request,
+    ) -> MoodSocialInferResponse:
+        http_request.state.mood_social_request_id = payload.request_id
+        try:
+            return infer_mood_social(payload)
+        except MoodSocialAPIError:
+            raise
+        except Exception as exc:
+            raise MoodSocialAPIError(
+                code="INTERNAL_ERROR",
+                request_id=payload.request_id,
+            ) from exc
+
     app.state.settings = service_settings
     app.state.session_manager = manager
+    app.state.asr_transcriber = run_asr
     return app
 
 

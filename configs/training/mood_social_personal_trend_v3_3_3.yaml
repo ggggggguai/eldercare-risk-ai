@@ -1,0 +1,143 @@
+task_id: TREND-001
+run_id: MH-20260801-008
+training_version: mood-social-personal-trend-v3.3.3-v1
+frozen_document_version: V3.3.3
+random_seed: 20260728
+
+feature_schema:
+  version: mood_social_feature_schema_v3_3_3
+  sha256: d2ed18db72601ccb3b0cbb89907bc60ab336bd00f84f0b2c49dcea568bf339e9
+
+split:
+  split_id: mood-social-v3.3.3-participant-nested-5x5-seed-20260728-v1
+  sha256: e9915dbc590a6ea454c34d26558ac5866c57ee8a8e78f44cdcc79c859df77ee3
+  outer_folds: 5
+  inner_folds: 5
+
+upstream:
+  offline_config_path: configs/training/mood_social_offline_auxiliary_v3_3_3.yaml
+  evaluation_run_id: MH-20260801-006
+  evaluation_core_sha256: 07bbcb88b7e41137d151e6c1775bcb805b0cd7e138476b802542a2b635e3a71e
+  baseline_protection_sha256: ba403f4ed6f75e2bd612e198db8af5893a01afd09bfd5bfb99730b9f736428f6
+  offline_auxiliary:
+    model_path: models/mental_health/mood_social/v3.3.3/offline_auxiliary_models.joblib
+    model_sha256: 35b36840edf542349a128f770cb02fdcbdb87a371f606ee053ff1bb201d93835
+    manifest_path: models/mental_health/mood_social/v3.3.3/offline_auxiliary_models_manifest.json
+    manifest_sha256: 134d29c0174d483c0c343e20c48c9f0205c53511100199f69c12716f3a0c8806
+    report_path: reports/mental_health/mood_social/MH-20260801-007
+    report_core_sha256: a576f1d0835487e32d56678e1bb3bd61cc66afa97e332c69afbc6e86f637d883
+
+baseline:
+  history_lookback_calendar_days: 28
+  initial_days: 3
+  stable_days: 7
+  max_valid_days: 14
+  lower_quantile: 0.10
+  upper_quantile: 0.90
+  abnormal_score_threshold: 0.60
+  scale:
+    mad_multiplier: 1.4826
+    quantile_divisor: 2.563
+    relative_floor_multiplier: 0.05
+    absolute_floor: 0.05
+  deviation:
+    standardized_divisor: 2.0
+    relative_change_denominator: 0.50
+    domain_summary: maximum
+  circular:
+    period_minutes: 1440.0
+    center: circular_medoid
+    scale_quantile_divisor: 1.645
+    absolute_floor_phase: 0.05
+
+components:
+  order:
+    - robust_deviation
+    - risk_slope
+    - isolation_forest
+    - change_point
+    - persistence
+    - history_coverage
+  slope:
+    method: theil_sen
+    minimum_total_points: 3
+    use_calendar_day_spacing: true
+    normalization: risk_directed_scale_ratio_clipped
+  persistence:
+    missing_day_breaks_sequence: true
+    normalization_days: 7
+  isolation_forest:
+    stable_baseline_only: true
+    n_estimators: 100
+    contamination: 0.15
+    random_seed: 20260728
+    minimum_common_features: 2
+    score_mapping: empirical_reference_anomaly_cdf
+  change_point:
+    minimum_valid_points: 6
+    recent_window_points: 3
+    method: earlier_median_recent_median_risk_shift
+    normalization: scale_times_two
+
+reliability:
+  history_coverage_denominator: 7
+  three_day_stability: 0.5
+  leave_one_day_from: 4
+  formula: clip(history_coverage * (1 - abs(e_full - median(e_leave_one_day_out))), 0, 1)
+
+branches:
+  activity:
+    training_dataset: psyche_d
+    family: l2_logistic
+    timescale_proxy_transfer: nominal_month_to_natural_day
+    use_fold_activity_ecdf: true
+  sleep:
+    training_dataset: psyche_d
+    family: l2_logistic
+    timescale_proxy_transfer: nominal_month_to_natural_day
+    use_fold_activity_ecdf: false
+  social:
+    training_dataset: shenzhen_elderly
+    family: l2_logistic_proxy_calibrator
+    proxy_input: social_context.marital_status
+    partnered_value: 0.0
+    not_partnered_value: 1.0
+    runtime_input: robust_deviation
+    proxy_transfer: cross_sectional_profile_to_s10_personal_change
+    direct_s10_phq9_validation: false
+
+logistic:
+  solver: lbfgs
+  penalty: l2
+  max_iter: 5000
+  tolerance: 1.0e-8
+  c_values: [0.01, 0.1, 1.0, 10.0]
+  selection:
+    primary: pooled_inner_oof_auprc_desc
+    secondary: pooled_inner_oof_brier_asc
+    tertiary: candidate_id_asc
+
+sample_weight:
+  dataset_equal: true
+  class_equal_within_dataset: true
+  participant_class_equal: true
+  repeated_windows_split: true
+  smote: false
+
+production_boundary:
+  phq9_scores_as_inputs: false
+  phq9_grades_as_inputs: false
+  scale_items_as_inputs: false
+  publisher_labels_as_inputs: false
+  offline_auxiliary_predictions_as_inputs: false
+  masks_as_risk_inputs: false
+  selects_production_threshold: false
+  changes_active_experts: false
+  changes_http_behavior: false
+
+output:
+  model_path: models/mental_health/mood_social/v3.3.3/personal_trend_expert.joblib
+  manifest_path: models/mental_health/mood_social/v3.3.3/personal_trend_expert_manifest.json
+  report_directory: reports/mental_health/mood_social/MH-20260801-008
+  overwrite: false
+  atomic_publish: true

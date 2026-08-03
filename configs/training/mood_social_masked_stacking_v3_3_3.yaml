@@ -1,0 +1,73 @@
+task_id: FUSION-002
+run_id: MH-20260802-010
+training_version: mood-social-masked-stacking-v3.3.3-v1
+frozen_document_version: V3.3.3
+random_seed: 20260728
+
+input_features:
+  - expert_activity_evidence
+  - expert_sleep_evidence
+  - expert_joint_evidence
+  - expert_physiology_evidence
+  - expert_social_context_evidence
+  - trend_activity_evidence
+  - trend_sleep_evidence
+  - trend_social_evidence
+
+input:
+  fusion_oof_config_path: configs/training/mood_social_fusion_oof_table_v3_3_3.yaml
+  fusion_oof_table_path: reports/mental_health/mood_social/MH-20260802-009/fusion_oof_table.parquet
+  fusion_oof_table_sha256: ca3682a840f8bd642620400ef9f214f06f3f2b6289124c260c697f64d5ecba24
+  fusion_oof_report_core_sha256: 91f1d1380c18ee4aad07116c29ea55baef5b026352719b73702ee59dcefd3dae
+
+feature_schema:
+  version: mood_social_feature_schema_v3_3_3
+  sha256: d2ed18db72601ccb3b0cbb89907bc60ab336bd00f84f0b2c49dcea568bf339e9
+
+split:
+  split_id: mood-social-v3.3.3-participant-nested-5x5-seed-20260728-v1
+  path: data/processed/mental_health/mood_social/v3.3.3/splits/split_manifest.json
+  sha256: e9915dbc590a6ea454c34d26558ac5866c57ee8a8e78f44cdcc79c859df77ee3
+  outer_folds: 5
+  inner_folds: 5
+
+logistic:
+  family: LogisticRegression
+  penalty: l2
+  solver: lbfgs
+  max_iter: 5000
+  tol: 1.0e-10
+  c_values: [0.01, 0.1, 1.0, 10.0]
+  selection_rule: pooled_inner_auprc_desc_then_brier_asc_then_candidate_id
+
+probability:
+  representation: current_calibrated
+  clip_epsilon: 1.0e-6
+  posthoc_calibrator_selected: false
+
+sample_weight:
+  definition: dataset_equal_then_class_equal_then_participant_class_equal_then_repeat_window_equal
+  smote: false
+
+mask_policy:
+  effective_evidence: sum(mask_times_confidence_or_reliability)
+  hard_gate_when_effective_evidence_less_equal_zero: true
+  masks_as_risk_features: false
+  evidence_combination_report_only: true
+
+output:
+  model_path: models/mental_health/mood_social/v3.3.3/mood_fusion.joblib
+  manifest_path: models/mental_health/mood_social/v3.3.3/mood_fusion_manifest.json
+  report_directory: reports/mental_health/mood_social/MH-20260802-010
+  overwrite: false
+  atomic_publish: true
+
+production_boundary:
+  fit_stacking: true
+  select_threshold: false
+  change_active_experts: false
+  change_attention_levels: false
+  change_http_behavior: false
+  include_model006_predictions: false
+  include_scale_items: false
+  include_publisher_labels: false

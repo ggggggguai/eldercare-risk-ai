@@ -4,6 +4,7 @@ version = "0.2.0"
 description = "Algorithm prototypes for fall risk and mental health risk warning."
 requires-python = ">=3.10"
 dependencies = [
+  "pydantic==2.13.4",
   "PyYAML==6.0.3"
 ]
 
@@ -23,8 +24,16 @@ service = [
 ]
 ml = [
   "numpy==2.4.6",
+  "pandas==3.0.3",
+  "pyarrow==21.0.0",
+  "joblib==1.5.3",
   "scikit-learn==1.9.0",
   "lightgbm==4.6.0",
+  "catboost==1.2.10",
+  "matplotlib==3.11.0",
+  "shap==0.51.0",
+  "openpyxl==3.1.5",
+  "xlrd==2.0.2",
   "interpret-core==0.7.8",
   "torch==2.12.1"
 ]

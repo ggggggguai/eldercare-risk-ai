@@ -1,0 +1,113 @@
+{
+  "calibrator": {
+    "fit_row_count": 13591,
+    "method": "isotonic",
+    "positive_participant_count": 2039,
+    "probability_clip_epsilon": 1e-06,
+    "version": "mood-social-probability-calibrator-v1",
+    "x_thresholds": [
+      0.0003819323693957425,
+      0.0012307075763737473,
+      0.028653559617441524,
+      0.02896770159395825,
+      0.5404251767353757,
+      0.5404681036460661,
+      0.5480706524404774,
+      0.5480901646215471,
+      0.9637432414741499
+    ],
+    "y_thresholds": [
+      0.0,
+      0.4611490878197648,
+      0.4611490878197648,
+      0.5074751853867202,
+      0.5074751853867202,
+      0.5135720853962221,
+      0.5135720853962221,
+      0.5330630094832766,
+      0.5330630094832766
+    ]
+  },
+  "code_bindings": {
+    "configs/training/mood_social_sleep_expert_v3_3_3.yaml": "f55787a5856dcd2955cda9c4f3878dd90e9da269d125dfc5fdc4df65ac4edab3",
+    "scripts/train_mood_social_sleep_expert_v3_3_3.py": "b31b8e27494977c9d21415cf62a077988c516a1472ba858767ecfbdf0af28a43",
+    "scripts/validate_mood_social_sleep_expert_v3_3_3.py": "598e2b1633eeab8d0de974cc409ecf7438d8f30063393471b76f23ab44fa50fe",
+    "src/elderly_monitoring/modules/mental_health/mood_social/experts/sleep.py": "09571fdd859c66f8db85a633d3db53e35ece50a7173da8afb00a2bcbf4e6d9ea"
+  },
+  "dataset_ids": [
+    "psyche_d",
+    "resilient",
+    "nhanes"
+  ],
+  "dependencies": {
+    "joblib": "1.5.3",
+    "lightgbm": "4.6.0",
+    "numpy": "2.4.6",
+    "pandas": "3.0.3",
+    "pyarrow": "21.0.0",
+    "scikit_learn": "1.9.0"
+  },
+  "excluded_dataset_ids": [
+    "shenzhen_elderly",
+    "nhanes_ssq_2005_2008"
+  ],
+  "feature_schema_sha256": "d2ed18db72601ccb3b0cbb89907bc60ab336bd00f84f0b2c49dcea568bf339e9",
+  "feature_schema_version": "mood_social_feature_schema_v3_3_3",
+  "hyperparameters": {
+    "colsample_bytree": 1.0,
+    "learning_rate": 0.03,
+    "max_depth": -1,
+    "min_child_samples": 20,
+    "n_estimators": 400,
+    "num_leaves": 15,
+    "reg_alpha": 0,
+    "reg_lambda": 0.1,
+    "subsample": 0.8
+  },
+  "input_feature_names": [
+    "sleep.sleep_duration_norm",
+    "sleep.time_in_bed_norm",
+    "sleep.sleep_efficiency",
+    "sleep.sleep_onset_sin",
+    "sleep.sleep_onset_cos",
+    "sleep.wake_time_sin",
+    "sleep.wake_time_cos",
+    "sleep.sleep_midpoint_sin",
+    "sleep.sleep_midpoint_cos",
+    "sleep.sleep_fragmentation",
+    "sleep.sleep_regularity",
+    "sleep.night_exit_count_mean",
+    "sleep.valid_nights"
+  ],
+  "manifest_version": "mood-social-sleep-model-manifest-v1",
+  "metrics_sha256": "ae27bede4745098799d612b2d7e1ff8ef8dff68b2fe9034e4bdbbfae6bd8ccde",
+  "model_file": "sleep_expert.joblib",
+  "model_id": "M-SLP-001",
+  "model_sha256": "966ba9ecd32ac18ac63ed9a6733a2e84f859a657cdb664bc2e034f0857056ade",
+  "model_version": "sleep-expert-v3.3.3",
+  "predictions_sha256": "f8f4c0de0f51d768383840504724ecac27798a7854abc2006dfd1a0c8f1da685",
+  "run_id": "MH-20260731-002",
+  "selected_feature_names": [
+    "sleep.sleep_duration_norm",
+    "sleep.time_in_bed_norm",
+    "sleep.sleep_efficiency",
+    "sleep.sleep_onset_sin",
+    "sleep.sleep_onset_cos",
+    "sleep.wake_time_sin",
+    "sleep.wake_time_cos",
+    "sleep.sleep_midpoint_sin",
+    "sleep.sleep_midpoint_cos",
+    "sleep.sleep_fragmentation",
+    "sleep.sleep_regularity",
+    "sleep.valid_nights"
+  ],
+  "source_transform": "canonical_same_semantics_identity",
+  "split_id": "mood-social-v3.3.3-participant-nested-5x5-seed-20260728-v1",
+  "split_manifest_sha256": "e9915dbc590a6ea454c34d26558ac5866c57ee8a8e78f44cdcc79c859df77ee3",
+  "status": "active",
+  "training_config_sha256": "f55787a5856dcd2955cda9c4f3878dd90e9da269d125dfc5fdc4df65ac4edab3",
+  "training_participant_count": 6848,
+  "training_participant_sha256": "58b7ffa6ac317e6c55e832f219f16a5384497a8aff578222eda4160001274f22",
+  "training_row_count": 13591,
+  "training_scope": "all_sleep_sources_for_production"
+}

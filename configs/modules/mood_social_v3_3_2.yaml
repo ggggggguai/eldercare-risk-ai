@@ -1,0 +1,64 @@
+module: mood_social
+version: "3.3.2"
+
+schema:
+  request: mood_social_infer_request_v2
+  response: mood_social_infer_response_v2
+
+runtime:
+  timezone: Asia/Shanghai
+  update_frequency: daily
+  inference_window_days: 7
+  fallback_strategy: unavailable
+  random_seed: 20260728
+
+baseline:
+  initial_days: 3
+  stable_days: 7
+  max_window_days: 14
+  lower_quantile: 0.10
+  upper_quantile: 0.90
+  abnormal_score_threshold: 0.60
+
+camera:
+  daytime_start: "06:00"
+  daytime_end: "18:00"
+  daytime_minutes: 720
+  activity_window_seconds: 10
+  active_score_weights:
+    center_motion_score: 0.55
+    pose_motion_score: 0.30
+    zone_transition_score: 0.10
+    posture_change_score: 0.05
+  active_score_threshold: 0.40
+  low_activity_score_threshold: 0.20
+  sedentary_min_minutes: 30
+  walking_speed:
+    min_history_days: 3
+    lower_quantile: 0.10
+    upper_quantile: 0.90
+    denominator_epsilon: 1.0e-6
+
+attention:
+  thresholds:
+    level_1: 0.25
+    level_2: 0.45
+    level_3: 0.65
+
+models:
+  version: mood-fusion-v3.3.2
+  directory: models/mental_health/mood_social/v3.3.2
+  artifacts:
+    activity_expert: activity_expert.joblib
+    sleep_expert: sleep_expert.joblib
+    physiology_expert: physiology_expert.joblib
+    activity_sleep_joint_expert: activity_sleep_joint_expert.joblib
+    social_context_expert: social_context_expert.joblib
+    personal_trend: personal_trend.joblib
+    mood_fusion: mood_fusion.joblib
+    feature_schema: feature_schema.json
+    manifest: manifest.json
+    split_manifest: split_manifest.json
+    metrics: metrics.json
+    factor_labels_zh_cn: factor_labels.zh-CN.json
+    checksums: SHA256SUMS

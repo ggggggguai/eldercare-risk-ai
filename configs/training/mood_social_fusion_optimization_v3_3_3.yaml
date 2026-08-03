@@ -1,0 +1,52 @@
+task_id: OPT-FUSION-001
+run_id: MH-20260802-011
+training_version: mood-social-fusion-optimization-v3.3.3-v1
+frozen_document_version: V3.3.3
+random_seed: 20260728
+
+input:
+  fusion_oof_table_path: reports/mental_health/mood_social/MH-20260802-009/fusion_oof_table.parquet
+  fusion_oof_table_sha256: ca3682a840f8bd642620400ef9f214f06f3f2b6289124c260c697f64d5ecba24
+  fusion_oof_report_core_sha256: 91f1d1380c18ee4aad07116c29ea55baef5b026352719b73702ee59dcefd3dae
+  baseline_oof_path: reports/mental_health/mood_social/MH-20260802-010/oof_predictions.parquet
+  baseline_oof_sha256: 92f2dafd4b67c45d81456282f490adde810e975814dd3f47c3cd087b9dc3f9ac
+  split:
+    path: data/processed/mental_health/mood_social/v3.3.3/splits/split_manifest.json
+    sha256: e9915dbc590a6ea454c34d26558ac5866c57ee8a8e78f44cdcc79c859df77ee3
+
+calibration:
+  methods: [platt, isotonic, beta, temperature]
+  weight_scheme: frozen_four_level
+  target_prior_sensitivity: [0.05, 0.10, 0.20, 0.30]
+  label: offline_sensitivity
+
+fusion_v2:
+  variants: [interactions, source_calibrated, reliability_gated]
+  logistic_c: 10.0
+  interactions: low_order_only
+  source_calibration: train_partition_only
+  reliability_gate: weak_branch_shrinkage_only
+
+source_robustness:
+  source_equal_training: true
+  leave_one_source_out: true
+  outer_test_policy: frozen_data007_outer_fold_only
+
+ablation:
+  weak_branches: [physiology, social_context, trend_social]
+  only_zero_evidence_columns: true
+
+output:
+  model_path: models/mental_health/mood_social/v3.3.3/candidates/MH-20260802-011/mood_fusion_v2_candidate.joblib
+  manifest_path: models/mental_health/mood_social/v3.3.3/candidates/MH-20260802-011/mood_fusion_v2_candidate_manifest.json
+  report_directory: reports/mental_health/mood_social/MH-20260802-011
+  overwrite: false
+
+production_boundary:
+  offline_only: true
+  select_threshold: false
+  change_active_experts: false
+  change_attention_levels: false
+  change_http_behavior: false
+  include_model006_predictions: false
+  overwrite_active_artifacts: false

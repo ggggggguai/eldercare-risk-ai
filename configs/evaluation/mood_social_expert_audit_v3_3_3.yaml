@@ -1,0 +1,127 @@
+evaluation_version: mood-social-expert-audit-v3.3.3-v1
+task_id: EVAL-001
+run_id: MH-20260801-006
+frozen_document_version: V3.3.3
+random_seed: 20260728
+
+split:
+  split_id: mood-social-v3.3.3-participant-nested-5x5-seed-20260728-v1
+  relative_path: data/processed/mental_health/mood_social/v3.3.3/splits/split_manifest.json
+  sha256: e9915dbc590a6ea454c34d26558ac5866c57ee8a8e78f44cdcc79c859df77ee3
+  feature_schema_version: mood_social_feature_schema_v3_3_3
+  feature_schema_sha256: d2ed18db72601ccb3b0cbb89907bc60ab336bd00f84f0b2c49dcea568bf339e9
+
+calibration:
+  methods:
+    - platt
+    - isotonic
+  group_field: global_participant_id
+  fold_field: outer_fold
+  probability_clip_epsilon: 0.000001
+  ece_bin_count: 10
+  weight_schemes:
+    - frozen_four_level
+    - natural_sample
+  target_prior_sensitivity:
+    - 0.05
+    - 0.10
+    - 0.20
+    - 0.30
+  interpretation: sensitivity_only_without_deployment_prior
+
+threshold_audit:
+  mode: all_unique_observed_probabilities
+  reference_threshold: 0.5
+  reference_threshold_is_production_choice: false
+  metrics:
+    - sensitivity
+    - specificity
+    - precision
+    - recall
+    - f1_positive
+    - macro_f1
+    - false_positive
+    - false_negative
+
+leave_one_source_out:
+  enabled: true
+  experts:
+    - activity
+    - sleep
+    - joint
+    - social_context
+  outer_test_policy: frozen_data007_outer_fold_only
+  model_selection_policy: fixed_active_hyperparameters_frozen_before_audit
+  preprocessing_policy: fit_on_each_outer_training_partition_only
+  activity_target_source_ecdf_policy: unlabeled_outer_training_participants_only
+  calibration_policy: raw_probability_only
+  physiology_policy: single_source_small_sample_uncertainty_only
+
+reporting:
+  report_directory: reports/mental_health/mood_social/MH-20260801-006
+  choose_production_threshold: false
+  modify_attention_level_boundaries: false
+  publish_diagnostic_models: false
+  overwrite_active_artifacts: false
+
+baseline_protection:
+  activity:
+    model_id: M-ACT-001
+    run_id: MH-20260731-001
+    model_path: models/mental_health/mood_social/v3.3.3/activity_expert.joblib
+    model_sha256: 906a3cc2b74cdd3beeba446ca32885c7d2f0388be230ab793a2728bfd711bc3a
+    manifest_path: models/mental_health/mood_social/v3.3.3/activity_expert_manifest.json
+    manifest_sha256: eb2521a217083c784ecef1b93deef33aebec5dd4bcb614db5890ed47d5700b1b
+    report_path: reports/mental_health/mood_social/MH-20260731-001
+    predictions_sha256: c3c54f192785ea1336bddc01e7c4d0502dde3a22963ba69e3967a0d62a70275c
+    metrics_sha256: fbadc0a5f74ab5943568bb0032e8e77a06288551815ee5589005ca0af57d05ad
+    search_results_sha256: b8d84e97c813f75f31b4c85faaa5ab30628b9991f5c2ed65c4eb15485ec354b8
+    training_config_sha256: 08d48aa3cebcabadaabb8b62bdd66cb89a8798efb82201e39286b727ee14e416
+  sleep:
+    model_id: M-SLP-001
+    run_id: MH-20260731-002
+    model_path: models/mental_health/mood_social/v3.3.3/sleep_expert.joblib
+    model_sha256: 966ba9ecd32ac18ac63ed9a6733a2e84f859a657cdb664bc2e034f0857056ade
+    manifest_path: models/mental_health/mood_social/v3.3.3/sleep_expert_manifest.json
+    manifest_sha256: 11096d9916e822be23d8c9acdc86bb9c3c2700bf7c0ea2bcad8abf315ce30459
+    report_path: reports/mental_health/mood_social/MH-20260731-002
+    predictions_sha256: f8f4c0de0f51d768383840504724ecac27798a7854abc2006dfd1a0c8f1da685
+    metrics_sha256: ae27bede4745098799d612b2d7e1ff8ef8dff68b2fe9034e4bdbbfae6bd8ccde
+    search_results_sha256: ca9d01819d3034b3fe6fe86f0c01de4b1985af865d379c9e6d2e7847fd30d0a3
+    training_config_sha256: f55787a5856dcd2955cda9c4f3878dd90e9da269d125dfc5fdc4df65ac4edab3
+  joint:
+    model_id: M-JNT-001
+    run_id: MH-20260731-003
+    model_path: models/mental_health/mood_social/v3.3.3/activity_sleep_joint_expert.joblib
+    model_sha256: 2152e7a62ba6382d64ddb1ca865410fa99e0acf9b73db54ed4c25622c46e70c8
+    manifest_path: models/mental_health/mood_social/v3.3.3/activity_sleep_joint_expert_manifest.json
+    manifest_sha256: f54149fc0e504d052ec763e56441fdc638e7b00a8c7801ded497e24943755e17
+    report_path: reports/mental_health/mood_social/MH-20260731-003
+    predictions_sha256: b55c53faabca77b48a1b630af9dfdbfcf3857975d01dd6d0623628119c3c0f64
+    metrics_sha256: ef54b383f29d2b47cabb76c1f7e096036139098c66d2a2b1e79b694fd8426c5f
+    search_results_sha256: 8b730250fa20527908b5f80bf8d39f6fa74078772f3d86e8812350a644a3e119
+    training_config_sha256: cc55f97e16eccaaf458d725e65bb8fa89abfb8742bf6aa07c4ad4dbcf39345b0
+  physiology:
+    model_id: M-PHY-001
+    run_id: MH-20260731-004
+    model_path: models/mental_health/mood_social/v3.3.3/physiology_expert.joblib
+    model_sha256: 1596e4ecae67319818c672f0cfc1ca7177fb4481f21ca66363154e8290c69a9e
+    manifest_path: models/mental_health/mood_social/v3.3.3/physiology_expert_manifest.json
+    manifest_sha256: 2afdb2320f748932ff25d017ff60dd61e54e6e55e5104c72a3e7fec1d483192f
+    report_path: reports/mental_health/mood_social/MH-20260731-004
+    predictions_sha256: 0136667b081524ca38771f7ed181eb832ea1440d66351c3541b43f7fb297eebb
+    metrics_sha256: a9fc58acc6edcf372488defa6628fe7acec5270a7d3e58d9c8a9dd59371017df
+    search_results_sha256: 6d548fda552d652acd633787f1cd30723cb33e72888cc71b44a0151396db63ed
+    training_config_sha256: 5624214f4ba716f826cf414bae22ea68743d864935ad3f3834796d611904fad0
+  social_context:
+    model_id: M-SOC-001
+    run_id: MH-20260801-005
+    model_path: models/mental_health/mood_social/v3.3.3/social_context_expert.joblib
+    model_sha256: 7d5cc80ed99d46f2b8ecde67d6fdd8264cbc325a67c6dc5fcef5a38559263936
+    manifest_path: models/mental_health/mood_social/v3.3.3/social_context_expert_manifest.json
+    manifest_sha256: 5c1ae24a8f05fa92f3e10bf90676b0671464194827f939177f46e741efb2059f
+    report_path: reports/mental_health/mood_social/MH-20260801-005
+    predictions_sha256: fc8f9601ecc1753b77f002aea552c604eab82ff4a4de3a88fcc90ad62dc62937
+    metrics_sha256: 8a87f2db53af0e29e411a7a6860d222488e28697ca8eb7ab2f1c21e92d383888
+    search_results_sha256: aa286dc0a9808c90875f4f8212e071454bc92371e23cbc1532be997995df2b9b
+    training_config_sha256: 4706ebb9815412ffd96f9e17c9922e561083738afd76df502e2effaae46a7509

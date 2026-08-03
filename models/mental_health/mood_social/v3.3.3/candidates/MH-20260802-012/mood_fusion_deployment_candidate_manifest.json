@@ -1,0 +1,46 @@
+{
+  "art001_default": "deployment_candidate",
+  "input_features": [
+    "expert_activity_evidence",
+    "expert_sleep_evidence",
+    "expert_joint_evidence",
+    "expert_physiology_evidence",
+    "expert_social_context_evidence",
+    "trend_activity_evidence",
+    "trend_sleep_evidence",
+    "trend_social_evidence"
+  ],
+  "model_sha256": "dcbd9ed534a9daf51085348519834241384c96b9e705e4075ff298547f8dd48f",
+  "model_version": "mood-social-deployment-safe-fusion-candidate-v1",
+  "oof_sha256": "7a0e36ebd8a795076e3ddacd754771f6b6aed6d9045d346ac8e44b272bda0c6a",
+  "positive_rows": 4079,
+  "production_boundary": {
+    "change_active_experts": false,
+    "change_attention_levels": false,
+    "change_http_behavior": false,
+    "change_personal_trend": false,
+    "consume_public_dataset_id": false,
+    "include_model006_predictions": false,
+    "overwrite_existing_models": false,
+    "select_production_threshold": false
+  },
+  "promotion_passed": true,
+  "report_core_sha256": "f9bab01a563fa0037ca6e424b8efcd082f21431a45c23312b9abf4e68a58fa64",
+  "row_count": 22188,
+  "run_id": "MH-20260802-012",
+  "selected_candidate_id": "coverage_calibrated",
+  "strict_oof": true,
+  "task_id": "OPT-FUSION-002",
+  "training_version": "mood-social-fusion-deployment-optimization-v3.3.3-v1",
+  "upstream_protection": {
+    "baseline_oof_sha256": "92f2dafd4b67c45d81456282f490adde810e975814dd3f47c3cd087b9dc3f9ac",
+    "fusion_oof_table_sha256": "ca3682a840f8bd642620400ef9f214f06f3f2b6289124c260c697f64d5ecba24",
+    "model006_enters_fusion": false,
+    "optimization_model_sha256": "c6ba66b999ea584731af8169041b9fbe21cd7a52ed949e0e2d2e871be3cc0b15",
+    "optimization_oof_sha256": "c22dec998b42ce0892e10feb5a76b130100712ba59a7de6028e515f10028dddc",
+    "public_dataset_id_as_model_input": false,
+    "split_sha256": "e9915dbc590a6ea454c34d26558ac5866c57ee8a8e78f44cdcc79c859df77ee3"
+  },
+  "uses_public_dataset_id": false,
+  "version": "mood-social-deployment-safe-fusion-manifest-v1"
+}

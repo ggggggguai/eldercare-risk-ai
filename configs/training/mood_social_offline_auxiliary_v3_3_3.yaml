@@ -1,0 +1,141 @@
+training_version: mood-social-offline-auxiliary-v3.3.3-v1
+task_id: MODEL-006
+run_id: MH-20260801-007
+frozen_document_version: V3.3.3
+random_seed: 20260728
+
+split:
+  split_id: mood-social-v3.3.3-participant-nested-5x5-seed-20260728-v1
+  relative_path: data/processed/mental_health/mood_social/v3.3.3/splits/split_manifest.json
+  sha256: e9915dbc590a6ea454c34d26558ac5866c57ee8a8e78f44cdcc79c859df77ee3
+  feature_schema_version: mood_social_feature_schema_v3_3_3
+  feature_schema_sha256: d2ed18db72601ccb3b0cbb89907bc60ab336bd00f84f0b2c49dcea568bf339e9
+  outer_fold_count: 5
+  inner_fold_count: 5
+
+upstream_evaluation:
+  config_path: configs/evaluation/mood_social_expert_audit_v3_3_3.yaml
+  run_id: MH-20260801-006
+  report_path: reports/mental_health/mood_social/MH-20260801-006
+  report_core_sha256: 07bbcb88b7e41137d151e6c1775bcb805b0cd7e138476b802542a2b635e3a71e
+  baseline_protection_sha256: ba403f4ed6f75e2bd612e198db8af5893a01afd09bfd5bfb99730b9f736428f6
+
+targets:
+  continuous:
+    name: phq9_total_normalized
+    formula: phq9_total / 27
+    minimum: 0.0
+    maximum: 1.0
+    report_metrics:
+      - mae
+      - rmse
+      - spearman
+  five_level:
+    name: phq9_five_level
+    bands:
+      - [0, 4]
+      - [5, 9]
+      - [10, 14]
+      - [15, 19]
+      - [20, 27]
+    class_ids: [0, 1, 2, 3, 4]
+
+datasets:
+  psyche_d:
+    score_column: phq9_score_end
+    feature_groups: [activity, sleep]
+    fit_activity_ecdf: true
+    regression_family: lightgbm_regressor
+    train_five_level: true
+    multiclass_family: lightgbm_multiclass
+  resilient:
+    score_column: phq9_score
+    feature_groups: [activity, sleep, physiology, social_context]
+    fit_activity_ecdf: true
+    regression_family: elasticnet_regression
+    train_five_level: false
+    multiclass_family: null
+  nhanes:
+    score_column: phq9_total
+    feature_groups: [activity, sleep, social_context]
+    fit_activity_ecdf: true
+    regression_family: lightgbm_regressor
+    train_five_level: true
+    multiclass_family: lightgbm_multiclass
+  shenzhen_elderly:
+    score_column: phq9_score
+    feature_groups: [social_context]
+    fit_activity_ecdf: false
+    regression_family: catboost_regressor
+    train_five_level: false
+    multiclass_family: null
+  nhanes_ssq_2005_2008:
+    score_column: phq9_total
+    feature_groups: [social_context]
+    fit_activity_ecdf: false
+    regression_family: lightgbm_regressor
+    train_five_level: true
+    multiclass_family: lightgbm_multiclass
+
+feature_policy:
+  use_only_frozen_deployment_compatible_schema_fields: true
+  feature_coverage_is_model_input: false
+  feature_mask_is_model_input: false
+  missing_indicator_is_model_input: false
+  scale_items_are_model_inputs: false
+  publisher_labels_are_model_inputs: false
+  ssq_specific_fields_are_model_inputs: false
+  source_identifier_is_model_input: false
+  all_preprocessing_fit_inside_training_fold: true
+
+sample_weighting:
+  regression: participant_equal_then_repeat_window_equal
+  multiclass: class_equal_then_participant_class_equal_then_repeat_window_equal
+  normalize_mean_to_one: true
+  smote: false
+
+search:
+  lightgbm:
+    traversal: deterministic_hash_subset_of_frozen_grid
+    candidate_count: 8
+    n_jobs: 1
+    grid:
+      n_estimators: [200, 400]
+      learning_rate: [0.03, 0.05]
+      num_leaves: [7, 15, 31]
+      max_depth: [3, 5, -1]
+      min_child_samples: [20, 50]
+      subsample: [0.8, 1.0]
+      colsample_bytree: [0.8, 1.0]
+      reg_alpha: [0.0, 0.1]
+      reg_lambda: [0.1, 1.0]
+  elasticnet_regression:
+    traversal: deterministic_full_grid
+    max_iter: 5000
+    tolerance: 0.000001
+    grid:
+      alpha: [0.001, 0.01, 0.1, 1.0]
+      l1_ratio: [0.0, 0.25, 0.5, 0.75, 1.0]
+  catboost_regression:
+    traversal: deterministic_full_grid
+    thread_count: 1
+    grid:
+      iterations: [300, 600]
+      depth: [4, 6]
+      learning_rate: [0.03, 0.05]
+      l2_leaf_reg: [3, 10]
+
+selection:
+  regression: lowest_pooled_inner_weighted_rmse_then_mae_then_candidate_id
+  multiclass: highest_pooled_inner_weighted_macro_f1_then_log_loss_then_candidate_id
+  outer_test_fold_role: evaluation_only
+  probability_calibration: none_offline_auxiliary
+
+output:
+  model_path: models/mental_health/mood_social/v3.3.3/offline_auxiliary_models.joblib
+  manifest_path: models/mental_health/mood_social/v3.3.3/offline_auxiliary_models_manifest.json
+  report_directory: reports/mental_health/mood_social/MH-20260801-007
+  model_status: offline_auxiliary_not_active
+  overwrite_active_experts: false
+  enter_fusion: false
+  enter_api: false

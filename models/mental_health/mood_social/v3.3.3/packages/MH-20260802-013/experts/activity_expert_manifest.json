@@ -1,0 +1,144 @@
+{
+  "calibrator": {
+    "fit_row_count": 13705,
+    "method": "isotonic",
+    "positive_participant_count": 2054,
+    "probability_clip_epsilon": 1e-06,
+    "version": "mood-social-probability-calibrator-v1",
+    "x_thresholds": [
+      7.086215123476363e-05,
+      0.003414199226207468,
+      0.00401571921078185,
+      0.015264940817166821,
+      0.015503044489842152,
+      0.018577877587917194,
+      0.01908330260352288,
+      0.0791430071901145,
+      0.07936556826251066,
+      0.4917163937299557,
+      0.4918354772778589,
+      0.4927278150197702,
+      0.49274505721640655,
+      0.5695382669330686,
+      0.5695504290341583,
+      0.5867446799034389,
+      0.5867965201307506,
+      0.7283490455594981,
+      0.7303965630774047,
+      0.9733304753722474
+    ],
+    "y_thresholds": [
+      0.0,
+      0.0,
+      0.020376105368723956,
+      0.020376105368723956,
+      0.39819933659769396,
+      0.39819933659769396,
+      0.508749784677852,
+      0.508749784677852,
+      0.5381429625514674,
+      0.5381429625514674,
+      0.5432811265720995,
+      0.5432811265720995,
+      0.5459595090641072,
+      0.5459595090641072,
+      0.5753699621260625,
+      0.5753699621260625,
+      0.6081030780556498,
+      0.6081030780556498,
+      0.8683102849353762,
+      0.8683102849353762
+    ]
+  },
+  "code_bindings": {
+    "configs/training/mood_social_activity_expert_v3_3_3.yaml": "08d48aa3cebcabadaabb8b62bdd66cb89a8798efb82201e39286b727ee14e416",
+    "scripts/train_mood_social_activity_expert_v3_3_3.py": "85577b56099bbcf7cabe762de20e607437132c82c0cee8660adcf6453b18c2b7",
+    "scripts/validate_mood_social_activity_expert_v3_3_3.py": "8d0d1acc94f94993fa78e37125b380cd757887fb32b219c58c9b46adda9e3e4b",
+    "src/elderly_monitoring/modules/mental_health/mood_social/experts/activity.py": "7dcb5ce14dd5f186fc1e4b960f6ffb4a63631a046bc9f71e71b3ae1586062244"
+  },
+  "dataset_ids": [
+    "psyche_d",
+    "resilient",
+    "nhanes"
+  ],
+  "dependencies": {
+    "joblib": "1.5.3",
+    "lightgbm": "4.6.0",
+    "numpy": "2.4.6",
+    "pandas": "3.0.3",
+    "pyarrow": "21.0.0",
+    "scikit_learn": "1.9.0"
+  },
+  "ecdf": {
+    "nhanes": {
+      "sha256": "6dbef24b21e7064703d375f0e651faf274da7f562b88d6cb19dba2209cab7e47",
+      "training_participant_count": 2775,
+      "training_participant_sha256": "b3153230acc38512388d1e868682b1d6e1291b4f4483d0cde1ccb8dc7f6e05f1",
+      "training_value_count": 2775
+    },
+    "psyche_d": {
+      "sha256": "1fbd063034926b4e3e205788b478cf755a395a968a8f4ba0250a045cef19803d",
+      "training_participant_count": 4036,
+      "training_participant_sha256": "83ae9adf273ecab3a6452b0683a4908e5ab3455faba9bc89c1e300f5ca0960ee",
+      "training_value_count": 10857
+    },
+    "resilient": {
+      "sha256": "a13410d493cc19b11bf0190006825c095cf7aa7ac8be78eb2b6ac41b7b37eb1c",
+      "training_participant_count": 73,
+      "training_participant_sha256": "4524bfc40a67c9f3dfee11b149e536918326ba6a8e67a3f060b50416bb00baee",
+      "training_value_count": 73
+    }
+  },
+  "excluded_dataset_ids": [
+    "shenzhen_elderly",
+    "nhanes_ssq_2005_2008"
+  ],
+  "feature_schema_sha256": "d2ed18db72601ccb3b0cbb89907bc60ab336bd00f84f0b2c49dcea568bf339e9",
+  "feature_schema_version": "mood_social_feature_schema_v3_3_3",
+  "hyperparameters": {
+    "colsample_bytree": 1.0,
+    "learning_rate": 0.03,
+    "max_depth": -1,
+    "min_child_samples": 20,
+    "n_estimators": 400,
+    "num_leaves": 15,
+    "reg_alpha": 0,
+    "reg_lambda": 0.1,
+    "subsample": 0.8
+  },
+  "input_feature_names": [
+    "activity.activity_volume_norm",
+    "activity.active_ratio",
+    "activity.sedentary_ratio",
+    "activity.longest_inactive_bout_norm",
+    "activity.relative_amplitude",
+    "activity.interdaily_stability",
+    "activity.intradaily_variability",
+    "activity.activity_variability",
+    "activity.valid_days"
+  ],
+  "manifest_version": "mood-social-activity-model-manifest-v1",
+  "metrics_sha256": "fbadc0a5f74ab5943568bb0032e8e77a06288551815ee5589005ca0af57d05ad",
+  "model_file": "activity_expert.joblib",
+  "model_id": "M-ACT-001",
+  "model_sha256": "906a3cc2b74cdd3beeba446ca32885c7d2f0388be230ab793a2728bfd711bc3a",
+  "model_version": "activity-expert-v3.3.3",
+  "predictions_sha256": "c3c54f192785ea1336bddc01e7c4d0502dde3a22963ba69e3967a0d62a70275c",
+  "run_id": "MH-20260731-001",
+  "selected_feature_names": [
+    "activity.activity_volume_norm",
+    "activity.relative_amplitude",
+    "activity.interdaily_stability",
+    "activity.intradaily_variability",
+    "activity.activity_variability",
+    "activity.valid_days"
+  ],
+  "split_id": "mood-social-v3.3.3-participant-nested-5x5-seed-20260728-v1",
+  "split_manifest_sha256": "e9915dbc590a6ea454c34d26558ac5866c57ee8a8e78f44cdcc79c859df77ee3",
+  "status": "active",
+  "training_config_sha256": "08d48aa3cebcabadaabb8b62bdd66cb89a8798efb82201e39286b727ee14e416",
+  "training_participant_count": 6880,
+  "training_participant_sha256": "504df04074608f954e3bc8e4d0c14b92103408b874c2db444aa40fe4d1b3dd38",
+  "training_row_count": 13705,
+  "training_scope": "all_activity_sources_for_production"
+}

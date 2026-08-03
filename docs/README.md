@@ -1,6 +1,6 @@
 # 项目文档
 
-更新时间：2026-07-24
+更新时间：2026-08-03
 
 本页是文档唯一总入口。现行文档描述当前代码和接口；计划文档描述目标；归档文档只保留历史上下文，不能作为当前实现依据。
 
@@ -48,6 +48,7 @@
 | 评估 | [KINECAL 轻量步态 TCN baseline](../reports/fall_risk/kinecal_gait_tcn/README.md) | 14 点时序模型的固定划分实测、失败结论和复现方式 |
 | 复现 | [实时链路工程回归](../reports/fall_risk/runtime/README.md) | 阶段 0/1 的固定输入 hash、离线服务烟测与时钟/队列诊断；不是效果指标 |
 | 心理健康 | [模块 README](modules/mental_health/README.md) | 日级聚合、基线、评分和离线 CLI |
+| 心理健康 | [ASR 与认知模块开发协作文档](modules/mental_health/guides/ASR与认知模块开发协作文档V1.0.md) | ASR、认知模块与后端的边界、字段和调用方式 |
 | 心理健康审计 | [公开数据集可用性与时序审计](../reports/mental_health/dataset_audit_2026-07-25/report.md) | PSYCHE-D、RESILIENT、NHANES 的哈希、标签、时序与冻结实验角色 |
 | 任务 | [当前任务](tasks/README.md) | 项目待办和验证缺口 |
 

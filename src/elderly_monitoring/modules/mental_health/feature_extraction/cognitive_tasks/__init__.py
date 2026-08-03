@@ -12,6 +12,12 @@ from dataclasses import asdict, dataclass, field
 from numbers import Real
 from typing import Any, Mapping
 
+from elderly_monitoring.modules.mental_health.feature_extraction.cognitive_tasks.asr_adapter import (
+    CognitiveTextInput,
+    build_cognitive_text_input,
+    normalize_cognitive_text,
+)
+
 
 TASK_WEIGHTS = {
     "animal_fluency": 0.30,
@@ -396,6 +402,9 @@ def _clamp(value: float) -> float:
 
 __all__ = [
     "ActiveCognitiveTaskScore",
+    "CognitiveTextInput",
     "build_active_cognitive_task_features",
+    "build_cognitive_text_input",
+    "normalize_cognitive_text",
     "score_active_cognitive_tasks",
 ]

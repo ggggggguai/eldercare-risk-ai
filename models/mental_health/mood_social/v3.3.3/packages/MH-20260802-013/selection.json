@@ -1,0 +1,18 @@
+{
+  "fusion_002_retained": true,
+  "opt_fusion_001_production_eligible": false,
+  "opt_fusion_001_retained_offline": true,
+  "production_threshold_selected": false,
+  "promotion_checks": {
+    "leave_one_source_stability": true,
+    "natural_auprc_delta": true,
+    "natural_auroc_non_degraded": true,
+    "natural_brier_within_tolerance": true,
+    "outer_fold_stability": true
+  },
+  "promotion_passed": true,
+  "promotion_run_id": "MH-20260802-012",
+  "selected_default": "opt_fusion_002_deployment_candidate",
+  "selection_rule": "OPT-FUSION-002 frozen all-conditions promotion gate",
+  "version": "mood-social-art001-selection-v1"
+}

@@ -1,0 +1,200 @@
+{
+  "calibrator": {
+    "fit_row_count": 11325,
+    "method": "isotonic",
+    "positive_participant_count": 635,
+    "probability_clip_epsilon": 1e-06,
+    "version": "mood-social-probability-calibrator-v1",
+    "x_thresholds": [
+      0.0016879324679749984,
+      0.0018820940267191167,
+      0.3195070262613572,
+      0.32311247484450656,
+      0.44550881783472707,
+      0.4483212816153905,
+      0.4523887184275087,
+      0.45273304754963895,
+      0.5062201902854913,
+      0.5065607777261751,
+      0.5315614603615045,
+      0.5323172840740605,
+      0.5517522479571423,
+      0.5528050085373895,
+      0.6880692327027322,
+      0.6910221597433286,
+      0.7029328439114545,
+      0.7033492746974674,
+      0.7092240431324779,
+      0.7202403824176639,
+      0.7758881087766905,
+      0.7768168270568515,
+      0.8174262374310292,
+      0.81973017921918,
+      0.8557548040867325,
+      0.8573130424831608,
+      0.900534998559105,
+      0.9053744877152098
+    ],
+    "y_thresholds": [
+      0.0,
+      0.3990243107753815,
+      0.3990243107753815,
+      0.41221992995258144,
+      0.41221992995258144,
+      0.47399110786412774,
+      0.47399110786412774,
+      0.4830007118889075,
+      0.4830007118889075,
+      0.5441664828591478,
+      0.5441664828591478,
+      0.5474745547713404,
+      0.5474745547713404,
+      0.5988783677276164,
+      0.5988783677276164,
+      0.6443676318642552,
+      0.6443676318642552,
+      0.648253342631914,
+      0.648253342631914,
+      0.8126156612234983,
+      0.8126156612234983,
+      0.8279484618971077,
+      0.8279484618971077,
+      0.8468127161917314,
+      0.8468127161917314,
+      0.8614757303245265,
+      0.8614757303245265,
+      0.965083536699831
+    ]
+  },
+  "categorical_feature_names": [
+    "social_context.age_group",
+    "social_context.sex",
+    "social_context.marital_status",
+    "social_context.education_level",
+    "social_context.economic_status"
+  ],
+  "code_bindings": {
+    "configs/training/mood_social_social_context_expert_v3_3_3.yaml": "4706ebb9815412ffd96f9e17c9922e561083738afd76df502e2effaae46a7509",
+    "scripts/train_mood_social_social_context_expert_v3_3_3.py": "86d727939c9330e12309b80c4abe236fa0460e68d3c15a65825955bb4cba2384",
+    "scripts/validate_mood_social_social_context_expert_v3_3_3.py": "f53df85d4113204bece75fa3c90c9c7383b81ca9270f2f939d55bd263e284ed6",
+    "src/elderly_monitoring/modules/mental_health/mood_social/experts/social_context.py": "77e5d22ca86c2c48edabf538c8bd4b2949829969931c97dfa972765770bd3c02"
+  },
+  "dataset_ids": [
+    "resilient",
+    "nhanes",
+    "shenzhen_elderly",
+    "nhanes_ssq_2005_2008"
+  ],
+  "dependencies": {
+    "catboost": "1.2.10",
+    "joblib": "1.5.3",
+    "numpy": "2.4.6",
+    "pandas": "3.0.3",
+    "pyarrow": "21.0.0",
+    "scikit_learn": "1.9.0"
+  },
+  "excluded_dataset_ids": [
+    "psyche_d"
+  ],
+  "expert_mask_rule": "at_least_one_selected_social_context_input",
+  "feature_schema_sha256": "d2ed18db72601ccb3b0cbb89907bc60ab336bd00f84f0b2c49dcea568bf339e9",
+  "feature_schema_version": "mood_social_feature_schema_v3_3_3",
+  "forbidden_inputs": [
+    "questionnaire_items",
+    "publisher_labels",
+    "ssq_specific_fields",
+    "activity",
+    "sleep",
+    "physiology",
+    "social_contact",
+    "s10_call_fields"
+  ],
+  "hyperparameters": {
+    "depth": 4,
+    "iterations": 300,
+    "l2_leaf_reg": 10,
+    "learning_rate": 0.05
+  },
+  "input_feature_names": [
+    "social_context.age_group",
+    "social_context.sex",
+    "social_context.living_arrangement",
+    "social_context.marital_status",
+    "social_context.chronic_disease_count",
+    "social_context.self_rated_health",
+    "social_context.functional_limitation",
+    "social_context.social_participation_days_per_week",
+    "social_context.education_level",
+    "social_context.economic_status"
+  ],
+  "manifest_version": "mood-social-social-context-model-manifest-v1",
+  "metrics_sha256": "8a87f2db53af0e29e411a7a6860d222488e28697ca8eb7ab2f1c21e92d383888",
+  "model_file": "social_context_expert.joblib",
+  "model_id": "M-SOC-001",
+  "model_sha256": "7d5cc80ed99d46f2b8ecde67d6fdd8264cbc325a67c6dc5fcef5a38559263936",
+  "model_version": "social-context-expert-v3.3.3",
+  "numeric_feature_names": [
+    "social_context.self_rated_health"
+  ],
+  "predictions_sha256": "fc8f9601ecc1753b77f002aea552c604eab82ff4a4de3a88fcc90ad62dc62937",
+  "run_id": "MH-20260801-005",
+  "selected_feature_names": [
+    "social_context.age_group",
+    "social_context.sex",
+    "social_context.marital_status",
+    "social_context.self_rated_health",
+    "social_context.education_level",
+    "social_context.economic_status"
+  ],
+  "source_transform": "canonical_same_semantics_identity",
+  "split_id": "mood-social-v3.3.3-participant-nested-5x5-seed-20260728-v1",
+  "split_manifest_sha256": "e9915dbc590a6ea454c34d26558ac5866c57ee8a8e78f44cdcc79c859df77ee3",
+  "status": "active",
+  "training_config_sha256": "4706ebb9815412ffd96f9e17c9922e561083738afd76df502e2effaae46a7509",
+  "training_participant_count": 11325,
+  "training_participant_sha256": "a5b209a6c168f377ff9e8bad0756bc4bfdafa27414aa60be9bd8bbe4c568a904",
+  "training_row_count": 11325,
+  "training_scope": "all_social_context_sources_for_production",
+  "upstream_expert_guards": {
+    "activity": {
+      "manifest_bytes": 5066,
+      "manifest_path": "models/mental_health/mood_social/v3.3.3/activity_expert_manifest.json",
+      "manifest_sha256": "eb2521a217083c784ecef1b93deef33aebec5dd4bcb614db5890ed47d5700b1b",
+      "model_bytes": 344264,
+      "model_id": "M-ACT-001",
+      "model_path": "models/mental_health/mood_social/v3.3.3/activity_expert.joblib",
+      "model_sha256": "906a3cc2b74cdd3beeba446ca32885c7d2f0388be230ab793a2728bfd711bc3a",
+      "model_version": "activity-expert-v3.3.3"
+    },
+    "joint": {
+      "manifest_bytes": 6845,
+      "manifest_path": "models/mental_health/mood_social/v3.3.3/activity_sleep_joint_expert_manifest.json",
+      "manifest_sha256": "f54149fc0e504d052ec763e56441fdc638e7b00a8c7801ded497e24943755e17",
+      "model_bytes": 355694,
+      "model_id": "M-JNT-001",
+      "model_path": "models/mental_health/mood_social/v3.3.3/activity_sleep_joint_expert.joblib",
+      "model_sha256": "2152e7a62ba6382d64ddb1ca865410fa99e0acf9b73db54ed4c25622c46e70c8",
+      "model_version": "activity-sleep-joint-expert-v3.3.3"
+    },
+    "physiology": {
+      "manifest_bytes": 4936,
+      "manifest_path": "models/mental_health/mood_social/v3.3.3/physiology_expert_manifest.json",
+      "manifest_sha256": "2afdb2320f748932ff25d017ff60dd61e54e6e55e5104c72a3e7fec1d483192f",
+      "model_bytes": 2016,
+      "model_id": "M-PHY-001",
+      "model_path": "models/mental_health/mood_social/v3.3.3/physiology_expert.joblib",
+      "model_sha256": "1596e4ecae67319818c672f0cfc1ca7177fb4481f21ca66363154e8290c69a9e",
+      "model_version": "physiology-expert-v3.3.3"
+    },
+    "sleep": {
+      "manifest_bytes": 3872,
+      "manifest_path": "models/mental_health/mood_social/v3.3.3/sleep_expert_manifest.json",
+      "manifest_sha256": "11096d9916e822be23d8c9acdc86bb9c3c2700bf7c0ea2bcad8abf315ce30459",
+      "model_bytes": 299913,
+      "model_id": "M-SLP-001",
+      "model_path": "models/mental_health/mood_social/v3.3.3/sleep_expert.joblib",
+      "model_sha256": "966ba9ecd32ac18ac63ed9a6733a2e84f859a657cdb664bc2e034f0857056ade",
+      "model_version": "sleep-expert-v3.3.3"
+    }
+  }
+}

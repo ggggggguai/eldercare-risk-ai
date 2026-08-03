@@ -1,6 +1,6 @@
 # 当前任务
 
-更新时间：2026-07-25
+更新时间：2026-08-03
 
 本文件只记录尚未完成的工作。已经落地的能力写入模块 README；阶段结论和旧待办移入 `docs/archive/`。当前跌倒风险模块处于模型化增强阶段：规则 baseline 仍作为对照和安全 fallback，新增时序模型必须经过数据、split、评估和部署门禁后才能替换主路径。
 
@@ -15,8 +15,9 @@
 | 冻结四个跌倒任务 split | `fall_event_v1`、`near_fall_event_v1`、`functional_proxy_v1` 和 `longitudinal_baseline_v1` 分别取得合格样本、稳定 `split_id` 和无泄漏报告；没有真实参考终点的任务继续明确阻塞，不制造空壳正式 split |
 | 完成跌倒风险正式评估 | 预注册并冻结事件匹配与统计协议，指定测试集保管人与一次性发布流程；在真实冻结 split 上输出 Precision、Recall、F1、PR-AUC、合法分母下的误报指标、提前量、95% CI 和失败案例 bundle |
 | 解除 Workflow A 数据与法律阻断 | 完成公开数据来源/许可证确认、CVAT 身份元数据处置、人员或保守源组说明、功能与纵向参考终点确认；解除证据写入 `reports/fall_risk/workflow_a_blockers.md` |
-| 冻结心理健康量表监督实验 | 按[公开数据集审计](../../reports/mental_health/dataset_audit_2026-07-25/report.md)生成 PSYCHE-D 参与者级固定测试 manifest，分别冻结 `sensor_state`、`forecast_1m`、`forecast_2m`；比较 sensor-only/start-only/start+sensor，报告校准、参与者 cluster bootstrap 和失败案例；RESILIENT/NHANES 的反向时间结果不得混入 past-only 主成绩 |
+| 完成情绪与社交关注 V3.3.3 生产链 | MH-002、CAM-001、MH-003、五套数据适配、DATA-007 参与者级嵌套五折 split，以及 MODEL-001 ActivityExpert、MODEL-002 SleepExpert、MODEL-003 ActivitySleepJointExpert、MODEL-004 PhysiologyExpert 已完成；下一步执行 MODEL-005 SocialContextExpert，再完成 PersonalTrend、Masked Logistic Stacking、模型包和真实推理。全部折内预处理、校准和融合必须绑定 split ID `mood-social-v3.3.3-participant-nested-5x5-seed-20260728-v1`，模型包不可用时不得回退 legacy 评分卡 |
 | 完成真实萤石链路联调 | 使用真实设备或开放平台直播地址启动会话，后端收到并验收风险回调 |
+| 完成 S10 认知三模态接线 | ASR 已完成 V3.3 Python 入口、进程级单例/预热、独立 HTTP、WAV/MP3/M4A、媒体约束和 `q_text` 对齐；后续使用 S10 主动小测真实音频联调音频、文本和面部三分支，视频通话音轨作为第二阶段 |
 | 固定接口契约 | 后端确认字段、鉴权、时间格式、幂等规则和风险动作编码，并保存联调记录 |
 | 完成数据合规材料 | 在采集真人数据前准备知情同意、脱敏编号、访问控制、保留周期和退出删除流程 |
 | 固化开发环境与数据版本证据 | 保持 `eldercare-ai` 的 editable 安装指向当前仓库；记录环境、代码、manifest、标签、split 和配置 hash，并用文档中的 conda 命令完成全量复现 |

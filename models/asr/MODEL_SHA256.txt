@@ -1,0 +1,4 @@
+# SHA-256 checksums for asr-paraformer-zh-v1.0 model weights.
+5bba782a5e9196166233b9ab12ba04cadff9ef9212b4ff6153ed9290ff679025  asr-paraformer-zh-v1.0/paraformer/model.pt
+b3be75be477f0780277f3bae0fe489f48718f585f3a6e45d7dd1fbb1a4255fc5  asr-paraformer-zh-v1.0/fsmn-vad/model.pt
+7176cae922a872e130e6b88aef9a115358171baf79c9124c7c95be383cd6f81  asr-paraformer-zh-v1.0/ct-punc/model.pt

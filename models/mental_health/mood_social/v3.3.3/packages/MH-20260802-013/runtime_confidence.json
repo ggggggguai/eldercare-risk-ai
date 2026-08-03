@@ -1,0 +1,15 @@
+{
+  "expert_reliability": {
+    "activity": 0.1538915552195952,
+    "joint": 0.27138228707079404,
+    "physiology": 0.0,
+    "sleep": 0.1947389358315479,
+    "social_context": 0.3524914741129761
+  },
+  "formula": "clip(max(2 * (auroc - 0.5), 0) * observed_feature_fraction, 0, 1)",
+  "method": "full_strict_oof_auroc_excess_times_feature_coverage",
+  "public_dataset_id_required_at_inference": false,
+  "source_path": "reports/mental_health/mood_social/MH-20260802-009/fusion_oof_table.parquet",
+  "source_sha256": "ca3682a840f8bd642620400ef9f214f06f3f2b6289124c260c697f64d5ecba24",
+  "version": "mood-social-runtime-confidence-v1"
+}

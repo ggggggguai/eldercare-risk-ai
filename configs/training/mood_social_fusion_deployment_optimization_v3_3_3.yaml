@@ -1,0 +1,73 @@
+task_id: OPT-FUSION-002
+run_id: MH-20260802-012
+training_version: mood-social-fusion-deployment-optimization-v3.3.3-v1
+frozen_document_version: V3.3.3
+random_seed: 20260728
+
+input:
+  fusion_oof_table_path: reports/mental_health/mood_social/MH-20260802-009/fusion_oof_table.parquet
+  fusion_oof_table_sha256: ca3682a840f8bd642620400ef9f214f06f3f2b6289124c260c697f64d5ecba24
+  baseline_oof_path: reports/mental_health/mood_social/MH-20260802-010/oof_predictions.parquet
+  baseline_oof_sha256: 92f2dafd4b67c45d81456282f490adde810e975814dd3f47c3cd087b9dc3f9ac
+  optimization_oof_path: reports/mental_health/mood_social/MH-20260802-011/fusion_v2_oof_predictions.parquet
+  optimization_oof_sha256: c22dec998b42ce0892e10feb5a76b130100712ba59a7de6028e515f10028dddc
+  optimization_model_path: models/mental_health/mood_social/v3.3.3/candidates/MH-20260802-011/mood_fusion_v2_candidate.joblib
+  optimization_model_sha256: c6ba66b999ea584731af8169041b9fbe21cd7a52ed949e0e2d2e871be3cc0b15
+  split:
+    path: data/processed/mental_health/mood_social/v3.3.3/splits/split_manifest.json
+    sha256: e9915dbc590a6ea454c34d26558ac5866c57ee8a8e78f44cdcc79c859df77ee3
+    outer_folds: 5
+    inner_folds: 5
+
+candidates:
+  ids:
+    - baseline_refit
+    - interactions
+    - reliability_gated
+    - global_calibrated
+    - coverage_calibrated
+    - probability_average_25
+    - probability_average_50
+    - probability_average_75
+    - rank_average
+    - multiseed_interactions
+  probability_average_interaction_weights: [0.25, 0.50, 0.75]
+  multiseed_seeds: [20260728, 20260729, 20260730]
+  selection_rule: pooled_inner_natural_auprc_desc_then_brier_asc_then_candidate_id
+  production_rule: outer_selection_count_desc_then_mean_inner_auprc_desc_then_candidate_id
+  public_dataset_id_as_model_input: false
+
+calibration:
+  global: platt
+  coverage_mode: evidence_combination
+  minimum_group_rows: 50
+  minimum_group_positive_rows: 5
+  minimum_group_negative_rows: 5
+
+promotion_gate:
+  baseline_run_id: MH-20260802-010
+  minimum_natural_auprc_delta: 0.01
+  minimum_natural_auroc_delta: 0.0
+  maximum_natural_brier_increase: 0.005
+  minimum_non_degraded_outer_folds: 3
+  outer_fold_auprc_tolerance: 0.0
+  source_minimum_positive_rows: 20
+  maximum_leave_one_source_auprc_drop: 0.02
+  all_conditions_required: true
+
+output:
+  model_path: models/mental_health/mood_social/v3.3.3/candidates/MH-20260802-012/mood_fusion_deployment_candidate.joblib
+  manifest_path: models/mental_health/mood_social/v3.3.3/candidates/MH-20260802-012/mood_fusion_deployment_candidate_manifest.json
+  report_directory: reports/mental_health/mood_social/MH-20260802-012
+  overwrite: false
+
+production_boundary:
+  deployment_safe_candidate: true
+  consume_public_dataset_id: false
+  select_production_threshold: false
+  change_active_experts: false
+  change_personal_trend: false
+  include_model006_predictions: false
+  change_http_behavior: false
+  change_attention_levels: false
+  overwrite_existing_models: false

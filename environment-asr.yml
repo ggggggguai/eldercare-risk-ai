@@ -1,0 +1,21 @@
+name: eldercare-asr
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11.15
+  - pip
+  # FFmpeg/FFprobe 8.1.2 are provided on PATH and frozen in
+  # configs/runtime/asr-native-assets.json.
+  - pip:
+      - --extra-index-url https://download.pytorch.org/whl/cu128
+      - torch==2.11.0+cu128
+      - torchvision==0.26.0+cu128
+      - torchaudio==2.11.0+cu128
+      - funasr==1.4.0
+      - modelscope==1.39.0
+      - soundfile==0.14.0
+      - pydantic==2.13.4
+      - fastapi==0.116.1
+      - uvicorn==0.35.0
+      - httpx==0.28.1

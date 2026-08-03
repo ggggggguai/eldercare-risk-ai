@@ -1,1 +1,91 @@
-"""Public dataset validation plans for trend-signal sanity checks."""
+"""Public dataset adapters exposed through the DATA-001 frozen namespace."""
+
+from . import nhanes, nhanes_ssq, psyche_d, resilient, shenzhen
+from .nhanes import (
+    NhanesAdapterError,
+    TrainingFoldECDF as NhanesTrainingFoldECDF,
+    build_canonical_frame as build_nhanes_canonical_frame,
+    build_field_mapping as build_nhanes_field_mapping,
+    build_nhanes_artifacts,
+    canonical_frame_sha256 as canonical_nhanes_frame_sha256,
+    validate_frozen_inputs as validate_nhanes_frozen_inputs,
+)
+from .nhanes_ssq import (
+    NhanesSsqAdapterError,
+    build_canonical_frame as build_nhanes_ssq_canonical_frame,
+    build_field_mapping as build_nhanes_ssq_field_mapping,
+    build_nhanes_ssq_artifacts,
+    canonical_frame_sha256 as canonical_nhanes_ssq_frame_sha256,
+    validate_frozen_inputs as validate_nhanes_ssq_frozen_inputs,
+)
+from .psyche_d import (
+    PsycheDAdapterError,
+    TrainingFoldECDF,
+    build_canonical_frame,
+    build_field_mapping,
+    build_psyche_d_artifacts,
+    parse_sample_index,
+    validate_frozen_inputs,
+)
+from .resilient import (
+    AggregatedSensorWindow,
+    ResilientAdapterError,
+    TrainingFoldECDF as ResilientTrainingFoldECDF,
+    aggregate_sensor_window,
+    build_canonical_frame as build_resilient_canonical_frame,
+    build_field_mapping as build_resilient_field_mapping,
+    build_resilient_artifacts,
+    canonical_frame_sha256 as canonical_resilient_frame_sha256,
+    validate_frozen_inputs as validate_resilient_frozen_inputs,
+)
+from .shenzhen import (
+    ShenzhenAdapterError,
+    build_canonical_frame as build_shenzhen_canonical_frame,
+    build_field_mapping as build_shenzhen_field_mapping,
+    build_shenzhen_artifacts,
+    canonical_frame_sha256 as canonical_shenzhen_frame_sha256,
+    validate_frozen_inputs as validate_shenzhen_frozen_inputs,
+)
+
+__all__ = [
+    "AggregatedSensorWindow",
+    "NhanesAdapterError",
+    "NhanesSsqAdapterError",
+    "NhanesTrainingFoldECDF",
+    "PsycheDAdapterError",
+    "ResilientAdapterError",
+    "ResilientTrainingFoldECDF",
+    "ShenzhenAdapterError",
+    "TrainingFoldECDF",
+    "aggregate_sensor_window",
+    "build_canonical_frame",
+    "build_field_mapping",
+    "build_nhanes_artifacts",
+    "build_nhanes_canonical_frame",
+    "build_nhanes_field_mapping",
+    "build_nhanes_ssq_artifacts",
+    "build_nhanes_ssq_canonical_frame",
+    "build_nhanes_ssq_field_mapping",
+    "build_psyche_d_artifacts",
+    "build_resilient_artifacts",
+    "build_resilient_canonical_frame",
+    "build_resilient_field_mapping",
+    "build_shenzhen_artifacts",
+    "build_shenzhen_canonical_frame",
+    "build_shenzhen_field_mapping",
+    "canonical_nhanes_frame_sha256",
+    "canonical_nhanes_ssq_frame_sha256",
+    "canonical_resilient_frame_sha256",
+    "canonical_shenzhen_frame_sha256",
+    "nhanes",
+    "nhanes_ssq",
+    "parse_sample_index",
+    "psyche_d",
+    "resilient",
+    "shenzhen",
+    "validate_frozen_inputs",
+    "validate_nhanes_frozen_inputs",
+    "validate_nhanes_ssq_frozen_inputs",
+    "validate_resilient_frozen_inputs",
+    "validate_shenzhen_frozen_inputs",
+]

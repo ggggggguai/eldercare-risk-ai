@@ -1,0 +1,20 @@
+{
+  "baseline_oof_sha256": "92f2dafd4b67c45d81456282f490adde810e975814dd3f47c3cd087b9dc3f9ac",
+  "input_table_sha256": "ca3682a840f8bd642620400ef9f214f06f3f2b6289124c260c697f64d5ecba24",
+  "model_sha256": "c6ba66b999ea584731af8169041b9fbe21cd7a52ed949e0e2d2e871be3cc0b15",
+  "offline_only": true,
+  "oof_sha256": "c22dec998b42ce0892e10feb5a76b130100712ba59a7de6028e515f10028dddc",
+  "production_boundary": {
+    "change_active_experts": false,
+    "change_http_behavior": false,
+    "include_model006_predictions": false,
+    "overwrite_active_artifacts": false,
+    "select_threshold": false
+  },
+  "report_core_sha256": "d46c3636eaa44be82c25ded831cd9ea0d292c7d2b40e7762e57a29e4f4de66b6",
+  "run_id": "MH-20260802-011",
+  "strict_oof": true,
+  "task_id": "OPT-FUSION-001",
+  "training_version": "mood-social-fusion-optimization-v3.3.3-v1",
+  "version": "mood-social-fusion-optimization-manifest-v1"
+}
