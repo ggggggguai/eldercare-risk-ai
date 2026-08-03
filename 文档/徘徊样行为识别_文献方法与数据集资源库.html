@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>徘徊样行为识别｜文献、方法与数据集资源库</title>
+  <style>
+    :root{--ink:#142a36;--muted:#5c7180;--navy:#123b61;--blue:#2074be;--teal:#078277;--mint:#e3f4ed;--lime:#b9df74;--amber:#eb9e43;--red:#c85861;--line:#dce7eb;--paper:#fcfdff;--shadow:0 11px 28px rgba(23,63,94,.09)}*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;color:var(--ink);background:radial-gradient(circle at 96% 0,rgba(185,223,116,.30),transparent 25rem),linear-gradient(135deg,#f6faff,#fcfefd 51%,#f4fbf8);font-family:"Microsoft YaHei","PingFang SC","Noto Sans CJK SC",Arial,sans-serif;line-height:1.68}.wrap{width:min(1160px,calc(100% - 40px));margin:auto}
+    header{padding:57px 0 28px}.eyebrow{display:inline-flex;align-items:center;gap:8px;padding:5px 11px;border:1px solid #bfd8d5;border-radius:99px;background:rgba(255,255,255,.7);color:var(--teal);font-size:13px;font-weight:800;letter-spacing:.09em}.eyebrow:before{content:"";width:7px;height:7px;border-radius:50%;background:var(--teal)}h1{max-width:940px;margin:18px 0 12px;font-size:clamp(30px,5vw,54px);line-height:1.15;letter-spacing:-.05em}.sub{max-width:840px;margin:0;color:#425c6b;font-size:18px}.meta{margin:19px 0 0;color:var(--muted);font-size:13px}
+    .intro{display:grid;grid-template-columns:1.2fr .8fr;gap:21px;margin:17px 0 40px;padding:29px 30px;border-radius:22px;color:#f8ffff;background:linear-gradient(120deg,#123a62,#176caa 61%,#148f91);box-shadow:var(--shadow)}.intro h2{margin:0 0 10px;font-size:23px}.intro p{margin:0;color:#dceefa}.intro-side{align-self:center;padding:18px 19px;border:1px solid rgba(255,255,255,.25);border-radius:15px;background:rgba(0,29,65,.15)}.intro-side b{display:block;color:#cde883;font-size:13px}.intro-side strong{display:block;margin:4px 0;font-size:23px;color:#fff}.intro-side span{display:block;color:#d3eaf0;font-size:12px;line-height:1.5}
+    nav{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 39px}nav a{padding:7px 12px;border-radius:99px;background:#e4f1fb;color:#1765a6;text-decoration:none;font-size:13px}nav a:hover{background:var(--lime);color:#294438}section{margin:0 0 49px}.heading{display:flex;align-items:baseline;gap:13px;margin:0 0 18px}.heading b{color:var(--teal);font-size:13px;letter-spacing:.12em}.heading h2{margin:0;font-size:26px;line-height:1.3;letter-spacing:-.02em}.lead{max-width:890px;margin:-4px 0 21px;color:#4f6574}
+    .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:15px}.card{padding:20px;border:1px solid var(--line);border-radius:16px;background:rgba(255,255,255,.84);box-shadow:0 5px 15px rgba(20,65,91,.035)}.tag{display:inline-block;margin-bottom:9px;padding:2px 8px;border-radius:99px;font-size:12px;font-weight:800}.tag.green{background:#def1dd;color:#176c49}.tag.blue{background:#e5f0fb;color:#2368a8}.tag.amber{background:#fff0d8;color:#985b12}.tag.red{background:#fae1e1;color:#9b4249}.card h3{margin:0 0 7px;font-size:17px;line-height:1.4}.card p{margin:0;color:#586c7b;font-size:14px}.card ul{margin:8px 0 0;padding-left:18px;color:#586c7b;font-size:14px}.card li{margin:3px 0}
+    .dataset-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:15px}.dataset{display:flex;flex-direction:column;padding:21px;border:1px solid var(--line);border-radius:17px;background:rgba(255,255,255,.86)}.dataset .top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}.dataset h3{margin:0;font-size:19px}.label{padding:3px 7px;border-radius:8px;background:#e1f1ed;color:var(--teal);font-size:11px;font-weight:800;white-space:nowrap}.dataset p{margin:9px 0;color:#596d7b;font-size:13px}.dataset ul{margin:1px 0 0;padding-left:17px;color:#596d7b;font-size:13px}.dataset li{margin:3px 0}.dataset a,.reference a{color:#0877a2;text-decoration:none;overflow-wrap:anywhere}.dataset .foot{margin-top:auto;padding-top:11px;color:#557481;font-size:12px}
+    .method-table{width:100%;border-collapse:separate;border-spacing:0;overflow:hidden;border:1px solid var(--line);border-radius:16px;background:rgba(255,255,255,.86);font-size:14px}.method-table th,.method-table td{padding:14px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}.method-table th{background:#e8f2f9;color:#41617b;font-size:13px}.method-table tr:last-child td{border-bottom:0}.stage{display:inline-flex;align-items:center;gap:5px;white-space:nowrap;font-size:12px;font-weight:800}.stage:before{content:"";width:8px;height:8px;border-radius:50%}.stage.m0{color:#176c49}.stage.m0:before{background:#42a76e}.stage.m1{color:#9b5d13}.stage.m1:before{background:var(--amber)}.stage.m2{color:#9b4249}.stage.m2:before{background:var(--red)}
+    .stack{display:grid;grid-template-columns:1fr 1fr;gap:19px}.stack-panel{padding:23px;border:1px solid var(--line);border-radius:17px;background:rgba(255,255,255,.86)}.stack-panel h3{margin:0 0 11px;font-size:19px}.flow{display:grid;gap:8px}.flow-row{display:grid;grid-template-columns:34px 1fr auto;gap:10px;align-items:center;padding:10px 11px;border-radius:10px;background:#eef6f3;font-size:13px}.flow-row b{display:grid;place-items:center;width:25px;height:25px;border-radius:50%;background:var(--teal);color:#fff;font-size:11px}.flow-row strong{display:block}.flow-row small{display:block;color:#657984;font-size:12px}.flow-row span{color:#16805e;font-size:11px;font-weight:800}.formula{margin-top:14px;padding:14px;border-radius:12px;background:#153341;color:#d8f4ee;font:13px/1.75 Consolas,"Courier New",monospace;white-space:pre-wrap}.formula .a{color:#c8e67d}
+    .reference{padding:20px;border:1px solid var(--line);border-radius:16px;background:rgba(255,255,255,.86)}.reference h3{margin:0 0 5px;font-size:17px}.reference p{margin:0;color:#5a6e7b;font-size:13px}.reference .link{display:block;margin-top:8px;font-size:12px}.reference .use{display:inline-block;margin:9px 0 0;padding:3px 8px;border-radius:8px;background:#e6f2ee;color:#246b58;font-size:12px}.ref-grid{display:grid;grid-template-columns:1fr 1fr;gap:13px}.notice{margin-bottom:17px;padding:15px 17px;border-left:4px solid var(--amber);border-radius:0 14px 14px 0;background:#fff7e9;color:#705d47;font-size:14px}.check-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:16px}.check{padding:11px 13px;border-radius:10px;background:#eef6f2;color:#466365;font-size:13px}.check:before{content:"✓";margin-right:8px;color:var(--teal);font-weight:900}
+    footer{padding:28px 0 48px;border-top:1px solid var(--line);color:var(--muted);font-size:12px}footer p{max-width:930px;margin:0}@media(max-width:860px){.intro,.stack{grid-template-columns:1fr}.grid3,.dataset-grid{grid-template-columns:1fr}.ref-grid{grid-template-columns:1fr}.method-table{display:block;overflow-x:auto}}@media(max-width:520px){.wrap{width:min(100% - 26px,1160px)}header{padding-top:38px}.intro{padding:22px}.check-grid{grid-template-columns:1fr}}
+    @media print{body{background:#fff}nav{display:none}.intro{-webkit-print-color-adjust:exact;print-color-adjust:exact}section{break-inside:avoid}}
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <header>
+      <span class="eyebrow">资料速查 · 徘徊样行为识别</span>
+      <h1>文献、方法与数据集<br>参考资源库</h1>
+      <p class="sub">为“固定摄像头 + 二维轨迹 + 徘徊样行为证据”路线准备的可落地资料清单。每一项均标注它在方案中可承担的角色，避免把通用论文或公开基准误作真实居家养老的验证结论。</p>
+      <p class="meta">配套《徘徊样行为识别技术路线方案》· 资料整理版 · 2026-08-01</p>
+    </header>
+
+    <div class="intro"><div><h2>建议采用“数据—基线—鲁棒模型—拒识—真实验证”的证据链</h2><p>最先要证明的是轨迹形态能否被稳定识别；随后才是摄像头端的跟踪质量、未知样本拒识和日级趋势。公开数据可支撑前两步的研究基准，但不能替代真实居家场景和目标人群上的合规验证。</p></div><div class="intro-side"><b>实施优先级</b><strong>2 个直接数据源</strong><span>先做 2 个公开轨迹数据源 + 合成摄像头污染；再补充自有授权视频离线烟测。</span></div></div>
+
+    <nav><a href="#datasets">数据集</a><a href="#methods">方法清单</a><a href="#stack">建议组合</a><a href="#papers">参考文献</a><a href="#rules">使用原则</a></nav>
+
+    <section id="datasets">
+      <div class="heading"><b>01 / 数据集</b><h2>按“任务匹配度”选择数据，而不是按名字堆数据</h2></div>
+      <p class="lead">前两个为原技术路线中的核心参考；第三个是实际落地必须补齐的目标域数据。公开数据用于模型基准与方法比较，授权实拍数据才用于评估摄像头场景中的真实可用性。</p>
+      <div class="dataset-grid">
+        <article class="dataset"><div class="top"><h3>WanderingPatterns</h3><span class="label">四分类主数据</span></div><p>按方案材料：约 1,600 条轨迹、4 类（<code>direct / pacing / lapping / random</code>）、每类约 400 条、长度 80。</p><ul><li>用途：四分类监督、形态特征分析、自监督预训练、消融实验。</li><li>适配点：与目标的三类徘徊样形态 + direct 对照直接对应。</li><li>限制：先核验参与者 ID 是否可用；无法确认时，仅称为轨迹级 shape benchmark。</li></ul><div class="foot">来源：<a href="https://latamt.ieeer9.org/index.php/transactions/article/view/8969" target="_blank" rel="noopener">Ramos-Rivera et al., 2024</a></div></article>
+        <article class="dataset"><div class="top"><h3>SmartCare</h3><span class="label">二分类补充</span></div><p>按方案材料：200 条训练池轨迹 + 20 条官方验证轨迹，主要提供“徘徊 / 非徘徊”二分类监督。</p><ul><li>用途：训练第一层 <code>direct</code> 与 <code>wandering-like</code> 判别头。</li><li>适配点：可避免把二分类样本伪造为 pacing/lapping/random 子类型。</li><li>限制：缺少可靠逐点时间信息；20 条官方验证集在阈值/方案冻结前不得使用。</li></ul><div class="foot">来源：<a href="https://doi.org/10.5220/0010379902530260" target="_blank" rel="noopener">SmartCare, 2021</a></div></article>
+        <article class="dataset"><div class="top"><h3>授权居家视频轨迹集</h3><span class="label">目标域必需</span></div><p>由项目在用户授权和最小必要采集前提下建设：固定摄像头视频、检测/跟踪轨迹、房间/时段元数据、人工复核记录。</p><ul><li>用途：Camera QC、可用窗口比例、端到端误报/漏报、日级趋势与人工复核一致性。</li><li>最小设计：客厅/通道等固定场景、日夜时段、短遮挡/漏点/ID 切换等故障标签。</li><li>注意：去标识化、访问控制、保留周期和数据授权需先于采集确定。</li></ul><div class="foot">来源：项目自建；不可用公开轨迹或合成污染替代。</div></article>
+      </div>
+    </section>
+
+    <section id="methods">
+      <div class="heading"><b>02 / 方法清单</b><h2>从最小可行基线开始，再逐步增加复杂度</h2></div>
+      <p class="lead">下面的方法不是要求全部一次性实现，而是给出与原技术路线对应的可选工具。标为“首期”的应优先完成；“增强”仅在基线与数据质量已验证后加入。</p>
+      <table class="method-table"><thead><tr><th>方法</th><th>解决的问题</th><th>在本方案中的具体用法</th><th>优先级</th></tr></thead><tbody>
+        <tr><td><strong>轨迹质量控制（QC）</strong></td><td>长缺口、瞬移、ID 切换、跨视频拼接、相机移动会产生伪运动。</td><td>先规则门控，再进入分类器；严重故障输出 <code>unavailable</code>，不靠平滑掩盖。</td><td><span class="stage m0">首期必做</span></td></tr>
+        <tr><td><strong>无锚点形状归一化</strong></td><td>不同画布、人物远近、朝向和轻度透视造成域差异。</td><td>中位数去平移，以横纵跨度的单一尺度归一化；保留长宽比，不声称恢复真实米制坐标。</td><td><span class="stage m0">首期必做</span></td></tr>
+        <tr><td><strong>手工特征 + Random Forest</strong></td><td>建立低门槛、可解释且可快速复现的强基线。</td><td>路径长度、净位移、路径效率、转角、曲率、反向次数、回访距离、覆盖面积等。</td><td><span class="stage m0">首期必做</span></td></tr>
+        <tr><td><strong>TCN（时序卷积网络）</strong></td><td>提取局部位移、转向和往返模式，训练成本低于重型 Transformer。</td><td>作为纯深度基线，也作为 TopoWander-MPT 的局部编码器。</td><td><span class="stage m0">首期必做</span></td></tr>
+        <tr><td><strong>分层分类</strong></td><td>同时利用四分类数据和仅有二分类标签的数据。</td><td>头 1：direct vs wandering-like；头 2：仅对 wandering-like 判 pacing/lapping/random。</td><td><span class="stage m0">首期必做</span></td></tr>
+        <tr><td><strong>语义 patch + 关系偏置 Transformer</strong></td><td>识别相隔较远的回访、反向与闭合关系，降低小样本纯注意力学习难度。</td><td>把路径效率、回访、覆盖面积等 patch 特征及片段间空间/时间关系编码为注意力偏置。</td><td><span class="stage m1">增强实现</span></td></tr>
+        <tr><td><strong>投影与观测污染模拟</strong></td><td>公开轨迹与摄像头轨迹的输入分布不一致。</td><td>随机旋转、缩放、轻度透视、裁切、抖动、漏点、底边偏移；记录种子与参数以便重放。</td><td><span class="stage m1">增强实现</span></td></tr>
+        <tr><td><strong>掩码自监督预训练</strong></td><td>标签小、模型易过拟合。</td><td>遮挡局部 patch，重建位移、转角、曲率、路径效率与回访关系；仅在训练划分中执行。</td><td><span class="stage m1">增强实现</span></td></tr>
+        <tr><td><strong>温度缩放 + 原型/能量 OOD</strong></td><td>闭集分类器会对未知形态过度自信。</td><td>在验证集校准概率；将低质样本输出 unavailable，质量合格但未知样本输出 uncertain。</td><td><span class="stage m1">增强实现</span></td></tr>
+        <tr><td><strong>窗口合并 + 个人基线</strong></td><td>单个 40 秒窗口不应直接形成风险结论。</td><td>合并连续窗口为片段，统计日级频次、时长、夜间比例与类型分布，再与个人历史基线比较。</td><td><span class="stage m2">接入阶段</span></td></tr>
+      </tbody></table>
+    </section>
+
+    <section id="stack">
+      <div class="heading"><b>03 / 建议组合</b><h2>一条可实现、可答辩的最小算法路径</h2></div>
+      <div class="stack"><div class="stack-panel"><h3>推荐实施顺序</h3><div class="flow"><div class="flow-row"><b>1</b><div><strong>安全转换与数据划分</strong><small>原始数据只读，记录哈希、字段统计和异常；先划分再切窗/增强。</small></div><span>数据</span></div><div class="flow-row"><b>2</b><div><strong>QC + 形状归一化 + RF 基线</strong><small>用最短链路验证数据、形态特征、错误拒绝与评估脚本。</small></div><span>基线</span></div><div class="flow-row"><b>3</b><div><strong>纯 TCN + 分层分类</strong><small>验证深度时序表征对 Random Forest 的真实增益。</small></div><span>模型</span></div><div class="flow-row"><b>4</b><div><strong>TopoWander-MPT + 污染模拟</strong><small>仅在前两步结果可信时加入运动语义、关系偏置和一致性训练。</small></div><span>增强</span></div><div class="flow-row"><b>5</b><div><strong>校准/拒识 + 日级基线</strong><small>不确定则拒绝判断；最终只输出行为证据与复核建议。</small></div><span>接入</span></div></div></div>
+        <div class="stack-panel"><h3>核心表达式</h3><div class="formula">center = median(points)
+span_x = Q95(x) - Q05(x)
+span_y = Q95(y) - Q05(y)
+scale = sqrt(span_x² + span_y²)
+<span class="a">qᵢ = (pᵢ - center) / max(scale, ε)</span>
+
+P(direct)  = 1 - P(wandering)
+P(pacing)  = P(wandering) × P(pacing | wandering)
+P(lapping) = P(wandering) × P(lapping | wandering)
+P(random)  = P(wandering) × P(random | wandering)</div><p style="margin:13px 0 0;color:#5c7180;font-size:13px">上半部分是形状适配：消除平移并以同一尺度保留长宽比。下半部分是分层分类：让二分类数据只监督它实际具备的标签。</p></div></div>
+    </section>
+
+    <section id="papers">
+      <div class="heading"><b>04 / 参考文献</b><h2>按用途阅读，而不是按发表时间排列</h2></div>
+      <div class="notice">以下为可直接放入方案中的参考文献池。标注“核心”的文献与本技术路线直接相关；标注“支撑”的文献用于解释某个工程或算法设计选择。论文结论和原始数据的可获得性、许可条件仍应在项目立项时逐一复核。</div>
+      <div class="ref-grid">
+        <article class="reference"><h3>1. WanderingPatterns 分类研究</h3><p>Ramos-Rivera et al. <em>Classification of Wandering Patterns in the Elderly Using Machine Learning and Time Series Analysis</em>, 2024.</p><span class="use">核心：四类轨迹形态与公开基准</span><a class="link" href="https://latamt.ieeer9.org/index.php/transactions/article/view/8969" target="_blank" rel="noopener">原始页面 ↗</a></article>
+        <article class="reference"><h3>2. WPattern</h3><p><em>Trajectory-based wandering pattern detection</em>, IEEE Sensors Journal, 2022.</p><span class="use">核心：徘徊轨迹检测任务参考</span><a class="link" href="https://doi.org/10.1109/JSEN.2021.3123543" target="_blank" rel="noopener">DOI: 10.1109/JSEN.2021.3123543 ↗</a></article>
+        <article class="reference"><h3>3. SmartCare</h3><p><em>Trajectory-based wandering detection</em>, 2021.</p><span class="use">核心：徘徊 / 非徘徊二分类监督</span><a class="link" href="https://doi.org/10.5220/0010379902530260" target="_blank" rel="noopener">DOI: 10.5220/0010379902530260 ↗</a></article>
+        <article class="reference"><h3>4. TCN</h3><p>Bai, Kolter, and Koltun. <em>An Empirical Evaluation of Generic Convolutional and Recurrent Networks for Sequence Modeling</em>, 2018.</p><span class="use">核心：纯 TCN 基线与局部时序编码</span><a class="link" href="https://arxiv.org/abs/1803.01271" target="_blank" rel="noopener">arXiv:1803.01271 ↗</a></article>
+        <article class="reference"><h3>5. TrajFormer</h3><p>Liang et al. <em>TrajFormer: Efficient Trajectory Classification with Transformers</em>, CIKM 2022.</p><span class="use">核心：轨迹 token、时空间隔与 Transformer 表征</span><a class="link" href="https://doi.org/10.1145/3511808.3557481" target="_blank" rel="noopener">DOI: 10.1145/3511808.3557481 ↗</a></article>
+        <article class="reference"><h3>6. TimeMAE</h3><p>Cheng et al. <em>TimeMAE: Self-Supervised Representations of Time Series with Decoupled Masked Autoencoders</em>, 2023.</p><span class="use">支撑：掩码时序自监督预训练</span><a class="link" href="https://arxiv.org/abs/2303.00320" target="_blank" rel="noopener">arXiv:2303.00320 ↗</a></article>
+        <article class="reference"><h3>7. Prototypical Networks</h3><p>Snell, Swersky, and Zemel. <em>Prototypical Networks for Few-shot Learning</em>, NeurIPS 2017.</p><span class="use">支撑：小样本类别原型距离</span><a class="link" href="https://papers.neurips.cc/paper_files/paper/2017/hash/cb8da6767461f2812ae4290eac7cbc42-Abstract.html" target="_blank" rel="noopener">NeurIPS 页面 ↗</a></article>
+        <article class="reference"><h3>8. Energy-based OOD</h3><p>Liu et al. <em>Energy-based Out-of-distribution Detection</em>, NeurIPS 2020.</p><span class="use">核心：未知轨迹拒识与过度自信控制</span><a class="link" href="https://proceedings.neurips.cc/paper/2020/hash/f5496252609c43eb8a3d147ab9b9c006-Abstract.html" target="_blank" rel="noopener">NeurIPS 页面 ↗</a></article>
+        <article class="reference"><h3>9. Temperature Scaling</h3><p>Guo et al. <em>On Calibration of Modern Neural Networks</em>, ICML 2017.</p><span class="use">核心：验证集概率校准与 ECE 报告</span><a class="link" href="https://proceedings.mlr.press/v70/guo17a.html" target="_blank" rel="noopener">PMLR 页面 ↗</a></article>
+        <article class="reference"><h3>10. 跟踪误差鲁棒性</h3><p>Weng et al. <em>Whose Track Is It Anyway? Improving Robustness to Tracking Errors with Affinity-Based Trajectory Prediction</em>, CVPR 2022.</p><span class="use">支撑：把碎片、ID 切换与跟踪噪声当作一等问题</span><a class="link" href="https://openaccess.thecvf.com/content/CVPR2022/html/Weng_Whose_Track_Is_It_Anyway_Improving_Robustness_to_Tracking_Errors_CVPR_2022_paper.html" target="_blank" rel="noopener">CVF Open Access ↗</a></article>
+        <article class="reference"><h3>11. ByteTrack</h3><p>Zhang et al. <em>ByteTrack: Multi-Object Tracking by Associating Every Detection Box</em>, 2021.</p><span class="use">支撑：摄像头端人体检测后的短时多目标跟踪</span><a class="link" href="https://arxiv.org/abs/2110.06864" target="_blank" rel="noopener">arXiv:2110.06864 ↗</a></article>
+        <article class="reference"><h3>12. 夜间徘徊上下文感知</h3><p>Ngankam et al. <em>Context awareness architecture for ambient-assisted living applications: Case study of nighttime wandering</em>, 2020.</p><span class="use">支撑：长期习惯、上下文与辅助服务闭环</span><a class="link" href="https://doi.org/10.1177/2055668319887864" target="_blank" rel="noopener">DOI: 10.1177/2055668319887864 ↗</a></article>
+      </div>
+    </section>
+
+    <section id="rules">
+      <div class="heading"><b>05 / 使用原则</b><h2>把引用和数据使用写进研究设计，而不是放在文末</h2></div>
+      <div class="grid3"><article class="card"><span class="tag green">数据</span><h3>训练、验证、测试严格分隔</h3><p>同一参与者、会话、原始轨迹以及其切窗/增强视图不得跨集合；记录原始文件哈希、转换器版本、读写和拒绝样本数。</p></article><article class="card"><span class="tag blue">结论</span><h3>按证据等级表述</h3><p>公开轨迹结果 = 基准能力；模拟污染结果 = 鲁棒性压力测试；授权实拍结果 = 目标摄像头可用性；三者不可混写。</p></article><article class="card"><span class="tag red">边界</span><h3>不将轨迹等同于诊断</h3><p>同样的往返可能来自找物品、锻炼或打电话。输出只能是行为形态、趋势与复核建议，不能给出疾病诊断或医学风险等级。</p></article></div>
+      <div class="check-grid"><div class="check">每一个外部数据源先确认许可、获取方式与再分发限制</div><div class="check">每个论文方法都配一个可验证的消融或对照实验</div><div class="check">把 uncertain / unavailable 纳入产品状态与测试指标</div><div class="check">真实视频只在授权、脱敏和访问控制落实后使用</div></div>
+    </section>
+  </main>
+  <footer class="wrap"><p>说明：本资源库用于方案设计与文献综述，不构成任何医学结论或数据授权证明。论文链接指向原始论文页、DOI 或官方开放页面；实际使用前请核验数据集的具体可获取性、版本、样本说明及许可条款。</p></footer>
+</body>
+</html>

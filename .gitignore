@@ -40,3 +40,9 @@ tmp/
 # Local environment files.
 .env
 .DS_Store
+
+# Local draft docs (do not commit).
+徘徊行为检测模块开发交接说明.md
+徘徊行为检测模型化设计方案.md
+徘徊行为自采数据说明.md
+心理健康算法模块智能升级设计V3.md
