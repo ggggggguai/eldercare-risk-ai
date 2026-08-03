@@ -468,6 +468,7 @@ def run_yolov8_pose(
     normalize_coordinates: bool = True,
     device: str | None = None,
     model: Any | None = None,
+    persist_tracker: bool = True,
 ) -> int:
     try:
         import cv2
@@ -500,7 +501,7 @@ def run_yolov8_pose(
         track_options: dict[str, Any] = {
             "source": str(video_path),
             "stream": True,
-            "persist": True,
+            "persist": persist_tracker,
             "conf": confidence_threshold,
             "iou": iou_threshold,
             "tracker": tracker_config,

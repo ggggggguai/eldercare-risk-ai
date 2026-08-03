@@ -219,6 +219,42 @@ class FallRiskDataValidationTest(unittest.TestCase):
         self.assertTrue(report["valid"], report["issues"])
         self.assertTrue(report["formal_ready"])
 
+    def test_formal_accepts_project_collection_training_decision(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            paths, video = self._write_fixture(root)
+            decision_path = root / "fall_tiktok_collection_decision.json"
+            decision_path.write_text("{}\n", encoding="utf-8")
+            manifest = self._manifest(video)
+            manifest.update(
+                {
+                    "dataset": "fall_tiktok",
+                    "source_group_id": "fall_tiktok_project_collection_pool",
+                    "source_uri": "internal://collection/fall_tiktok_fixture",
+                    "provenance_status": "project_collected_training_authorized",
+                    "collection_status": "project_collected",
+                    "training_use": "authorized",
+                    "redistribution_use": "not_authorized_by_this_decision",
+                    "consent_status": "not_recorded",
+                    "subject_grouping_status": "unknown",
+                    "collection_decision_id": "fixture-decision",
+                    "collection_decision_path": decision_path.as_posix(),
+                    "collection_decision_sha256": hashlib.sha256(
+                        decision_path.read_bytes()
+                    ).hexdigest(),
+                    "collection_decided_at": "2026-07-28",
+                    "collection_decided_by": "project_owner",
+                }
+            )
+            self._write_jsonl(paths["manifest"], [manifest])
+            self._write_jsonl(paths["actions"], [self._action(video)])
+            self._write_jsonl(paths["events"], [self._event(video)])
+
+            report = self._validate(paths)
+
+        self.assertTrue(report["valid"], report["issues"])
+        self.assertTrue(report["formal_ready"])
+
     def test_formal_accepts_controlled_squat_as_normal_activity(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)

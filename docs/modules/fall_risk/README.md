@@ -1,10 +1,12 @@
 # 跌倒风险算法模块
 
-更新时间：2026-07-25
+更新时间：2026-08-01
 
 本模块承接 `docs/modules/fall_risk/plans/跌倒风险算法研发计划.md`。
 
 面向 2026 年挑战杯揭榜挂帅赛题 `XH-202617` 的冲奖优先级、七周里程碑和验收门槛，见[挑战杯揭榜挂帅冲奖增强计划](plans/挑战杯揭榜挂帅冲奖增强计划.md)。该计划只描述未来工作，不能作为当前能力或实测指标的证据。
+
+拟议的 ESP32-S3、照度与水浸传感接入，以及人-环境交互特征和受控实验，见[环境因素多模态增强实施计划](plans/环境因素多模态增强实施计划.md)。该计划不表示环境设备或融合逻辑已经接入当前主链。
 
 各任务的检测、跟踪、姿态、平滑、步态、坐站、近跌倒、个体基线和风险融合模型候选，见 `docs/modules/fall_risk/plans/跌倒风险各任务模型调研与选型矩阵.md`。该文档区分当前主线、短期对照和数据充足后的增强实验，不能把候选清单理解为已实现能力。
 
@@ -57,20 +59,39 @@
 
 ## 工作流 A：数据、标注与评估底座
 
-截至 2026-07-23，工作流 A 的自动化底座、v2 根标签发布和模型训练标签 v3 结构已实现，但真实数据尚未通过训练/正式评估门禁。当前事实以实际产物和审计结果为准，不以[工作流 A 执行任务书](plans/工作流A-Codex执行任务书.md)中的计划项作为完成证据。
+截至 2026-08-02，工作流 A 的自动化底座、v2 根标签发布和模型训练标签 v3 结构已实现，但真实数据尚未通过训练/正式评估门禁。当前事实以实际产物和审计结果为准，不以[工作流 A 执行任务书](plans/工作流A-Codex执行任务书.md)中的计划项作为完成证据。
 
 | 能力 | 当前状态 | 证据与限制 |
 |---|---|---|
-| 统一数据 manifest | 已实现并对本地数据运行 | `data/manifests/fall_risk_video_manifest.jsonl` 当前有 6,530 条资产，其中 5,516 条是视频；包含 2,976 条经人工确认的 NTU RGB+D 动作片段。NTU 外部 manifest 的旧解压媒体路径当前不存在，重新解压或重建路径前不能据此宣称媒体可训练 |
-| 标注导入与严格校验 | v2 根标签已发布；formal 阻塞 | 根标签为 4,759 条动作、1,783 条事件；NTU 贡献 2,976 条人工精确动作，UR Fall 贡献 268/268，`adl-07-cam0.mp4` 按人工决定略过。发布报告记录 71 条重叠 CVAT 跌倒事件按官方 LE2I 窗口排除。当前校验因 NTU 媒体路径缺失有 `errors=5,952`、`blockers=179`、`formal_ready=false` |
+| 统一数据 manifest | 已实现并对本地数据运行 | `data/manifests/fall_risk_video_manifest.jsonl` 当前有 7,534 条资产，其中 6,520 条是视频；包含 3,914 条已接受的 NTU RGB+D 视频，其中 A043 包含 938 个有人工 CVAT 标签的 `video_id`。NTU 外部 manifest 已按 `data/external/ntu` 重建，当前全量媒体存在性扫描为 0 缺失 |
+| 通用全视频姿态缓存 | 底座已实现；当前 eligible RGB 视频批次全部完成 | `scripts/prepare/prepare_fall_pose_cache.py` 按 dataset 仅选择 eligible video，分别原子发布 raw/cleaned JSONL 和可恢复 state，并用 cache/batch 契约 hash 阻止参数或输入漂移；`scripts/prepare/validate_fall_pose_cache.py` 逐文件复核 batch/state、文件大小、raw/cleaned 记录数和 cleaned 17 点结构。当前 manifest 的 6,512 个 eligible RGB 视频均有 state，剩余 0；表格、时序和已有骨架资产不送入 RGB 姿态模型。批次实测见下表。该缓存不等于已生成训练窗口或已训练模型 |
+| 标注导入与严格校验 | v2 根标签已发布；formal 阻塞 | 根标签为 9,314 条动作、6,338 条事件；Fall Detection 2017 新增 2,977/2,977，NTU 贡献 4,404 条动作和 1,428 条 A043 映射事件，UR Fall 贡献 268/268。发布报告记录 71 条重叠 CVAT 跌倒事件按官方 LE2I 窗口排除，并隔离目录名与 `batch_id` 不一致的 S001-S017 候选批次。结构错误为 0；formal 为 `errors=0`、`blockers=285`、`formal_ready=false` |
 | CaucaFall 人工标注 | 已进入主标签链 | 官方 DOI 为 `10.17632/7w7fccy7ky.4`；100 个视频、10 名受试者、311 条人工 CVAT 动作和 311 条映射事件已接入。manifest 标为 `label_source=cvat_manual`，10 个脱敏任务 ZIP 位于 `cvat_exports/raw/caucafall_manual/`；原始 ZIP 不入库，别名和脱敏记录见 `generated/v2/caucafall_manual/import_report.json` |
-| NTU RGB+D 人工精确动作 | 已进入主标签链 | 外部 NTU manifest 共 3,924 个 RGB 视频；2,976 条 A008/A009/A042/A080 片段按 2026-07-25 人工决定作为精确全片动作进入 v2/v3/split，父级与具体动作 tier 均为 primary。A043 的 948 条明确排除；C03 不自动生成 near-fall 事件。当前缺口是恢复已归档进 `ntu.zip` 的媒体路径 |
-| 模型训练标签 v3 | 结构合法；训练门禁未通过 | 独立输出 4,759 条层级动作标签和 464 条事件窗口，其中 action primary=4,297、fall positive=312、task-specific ignore=152。统一 split 覆盖 5,223 条标签、3,501 个资产、154 个泄漏组且跨分区泄漏为 0；NTU 按受试者组不跨 partition。由于部分 primary 动作类别没有覆盖全部分区，`training_ready.action_type=false`；event negative=0、near-fall positive=0，因此两个事件任务也均为 false |
-| 四任务独立 split | 开发产物已重建 | `fall_event_v1` 为 `ready`，包含 248 个样本；`near_fall_event_v1` 为 `ready`，包含 13 个样本且当前全部在 validation；`functional_proxy_v1`、`longitudinal_baseline_v1` 因无对应真值继续 `blocked`；当前均不是 frozen split |
+| NTU RGB+D 人工标注 | 已进入主标签链 | 外部 NTU manifest 共 3,924 个 RGB 视频且均可访问；2,976 条 A008/A009/A042/A080 片段按 2026-07-25 人工决定进入 v2/v3/split。S001-S017 的 938 个已标 A043 视频按 2026-07-30 接受决定接入，生成 1,428 条动作和 1,428 条映射事件；未标注 A043 不按文件名导入。S016/C003/P008/R001 job revision 以严格 ZIP 文件名绑定并叠加到完整 S016 project，规范化 project ZIP 保留源名和两层 SHA-256。三视角裁决将 S013/C001 定为 D01、S015/C003 定为 D02，并将 S011/P015/R001 与 S017/P020/R001 的六个视角定为 A05 fall hard negative。该批次仍缺 S002 的 10 个 C001 任务；446 个全片跌倒任务没有精确 onset；306 个完整三视角组中有 51 个方向不一致、36 个边界差超过 5 帧 |
+| 抖音/B站跌倒视频整理 | 项目自采；标签已具备训练 tier | 66 个标注剪辑保存在 `annotated_clips/1.mp4` 至 `66.mp4`，当前 manifest 仅保留这 66 个 clip；根目录原始视频已移入废纸篓。150 条动作和 150 条映射事件已进入 manifest/v2；v3 动作为 126 primary、21 auxiliary、3 ignore，事件为 65 auxiliary、6 ignore。未知人员按单一保守来源组防泄漏，当前 221 条 assignment 全部在 test；决定不授予公开再分发权 |
+| 模型训练标签 v3 | 结构合法；训练门禁未通过 | 独立输出 9,314 条层级动作标签和 2,567 条事件窗口，其中 action primary=8,444、auxiliary=702、ignore=168，fall positive=2,303、fall negative=6、task-specific ignore=258。六条 A05 裁决已成为 `manual_v3/adjudicated` 的 `squat_or_kneel` 负样本；统一 split 覆盖 11,881 条标签、6,516 个资产、184 个泄漏组且跨分区泄漏为 0。负样本分布为 train/validation/test=6/0/0，且另六类 fall hard negative 与 near-fall positive 仍缺，因此三项 `training_ready` 均为 false |
+| 四任务独立 split | 开发产物已重建 | `fall_event_v1` 为 `ready`，包含 2,291 个样本；`near_fall_event_v1` 为 `ready`，包含 14 个样本；`functional_proxy_v1`、`longitudinal_baseline_v1` 因无对应真值继续 `blocked`；当前均不是 frozen split |
 | 跌倒/近跌倒事件评估器 | 已实现；仅完成合成烟测 | 入口为 `scripts/evaluate/evaluate_fall_events.py`，开发协议位于 `configs/evaluation/`；`reports/fall_risk/workflow_a_synthetic_evaluation/bundle/` 证明 bundle 生成链路可运行，但协议是 `development_provisional`、输入是合成数据，任何数值都不是比赛指标或真实模型效果 |
 | 正式数据版本与指标 | 未就绪 | 需要先取得合格标签、正式校验报告、非空冻结 split、冻结评估协议和盲测治理证据，才能生成正式指标 |
 
-当前数据阻断包括：NTU 旧解压媒体路径缺失、76 条 `U01/uncertain`、人员或保守源组治理、功能与纵向参考终点、测试集保管职责隔离，以及评估协议预注册。责任角色和解除条件见[工作流 A 阻塞清单](../../../reports/fall_risk/workflow_a_blockers.md)。
+### 全视频姿态缓存批次
+
+以下批次统一使用 YOLOv8n-Pose、ByteTrack、MPS 和相同质量控制契约；每批报告位于 `data/processed/fall_risk/pose_quality_y8n_v1/batches/<batch_id>/`。
+
+| batch_id | 视频 | 源帧 | raw/cleaned 姿态 | MPS 用时（秒） | 检测帧覆盖率 | 有效关键点率 | 下肢有效率 | 步态可用率 | 验收 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| `le2i_imvia` | 184 | 74,375 | 72,231 | 3,375.792 | 89.3163% | 83.4954% | 89.4570% | 87.7573% | `passed` |
+| `caucafall` | 100 | 19,877 | 17,847 | 645.253 | 89.1030% | 90.9802% | 98.4386% | 98.1341% | `passed` |
+| `ntu_rgbd` | 3,914 | 296,511 | 307,137 | 9,364.428 | 99.8664% | 94.0833% | 97.7042% | 96.9444% | `passed` |
+| `fall_detection_2017` | 2,012 | 113,651 | 112,624 | 4,140.957 | 96.1523% | 90.6755% | 96.1518% | 94.4745% | `passed` |
+| `fall_tiktok` | 66 | 10,945 | 13,895 | 472.471 | 88.4605% | 81.2912% | 91.0004% | 88.7370% | `passed` |
+| `pre_vfallp` | 108 | 84,089 | 82,994 | 3,894.140 | 98.6847% | 98.0639% | 99.9733% | 100.0000% | `passed` |
+| `toaga` | 28 | 60,510 | 79,950 | 2,394.374 | 90.7420% | 84.0798% | 99.6100% | 99.4296% | `passed` |
+| `ur_fall` | 100 | 14,931 | 21,211 | 560.856 | 81.9034% | 88.9250% | 94.9272% | 93.5364% | `passed` |
+
+`fall_detection_2017` 有 2 个 `completed_no_pose` 视频，经全片抽帧确认均为空场景。UR Fall 的 `adl-07-cam0.mp4` 源文件和本地归档副本 SHA-256 一致，但均为截断文件：manifest/容器声明 180 帧，实际只能解码 35 帧；当前缓存只包含可解码部分，不能将该样本视为完整视频。`pre_vfallp` 完成姿态提取不解除其 `dataset_quarantined` 数据治理状态。
+
+当前数据阻断包括：129 条 `U01/uncertain`、技术排除资产关联、Fall Detection 2017 项目来源治理、人员或保守源组治理、功能与纵向参考终点、测试集保管职责隔离，以及评估协议预注册。责任角色和解除条件见[工作流 A 阻塞清单](../../../reports/fall_risk/workflow_a_blockers.md)。
 
 自动化入口统一通过项目 conda 环境运行。先确认 editable 安装指向当前仓库：
 
@@ -85,6 +106,22 @@ conda run -n eldercare-ai python scripts/annotation/build_fall_risk_manifest.py 
   --repo-root . \
   --output /tmp/fall_risk_video_manifest.jsonl
 ```
+
+通用姿态缓存按数据源分批运行；相同契约下重跑会校验 state 和文件大小后跳过已完成视频：
+
+```bash
+conda run -n eldercare-ai python scripts/prepare/prepare_fall_pose_cache.py \
+  --dataset ntu_rgbd \
+  --batch-id ntu_rgbd \
+  --model yolov8n-pose.pt \
+  --device mps \
+  --continue-on-error
+
+conda run -n eldercare-ai python scripts/prepare/validate_fall_pose_cache.py \
+  --batch-id ntu_rgbd
+```
+
+缓存根目录的 `cache_manifest.json` 固定创建缓存时的 manifest 哈希，并严格固定模型、阈值、tracker 和姿态质量参数。后续仅 manifest 内容修订时可以复用同一缓存；每个视频仍按 manifest 中的 `source_sha256` 与 state 校验是否需要重提。模型或提取参数变化时必须使用新的输出目录，不能混写已有缓存。
 
 审计当前根标签；当前命令会明确报告 formal blocker，直到 `formal_ready=true` 前预期以非零状态退出：
 
@@ -108,7 +145,7 @@ conda run -n eldercare-ai python scripts/annotation/build_fall_training_split_v3
 conda run -n eldercare-ai python scripts/annotation/validate_fall_labels_v3.py --overwrite
 ```
 
-`valid=true` 只表示 schema、边界、来源和引用合法；当前训练门禁仍因缺少人工 hard negative 和 near-fall positive 保持关闭。
+`valid=true` 只表示 schema、边界、来源和引用合法；当前训练门禁仍因 fall hard negative 类型及分区覆盖不完整、缺少 near-fall positive 而保持关闭。
 
 当前配置可复现四个 blocked split；这只验证门禁行为，不会产生虚假的 `split_id`：
 
@@ -599,7 +636,18 @@ conda run -n eldercare-ai python scripts/collect/run_fall_service_smoke.py \
   --max-frames 30
 ```
 
-当前实现未完成真实萤石平台直播联调；需要业务侧提供算法容器可直接解码的短期直播地址和可接收回调的 HTTP 端点。服务不会把 `ezopen` 地址转换为直播地址。
+业务后端尚未接入时，可以先用本机临时回调接收器验证真实直播算法链。直播地址只通过环境变量传入，报告不保存路径、查询签名或 Token：
+
+```bash
+EZVIZ_STREAM_URL='rtmp://example.invalid/live?temporary-signature' \
+conda run -n eldercare-ai python scripts/collect/run_fall_live_smoke.py \
+  --model yolov8n-pose.pt \
+  --duration-sec 120 \
+  --scene-region living_room \
+  --report /tmp/ezviz_live_smoke.json
+```
+
+该命令分别报告持续出帧/重连状态与姿态、特征分支状态；没有风险事件不算失败。它不替代业务回调联调，也不构成算法准确率证据。2026-07-30 首次真实 RTMP 烟测确认地址可解码，但每次连接只返回约 14 帧后结束，未形成稳定直播或算法窗口，详见[萤石真实直播算法端烟测](../../../reports/fall_risk/runtime/ezviz-live-smoke-20260730.md)。当前仍未完成真实萤石平台的稳定直播和业务后端闭环验收。服务只接受可直接解码的 `rtsp`、`rtmp`、`http` 或 `https` 地址，不转换 `ezopen` 地址。
 
 ## 运行方式
 

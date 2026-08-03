@@ -1,0 +1,211 @@
+{
+  "annotated_source_count": 2013,
+  "batch_id": "fall_detection_2017_manual",
+  "dataset": "fall_detection_2017",
+  "excluded_sources": [
+    {
+      "reason": "manifest_eligibility_false",
+      "source_name": "20240912_101331 (1).mp4",
+      "video_ids": [
+        "fall_detection_2017_sbj_02_loc_2_act_1_side_l_attempt_1_20240912_101331_1_b0403782"
+      ]
+    },
+    {
+      "reason": "manifest_eligibility_false",
+      "source_name": "20240912_101331.mp4",
+      "video_ids": [
+        "fall_detection_2017_sbj_02_loc_2_act_1_side_l_attempt_1_20240912_101331_7eba008d"
+      ]
+    }
+  ],
+  "imported_source_count": 2011,
+  "manifest_eligible_source_count": 2012,
+  "missing_eligible_sources": [
+    "20240917123819.mp4"
+  ],
+  "normalization": {
+    "action_id_counts_raw": {
+      "A01_normal_walk": 1107,
+      "A02_normal_turn": 81,
+      "A03_controlled_sit_down": 174,
+      "A04_normal_sit_to_stand": 176,
+      "A05_controlled_squat": 6,
+      "A06_controlled_bend": 73,
+      "A07_controlled_lie_down": 19,
+      "A08_routine_support_contact": 11,
+      "A09_kneel_or_floor_activity": 13,
+      "A10_normal_step_adjustment": 33,
+      "B01_slow_walk": 180,
+      "B02_dragging_walk": 5,
+      "B03_shuffling_walk": 1,
+      "B05_unstable_turn": 2,
+      "B06_slow_sit_to_stand": 1,
+      "C01_failed_sit_to_stand": 1,
+      "D01_forward_fall": 263,
+      "D02_lateral_fall": 235,
+      "D03_backward_fall": 255,
+      "D04_long_static_after_fall": 47,
+      "D05_seated_fall": 244,
+      "U01_unable_to_judge": 50
+    },
+    "frame_mapping": {
+      "affected_source_count": 4,
+      "affected_sources": [
+        {
+          "method": "linear_endpoint_resample",
+          "source_frame_count": 230,
+          "source_name": "20240921135516.mp4",
+          "target_frame_count": 58
+        },
+        {
+          "method": "linear_endpoint_resample",
+          "source_frame_count": 227,
+          "source_name": "20240921140126.mp4",
+          "target_frame_count": 57
+        },
+        {
+          "method": "linear_endpoint_resample",
+          "source_frame_count": 227,
+          "source_name": "20240921140203.mp4",
+          "target_frame_count": 57
+        },
+        {
+          "method": "linear_endpoint_resample",
+          "source_frame_count": 230,
+          "source_name": "20240921144221.mp4",
+          "target_frame_count": 58
+        }
+      ],
+      "method": "linear_endpoint_resample"
+    },
+    "normalized_task_count": 2011,
+    "normalized_track_count": 2977,
+    "scale_factors": {
+      "1": 1614,
+      "3": 397
+    },
+    "source_dimensions": {
+      "1920x1080": 1614,
+      "640x360": 397
+    },
+    "target_dimensions": {
+      "1920x1080": 2011
+    }
+  },
+  "outputs": {
+    "action_labels": {
+      "count": 2977,
+      "path": "data/annotations/fall_risk/generated/v2/fall_detection_2017_manual/action_labels.jsonl",
+      "sha256": "6dd2569413c34f5b7dc6828750d6830a128278a646608e1640864af820fb2f6e"
+    },
+    "event_labels": {
+      "count": 2977,
+      "path": "data/annotations/fall_risk/generated/v2/fall_detection_2017_manual/event_labels.jsonl",
+      "sha256": "e4f139afe01710828f0599b47c5e4690e2c0bb5700ab0f63eb56b8fe9465f22e"
+    },
+    "source_annotations": {
+      "path": "data/annotations/fall_risk/generated/v2/fall_detection_2017_manual/source_annotations.zip",
+      "sha256": "30a3e59ead314214496a7be75dee764cbb4c3af842cfaf8a240cf893cbfc9c1b"
+    }
+  },
+  "provenance_status": "project_collected_manual_cvat_unverified",
+  "qc_warnings": [
+    {
+      "label": "U01_unable_to_judge",
+      "note": "挥手",
+      "reason": "Supplement image export uses U01 with quality=clear; preserved verbatim for review because the note describes an out-of-taxonomy gesture rather than visual uncertainty.",
+      "source_name": "20240922115152.mp4"
+    }
+  ],
+  "raw_task_count": 2013,
+  "raw_track_count": 2981,
+  "revision_overlay": {
+    "image_task_source": "20240922115152.mp4",
+    "job_task_source": "20240919161414.mp4",
+    "replaced_project": "ADL_20240921.zip"
+  },
+  "schema_version": "fall-detection-2017-cvat-import-v1",
+  "source_archives": [
+    {
+      "filename": "ADL_20240913.zip",
+      "sha256": "20e0a2ff4dc7b965377d9c7872562dd607bc3b9f3153cdd09e8c57d4ed405943"
+    },
+    {
+      "filename": "ADL_20240919.zip",
+      "sha256": "932bf18b3e7a3e89e7e6bc66183b79189d9186fda55b2eaccd706e1bc88beaf9"
+    },
+    {
+      "filename": "ADL_20240920.zip",
+      "sha256": "bebffc24335949650e2291c4e9504a790a29f259ba392a1eaa7524d45d25143f"
+    },
+    {
+      "filename": "ADL_20240921.zip",
+      "sha256": "5ab8172a2e4d51b870908f0d91c32abc756864cdbd43d5e204a3f4c6033bcb96"
+    },
+    {
+      "filename": "ADL_20240921.zip",
+      "sha256": "7930dc28685129a79edea622d14e5238835cd7235bc04bfdd24e54f9c3f1c979"
+    },
+    {
+      "filename": "ADL_20240922.zip",
+      "sha256": "7eaf0caa62017f02522145b0d6e02e66c7d1ca84d8d186b6dd5bad286bdcf04e"
+    },
+    {
+      "filename": "ADL_20240922.zip",
+      "sha256": "d0a73d32bbf53e34454b4342e1d0748900d8bd001b027e74d6ab22db5e42e393"
+    },
+    {
+      "filename": "ADL_20240923.zip",
+      "sha256": "2446558e3d3cd4b034e927566b4d7cebb7fe73c3c4d498d6c0c51bcb5ca8f30d"
+    },
+    {
+      "filename": "ADL_20240924.zip",
+      "sha256": "bfe64be88a2e6dea8497a012a28b682f29b8a0a49ac4419916b19b2176955f9f"
+    },
+    {
+      "filename": "Fall_20240910.zip",
+      "sha256": "8a92cc2bb98b895d1a68b9e6e4c14cd4a9e51f28fecffe12064aacfb1af30b92"
+    },
+    {
+      "filename": "Fall_20240911.zip",
+      "sha256": "e2bb98093a8c2400d202e640a6a8d4bc825c4d0f316069c5fbe1f33666b99e1b"
+    },
+    {
+      "filename": "Fall_20240912.zip",
+      "sha256": "b6640ace9c37bbdd7543128ee371202ef4bd91983b213f43fa85d3c6f218b08b"
+    },
+    {
+      "filename": "Fall_20240913.zip",
+      "sha256": "43e26d2e95dfa35c1ca16daf3d05dd118191b708c7fb601234fbf8a4dc841636"
+    },
+    {
+      "filename": "Fall_20240914.zip",
+      "sha256": "fdf5db9c59775478648f646e66c684f1ac06e7874463e340a9c75cd779d79e80"
+    },
+    {
+      "filename": "Fall_20240915.zip",
+      "sha256": "280253c8a2e3b77cce0e4cd503935cff75026b697057daf92986455ef686f6b5"
+    },
+    {
+      "filename": "Fall_20240916.zip",
+      "sha256": "dc0e05a3a6831cb22dd89e95ec8e6fc70913610a99cc02f70dc4d3122c9cd312"
+    },
+    {
+      "filename": "Fall_20240917.zip",
+      "sha256": "1713512cb21c498e95a0f8330604d949054673e66bfd3c8cbc508b60d9a022fe"
+    },
+    {
+      "filename": "Fall_20240918.zip",
+      "sha256": "d0b228d5174f0dc3d18004d6175a27ad9fb154cc7ae44a969166f240ff1f4c52"
+    },
+    {
+      "filename": "Fall_20240919.zip",
+      "sha256": "d152325c99ac9b7150857ac9ed34f48bd8e989d600a7b630901553e7191cf17b"
+    },
+    {
+      "filename": "Fall_20240919.zip",
+      "sha256": "28d4ab1140a6f99147545fb5c8fa8835806a550774d213f23f82e77e73d2e53d"
+    }
+  ],
+  "training_policy": "candidate_requires_qc_review"
+}

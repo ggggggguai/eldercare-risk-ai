@@ -13,6 +13,7 @@ from elderly_monitoring.modules.fall_risk.gait_training import (
     GaitWindowPreparationConfig,
     _select_labeled_track,
     build_gait_tensor,
+    enrich_gait_training_labels,
     prepare_gait_window_dataset,
     select_gait_training_labels,
 )
@@ -99,6 +100,49 @@ def make_label(video_index: int, *, positive: bool) -> dict[str, object]:
     }
 
 
+def make_v3_label(
+    video_index: int,
+    *,
+    positive: bool,
+    training_tier: str = "primary",
+) -> dict[str, object]:
+    video_id = f"video_{video_index}"
+    return {
+        "schema_version": "fall-risk-action-label-v3",
+        "label_id": f"label_v3_{video_index}",
+        "asset_id": f"asset_{video_index}",
+        "video_id": video_id,
+        "subject_id": f"subject_{video_index}",
+        "source_group_id": f"source_{video_index}",
+        "sample_group_id": f"sample_{video_index}",
+        "action_id": "B03" if positive else "A01",
+        "action_type": "shuffling_walk" if positive else "normal_walk",
+        "start_frame": 0,
+        "end_frame_exclusive": 10,
+        "start_time": 0.0,
+        "end_time_exclusive": 0.4,
+        "training_tier": training_tier,
+        "action_type_training_tier": training_tier,
+        "quality_flags": [],
+    }
+
+
+def make_manifest(video_index: int) -> dict[str, object]:
+    video_id = f"video_{video_index}"
+    return {
+        "asset_id": f"asset_{video_index}",
+        "video_id": video_id,
+        "path": f"unused/{video_id}.avi",
+        "scene_region": "test_room",
+        "dataset": "test_dataset",
+        "fps": 25.0,
+        "frame_count": 10,
+        "eligibility": True,
+        "source_group_id": f"source_{video_index}",
+        "content_sha256": f"sha256_{video_index}",
+    }
+
+
 class GaitTensorTest(unittest.TestCase):
     def test_builds_centered_quality_aware_t_v_c_tensor(self) -> None:
         records = [make_pose_record(frame_id) for frame_id in range(6)]
@@ -125,6 +169,76 @@ class GaitTensorTest(unittest.TestCase):
             [row["target_name"] for row in selected],
             ["normal_activity", "gait_instability"],
         )
+
+    def test_v3_label_filter_uses_half_open_boundaries_and_tiers(self) -> None:
+        rows = [
+            make_v3_label(1, positive=False),
+            make_v3_label(2, positive=True, training_tier="auxiliary"),
+            make_v3_label(3, positive=True, training_tier="ignore"),
+        ]
+
+        selected = select_gait_training_labels(rows)
+
+        self.assertEqual([row["label"] for row in selected], [0, 1])
+        self.assertEqual([row["end_frame"] for row in selected], [9, 9])
+        self.assertEqual(
+            [row["training_tier"] for row in selected],
+            ["primary", "auxiliary"],
+        )
+
+    def test_v3_labels_are_joined_to_manifest(self) -> None:
+        labels = [make_v3_label(1, positive=True)]
+
+        [enriched] = enrich_gait_training_labels(
+            labels,
+            manifest_rows=[make_manifest(1)],
+        )
+
+        self.assertEqual(enriched["file_path"], "unused/video_1.avi")
+        self.assertEqual(enriched["scene"], "test_room")
+        self.assertEqual(enriched["dataset"], "test_dataset")
+        self.assertEqual(enriched["fps"], 25.0)
+
+    def test_v3_manifest_ignores_null_video_id_assets(self) -> None:
+        non_video_asset = {
+            "asset_id": "non_video_asset",
+            "video_id": None,
+            "path": "unused/depth.csv",
+            "eligibility": False,
+        }
+
+        [enriched] = enrich_gait_training_labels(
+            [make_v3_label(1, positive=True)],
+            manifest_rows=[non_video_asset, make_manifest(1)],
+        )
+
+        self.assertEqual(enriched["video_id"], "video_1")
+        self.assertEqual(enriched["file_path"], "unused/video_1.avi")
+
+    def test_v3_manifest_rejects_duplicate_non_empty_video_id(self) -> None:
+        manifest = make_manifest(1)
+
+        with self.assertRaisesRegex(ValueError, "duplicate gait manifest video_id: video_1"):
+            enrich_gait_training_labels(
+                [make_v3_label(1, positive=True)],
+                manifest_rows=[manifest, dict(manifest)],
+            )
+
+    def test_v3_manifest_join_keeps_strict_validation(self) -> None:
+        label = make_v3_label(1, positive=True)
+        invalid_cases = (
+            ([], "missing manifest video"),
+            ([{**make_manifest(1), "eligibility": False}], "ineligible manifest video"),
+            ([{**make_manifest(1), "asset_id": "other_asset"}], "asset mismatch"),
+        )
+
+        for manifest_rows, error in invalid_cases:
+            with self.subTest(error=error):
+                with self.assertRaisesRegex(ValueError, error):
+                    enrich_gait_training_labels(
+                        [label],
+                        manifest_rows=manifest_rows,
+                    )
 
     def test_pose_jobs_stop_after_last_selected_gait_frame(self) -> None:
         rows = [

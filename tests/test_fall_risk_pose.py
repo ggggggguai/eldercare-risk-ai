@@ -1,5 +1,7 @@
 import json
+import sys
 import tempfile
+import types
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -11,6 +13,7 @@ from elderly_monitoring.modules.fall_risk.pose import (
     build_pose_observation,
     keypoint_quality,
     run_rtmpose_pose,
+    run_yolov8_pose,
     write_jsonl,
 )
 from scripts.collect.run_fall_pose import build_parser
@@ -90,6 +93,42 @@ class FallRiskPoseTest(unittest.TestCase):
         self.assertEqual(len(lines), 2)
         self.assertEqual(json.loads(lines[0])["frame_id"], 1)
         self.assertEqual(json.loads(lines[1])["person_id"], "elder_001")
+
+    def test_yolov8_pose_can_reset_tracker_between_video_calls(self) -> None:
+        track_options: dict[str, object] = {}
+
+        class FakeCapture:
+            def isOpened(self) -> bool:
+                return True
+
+            def get(self, key: int) -> float:
+                return {1: 25.0, 2: 640.0, 3: 480.0}[key]
+
+            def release(self) -> None:
+                return None
+
+        class FakeModel:
+            def track(self, **kwargs: object) -> list[object]:
+                track_options.update(kwargs)
+                return []
+
+        fake_cv2 = types.SimpleNamespace(
+            CAP_PROP_FPS=1,
+            CAP_PROP_FRAME_WIDTH=2,
+            CAP_PROP_FRAME_HEIGHT=3,
+            VideoCapture=lambda _: FakeCapture(),
+        )
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with mock.patch.dict(sys.modules, {"cv2": fake_cv2}):
+                count = run_yolov8_pose(
+                    video_path=Path("video.avi"),
+                    output_path=Path(tmpdir) / "poses.jsonl",
+                    model=FakeModel(),
+                    persist_tracker=False,
+                )
+
+        self.assertEqual(count, 0)
+        self.assertFalse(track_options["persist"])
 
     def test_cli_default_backend_remains_yolov8_pose(self) -> None:
         parser = build_parser()

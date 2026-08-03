@@ -1,0 +1,575 @@
+{
+  "collection_decision": {
+    "collection_status": "project_collected",
+    "consent_status": "not_recorded",
+    "decided_at": "2026-07-28",
+    "decided_by": "project_owner",
+    "decision_id": "fall-tiktok-project-collection-training-authorization-20260728",
+    "path": "configs/data/fall_tiktok_collection_decision_v1.json",
+    "redistribution_use": "not_authorized_by_this_decision",
+    "sha256": "b7070e235c25b54754c0169b0e8e3abc8e343f199be2762ceb55e50aa432a02c",
+    "subject_grouping_status": "unknown",
+    "training_use": "authorized"
+  },
+  "outputs": {
+    "action_labels": {
+      "count": 150,
+      "path": "data/annotations/fall_risk/generated/v2/fall_tiktok_manual/action_labels.jsonl",
+      "sha256": "9e139a4a7bd6817f190e8c8e1ca55839172dba4504db6f6eb771b7b37df4dc83"
+    },
+    "event_labels": {
+      "count": 150,
+      "path": "data/annotations/fall_risk/generated/v2/fall_tiktok_manual/event_labels.jsonl",
+      "sha256": "1bf471cb998d5ca3d4415179917754f317bfdcd8ec3525d762d2b33ccace79fe"
+    }
+  },
+  "provenance_status": "project_collected_training_authorized",
+  "redacted_export": {
+    "path": "data/annotations/fall_risk/cvat_exports/raw/fall_tiktok/fall_tiktok_cvat_redacted.zip",
+    "removed_identity_elements": 134,
+    "sha256": "e8114a9ce011e2653aa1f6e11c79df031e22224dc9496bd0df3159948a280d64"
+  },
+  "schema_version": "fall-tiktok-cvat-import-v1",
+  "source_archive": {
+    "filename": "fall_tiktok.zip",
+    "sha256": "e1879e18a25a943831f6360f4668d313aa1e44a306d16252cffe95008a3133ee"
+  },
+  "source_group_id": "fall_tiktok_project_collection_pool",
+  "source_map": {
+    "path": "configs/data/fall_tiktok_source_map_v1.json",
+    "sha256": "4f48e6e1ab04a42f333cea1756e0b106b7a40411476e5bb295e9653d301fdaba"
+  },
+  "task_count": 66,
+  "task_mappings": [
+    {
+      "cvat_task_id": "515",
+      "original_filename": "1.mp4",
+      "original_task_name": "001.mp4",
+      "sequence": 1,
+      "source_filename": "1.mp4",
+      "video_id": "fall_tiktok_clip_001"
+    },
+    {
+      "cvat_task_id": "516",
+      "original_filename": "4.mp4",
+      "original_task_name": "002.mp4",
+      "sequence": 2,
+      "source_filename": "2.mp4",
+      "video_id": "fall_tiktok_clip_002"
+    },
+    {
+      "cvat_task_id": "517",
+      "original_filename": "6.mp4",
+      "original_task_name": "003.mp4",
+      "sequence": 3,
+      "source_filename": "3.mp4",
+      "video_id": "fall_tiktok_clip_003"
+    },
+    {
+      "cvat_task_id": "518",
+      "original_filename": "7.mp4",
+      "original_task_name": "004.mp4",
+      "sequence": 4,
+      "source_filename": "4.mp4",
+      "video_id": "fall_tiktok_clip_004"
+    },
+    {
+      "cvat_task_id": "519",
+      "original_filename": "8.mp4",
+      "original_task_name": "005.mp4",
+      "sequence": 5,
+      "source_filename": "5.mp4",
+      "video_id": "fall_tiktok_clip_005"
+    },
+    {
+      "cvat_task_id": "520",
+      "original_filename": "10.mp4",
+      "original_task_name": "006.mp4",
+      "sequence": 6,
+      "source_filename": "6.mp4",
+      "video_id": "fall_tiktok_clip_006"
+    },
+    {
+      "cvat_task_id": "521",
+      "original_filename": "11.mp4",
+      "original_task_name": "007.mp4",
+      "sequence": 7,
+      "source_filename": "7.mp4",
+      "video_id": "fall_tiktok_clip_007"
+    },
+    {
+      "cvat_task_id": "522",
+      "original_filename": "14.mp4",
+      "original_task_name": "008.mp4",
+      "sequence": 8,
+      "source_filename": "8.mp4",
+      "video_id": "fall_tiktok_clip_008"
+    },
+    {
+      "cvat_task_id": "523",
+      "original_filename": "16.mp4",
+      "original_task_name": "009.mp4",
+      "sequence": 9,
+      "source_filename": "9.mp4",
+      "video_id": "fall_tiktok_clip_009"
+    },
+    {
+      "cvat_task_id": "524",
+      "original_filename": "19.mp4",
+      "original_task_name": "010.mp4",
+      "sequence": 10,
+      "source_filename": "10.mp4",
+      "video_id": "fall_tiktok_clip_010"
+    },
+    {
+      "cvat_task_id": "525",
+      "original_filename": "20.mp4",
+      "original_task_name": "011.mp4",
+      "sequence": 11,
+      "source_filename": "11.mp4",
+      "video_id": "fall_tiktok_clip_011"
+    },
+    {
+      "cvat_task_id": "526",
+      "original_filename": "21.mp4",
+      "original_task_name": "012.mp4",
+      "sequence": 12,
+      "source_filename": "12.mp4",
+      "video_id": "fall_tiktok_clip_012"
+    },
+    {
+      "cvat_task_id": "527",
+      "original_filename": "22.mp4",
+      "original_task_name": "013.mp4",
+      "sequence": 13,
+      "source_filename": "13.mp4",
+      "video_id": "fall_tiktok_clip_013"
+    },
+    {
+      "cvat_task_id": "528",
+      "original_filename": "23.mp4",
+      "original_task_name": "014.mp4",
+      "sequence": 14,
+      "source_filename": "14.mp4",
+      "video_id": "fall_tiktok_clip_014"
+    },
+    {
+      "cvat_task_id": "529",
+      "original_filename": "25.mp4",
+      "original_task_name": "015.mp4",
+      "sequence": 15,
+      "source_filename": "15.mp4",
+      "video_id": "fall_tiktok_clip_015"
+    },
+    {
+      "cvat_task_id": "530",
+      "original_filename": "26.mp4",
+      "original_task_name": "016.mp4",
+      "sequence": 16,
+      "source_filename": "16.mp4",
+      "video_id": "fall_tiktok_clip_016"
+    },
+    {
+      "cvat_task_id": "531",
+      "original_filename": "28.mp4",
+      "original_task_name": "017.mp4",
+      "sequence": 17,
+      "source_filename": "17.mp4",
+      "video_id": "fall_tiktok_clip_017"
+    },
+    {
+      "cvat_task_id": "532",
+      "original_filename": "29.mp4",
+      "original_task_name": "018.mp4",
+      "sequence": 18,
+      "source_filename": "18.mp4",
+      "video_id": "fall_tiktok_clip_018"
+    },
+    {
+      "cvat_task_id": "533",
+      "original_filename": "30.mp4",
+      "original_task_name": "019.mp4",
+      "sequence": 19,
+      "source_filename": "19.mp4",
+      "video_id": "fall_tiktok_clip_019"
+    },
+    {
+      "cvat_task_id": "534",
+      "original_filename": "32.mp4",
+      "original_task_name": "020.mp4",
+      "sequence": 20,
+      "source_filename": "20.mp4",
+      "video_id": "fall_tiktok_clip_020"
+    },
+    {
+      "cvat_task_id": "535",
+      "original_filename": "33.mp4",
+      "original_task_name": "021.mp4",
+      "sequence": 21,
+      "source_filename": "21.mp4",
+      "video_id": "fall_tiktok_clip_021"
+    },
+    {
+      "cvat_task_id": "536",
+      "original_filename": "34.mp4",
+      "original_task_name": "022.mp4",
+      "sequence": 22,
+      "source_filename": "22.mp4",
+      "video_id": "fall_tiktok_clip_022"
+    },
+    {
+      "cvat_task_id": "537",
+      "original_filename": "35.mp4",
+      "original_task_name": "023.mp4",
+      "sequence": 23,
+      "source_filename": "23.mp4",
+      "video_id": "fall_tiktok_clip_023"
+    },
+    {
+      "cvat_task_id": "538",
+      "original_filename": "38.mp4",
+      "original_task_name": "024.mp4",
+      "sequence": 24,
+      "source_filename": "24.mp4",
+      "video_id": "fall_tiktok_clip_024"
+    },
+    {
+      "cvat_task_id": "539",
+      "original_filename": "41.mp4",
+      "original_task_name": "025.mp4",
+      "sequence": 25,
+      "source_filename": "25.mp4",
+      "video_id": "fall_tiktok_clip_025"
+    },
+    {
+      "cvat_task_id": "540",
+      "original_filename": "42.mp4",
+      "original_task_name": "026.mp4",
+      "sequence": 26,
+      "source_filename": "26.mp4",
+      "video_id": "fall_tiktok_clip_026"
+    },
+    {
+      "cvat_task_id": "541",
+      "original_filename": "44.mp4",
+      "original_task_name": "027.mp4",
+      "sequence": 27,
+      "source_filename": "27.mp4",
+      "video_id": "fall_tiktok_clip_027"
+    },
+    {
+      "cvat_task_id": "542",
+      "original_filename": "45.mp4",
+      "original_task_name": "028.mp4",
+      "sequence": 28,
+      "source_filename": "28.mp4",
+      "video_id": "fall_tiktok_clip_028"
+    },
+    {
+      "cvat_task_id": "543",
+      "original_filename": "46.mp4",
+      "original_task_name": "029.mp4",
+      "sequence": 29,
+      "source_filename": "29.mp4",
+      "video_id": "fall_tiktok_clip_029"
+    },
+    {
+      "cvat_task_id": "544",
+      "original_filename": "50.mp4",
+      "original_task_name": "030.mp4",
+      "sequence": 30,
+      "source_filename": "30.mp4",
+      "video_id": "fall_tiktok_clip_030"
+    },
+    {
+      "cvat_task_id": "545",
+      "original_filename": "53.mp4",
+      "original_task_name": "031.mp4",
+      "sequence": 31,
+      "source_filename": "31.mp4",
+      "video_id": "fall_tiktok_clip_031"
+    },
+    {
+      "cvat_task_id": "546",
+      "original_filename": "56.mp4",
+      "original_task_name": "032.mp4",
+      "sequence": 32,
+      "source_filename": "32.mp4",
+      "video_id": "fall_tiktok_clip_032"
+    },
+    {
+      "cvat_task_id": "547",
+      "original_filename": "58.mp4",
+      "original_task_name": "033.mp4",
+      "sequence": 33,
+      "source_filename": "33.mp4",
+      "video_id": "fall_tiktok_clip_033"
+    },
+    {
+      "cvat_task_id": "548",
+      "original_filename": "64.mp4",
+      "original_task_name": "034.mp4",
+      "sequence": 34,
+      "source_filename": "34.mp4",
+      "video_id": "fall_tiktok_clip_034"
+    },
+    {
+      "cvat_task_id": "549",
+      "original_filename": "65.mp4",
+      "original_task_name": "035.mp4",
+      "sequence": 35,
+      "source_filename": "35.mp4",
+      "video_id": "fall_tiktok_clip_035"
+    },
+    {
+      "cvat_task_id": "550",
+      "original_filename": "67.mp4",
+      "original_task_name": "036.mp4",
+      "sequence": 36,
+      "source_filename": "36.mp4",
+      "video_id": "fall_tiktok_clip_036"
+    },
+    {
+      "cvat_task_id": "551",
+      "original_filename": "71.mp4",
+      "original_task_name": "037.mp4",
+      "sequence": 37,
+      "source_filename": "37.mp4",
+      "video_id": "fall_tiktok_clip_037"
+    },
+    {
+      "cvat_task_id": "552",
+      "original_filename": "72.mp4",
+      "original_task_name": "038.mp4",
+      "sequence": 38,
+      "source_filename": "38.mp4",
+      "video_id": "fall_tiktok_clip_038"
+    },
+    {
+      "cvat_task_id": "553",
+      "original_filename": "75.mp4",
+      "original_task_name": "039.mp4",
+      "sequence": 39,
+      "source_filename": "39.mp4",
+      "video_id": "fall_tiktok_clip_039"
+    },
+    {
+      "cvat_task_id": "554",
+      "original_filename": "77.mp4",
+      "original_task_name": "040.mp4",
+      "sequence": 40,
+      "source_filename": "40.mp4",
+      "video_id": "fall_tiktok_clip_040"
+    },
+    {
+      "cvat_task_id": "555",
+      "original_filename": "78.mp4",
+      "original_task_name": "041.mp4",
+      "sequence": 41,
+      "source_filename": "41.mp4",
+      "video_id": "fall_tiktok_clip_041"
+    },
+    {
+      "cvat_task_id": "556",
+      "original_filename": "82.mp4",
+      "original_task_name": "042.mp4",
+      "sequence": 42,
+      "source_filename": "42.mp4",
+      "video_id": "fall_tiktok_clip_042"
+    },
+    {
+      "cvat_task_id": "557",
+      "original_filename": "84.mp4",
+      "original_task_name": "043.mp4",
+      "sequence": 43,
+      "source_filename": "43.mp4",
+      "video_id": "fall_tiktok_clip_043"
+    },
+    {
+      "cvat_task_id": "558",
+      "original_filename": "85.mp4",
+      "original_task_name": "044.mp4",
+      "sequence": 44,
+      "source_filename": "44.mp4",
+      "video_id": "fall_tiktok_clip_044"
+    },
+    {
+      "cvat_task_id": "559",
+      "original_filename": "86.mp4",
+      "original_task_name": "045.mp4",
+      "sequence": 45,
+      "source_filename": "45.mp4",
+      "video_id": "fall_tiktok_clip_045"
+    },
+    {
+      "cvat_task_id": "560",
+      "original_filename": "87.mp4",
+      "original_task_name": "046.mp4",
+      "sequence": 46,
+      "source_filename": "46.mp4",
+      "video_id": "fall_tiktok_clip_046"
+    },
+    {
+      "cvat_task_id": "561",
+      "original_filename": "89.mp4",
+      "original_task_name": "047.mp4",
+      "sequence": 47,
+      "source_filename": "47.mp4",
+      "video_id": "fall_tiktok_clip_047"
+    },
+    {
+      "cvat_task_id": "562",
+      "original_filename": "92.mp4",
+      "original_task_name": "048.mp4",
+      "sequence": 48,
+      "source_filename": "48.mp4",
+      "video_id": "fall_tiktok_clip_048"
+    },
+    {
+      "cvat_task_id": "563",
+      "original_filename": "94.mp4",
+      "original_task_name": "049.mp4",
+      "sequence": 49,
+      "source_filename": "49.mp4",
+      "video_id": "fall_tiktok_clip_049"
+    },
+    {
+      "cvat_task_id": "564",
+      "original_filename": "95.mp4",
+      "original_task_name": "050.mp4",
+      "sequence": 50,
+      "source_filename": "50.mp4",
+      "video_id": "fall_tiktok_clip_050"
+    },
+    {
+      "cvat_task_id": "565",
+      "original_filename": "96.mp4",
+      "original_task_name": "051.mp4",
+      "sequence": 51,
+      "source_filename": "51.mp4",
+      "video_id": "fall_tiktok_clip_051"
+    },
+    {
+      "cvat_task_id": "566",
+      "original_filename": "97.mp4",
+      "original_task_name": "052.mp4",
+      "sequence": 52,
+      "source_filename": "52.mp4",
+      "video_id": "fall_tiktok_clip_052"
+    },
+    {
+      "cvat_task_id": "567",
+      "original_filename": "100.mp4",
+      "original_task_name": "053.mp4",
+      "sequence": 53,
+      "source_filename": "53.mp4",
+      "video_id": "fall_tiktok_clip_053"
+    },
+    {
+      "cvat_task_id": "568",
+      "original_filename": "101.mp4",
+      "original_task_name": "054.mp4",
+      "sequence": 54,
+      "source_filename": "54.mp4",
+      "video_id": "fall_tiktok_clip_054"
+    },
+    {
+      "cvat_task_id": "569",
+      "original_filename": "102.mp4",
+      "original_task_name": "055.mp4",
+      "sequence": 55,
+      "source_filename": "55.mp4",
+      "video_id": "fall_tiktok_clip_055"
+    },
+    {
+      "cvat_task_id": "570",
+      "original_filename": "103.mp4",
+      "original_task_name": "056.mp4",
+      "sequence": 56,
+      "source_filename": "56.mp4",
+      "video_id": "fall_tiktok_clip_056"
+    },
+    {
+      "cvat_task_id": "571",
+      "original_filename": "106.mp4",
+      "original_task_name": "057.mp4",
+      "sequence": 57,
+      "source_filename": "57.mp4",
+      "video_id": "fall_tiktok_clip_057"
+    },
+    {
+      "cvat_task_id": "572",
+      "original_filename": "109.mp4",
+      "original_task_name": "058.mp4",
+      "sequence": 58,
+      "source_filename": "58.mp4",
+      "video_id": "fall_tiktok_clip_058"
+    },
+    {
+      "cvat_task_id": "573",
+      "original_filename": "110.mp4",
+      "original_task_name": "059.mp4",
+      "sequence": 59,
+      "source_filename": "59.mp4",
+      "video_id": "fall_tiktok_clip_059"
+    },
+    {
+      "cvat_task_id": "574",
+      "original_filename": "111.mp4",
+      "original_task_name": "060.mp4",
+      "sequence": 60,
+      "source_filename": "60.mp4",
+      "video_id": "fall_tiktok_clip_060"
+    },
+    {
+      "cvat_task_id": "575",
+      "original_filename": "113.mp4",
+      "original_task_name": "061.mp4",
+      "sequence": 61,
+      "source_filename": "61.mp4",
+      "video_id": "fall_tiktok_clip_061"
+    },
+    {
+      "cvat_task_id": "576",
+      "original_filename": "114.mp4",
+      "original_task_name": "062.mp4",
+      "sequence": 62,
+      "source_filename": "62.mp4",
+      "video_id": "fall_tiktok_clip_062"
+    },
+    {
+      "cvat_task_id": "577",
+      "original_filename": "116.mp4",
+      "original_task_name": "063.mp4",
+      "sequence": 63,
+      "source_filename": "63.mp4",
+      "video_id": "fall_tiktok_clip_063"
+    },
+    {
+      "cvat_task_id": "578",
+      "original_filename": "118.mp4",
+      "original_task_name": "064.mp4",
+      "sequence": 64,
+      "source_filename": "64.mp4",
+      "video_id": "fall_tiktok_clip_064"
+    },
+    {
+      "cvat_task_id": "579",
+      "original_filename": "119.mp4",
+      "original_task_name": "065.mp4",
+      "sequence": 65,
+      "source_filename": "65.mp4",
+      "video_id": "fall_tiktok_clip_065"
+    },
+    {
+      "cvat_task_id": "580",
+      "original_filename": "120.mp4",
+      "original_task_name": "066.mp4",
+      "sequence": 66,
+      "source_filename": "66.mp4",
+      "video_id": "fall_tiktok_clip_066"
+    }
+  ],
+  "track_count": 150,
+  "training_policy": "eligible_manual_cvat_training"
+}

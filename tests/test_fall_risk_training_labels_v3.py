@@ -262,6 +262,99 @@ class FallRiskTrainingLabelsV3Test(unittest.TestCase):
             1,
         )
 
+    def test_adjudicated_ntu_squat_becomes_a_manual_fall_hard_negative(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            manifest, _ = self._manifest(root)
+            video_id = "ntu_rgbd_s017_p020_r001_a043_c001"
+            manifest["video_id"] = video_id
+            source_path, source_hash = self._source(root)
+            action = self._action(
+                source_path,
+                source_hash,
+                label_id="action_1",
+                action_id="A05",
+                action_name="controlled_squat",
+                start_frame=0,
+                end_frame=57,
+            )
+            action["video_id"] = video_id
+            decision_path = root / "ntu-decision.json"
+            decision_path.write_text(
+                json.dumps(
+                    {
+                        "schema_version": "ntu-rgbd-a043-cvat-decision-v1",
+                        "decision_id": "fixture-ntu-adjudication",
+                        "reviewed_at": "2026-07-30",
+                        "reviewer_id": "project_owner",
+                        "source_action_code": "A043",
+                        "decision": "accept_manual_cvat_labels",
+                        "direct_filename_import": False,
+                        "accepted_batch_id": "ntu_rgbd_a043_cvat_review",
+                        "accepted_protocols": [
+                            "segmented_nonfall_controlled_lie_down",
+                            "segmented_normal_to_fall",
+                            "segmented_normal_to_fall_to_sit_to_stand",
+                            "segmented_normal_to_fall_with_trailing_outside",
+                            "whole_clip_controlled_squat_hard_negative",
+                            "whole_clip_fall_without_onset",
+                            "whole_clip_uncertain",
+                        ],
+                        "v3_event_training_policy": "auxiliary_approximate",
+                        "adjudications": [
+                            {
+                                "type": "accepted_hard_negative",
+                                "source_names": [
+                                    "S017C001P020R001A043_rgb.avi"
+                                ],
+                                "accepted_label": "A05_controlled_squat",
+                                "training_use": "fall_hard_negative",
+                                "evidence": "three_view_visual_review",
+                                "reason": "Controlled lowering without loss of support.",
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            paths = self._paths(root)
+            self._write_jsonl(paths["manifest"], [manifest])
+            self._write_jsonl(paths["v2_actions"], [action])
+            self._write_jsonl(paths["v2_events"], [])
+
+            report = write_training_label_migration(
+                manifest_path=paths["manifest"],
+                action_labels_v2_path=paths["v2_actions"],
+                event_labels_v2_path=paths["v2_events"],
+                action_labels_v3_path=paths["v3_actions"],
+                event_labels_v3_path=paths["v3_events"],
+                report_path=paths["migration_report"],
+                manual_negative_decision_paths=[decision_path],
+            )
+
+            events = [
+                json.loads(line)
+                for line in paths["v3_events"].read_text(encoding="utf-8").splitlines()
+            ]
+            self.assertEqual(len(events), 1)
+            negative = events[0]
+            self.assertEqual(negative["task_type"], "fall_event")
+            self.assertEqual(negative["label_role"], "negative")
+            self.assertEqual(negative["hard_negative_type"], "squat_or_kneel")
+            self.assertEqual(negative["training_tier"], "primary")
+            self.assertEqual(negative["review_status"], "adjudicated")
+            self.assertEqual(negative["reviewer_ids"], ["project_owner"])
+            self.assertTrue(
+                any(
+                    source_ref["source_type"] == "manual_v3"
+                    and source_ref["source_annotation_path"]
+                    == decision_path.as_posix()
+                    for source_ref in negative["source_refs"]
+                )
+            )
+            self.assertEqual(report["manual_negative_count"], 1)
+            self.assertEqual(report["unmatched_manual_negative_decisions"], [])
+
     def test_mapped_action_fall_is_auxiliary_without_independent_event_source(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)

@@ -1,0 +1,15 @@
+{
+  "schema_version": "fall-tiktok-collection-decision-v1",
+  "decision_id": "fall-tiktok-project-collection-training-authorization-20260728",
+  "decided_at": "2026-07-28",
+  "decided_by": "project_owner",
+  "dataset": "fall_tiktok",
+  "collection_status": "project_collected",
+  "training_use": "authorized",
+  "redistribution_use": "not_authorized_by_this_decision",
+  "consent_status": "not_recorded",
+  "subject_grouping_status": "unknown",
+  "source_group_id": "fall_tiktok_project_collection_pool",
+  "source_uri": "internal://collection/fall_tiktok_20260728",
+  "provenance_status": "project_collected_training_authorized"
+}

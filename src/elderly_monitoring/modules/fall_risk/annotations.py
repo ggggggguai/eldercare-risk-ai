@@ -1677,13 +1677,36 @@ def _normalized_active_boxes(
     global_start = task.frame_offset + task.start_frame
     global_stop = task.frame_offset + task.stop_frame
     global_valid = all(global_start <= frame <= global_stop for frame in raw_frames)
-    if task.frame_offset == 0 and local_valid:
+    coordinate_system = track.attrib.get("frame_coordinate_system")
+    if coordinate_system is None:
+        if task.frame_offset == 0 and local_valid:
+            global_valid = False
+        if local_valid and global_valid:
+            raise ValueError(
+                f"track {track.attrib.get('id')} frame coordinates are ambiguous"
+            )
+        if not local_valid and not global_valid:
+            raise ValueError(
+                f"track {track.attrib.get('id')} frames do not fit task {task.task_id}"
+            )
+    elif coordinate_system == "project_global":
+        if not global_valid:
+            raise ValueError(
+                f"track {track.attrib.get('id')} global frames do not fit task "
+                f"{task.task_id}"
+            )
+        local_valid = False
+    elif coordinate_system == "task_local":
+        if not local_valid:
+            raise ValueError(
+                f"track {track.attrib.get('id')} local frames do not fit task "
+                f"{task.task_id}"
+            )
         global_valid = False
-    if local_valid and global_valid:
-        raise ValueError(f"track {track.attrib.get('id')} frame coordinates are ambiguous")
-    if not local_valid and not global_valid:
+    else:
         raise ValueError(
-            f"track {track.attrib.get('id')} frames do not fit task {task.task_id}"
+            f"track {track.attrib.get('id')} has unsupported frame_coordinate_system "
+            f"{coordinate_system!r}"
         )
 
     normalized = []

@@ -564,18 +564,18 @@ conda run -n eldercare-ai python scripts/annotation/build_fall_training_split_v3
 conda run -n eldercare-ai python scripts/annotation/validate_fall_labels_v3.py
 ```
 
-迁移器只自动完成字段、half-open 边界、来源合并、D04 父事件关联和 U01 ignore。以下内容必须人工完成：
+迁移器只自动完成字段、half-open 边界、来源合并、D04 父事件关联、U01 ignore，以及把已存在于受控裁决配置中的人工 event negative 确定性写入 v3。以下内容仍必须人工完成：
 
 - C03-C05 是否形成 near-fall positive。
-- fall/near-fall hard-negative 窗口。
+- fall/near-fall hard-negative 窗口的逐窗确认与裁决；迁移器不得从动作名或未标注背景自行推断。
 - near-fall recovery frame 和双人复核。
 - 来源冲突、目标身份冲突和不确定边界。
 
 迁移器会根据独立 `sample_group_id/source_group_id` 数量生成 `action_type_training_tier`：少于 10 个 sample group 为 ignore；10-29 个，或来源少于 3 个 source group，为 auxiliary；至少 30 个 sample group且至少 3 个 source group才为 primary。训练具体动作头时必须读取该字段，不能直接复用父类 `training_tier`。
 
-当前 v3 统一 split 覆盖 1,853 条动作/事件标签和 426 个资产，按保守关系形成 31 个泄漏组，校验未发现跨 partition 泄漏；primary fall 正例按 train/validation/test 分为 74/14/7。Pre_VFallp 的未知人员视频共用保守源组，不得为改善分区分布而拆散。CaucaFall 的 100 个视频按 10 名受试者分组，同一受试者不得跨 partition。标签或 manifest 改变后必须依次重跑迁移、split 和校验；旧 v2 split 不得复用。
+当前 v3 统一 split 覆盖 11,881 条动作/事件标签分配和 6,516 个资产，按保守关系形成 184 个泄漏组，校验未发现跨 partition 泄漏；primary fall 正例按 train/validation/test 分为 74/14/7。六条经三视角裁决的 A05 窗口已转换为 `manual_v3/adjudicated` 的 `squat_or_kneel` fall negative，分区为 6/0/0。Pre_VFallp 的未知人员视频共用保守源组，不得为改善分区分布而拆散。CaucaFall 的 100 个视频按 10 名受试者分组，同一受试者不得跨 partition。Fall Detection 2017 人工批次当前仅为待 QC 的候选来源，不得因为已进入 split 就当作 frozen 评估数据。标签或 manifest 改变后必须依次重跑迁移、split 和校验；旧 v2 split 不得复用。
 
-当前 v3 校验结构合法且 split 有效，但 primary `slow_walk` 在 test 分区没有样本，因此 `training_ready.action_type=false`。event negative=0、near-fall positive=0，两个事件任务也均为 `training_ready=false`；不得通过随机抽未标注背景、复制 C04 或拆散保守源组来消除提示。
+当前 v3 校验结构合法且 split 有效，但部分 primary 动作类仍未覆盖三个分区，因此 `training_ready.action_type=false`。fall negative 仅覆盖 `squat_or_kneel` 且 validation/test 为 0，另六类 fall hard negative 与 near-fall positive 仍缺，两个事件任务也均为 `training_ready=false`；不得通过随机抽未标注背景、复制 C04 或拆散保守源组来消除提示。
 
 
 

@@ -1,0 +1,86 @@
+{
+  "schema_version": "ntu-rgbd-a043-cvat-decision-v1",
+  "decision_id": "ntu-rgbd-a043-manual-cvat-acceptance-20260730",
+  "reviewed_at": "2026-07-30",
+  "reviewer_id": "project_owner",
+  "source_action_code": "A043",
+  "decision": "accept_manual_cvat_labels",
+  "direct_filename_import": false,
+  "accepted_batch_id": "ntu_rgbd_a043_cvat_review",
+  "accepted_protocols": [
+    "segmented_normal_to_fall",
+    "segmented_normal_to_fall_with_trailing_outside",
+    "segmented_normal_to_fall_to_sit_to_stand",
+    "segmented_nonfall_controlled_lie_down",
+    "whole_clip_controlled_squat_hard_negative",
+    "whole_clip_fall_without_onset",
+    "whole_clip_uncertain"
+  ],
+  "v3_event_training_policy": "auxiliary_approximate",
+  "adjudications": [
+    {
+      "type": "label_override",
+      "source_name": "S013C001P018R001A043_rgb.avi",
+      "expected_label": "U01_unable_to_judge",
+      "accepted_label": "D01_forward_fall",
+      "evidence": "three_view_visual_review",
+      "reason": "All three synchronized views show forward trunk descent followed by hand and knee ground contact; C002 and C003 independently agree on D01."
+    },
+    {
+      "type": "label_override",
+      "source_name": "S015C003P015R001A043_rgb.avi",
+      "expected_label": "D01_forward_fall",
+      "accepted_label": "D02_lateral_fall",
+      "evidence": "three_view_visual_review",
+      "reason": "The subject loses support toward the body side; C001 and C002 independently agree on D02."
+    },
+    {
+      "type": "label_override",
+      "source_name": "S011C001P015R001A043_rgb.avi",
+      "expected_label": "U01_unable_to_judge",
+      "accepted_label": "A05_controlled_squat",
+      "evidence": "three_view_visual_review",
+      "reason": "The synchronized views show a full squat followed by a return to standing with continuous foot support and no uncontrolled body impact."
+    },
+    {
+      "type": "label_override",
+      "source_name": "S011C002P015R001A043_rgb.avi",
+      "expected_label": "U01_unable_to_judge",
+      "accepted_label": "A05_controlled_squat",
+      "evidence": "three_view_visual_review",
+      "reason": "The synchronized views show a full squat followed by a return to standing with continuous foot support and no uncontrolled body impact."
+    },
+    {
+      "type": "label_override",
+      "source_name": "S011C003P015R001A043_rgb.avi",
+      "expected_label": "U01_unable_to_judge",
+      "accepted_label": "A05_controlled_squat",
+      "evidence": "three_view_visual_review",
+      "reason": "The synchronized views show a full squat followed by a return to standing with continuous foot support and no uncontrolled body impact."
+    },
+    {
+      "type": "accepted_hard_negative",
+      "source_names": [
+        "S011C001P015R001A043_rgb.avi",
+        "S011C002P015R001A043_rgb.avi",
+        "S011C003P015R001A043_rgb.avi"
+      ],
+      "accepted_label": "A05_controlled_squat",
+      "training_use": "fall_hard_negative",
+      "evidence": "three_view_visual_review",
+      "reason": "All views show controlled lowering and recovery without a fall outcome."
+    },
+    {
+      "type": "accepted_hard_negative",
+      "source_names": [
+        "S017C001P020R001A043_rgb.avi",
+        "S017C002P020R001A043_rgb.avi",
+        "S017C003P020R001A043_rgb.avi"
+      ],
+      "accepted_label": "A05_controlled_squat",
+      "training_use": "fall_hard_negative",
+      "evidence": "three_view_visual_review",
+      "reason": "All views show a gradual symmetric lowering with maintained foot and hand support and no uncontrolled body impact."
+    }
+  ]
+}

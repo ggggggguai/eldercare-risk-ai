@@ -494,8 +494,15 @@ def _manifest_index(
             has_internal_authorization = _has_valid_internal_authorization_provenance(
                 row, source_uri
             )
+            has_project_collection = _has_valid_project_collection_provenance(
+                row, source_uri
+            )
             if (
-                not (has_public_provenance or has_internal_authorization)
+                not (
+                    has_public_provenance
+                    or has_internal_authorization
+                    or has_project_collection
+                )
                 or not isinstance(exclusion_reasons, list)
                 or bool(exclusion_reasons)
             ):
@@ -572,6 +579,43 @@ def _has_valid_internal_authorization_provenance(
         and authorized_video_count > 0
         and row.get("provenance_status")
         == "internal_authorized_source_unverified"
+    )
+
+
+def _has_valid_project_collection_provenance(
+    row: Mapping[str, Any], source_uri: str
+) -> bool:
+    decision_path_value = row.get("collection_decision_path")
+    decision_sha256 = row.get("collection_decision_sha256")
+    decision_path = (
+        Path(decision_path_value)
+        if isinstance(decision_path_value, str) and decision_path_value
+        else None
+    )
+    decision_file_valid = (
+        decision_path is not None
+        and decision_path.is_file()
+        and isinstance(decision_sha256, str)
+        and bool(_SHA256_PATTERN.fullmatch(decision_sha256))
+        and _sha256_path(decision_path) == decision_sha256
+    )
+    return (
+        row.get("dataset") == "fall_tiktok"
+        and source_uri.startswith("internal://collection/")
+        and row.get("provenance_status")
+        == "project_collected_training_authorized"
+        and row.get("collection_status") == "project_collected"
+        and row.get("training_use") == "authorized"
+        and row.get("redistribution_use") == "not_authorized_by_this_decision"
+        and row.get("consent_status") == "not_recorded"
+        and row.get("subject_grouping_status") == "unknown"
+        and isinstance(row.get("collection_decision_id"), str)
+        and bool(row["collection_decision_id"])
+        and isinstance(row.get("collection_decided_at"), str)
+        and bool(re.fullmatch(r"\d{4}-\d{2}-\d{2}", row["collection_decided_at"]))
+        and isinstance(row.get("collection_decided_by"), str)
+        and bool(row["collection_decided_by"])
+        and decision_file_valid
     )
 
 

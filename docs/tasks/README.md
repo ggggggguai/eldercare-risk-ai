@@ -6,7 +6,7 @@
 
 ## P0：形成可验证交付
 
-工作流 A 已实现统一 manifest、v2 标注导入/发布、模型训练标签 v3 迁移/统一 split/校验、四任务 split builder 和事件评估器，并用合成数据跑通 bundle。当前 v3 结构与 split 合法，但没有人工 event negative，near-fall positive 为 0；当前剩余工作是补齐模型监督数据、处理 v2 formal blocker并冻结评估协议。
+工作流 A 已实现统一 manifest、v2 标注导入/发布、模型训练标签 v3 迁移/统一 split/校验、四任务 split builder 和事件评估器，并用合成数据跑通 bundle。当前 v3 有 9,314 条动作、2,567 条事件、11,881 条 split assignment，结构与 hash 校验合法，已接入 6 条人工裁决的 `squat_or_kneel` fall negative，但它们全部位于 train，另外六类 fall hard negative 和全部 near-fall positive 仍缺；当前剩余工作是补齐模型监督数据、处理 v2 formal blocker并冻结评估协议。
 
 | 任务 | 完成标准 |
 |---|---|
@@ -42,7 +42,9 @@
 - 模型替换门槛：来源完整标签、人员/源组无泄漏划分、冻结验证协议、误报漏报分析、推理延迟和低质量输入降级证据全部齐备。
 - 个体基线和最终风险融合暂不强行监督训练；需要连续个人数据或非空 `risk_labels.jsonl` 后再选择 EWMA/CUSUM、Logistic Regression、LightGBM 或时序融合模型。
 - 扩充老人域、近跌倒、低光、遮挡、辅助器具和跨房间数据。
-- 恢复 NTU RGB+D 的可用媒体路径：当前 2,976 条精确动作标签及无泄漏 split 已生成，但外部 manifest 指向的旧解压目录不存在；需从 `ntu.zip` 重新解压或重建 manifest 后再做训练。A043 的 948 条已明确排除，不列为待标。
+- 通用全视频姿态缓存已覆盖当前 manifest 的全部 6,512 个 eligible RGB 视频：`le2i_imvia` 184 个、`caucafall` 100 个、`ntu_rgbd` 3,914 个、`fall_detection_2017` 2,012 个、`fall_tiktok` 66 个、`pre_vfallp` 108 个、`toaga` 28 个和 `ur_fall` 100 个，剩余 0，且各批均通过完整解析验收。`gstride`、`ltmm` 以及 ToAGa/UR Fall 的表格、时序资产不属于 RGB 姿态缓存。UR Fall 的 `adl-07-cam0.mp4` 源归档本身截断，只缓存了 35 个可解码帧，不能视为完整 180 帧样本；`pre_vfallp` 的姿态缓存也不解除数据集隔离状态。姿态缓存完成不等于训练窗口或模型训练已就绪。
+- NTU RGB+D 媒体路径已按仓库内 `data/external/ntu` 重建，3,924 个 AVI 和主 manifest 纳入的 3,914 个资产均可访问；A043 S001-S017 的 938 个已标视频已接入。S016/C003/P008/R001 job revision 已以严格文件名绑定叠加到完整 S016 project；S013/C001、S015/C003 和两组三视角 A05 裁决已写入决定文件及 JSONL。后续仍需补齐 S002 缺少的 10 个 C001 任务，并继续补标 446 个全片跌倒窗口的 onset 及复核跨视角方向/边界差异；未标注 A043 不按文件名直接导入。
+- 抖音/B站跌倒视频整理批次已按项目负责人决定记录为项目自采并授权内部训练；后续若取得人员对应关系，应把当前单一保守来源池细化为脱敏 subject group 后重新冻结 split。该决定不作为公开再分发授权。
 - KINECAL 轻量 TCN 固定划分 baseline 已跑通，但 7 人测试集 balanced accuracy 仅 `0.333`、ROC-AUC `0.583`；进入主链前必须完成重复参与者级交叉验证、RGB 姿态微调和独立外部测试。
 - 补消融实验：完整跌倒管线、去掉个体基线、去掉近跌倒、仅事件检测。
 - 建立版本化实验报告、复现配置、误报漏报案例和资源成本记录。

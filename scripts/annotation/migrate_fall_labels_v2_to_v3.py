@@ -10,6 +10,11 @@ from elderly_monitoring.modules.fall_risk.training_labels_v3 import (
 )
 
 
+DEFAULT_MANUAL_NEGATIVE_DECISION = Path(
+    "configs/data/ntu_rgbd_a043_cvat_decision_v1.json"
+)
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Migrate v2 fall-risk labels into model-training v3 labels."
@@ -44,6 +49,16 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         default=Path("reports/fall_risk/training-labels-v3-migration.json"),
     )
+    parser.add_argument(
+        "--manual-negative-decision",
+        type=Path,
+        action="append",
+        default=None,
+        help=(
+            "Reviewed decision config that authorizes explicit v3 event negatives; "
+            "repeat for multiple files. Defaults to the NTU RGB+D A043 decision."
+        ),
+    )
     parser.add_argument("--overwrite", action="store_true")
     return parser.parse_args()
 
@@ -57,6 +72,11 @@ def main() -> int:
         action_labels_v3_path=args.action_labels_v3,
         event_labels_v3_path=args.event_labels_v3,
         report_path=args.report_output,
+        manual_negative_decision_paths=(
+            args.manual_negative_decision
+            if args.manual_negative_decision is not None
+            else [DEFAULT_MANUAL_NEGATIVE_DECISION]
+        ),
         overwrite=args.overwrite,
     )
     print(json.dumps(report, ensure_ascii=False, sort_keys=True, indent=2))

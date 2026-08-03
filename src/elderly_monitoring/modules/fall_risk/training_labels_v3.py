@@ -11,6 +11,10 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Any, Iterable, Mapping, Sequence
 
+from elderly_monitoring.modules.fall_risk.ntu_rgbd_cvat import (
+    load_ntu_rgbd_a043_decision,
+)
+
 
 ACTION_SCHEMA_VERSION = "fall-risk-action-label-v3"
 EVENT_SCHEMA_VERSION = "fall-risk-event-label-v3"
@@ -130,6 +134,13 @@ HARD_NEGATIVES_BY_TASK = {
 }
 
 _TIER_RANK = {"ignore": 0, "auxiliary": 1, "primary": 2}
+_NTU_RGBD_A043_SOURCE_PATTERN = re.compile(
+    r"S(?P<setup>\d{3})C(?P<camera>\d{3})P(?P<person>\d{3})"
+    r"R(?P<repetition>\d{3})A043_rgb\.(?:mp4|avi)"
+)
+_NTU_RGBD_HARD_NEGATIVE_TYPES = {
+    "A05_controlled_squat": "squat_or_kneel",
+}
 
 
 @dataclass(frozen=True)
@@ -144,6 +155,7 @@ def migrate_v2_training_labels(
     manifest_rows: Sequence[Mapping[str, Any]],
     action_rows: Sequence[Mapping[str, Any]],
     event_rows: Sequence[Mapping[str, Any]],
+    manual_negative_decisions: Sequence[Mapping[str, Any]] = (),
 ) -> TrainingLabelMigrationResult:
     video_manifest_rows = [
         row
@@ -259,6 +271,34 @@ def migrate_v2_training_labels(
 
     _assign_action_type_training_tiers(actions_v3)
 
+    validated_manual_negative_decisions = _validated_manual_negative_decisions(
+        manual_negative_decisions
+    )
+    matched_manual_negative_decisions: set[str] = set()
+    for decision in validated_manual_negative_decisions:
+        candidates = [
+            action
+            for action in actions_v3
+            if action.get("video_id") == decision["video_id"]
+            and action.get("action_id") == decision["source_action_id"]
+        ]
+        decision_key = str(decision["decision_key"])
+        if not candidates:
+            continue
+        if len(candidates) != 1:
+            raise ValueError(
+                "manual negative decision matches multiple actions: "
+                f"{decision_key}"
+            )
+        action = candidates[0]
+        if action.get("training_tier") == "ignore":
+            raise ValueError(
+                "manual negative decision targets an ignored action: "
+                f"{decision_key}"
+            )
+        events_v3.append(_event_negative_from_action(action, decision))
+        matched_manual_negative_decisions.add(decision_key)
+
     for v2_action in action_rows:
         if v2_action.get("action_id") != "U01":
             continue
@@ -275,6 +315,8 @@ def migrate_v2_training_labels(
         events_v3=events_v3,
         deduplicated_official_action_falls=deduplicated_official_action_falls,
         unresolved_post_fall_states=unresolved_post_fall_states,
+        manual_negative_decisions=validated_manual_negative_decisions,
+        matched_manual_negative_decisions=matched_manual_negative_decisions,
     )
     return TrainingLabelMigrationResult(actions_v3, events_v3, report)
 
@@ -287,6 +329,7 @@ def write_training_label_migration(
     action_labels_v3_path: Path | str,
     event_labels_v3_path: Path | str,
     report_path: Path | str,
+    manual_negative_decision_paths: Sequence[Path | str] = (),
     overwrite: bool = False,
 ) -> dict[str, Any]:
     input_paths = {
@@ -294,10 +337,17 @@ def write_training_label_migration(
         "action_labels_v2": Path(action_labels_v2_path),
         "event_labels_v2": Path(event_labels_v2_path),
     }
+    decision_paths = [Path(path) for path in manual_negative_decision_paths]
+    if len(decision_paths) != len(set(decision_paths)):
+        raise ValueError("manual negative decision paths must be unique")
+    for index, path in enumerate(decision_paths):
+        input_paths[f"manual_negative_decision_{index}"] = path
+    manual_negative_decisions = _load_manual_negative_decisions(decision_paths)
     result = migrate_v2_training_labels(
         manifest_rows=read_jsonl_strict(input_paths["manifest"]),
         action_rows=read_jsonl_strict(input_paths["action_labels_v2"]),
         event_rows=read_jsonl_strict(input_paths["event_labels_v2"]),
+        manual_negative_decisions=manual_negative_decisions,
     )
     outputs = {
         "action_labels_v3": Path(action_labels_v3_path),
@@ -823,6 +873,105 @@ def read_jsonl_strict(path: Path | str) -> list[dict[str, Any]]:
     return rows
 
 
+def _load_manual_negative_decisions(
+    decision_paths: Sequence[Path],
+) -> list[dict[str, Any]]:
+    decisions: list[dict[str, Any]] = []
+    for path in decision_paths:
+        payload = load_ntu_rgbd_a043_decision(path)
+        decision_id = _required_string(payload, "decision_id")
+        reviewer_id = _required_string(payload, "reviewer_id")
+        decision_sha256 = _sha256_file(path)
+        for adjudication in payload["adjudications"]:
+            if adjudication.get("type") != "accepted_hard_negative":
+                continue
+            accepted_label = _required_string(adjudication, "accepted_label")
+            hard_negative_type = _NTU_RGBD_HARD_NEGATIVE_TYPES.get(accepted_label)
+            if hard_negative_type is None:
+                raise ValueError(
+                    "unsupported NTU RGB+D hard-negative label: "
+                    f"{accepted_label}"
+                )
+            source_action_id = accepted_label.split("_", 1)[0]
+            for source_name in adjudication["source_names"]:
+                video_id = _ntu_rgbd_a043_video_id(str(source_name))
+                decisions.append(
+                    {
+                        "decision_key": f"{decision_id}:{video_id}:fall_event",
+                        "decision_id": decision_id,
+                        "video_id": video_id,
+                        "source_action_id": source_action_id,
+                        "task_type": "fall_event",
+                        "hard_negative_type": hard_negative_type,
+                        "reviewer_id": reviewer_id,
+                        "reason": _required_string(adjudication, "reason"),
+                        "source_annotation_path": path.as_posix(),
+                        "source_annotation_sha256": decision_sha256,
+                    }
+                )
+    return _validated_manual_negative_decisions(decisions)
+
+
+def _validated_manual_negative_decisions(
+    decisions: Sequence[Mapping[str, Any]],
+) -> list[dict[str, Any]]:
+    required = {
+        "decision_key",
+        "decision_id",
+        "video_id",
+        "source_action_id",
+        "task_type",
+        "hard_negative_type",
+        "reviewer_id",
+        "reason",
+        "source_annotation_path",
+        "source_annotation_sha256",
+    }
+    normalized: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    seen_targets: set[tuple[str, str]] = set()
+    for index, decision in enumerate(decisions):
+        if set(decision) != required:
+            raise ValueError(f"manual negative decision {index} has an invalid shape")
+        row = {key: _required_string(decision, key) for key in required}
+        if row["task_type"] not in HARD_NEGATIVES_BY_TASK:
+            raise ValueError(
+                f"manual negative decision {index} has an invalid task_type"
+            )
+        if row["hard_negative_type"] not in HARD_NEGATIVES_BY_TASK[row["task_type"]]:
+            raise ValueError(
+                f"manual negative decision {index} has an invalid hard-negative type"
+            )
+        if re.fullmatch(r"[0-9a-f]{64}", row["source_annotation_sha256"]) is None:
+            raise ValueError(
+                f"manual negative decision {index} has an invalid source hash"
+            )
+        if row["decision_key"] in seen:
+            raise ValueError(
+                f"duplicate manual negative decision: {row['decision_key']}"
+            )
+        target = (row["video_id"], row["task_type"])
+        if target in seen_targets:
+            raise ValueError(
+                "duplicate manual negative target: "
+                f"{row['video_id']}:{row['task_type']}"
+            )
+        seen.add(row["decision_key"])
+        seen_targets.add(target)
+        normalized.append(row)
+    return sorted(normalized, key=lambda row: row["decision_key"])
+
+
+def _ntu_rgbd_a043_video_id(source_name: str) -> str:
+    match = _NTU_RGBD_A043_SOURCE_PATTERN.fullmatch(Path(source_name).name)
+    if match is None:
+        raise ValueError(f"invalid NTU RGB+D A043 source name: {source_name}")
+    return (
+        f"ntu_rgbd_s{match.group('setup')}_p{match.group('person')}_"
+        f"r{match.group('repetition')}_a043_c{match.group('camera')}"
+    )
+
+
 def _migrate_action(
     row: Mapping[str, Any], manifest: Mapping[str, Any]
 ) -> dict[str, Any]:
@@ -1075,6 +1224,73 @@ def _event_ignore_from_action(
     }
 
 
+def _event_negative_from_action(
+    action: Mapping[str, Any], decision: Mapping[str, Any]
+) -> dict[str, Any]:
+    common = {
+        key: action[key]
+        for key in (
+            "asset_id",
+            "video_id",
+            "content_sha256",
+            "subject_id",
+            "source_group_id",
+            "sample_group_id",
+            "track_id",
+            "start_frame",
+            "end_frame_exclusive",
+            "frame_index_base",
+            "start_time",
+            "end_time_exclusive",
+            "target_status",
+            "boundary_precision",
+            "quality_flags",
+            "training_tier",
+            "annotator_id",
+        )
+    }
+    manual_source_ref = {
+        "source_type": "manual_v3",
+        "source_record_id": str(decision["decision_key"]),
+        "source_annotation_path": str(decision["source_annotation_path"]),
+        "source_annotation_sha256": str(decision["source_annotation_sha256"]),
+        "source_label_id": str(decision["decision_key"]),
+    }
+    task_type = str(decision["task_type"])
+    return {
+        **common,
+        "schema_version": EVENT_SCHEMA_VERSION,
+        "label_id": _stable_id(
+            "eventv3",
+            EVENT_SCHEMA_VERSION,
+            task_type,
+            "negative",
+            action["label_id"],
+            decision["decision_id"],
+        ),
+        "source_refs": _unique_source_refs(
+            [*action["source_refs"], manual_source_ref]
+        ),
+        "reviewer_ids": [str(decision["reviewer_id"])],
+        "review_status": "adjudicated",
+        "note": str(decision["reason"]),
+        "physical_event_id": None,
+        "task_type": task_type,
+        "label_role": "negative",
+        "event_type": None,
+        "event_subtype": None,
+        "event_outcome": None,
+        "hard_negative_type": str(decision["hard_negative_type"]),
+        "onset_frame": None,
+        "peak_frame": None,
+        "impact_frame": None,
+        "recovery_frame": None,
+        "linked_action_ids": [str(action["label_id"])],
+        "contact_evidence": "not_applicable",
+        "subtype_training_tier": "ignore",
+    }
+
+
 def _common_from_v2_action(
     row: Mapping[str, Any], manifest: Mapping[str, Any]
 ) -> dict[str, Any]:
@@ -1220,6 +1436,8 @@ def _migration_report(
     events_v3: Sequence[Mapping[str, Any]],
     deduplicated_official_action_falls: int,
     unresolved_post_fall_states: int,
+    manual_negative_decisions: Sequence[Mapping[str, Any]],
+    matched_manual_negative_decisions: set[str],
 ) -> dict[str, Any]:
     excluded_events = Counter(
         str(row.get("event_type"))
@@ -1255,6 +1473,13 @@ def _migration_report(
         "deduplicated_official_action_falls": deduplicated_official_action_falls,
         "unresolved_post_fall_states": unresolved_post_fall_states,
         "excluded_v2_event_counts": dict(sorted(excluded_events.items())),
+        "manual_negative_count": len(matched_manual_negative_decisions),
+        "unmatched_manual_negative_decisions": sorted(
+            str(decision["decision_key"])
+            for decision in manual_negative_decisions
+            if str(decision["decision_key"])
+            not in matched_manual_negative_decisions
+        ),
         "automatic_negative_count": 0,
     }
 

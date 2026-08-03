@@ -43,6 +43,7 @@ _UNSTABLE_GAIT_ACTIONS = {
     "swaying_walk",
 }
 _PARTITIONS = ("train", "validation", "test")
+_V3_ACTION_SCHEMA = "fall-risk-action-label-v3"
 
 
 @dataclass(frozen=True)
@@ -80,26 +81,92 @@ def select_gait_training_labels(
     for source in rows:
         row = dict(source)
         action_id = str(row.get("action_id", ""))
-        action_name = str(row.get("action_name", ""))
+        is_v3 = row.get("schema_version") == _V3_ACTION_SCHEMA
+        action_name = str(
+            row.get("action_type", "") if is_v3 else row.get("action_name", "")
+        )
         event_type = str(row.get("event_type", ""))
-        if event_type == "gait_instability" and (
-            action_id in _UNSTABLE_GAIT_ACTIONS or action_name in _UNSTABLE_GAIT_ACTIONS
-        ):
+        if action_id in _UNSTABLE_GAIT_ACTIONS or action_name in _UNSTABLE_GAIT_ACTIONS:
+            if not is_v3 and event_type != "gait_instability":
+                continue
             label = 1
             target_name = "gait_instability"
-        elif event_type == "normal_activity" and (
-            action_id in _NORMAL_WALK_ACTIONS or action_name in _NORMAL_WALK_ACTIONS
-        ):
+        elif action_id in _NORMAL_WALK_ACTIONS or action_name in _NORMAL_WALK_ACTIONS:
+            if not is_v3 and event_type != "normal_activity":
+                continue
             label = 0
             target_name = "normal_activity"
         else:
             continue
-        if row.get("quality") not in (None, "", "clear", "partial_occlusion"):
+        if is_v3:
+            if row.get("training_tier") == "ignore":
+                continue
+            end_exclusive = row.get("end_frame_exclusive")
+            if not isinstance(end_exclusive, int) or end_exclusive <= int(
+                row.get("start_frame", -1)
+            ):
+                raise ValueError(
+                    f"v3 gait label {row.get('label_id')} has invalid half-open frame bounds"
+                )
+            row["action_name"] = action_name
+            row["event_type"] = target_name
+            row["end_frame"] = end_exclusive - 1
+            if row.get("end_time_exclusive") is not None:
+                row["end_time"] = row["end_time_exclusive"]
+        elif row.get("quality") not in (None, "", "clear", "partial_occlusion"):
             continue
         row["label"] = label
         row["target_name"] = target_name
         selected.append(row)
     return selected
+
+
+def enrich_gait_training_labels(
+    rows: Iterable[Mapping[str, Any]],
+    *,
+    manifest_rows: Iterable[Mapping[str, Any]],
+) -> list[dict[str, Any]]:
+    """Select gait labels and join their authoritative video manifest metadata."""
+
+    manifests: dict[str, dict[str, Any]] = {}
+    for source in manifest_rows:
+        manifest = dict(source)
+        raw_video_id = manifest.get("video_id")
+        if raw_video_id is None or raw_video_id == "":
+            continue
+        video_id = str(raw_video_id)
+        if video_id in manifests:
+            raise ValueError(f"duplicate gait manifest video_id: {video_id}")
+        manifests[video_id] = manifest
+
+    enriched: list[dict[str, Any]] = []
+    for label in select_gait_training_labels(rows):
+        video_id = str(label.get("video_id", ""))
+        manifest = manifests.get(video_id)
+        if manifest is None:
+            raise ValueError(f"gait label references missing manifest video: {video_id}")
+        if manifest.get("eligibility") is not True:
+            raise ValueError(f"gait label references ineligible manifest video: {video_id}")
+        label_asset = str(label.get("asset_id", ""))
+        manifest_asset = str(manifest.get("asset_id", ""))
+        if label_asset and manifest_asset and label_asset != manifest_asset:
+            raise ValueError(f"gait label/manifest asset mismatch for {video_id}")
+        path = str(manifest.get("path", ""))
+        if not path:
+            raise ValueError(f"gait manifest is missing video path: {video_id}")
+        row = dict(label)
+        row.update(
+            {
+                "file_path": path,
+                "scene": str(manifest.get("scene_region", "unknown")),
+                "dataset": str(manifest.get("dataset", "unknown")),
+                "fps": manifest.get("fps"),
+                "frame_count": manifest.get("frame_count"),
+                "manifest_content_sha256": manifest.get("sha256"),
+            }
+        )
+        enriched.append(row)
+    return enriched
 
 
 def prepare_gait_window_dataset(
