@@ -1,6 +1,6 @@
 # 评估脚本目录
 
-当前已实现跌倒/近跌倒事件评估器。功能 proxy 与纵向任务只有 schema 和 split 门禁；在真实参考终点存在前，不生成正式指标。
+当前已实现跌倒/近跌倒事件评估器，以及跌倒 candidate-clip TCN、坐站规则/Logistic/候选 TCN 的 validation-only 复评入口。功能 proxy 与纵向任务只有 schema 和 split 门禁；在真实参考终点存在前，不生成正式指标。
 
 ## 事件评估契约
 
@@ -55,6 +55,41 @@ conda run -n eldercare-ai python scripts/evaluate/evaluate_fall_events.py \
 ```
 
 `--allow-provisional` 只允许非正式的 train/validation 开发烟测。仓库证据包位于 `reports/fall_risk/workflow_a_synthetic_evaluation/`；其中满分结果只是 perfect-match fixture，不是模型或比赛性能。
+
+## 候选模型复评
+
+跌倒 candidate-clip TCN 使用当前 v3 split 生成的数据集，并只在 metadata 记录的 validation 分区复算固定 checkpoint：
+
+```bash
+conda run -n eldercare-ai python scripts/evaluate/evaluate_fall_event_tcn.py \
+  --data data/processed/fall_risk/fall_event_proxy_v2_v3split/dataset.npz \
+  --metadata data/processed/fall_risk/fall_event_proxy_v2_v3split/metadata.json \
+  --checkpoint reports/fall_risk/fall_event_proxy_v2_v3split/pilot-seed42/best_model.pt \
+  --output /tmp/fall_event_validation.json
+```
+
+坐站 provisional 数据集分别提供规则 E0、Logistic 和候选双头 TCN 的 validation 复评：
+
+```bash
+conda run -n eldercare-ai python scripts/evaluate/evaluate_sit_stand_rule.py \
+  --data data/processed/fall_risk/sit_stand_event_v1/provisional-20260803-seed42-v3/dataset.npz \
+  --metadata data/processed/fall_risk/sit_stand_event_v1/provisional-20260803-seed42-v3/metadata.json \
+  --output-dir /tmp/sit_stand_rule_validation
+
+conda run -n eldercare-ai python scripts/evaluate/evaluate_sit_stand.py \
+  --data data/processed/fall_risk/sit_stand_event_v1/provisional-20260803-seed42-v3/dataset.npz \
+  --metadata data/processed/fall_risk/sit_stand_event_v1/provisional-20260803-seed42-v3/metadata.json \
+  --checkpoint reports/fall_risk/sit_stand_event_v1/pilot-logreg-provisional-20260803-seed42-v2/checkpoint.joblib \
+  --output /tmp/sit_stand_logistic_validation.json
+
+conda run -n eldercare-ai python scripts/evaluate/evaluate_sit_stand_tcn.py \
+  --data data/processed/fall_risk/sit_stand_event_v1/provisional-20260803-seed42-v3/dataset.npz \
+  --metadata data/processed/fall_risk/sit_stand_event_v1/provisional-20260803-seed42-v3/metadata.json \
+  --checkpoint reports/fall_risk/sit_stand_event_v1/pilot-candidate-tcn-provisional-20260803-seed42-v1/best_model.pt \
+  --output /tmp/sit_stand_tcn_validation.json
+```
+
+这些入口会拒绝 test 评估或只接受 `partition=validation`。模型权重和 `.joblib` 是本地忽略产物；命令路径用于复现实验，不表示仓库发布 checkpoint。候选 clip 指标不等于连续事件定位、连续背景误报率、老人域泛化或正式测试结果。
 
 ## 正式门禁
 

@@ -253,7 +253,7 @@ conda run -n eldercare-ai python scripts/annotation/validate_fall_labels_v3.py \
 
 只有候选报告同时满足 `valid=true` 和 `training_ready.near_fall_event=true`，且人工检查确认 train/validation 的人员、来源、场景和八类 hard negative 覆盖足够，才能准备真实 train/validation 数据。此步骤不读取 test 姿态、不输出 test 指标，也不能通过拆分同一受试者或来源组改善数字。
 
-正式 v3 split 有 18,812 条标签分配、6,516 个资产和 184 个保守泄漏组，校验未发现跨 partition 泄漏。primary fall 正/负按 train/validation/test 分为 `74/14/7` 和 `958/396/369`；primary near-fall 正/负为 `348/300/300` 和 `1109/364/433`。NTU 按受试者组不跨 partition，Pre_VFallp 维持一个保守源组，CaucaFall 按 10 名受试者分组；不能为了改善分区数字而拆散保护组。旧 v2 `fall_event_v1` split 不适用于 v3。
+正式 v3 split 有 18,812 条标签分配、6,516 个资产和 184 个保守泄漏组，校验未发现跨 partition 泄漏。primary fall 正/负按 train/validation/test 分为 `74/7/14` 和 `958/396/369`；primary near-fall 正/负为 `348/300/300` 和 `1109/364/433`。NTU 按受试者组不跨 partition，Pre_VFallp 维持一个保守源组，CaucaFall 按 10 名受试者分组；不能为了改善分区数字而拆散保护组。旧 v2 `fall_event_v1` split 不适用于 v3。
 
 ## 12. 校验模型训练标签 v3
 

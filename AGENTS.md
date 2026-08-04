@@ -134,18 +134,22 @@ docs/modules/fall_risk/README.md
 
 ```text
 docs/modules/mental_health/README.md
+docs/modules/mental_health/plans/徘徊样行为识别技术方案.md
 configs/modules/mental_health.yaml
 ```
 
 ## 当前研发阶段
 
-当前项目处于跌倒风险算法的模型化增强阶段：在保留可解释规则和安全覆盖 fallback 的前提下，逐步将步态、坐站、近跌倒/跌倒事件等规则分支替换为经过固定数据划分和验证的时序模型（如 TCN、MS-TCN++ 或 ST-GCN）。
+当前项目处于跌倒风险算法的模型化增强阶段。步态、坐站、近跌倒和跌倒事件已经存在数据准备、训练、validation 复评或 shadow 推理实现，但全部仍是 provisional 候选；规则 baseline 继续作为运行主路径、安全覆盖和低质量输入 fallback。不得再把这些任务写成“尚未开始构建训练链”，也不得把候选实验写成已替换主路径。
 
-模型候选只有在来源完整的标注、无泄漏的 train/validation/test split、冻结评估协议和延迟/稳定性证据具备后，才能替换主路径。个体行为基线和最终风险融合仍需对应的连续个人数据或 `risk_labels` 真值；在这些条件满足前，保留统计/规则 fallback，不把计划中的模型写成已完成能力。
+当前 v3 训练标签的 fall/near-fall 事件监督门禁通过，动作类型门禁仍未通过，且所有 split 尚未冻结。模型候选只有在来源完整的标注、无泄漏且冻结的 train/validation/test split、连续背景与老人域验证、冻结评估协议和延迟/稳定性证据具备后，才能替换主路径。个体行为基线和最终风险融合仍需对应的连续个人数据或 `risk_labels` 真值；在这些条件满足前，保留统计/规则 fallback。
+
+心理健康日级 baseline 已实现；徘徊专项当前完成步骤 2 的安全转换、严格数据契约和人工复核，下一步是固定 split。正式 split、模型、片段状态机、日级接入和摄像头域验证完成前，不把转换产物写成徘徊识别能力。
 
 ## 文档维护规则
 
 - `docs/README.md` 是文档唯一总入口；新增、移动或删除现行文档时必须同步更新。
+- 根 `README.md` 是仓库入口，`AGENTS.md` 是协作约束入口；项目阶段、事实源、标准命令或边界变化时必须同步更新，不能只改 `docs/` 下的模块文档。
 - 当前实现状态只写入工程架构、模块 README 和 `docs/tasks/README.md`，不要在多个计划或汇报中重复维护。
 - `plans/` 描述目标路线和实验设计，不能把计划内容当作已经实现的证据。
 - `docs/archive/` 只保存历史评审、阶段汇报、早期方案和已结束计划；归档内容不作为当前代码事实源。
@@ -155,9 +159,11 @@ configs/modules/mental_health.yaml
 
 ## 跌倒标注事实源
 
-- 跌倒风险标注当前唯一有效契约是 v2：以 `configs/data/fall_risk_label_validation_v2.yaml`、当前标签字典和现行转换/校验代码为准。
+- v2 是根标签与发布候选契约：以 `configs/data/fall_risk_label_validation_v2.yaml`、当前标签字典、`data/annotations/fall_risk/action_labels.jsonl`、`event_labels.jsonl` 和现行发布/校验代码为准。v2 formal 未通过时，不得称为 frozen 数据发布。
+- v3 是独立的模型训练契约：以 `configs/data/fall_risk_action_label_schema_v3.json`、`configs/data/fall_risk_event_label_schema_v3.json`、`configs/data/fall_risk_training_decision_20260804.json`、两份 `*_labels_v3.jsonl`、`data/splits/fall_risk/training_labels_v3/` 和现行迁移/split/校验代码为准。v3 不覆盖 v2，也不能反向充当根标签发布事实源。
+- 当前计数、hash、split 和 `training_ready` 状态以 `reports/fall_risk/training-labels-v3-validation.json`、`reports/reproducibility/dataset_and_split_versions.md` 及机器产物为准，不在协作规则中复制长期维护。
 - 不得从 Git 历史或 diff、`docs/archive/`、原始 CVAT 工具项目名或旧生成目录推断当前标注 schema；这些内容只用于追溯，不是现状依据。
-- 修改标注 schema 时，必须同步检查来源候选、根标签、发布报告和 split 的哈希引用。
+- 修改任一层 schema 时，必须同步检查来源候选、根标签、受审决策、发布报告、split 和所有哈希引用。
 
 ## 跌倒风险固定算法路线
 

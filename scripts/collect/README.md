@@ -12,10 +12,10 @@
 conda run -n eldercare-ai python scripts/collect/run_fall_event_model.py \
   --input data/processed/fall_risk/pose_quality_y8n_v1/cleaned/<video_id>.jsonl \
   --output /tmp/fall_event_predictions.jsonl \
-  --checkpoint reports/fall_risk/fall_event_proxy_v1/presence-pilot-seed42-v2/best_model.pt
+  --checkpoint reports/fall_risk/fall_event_proxy_v2_v3split/pilot-seed42/best_model.pt
 ```
 
-当前 presence-only checkpoint 没有训练跌倒方向头；shadow 输出和评估报告均不提供方向结论。低质量窗口返回 `status=unavailable`，不会把缺失输入当成未跌倒。
+当前 v3 split 的三 seed pilot 仍是 presence-only candidate-clip proxy，没有训练跌倒方向头；shadow 输出和评估报告均不提供方向结论。低质量窗口返回 `status=unavailable`，不会把缺失输入当成未跌倒。checkpoint 文件是本地忽略产物，README 路径只描述复现实验目录，不表示仓库发布了模型权重。
 
 ## 真实直播算法端烟测
 

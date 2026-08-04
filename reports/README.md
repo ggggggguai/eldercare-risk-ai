@@ -31,3 +31,8 @@ Workflow A 当前入口：
 - [`fall_risk/sit_stand_event_v1/README.md`](fall_risk/sit_stand_event_v1/README.md)：坐站 candidate-clip Logistic/TCN provisional validation；不提供连续事件定位或 test 结论。
 - [`fall_risk/near_fall_event_v1/README.md`](fall_risk/near_fall_event_v1/README.md)：近跌倒恢复确认 TCN 三 seed provisional pilot；validation F1 `0.990-0.997`，窗口全部来自 NTU，test 未读取，未替换规则主路径。
 - [`fall_risk/fall_event_proxy_v2_v3split/README.md`](fall_risk/fall_event_proxy_v2_v3split/README.md)：当前 v3 split 的跌倒 candidate-clip TCN 三 seed provisional pilot；validation F1 `0.958-0.963`，test 未读取，未替换规则主路径。
+
+心理健康实验入口：
+
+- [`mental_health/wandering_step2/README.md`](mental_health/wandering_step2/README.md)：WanderingPatterns/SmartCare 步骤 2 的来源哈希、转换计数、异常、确定性验证和人工联系表入口；不是正式 split、模型效果或现有心理健康评分能力。
+- [`mental_health/wandering_step2/HUMAN_REVIEW.md`](mental_health/wandering_step2/HUMAN_REVIEW.md)：六类固定抽样联系表的人工复核记录与后续限制。
