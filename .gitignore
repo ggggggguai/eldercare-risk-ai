@@ -36,6 +36,8 @@ tmp/
 *.onnx
 *.engine
 *.ckpt
+*.joblib
+*.npz
 
 # Local environment files.
 .env

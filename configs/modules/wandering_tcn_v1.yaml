@@ -1,0 +1,122 @@
+schema_version: wandering-tcn-config-v1
+purpose: comparison_only
+
+trust_roots:
+  rf_config:
+    path: configs/modules/wandering_rf_v1.yaml
+    sha256: d29db531f42ae5d7cf4ed540a85681ddab78e483695633ccc8b382d98e745e35
+  rf_development_manifest:
+    path: reports/mental_health/wandering_step5/development/v1/manifest.json
+    sha256: fff6340e868de32bee2021ec1000f166b8caabe5caeb1132abb8ab822bfaaaf2
+  rf_public_manifest:
+    path: reports/mental_health/wandering_step5/public_shape_benchmark/v1/manifest.json
+    sha256: 8b89b0b4f14e2c9e4054b8121c9ee8428eab8b6311c32a411b699f46cb02167c
+
+preprocessing:
+  manifest_schema: wandering-preprocessing-manifest-v1
+  manifest_sha256: 242072bdfe4b969d320a091ecc499aff445c30a937dfb1e6739ad869aa938593
+  sample_schema: wandering-preprocessed-sample-v1
+  split_sha256: 4ac4a3877a056809066562cb09e4d30aa1d38baafcb4600f1f8a8a672776adbf
+  feature_field: model_features
+  input_shape: [80, 14]
+  input_dtype: float32
+  mask_field: point_mask
+  mask_channel_index: 12
+  time_channel_indices: [10, 11]
+  quality_channel_index: 13
+  temporal_features_enabled: false
+
+tasks:
+  four_class:
+    class_names: [direct, pacing, lapping, random]
+    training_sources: [wandering_patterns]
+    architecture: hierarchical_gate_and_subtype
+    decision_rule: argmax
+    sample_weighting: uniform
+    primary_validation_metric: wp_validation_macro_f1
+  binary:
+    class_names: [direct_or_non_wandering, wandering_like]
+    training_sources: [wandering_patterns, smartcare]
+    architecture: sigmoid
+    decision_threshold: 0.5
+    sample_weighting: equal_source_x_class_total
+    primary_validation_metric: source_macro_macro_f1
+
+model:
+  input_channels: 14
+  sequence_length: 80
+  input_projection_channels: 64
+  input_projection_bias: true
+  normalization: layer_norm
+  activation: gelu
+  convolution: noncausal_same_padding
+  blocks:
+    - {in_channels: 64, out_channels: 64, kernel_size: 3, dilation: 1, dropout: 0.10}
+    - {in_channels: 64, out_channels: 96, kernel_size: 3, dilation: 2, dropout: 0.10}
+    - {in_channels: 96, out_channels: 96, kernel_size: 3, dilation: 4, dropout: 0.10}
+  depthwise_bias: true
+  pointwise_bias: true
+  channel_change_residual_bias: false
+  pooling: masked_mean
+  head_hidden_channels: 64
+  head_dropout: 0.10
+  head_bias: true
+  four_class_parameter_count: 40836
+  binary_parameter_count: 34433
+  forbidden_components: [patch, attention, relation_bias, self_supervision, prototype, energy, augmentation]
+
+training:
+  device: cpu
+  dtype: float32
+  seeds: [20260731, 20260801, 20260802, 20260803, 20260804]
+  primary_seed: 20260731
+  optimizer:
+    name: adamw
+    learning_rate: 0.0001
+    weight_decay: 0.01
+    betas: [0.9, 0.999]
+    eps: 1.0e-8
+  batch_size: 48
+  num_workers: 0
+  train_shuffle: true
+  validation_shuffle: false
+  max_epochs: 150
+  minimum_epochs: 30
+  early_stopping_patience: 20
+  minimum_improvement: 0.0001
+  early_stopping_tie_policy: keep_earlier
+  gradient_clip_global_norm: 1.0
+  scheduler: none
+  amp: false
+  augmentation: none
+  deterministic_algorithms: true
+  intra_op_threads: 1
+  inter_op_threads: 1
+
+checkpoint:
+  format: deterministic_npz_v1
+  allow_pickle: false
+  state_key_order: sorted
+  zip_timestamp: [1980, 1, 1, 0, 0, 0]
+  array_dtype: float32
+  semantic_fingerprint_schema: wandering-tcn-semantic-fingerprint-v1
+
+runtime_benchmark:
+  batch_size: 1
+  warmup_iterations: 20
+  measurement_iterations: 200
+
+expected_counts:
+  total_records: 1790
+  ready: 1775
+  unavailable: 15
+  four_class: {train: 1120, validation: 240, test: 240}
+  binary: {train: 1257, validation: 278, test: 240}
+
+output_schemas:
+  data_index: wandering-tcn-data-index-v1
+  training_history: wandering-tcn-training-history-v1
+  model_metadata: wandering-tcn-model-metadata-v1
+  prediction_row: wandering-tcn-prediction-row-v1
+  development_manifest: wandering-tcn-development-manifest-v1
+  public_shape_benchmark_manifest: wandering-tcn-public-shape-benchmark-manifest-v1

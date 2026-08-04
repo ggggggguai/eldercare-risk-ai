@@ -26,3 +26,6 @@ Workflow A 当前入口：
 模型实验入口：
 
 - [`fall_risk/kinecal_gait_tcn/README.md`](fall_risk/kinecal_gait_tcn/README.md)：KINECAL 14 点轻量步态 TCN 的固定划分 baseline、失败结论和复现命令。
+- [`mental_health/wandering_step5/README.md`](mental_health/wandering_step5/README.md)：徘徊步骤 5 固定 26 维手工特征、两项五 seed RF 对照、两阶段封存评估、安全加载、确定性与真实指标。
+- [`mental_health/wandering_step6/README.md`](mental_health/wandering_step6/README.md)：徘徊步骤 6 两项独立纯 TCN、10 个安全 NPZ、validation 早停、固定 WP 评估、RF 同 seed 差值、双构建确定性和 CPU 基准。
+- [`mental_health/wandering_step7/README.md`](mental_health/wandering_step7/README.md)：徘徊步骤 7 bbox-only adapter、Camera QC、高度补偿、RF/TCN 最小离线推理、合成 camera contract 和双构建确定性。

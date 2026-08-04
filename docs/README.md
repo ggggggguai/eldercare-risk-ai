@@ -1,6 +1,6 @@
 # 项目文档
 
-更新时间：2026-08-03
+更新时间：2026-08-04
 
 本页是文档唯一总入口。现行文档描述当前代码和接口；计划文档描述目标；归档文档只保留历史上下文，不能作为当前实现依据。
 
@@ -51,6 +51,11 @@
 | 心理健康 | [徘徊样行为识别技术方案](modules/mental_health/plans/徘徊样行为识别技术方案.md) | 徘徊轨迹分类、摄像头接入、日级基线、评估门槛和个人工作范围；属于目标设计，不等于已实现 |
 | 心理健康 | [徘徊模块协作交接与职责边界](modules/mental_health/徘徊模块协作交接与职责边界.md) | 按角色分配徘徊模块上下游交付、验收标准和阻塞条件 |
 | 复现 | [徘徊步骤 2 转换与复核](../reports/mental_health/wandering_step2/README.md) | WanderingPatterns/SmartCare 来源哈希、转换统计、异常、确定性证据和人工联系表入口 |
+| 复现 | [徘徊步骤 3 固定 split](../reports/mental_health/wandering_step3/README.md) | 1,810 条来源专用固定分配、official 封存、重复/近邻审计、五产物和完整哈希 |
+| 复现 | [徘徊步骤 4 预处理与可视化](../reports/mental_health/wandering_step4/README.md) | 已完成：1,790 条非 sealed 留痕、1,775 ready/15 unavailable、14 通道、train-only 统计、确定性 bundle 和 `human_review_passed` 诊断图审 |
+| 评估 | [徘徊步骤 5 RF 对照基线](../reports/mental_health/wandering_step5/README.md) | 已完成并独立复建复核：strict bundle loader、固定 26 维特征、二/四分类五 seed RF、development/frozen WP test 信任链、确定性与分来源真实指标；仅为 `comparison_only` |
+| 评估 | [徘徊步骤 6 纯 TCN 对照基线](../reports/mental_health/wandering_step6/README.md) | 已完成：two-task 独立 CPU TCN、10 个安全 NPZ、validation 早停、固定 WP test、RF 同 seed 差值、development/test 字节级复建和 batch=1 基准；仅为 `comparison_only` |
+| 复现 | [徘徊步骤 7 bbox-only 离线链](../reports/mental_health/wandering_step7/README.md) | 已完成：严格 media/tracking 契约、Camera QC、高度补偿、步骤 4 共享核心、RF/TCN 四组独立预测、合成 camera contract 与双构建确定性；未做真实摄像头效果验证 |
 | 任务 | [当前任务](tasks/README.md) | 项目待办和验证缺口 |
 
 ## 目录约定

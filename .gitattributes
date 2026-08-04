@@ -1,0 +1,17 @@
+# Frozen wandering text artifacts are hashed by raw bytes and must remain LF.
+configs/data/wandering_*.yaml text eol=lf
+configs/modules/wandering_rf_v1.yaml text eol=lf
+configs/modules/wandering_tcn_v1.yaml text eol=lf
+configs/modules/wandering_camera_v1.yaml text eol=lf
+data/splits/mental_health/wandering/v1/*.json text eol=lf
+data/splits/mental_health/wandering/v1/*.jsonl text eol=lf
+data/splits/mental_health/wandering/v1/*.sha256 text eol=lf
+reports/mental_health/wandering_step2/*.md text eol=lf
+reports/mental_health/wandering_step3/*.md text eol=lf
+reports/mental_health/wandering_step4/*.md text eol=lf
+reports/mental_health/wandering_step5/*.md text eol=lf
+reports/mental_health/wandering_step6/*.md text eol=lf
+reports/mental_health/wandering_step7/*.md text eol=lf
+scripts/wandering/*.py text eol=lf
+src/elderly_monitoring/modules/mental_health/wandering/*.py text eol=lf
+tests/test_wandering_*.py text eol=lf

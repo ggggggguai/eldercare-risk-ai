@@ -1,0 +1,74 @@
+schema_version: wandering-camera-config-v1
+purpose: comparison_only_offline_camera_chain
+
+sampling:
+  minimum_video_fps: 15.0
+  bucket_seconds: 0.5
+  trajectory_hz: 2.0
+  window_seconds: 40.0
+  window_buckets: 80
+  stride_seconds: 20.0
+  stride_buckets: 40
+  minimum_track_confidence: 0.25
+
+camera_qc:
+  minimum_observed_ratio: 0.75
+  maximum_internal_gap_seconds: 1.5
+  maximum_internal_gap_buckets: 3
+  minimum_raw_detections: 8
+  require_observed_window_edges: true
+  minimum_motion_extent_body_heights: 0.25
+  hard_jump_body_heights_per_second: 3.0
+  height_ratio_discontinuity: 1.8
+  concurrent_step_body_heights: 0.75
+
+height_compensation:
+  rolling_median_window: 5
+  gain_clip: [0.5, 2.0]
+
+model_input:
+  target_points: 80
+  input_channels: 14
+  temporal_features_enabled: false
+  point_quality_observed: 1.0
+  point_quality_interpolated: 0.5
+
+trust_roots:
+  preprocessing_config:
+    path: configs/data/wandering_preprocessing_v1.yaml
+    sha256: 5b69243337cddeeec8beed4f081330b06c47eadeaee06dc3b3e4ba026f36ff45
+  preprocessing_manifest:
+    path: data/processed/wandering/preprocessing/v1/manifest.json
+    sha256: 242072bdfe4b969d320a091ecc499aff445c30a937dfb1e6739ad869aa938593
+  preprocessing_feature_stats:
+    path: data/processed/wandering/preprocessing/v1/feature_stats.json
+    sha256: 249ad8383043dba1d95452533ddc6004dfecc2c9e99be43f788dcfcbfb434c8d
+  rf_config:
+    path: configs/modules/wandering_rf_v1.yaml
+    sha256: d29db531f42ae5d7cf4ed540a85681ddab78e483695633ccc8b382d98e745e35
+  rf_development_manifest:
+    path: reports/mental_health/wandering_step5/development/v1/manifest.json
+    sha256: fff6340e868de32bee2021ec1000f166b8caabe5caeb1132abb8ab822bfaaaf2
+  tcn_config:
+    path: configs/modules/wandering_tcn_v1.yaml
+    sha256: 8a8ab3a051dd6a00356df507b4fa3f06d4a7ed7ec7ecca8f04a3ff28dfd22cca
+  tcn_development_manifest:
+    path: reports/mental_health/wandering_step6/development/v1/manifest.json
+    sha256: 0f4c48d948f0f4355dd577c89330b050ecb1bb513ca83ef1b25234897e27a10e
+
+models:
+  primary_seed: 20260731
+  four_class_order: [direct, pacing, lapping, random]
+  binary_class_order: [direct_or_non_wandering, wandering_like]
+  run_rf_four_class: true
+  run_rf_binary: true
+  run_tcn_four_class: true
+  run_tcn_binary: true
+  fusion_performed: false
+
+output_schemas:
+  media: wandering-media-v1
+  bbox_tracklet: wandering-bbox-tracklet-v1
+  window: wandering-camera-window-v1
+  prediction: wandering-camera-prediction-v1
+  manifest: wandering-camera-run-manifest-v1
