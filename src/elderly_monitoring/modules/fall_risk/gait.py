@@ -55,7 +55,7 @@ class GaitModelPredictor(Protocol):
 class GaitAnalysisConfig:
     # 阈值基于归一化图像坐标，适合做可复现 baseline；
     # 后续换相机、视角或数据集时需要重新校准。
-    window_sec: float = 2.0
+    window_sec: float = 4.0
     window_frames: int | None = None
     min_window_frames: int = 5
     min_usable_frame_ratio: float = 0.60

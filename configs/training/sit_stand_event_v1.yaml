@@ -1,0 +1,68 @@
+schema_version: sit-stand-event-training-config-v1
+task: sit_stand_event_localization_v1
+current_status: provisional
+proxy_task: sit_stand_event_presence_proxy_v1
+
+dataset:
+  target_fps: 4.0
+  window_sec: 4.0
+  stride_sec: 2.0
+  max_gap_sec: 0.5
+  min_observed_frames: 6
+  min_usable_frame_ratio: 0.60
+  min_core_joint_coverage: 0.70
+  max_windows_per_event: 4
+  seed: 42
+
+training_profiles:
+  smoke:
+    seed: 42
+    regularization_c: 1.0
+    max_iter: 25
+    threshold: 0.5
+    source_balance: true
+  pilot:
+    seed: 42
+    regularization_c: 1.0
+    max_iter: 1000
+    threshold: 0.5
+    source_balance: true
+
+candidate_tcn_profiles:
+  smoke:
+    epochs: 2
+    batch_size: 64
+    hidden_channels: 16
+    kernel_size: 3
+    dilations: [1, 2]
+    dropout: 0.10
+    learning_rate: 0.001
+    weight_decay: 0.0001
+    patience: 2
+    direction_loss_weight: 0.5
+    seed: 42
+    device: cpu
+    augment_mirror: false
+  pilot:
+    epochs: 40
+    batch_size: 64
+    hidden_channels: 32
+    kernel_size: 3
+    dilations: [1, 2, 4, 8]
+    dropout: 0.20
+    learning_rate: 0.001
+    weight_decay: 0.0001
+    patience: 8
+    direction_loss_weight: 0.5
+    seed: 42
+    device: cpu
+    augment_mirror: true
+
+gates:
+  allow_provisional_required: true
+  test_features_allowed: false
+  test_metrics_allowed: false
+  event_tcn_requires_verified_onset_offset: true
+  event_tcn_requires_explicit_background: true
+  phase_model_requires_frame_labels: true
+  functional_proxy_requires_independent_truth: true

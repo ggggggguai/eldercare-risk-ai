@@ -1,0 +1,142 @@
+{
+  "schema_version": "fall-risk-reviewed-training-decision-v1",
+  "decision_id": "fall-risk-existing-labels-adjudication-20260804",
+  "reviewed_at": "2026-08-04",
+  "reviewer_id": "project_owner",
+  "source_task_id": "019fcb65-e9d1-7400-b018-aba2d2fc9941",
+  "action_labels_sha256": "058540ce76076b373bfa86c70d0b157fa10af5cbb521aa7c4c58a3ac7a1b3af6",
+  "ntu_full_clip_fall_boundary": {
+    "enabled": true,
+    "video_id_prefix": "ntu_rgbd_",
+    "action_ids": ["D01", "D02", "D03", "D05"],
+    "onset_frame": "first_frame",
+    "offset_frame": "last_frame",
+    "accepted_source_end_frame_gaps": [0, 1],
+    "boundary_precision": "exact",
+    "training_tier_policy": "preserve"
+  },
+  "near_fall_positive_actions": [
+    {
+      "action_id": "C03",
+      "event_subtype": "stumble_recovery",
+      "recovery_frame": "last_frame",
+      "training_tier_policy": "preserve"
+    }
+  ],
+  "action_hard_negative_mappings": [
+    {
+      "task_type": "fall_event",
+      "action_ids": ["A03"],
+      "hard_negative_type": "controlled_sit_down"
+    },
+    {
+      "task_type": "fall_event",
+      "action_ids": ["A07"],
+      "hard_negative_type": "controlled_lie_down"
+    },
+    {
+      "task_type": "fall_event",
+      "action_ids": ["A05", "A09"],
+      "hard_negative_type": "squat_or_kneel"
+    },
+    {
+      "task_type": "fall_event",
+      "action_ids": ["A06"],
+      "hard_negative_type": "bend"
+    },
+    {
+      "task_type": "fall_event",
+      "action_ids": ["A11"],
+      "hard_negative_type": "assisted_lowering"
+    },
+    {
+      "task_type": "near_fall_event",
+      "action_ids": ["A02"],
+      "hard_negative_type": "normal_turn"
+    },
+    {
+      "task_type": "near_fall_event",
+      "action_ids": ["A10"],
+      "hard_negative_type": "normal_step_adjustment"
+    },
+    {
+      "task_type": "near_fall_event",
+      "action_ids": ["A08"],
+      "hard_negative_type": "routine_support_contact"
+    },
+    {
+      "task_type": "near_fall_event",
+      "action_ids": ["A03"],
+      "hard_negative_type": "fast_but_controlled_sit"
+    },
+    {
+      "task_type": "near_fall_event",
+      "action_ids": ["A05", "A09"],
+      "hard_negative_type": "controlled_squat"
+    },
+    {
+      "task_type": "near_fall_event",
+      "action_ids": ["A06"],
+      "hard_negative_type": "controlled_bend"
+    },
+    {
+      "task_type": "near_fall_event",
+      "action_ids": ["A12"],
+      "hard_negative_type": "exercise_or_stretch"
+    }
+  ],
+  "video_hard_negative_overrides": [
+    {
+      "task_type": "fall_event",
+      "action_id": "A07",
+      "video_ids": [
+        "ur_fall_adl_10_cam0",
+        "ur_fall_adl_11_cam0",
+        "ur_fall_adl_21_cam0",
+        "ur_fall_adl_22_cam0",
+        "ur_fall_adl_23_cam0",
+        "ur_fall_adl_36_cam0",
+        "ur_fall_adl_37_cam0"
+      ],
+      "hard_negative_type": "bed_entry_or_exit"
+    }
+  ],
+  "quality_hard_negative_mappings": [
+    {
+      "task_type": "fall_event",
+      "quality_flag": "partial_occlusion",
+      "action_ids": [
+        "A01",
+        "A02",
+        "A04",
+        "A08",
+        "B01",
+        "B02",
+        "B03",
+        "B04",
+        "B05",
+        "B06",
+        "C01",
+        "C02"
+      ],
+      "hard_negative_type": "occlusion_or_camera_motion",
+      "training_tier_policy": "reviewed_primary"
+    }
+  ],
+  "event_hard_negative_mappings": [
+    {
+      "source_task_type": "fall_event",
+      "source_label_role": "positive",
+      "task_type": "near_fall_event",
+      "hard_negative_type": "progressed_to_fall"
+    }
+  ],
+  "rationale": [
+    "Project-owner adjudication: NTU full-clip falls use the first frame as onset and the last frame as offset; end_frame_exclusive is therefore frame_count.",
+    "Project-owner review completed for C03: every C03 stumble label is a near-fall positive with recovery at its inclusive last frame.",
+    "Canonical action descriptions are accepted as sufficient task-specific positive/negative evidence; only eligible labeled actions are converted, and unlabelled background remains ignore.",
+    "UR Fall A07 bed-entry overrides were visually checked; other A07 labels remain controlled_lie_down.",
+    "This decision maximizes existing data as discussed in task 019fcb65-e9d1-7400-b018-aba2d2fc9941 and does not assert new elderly-domain or longitudinal evidence.",
+    "The earlier NTU A043 review remains traceable at configs/data/ntu_rgbd_a043_cvat_decision_v1.json with SHA-256 6c90ce9bd9137aa28ba473504ca7afe75b5f50e15fa3a3b85054f6ea04867492."
+  ]
+}

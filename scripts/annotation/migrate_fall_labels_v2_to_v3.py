@@ -10,8 +10,8 @@ from elderly_monitoring.modules.fall_risk.training_labels_v3 import (
 )
 
 
-DEFAULT_MANUAL_NEGATIVE_DECISION = Path(
-    "configs/data/ntu_rgbd_a043_cvat_decision_v1.json"
+DEFAULT_REVIEWED_DECISION = Path(
+    "configs/data/fall_risk_training_decision_20260804.json"
 )
 
 
@@ -56,7 +56,17 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help=(
             "Reviewed decision config that authorizes explicit v3 event negatives; "
-            "repeat for multiple files. Defaults to the NTU RGB+D A043 decision."
+            "repeat for multiple legacy files."
+        ),
+    )
+    parser.add_argument(
+        "--reviewed-decision",
+        type=Path,
+        action="append",
+        default=None,
+        help=(
+            "Hash-bound project-owner decision for deterministic event labels; "
+            "repeat for multiple files. Defaults to the 2026-08-04 decision."
         ),
     )
     parser.add_argument("--overwrite", action="store_true")
@@ -75,7 +85,12 @@ def main() -> int:
         manual_negative_decision_paths=(
             args.manual_negative_decision
             if args.manual_negative_decision is not None
-            else [DEFAULT_MANUAL_NEGATIVE_DECISION]
+            else []
+        ),
+        reviewed_decision_paths=(
+            args.reviewed_decision
+            if args.reviewed_decision is not None
+            else [DEFAULT_REVIEWED_DECISION]
         ),
         overwrite=args.overwrite,
     )

@@ -47,8 +47,49 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--weight-decay", type=float, default=1e-4)
     parser.add_argument("--patience", type=int, default=15)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument(
+        "--quality-as-feature",
+        action="store_true",
+        help="Legacy ablation: expose continuous pose quality to the classifier.",
+    )
+    parser.add_argument(
+        "--no-hierarchical-walking-gate",
+        action="store_true",
+        help="Disable the walking-gated conditional gait head.",
+    )
+    parser.add_argument("--walking-gate-loss-weight", type=float, default=0.25)
+    parser.add_argument("--temporal-shift-frames", type=int, default=1)
+    parser.add_argument("--keypoint-dropout-probability", type=float, default=0.05)
+    parser.add_argument("--coordinate-jitter-std", type=float, default=0.005)
+    parser.add_argument(
+        "--no-pose-augmentation",
+        action="store_true",
+        help="Disable temporal shift, keypoint dropout, and coordinate jitter.",
+    )
+    parser.add_argument(
+        "--pretrained-checkpoint",
+        type=Path,
+        default=None,
+        help="Transfer only the shared encoder from an action-pretraining checkpoint.",
+    )
+    parser.add_argument(
+        "--freeze-encoder-epochs",
+        type=int,
+        default=0,
+        help="Train the new binary head alone for this many initial epochs.",
+    )
+    parser.add_argument(
+        "--partition-scheme",
+        choices=("frozen", "fold_a", "fold_b"),
+        default="frozen",
+    )
     parser.add_argument("--device", choices=("auto", "cpu", "cuda", "mps"), default="auto")
     parser.add_argument("--no-mirror-augmentation", action="store_true")
+    parser.add_argument(
+        "--evaluate-test",
+        action="store_true",
+        help="Evaluate the locked test partition after the candidate is frozen.",
+    )
     parser.add_argument("--overwrite", action="store_true")
     return parser
 
@@ -71,8 +112,30 @@ def main(argv: Sequence[str] | None = None) -> int:
                 weight_decay=args.weight_decay,
                 patience=args.patience,
                 seed=args.seed,
+                use_quality_as_feature=args.quality_as_feature,
+                hierarchical_walking_gate=not args.no_hierarchical_walking_gate,
+                walking_gate_loss_weight=args.walking_gate_loss_weight,
+                temporal_shift_frames=(
+                    0 if args.no_pose_augmentation else args.temporal_shift_frames
+                ),
+                keypoint_dropout_probability=(
+                    0.0
+                    if args.no_pose_augmentation
+                    else args.keypoint_dropout_probability
+                ),
+                coordinate_jitter_std=(
+                    0.0 if args.no_pose_augmentation else args.coordinate_jitter_std
+                ),
+                partition_scheme=args.partition_scheme,
                 device=args.device,
                 augment_mirror=not args.no_mirror_augmentation,
+                evaluate_test=True if args.evaluate_test else None,
+                pretrained_checkpoint=(
+                    args.pretrained_checkpoint.as_posix()
+                    if args.pretrained_checkpoint is not None
+                    else None
+                ),
+                freeze_encoder_epochs=args.freeze_encoder_epochs,
             ),
             overwrite=args.overwrite,
         )

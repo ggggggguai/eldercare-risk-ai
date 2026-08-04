@@ -1,6 +1,6 @@
 # 工作流 A 当前阻塞
 
-核验日期：2026-08-02
+核验日期：2026-08-04
 
 跌倒标签契约已升级为 v2。明确标注只要 schema、媒体关联、来源文件和 hash 正确即可使用。重复内容、未获内部授权的来源未知数据、媒体探测失败、隔离数据和 `U01/uncertain` 仍被排除。
 
@@ -13,8 +13,12 @@
 | A-B05 | 尚未指定测试集保管人和一次性发布流程 | 指定保管角色、冻结日期和测试执行规则 | 盲测治理记录与冻结 split ID |
 | A-B06 | 事件评估配置仍为 provisional | 固定 IoU、onset、搜索窗口、阈值、最小样本量和 10,000 次聚类 bootstrap | frozen 配置、hash 和评审记录 |
 | A-B07 | 连续监控合格时长为 0 | 采集或确认连续摄像机时长和家庭日 | manifest 连续分母及评估输出 |
-| A-B08 | 模型训练标签 v3 已生成 9,314 条动作、2,303 个 fall positive、6 个 `squat_or_kneel` fall negative 和 258 个 task-specific ignore；统一 split 有 11,881 条 assignment、6,516 个资产和 184 个保守泄漏组。六条负例全部在 train，另六类 fall hard negative、near-fall positive 和部分动作三分区覆盖仍缺，三项 `training_ready` 均为 false | 按 v3 字典逐窗补齐其余 fall/near-fall hard negative；安全采集 C03-C05 并双人复核恢复与未跌倒结局；补足不破坏源组隔离的动作与负样本分区覆盖 | `training-labels-v3-validation.json` 中目标任务 `training_ready=true`，并有来源、复核和类别分布证据 |
 | A-B09 | Fall Detection 2017 人工 CVAT 批次已导入 2,977 条动作/事件并进入 v2/v3 候选链，但 `provenance_status=project_collected_manual_cvat_unverified`、策略为 `candidate_requires_qc_review`；2 个源技术排除、1 个可用源未匹配 | 完成项目来源授权/追溯、缺失源复核、U01 语义复核和人工 QC；未完成前只能作为候选训练数据，不得进入 frozen 正式评估 | 批次审计报告、来源决定、缺失源处理记录和 formal 校验更新 |
+
+## 2026-08-04 已解除
+
+- `A-B08` 的事件监督阻塞已解除：哈希绑定的项目负责人裁决生成 962 条 near-fall positive、1,774 条 fall negative 和 4,201 条 near-fall negative，全部 15 类 task-specific hard negative 有 primary 覆盖；18,812 条 assignment 的统一 split 无泄漏，`training_ready.fall_event=true`、`training_ready.near_fall_event=true`。`training_ready.action_type=false` 仍记录为动作类型开发限制，但不再阻塞两个事件任务。
+- 该解除只覆盖标签与 split 数据门槛。`A-B03` 老人/人员泛化、`A-B04` 功能与纵向真值、`A-B05/A-B06` 盲测和冻结协议、`A-B07` 连续监控分母及 `A-B09` 来源治理仍未解除。
 
 验证命令：
 

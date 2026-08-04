@@ -13,7 +13,7 @@ class ServiceSettings:
     model_path: Path = Path("yolov8n-pose.pt")
     gait_model_path: Path | None = None
     gait_model_device: str = "auto"
-    gait_model_window_frames: int = 64
+    gait_model_window_frames: int = 16
     api_token: str = "change-me"
     callback_token: str = "change-me"
     baseline_history_path: Path | None = None

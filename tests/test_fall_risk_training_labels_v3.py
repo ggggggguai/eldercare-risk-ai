@@ -18,6 +18,9 @@ from elderly_monitoring.modules.fall_risk.training_labels_v3 import (
 ROOT = Path(__file__).resolve().parents[1]
 ACTION_SCHEMA = ROOT / "configs/data/fall_risk_action_label_schema_v3.json"
 EVENT_SCHEMA = ROOT / "configs/data/fall_risk_event_label_schema_v3.json"
+REVIEWED_DECISION = (
+    ROOT / "configs/data/fall_risk_training_decision_20260804.json"
+)
 
 
 class FallRiskTrainingLabelsV3Test(unittest.TestCase):
@@ -71,9 +74,17 @@ class FallRiskTrainingLabelsV3Test(unittest.TestCase):
     ) -> dict:
         event_types = {
             "A01": "normal_activity",
+            "A02": "normal_activity",
             "A03": "normal_activity",
             "A04": "normal_activity",
             "A05": "normal_activity",
+            "A06": "normal_activity",
+            "A07": "normal_activity",
+            "A08": "normal_activity",
+            "A09": "normal_activity",
+            "A10": "normal_activity",
+            "A11": "normal_activity",
+            "A12": "normal_activity",
             "C03": "near_fall",
             "C04": "wall_support",
             "D02": "fall",
@@ -173,6 +184,77 @@ class FallRiskTrainingLabelsV3Test(unittest.TestCase):
             "split_assignments": root / "split" / "assignments.jsonl",
             "split_report": root / "split" / "split.json",
         }
+
+    def _reviewed_decision(
+        self,
+        action_labels_path: Path,
+        *,
+        ntu_full_clip_fall_boundary: dict | None = None,
+        near_fall_positive_actions: list[dict] | None = None,
+        action_hard_negative_mappings: list[dict] | None = None,
+        video_hard_negative_overrides: list[dict] | None = None,
+        quality_hard_negative_mappings: list[dict] | None = None,
+        event_hard_negative_mappings: list[dict] | None = None,
+    ) -> dict:
+        return {
+            "schema_version": "fall-risk-reviewed-training-decision-v1",
+            "decision_id": "fixture-reviewed-training-decision",
+            "reviewed_at": "2026-08-04",
+            "reviewer_id": "project_owner",
+            "source_task_id": "019fcb65-e9d1-7400-b018-aba2d2fc9941",
+            "action_labels_sha256": hashlib.sha256(
+                action_labels_path.read_bytes()
+            ).hexdigest(),
+            "ntu_full_clip_fall_boundary": ntu_full_clip_fall_boundary
+            or {"enabled": False},
+            "near_fall_positive_actions": near_fall_positive_actions or [],
+            "action_hard_negative_mappings": action_hard_negative_mappings or [],
+            "video_hard_negative_overrides": video_hard_negative_overrides or [],
+            "quality_hard_negative_mappings": quality_hard_negative_mappings or [],
+            "event_hard_negative_mappings": event_hard_negative_mappings or [],
+            "rationale": ["Fixture project-owner adjudication."],
+        }
+
+    def _write_migration_with_reviewed_decision(
+        self,
+        root: Path,
+        *,
+        manifests: list[dict],
+        actions: list[dict],
+        events: list[dict],
+        decision_overrides: dict,
+    ) -> tuple[dict, list[dict], list[dict]]:
+        paths = self._paths(root)
+        self._write_jsonl(paths["manifest"], manifests)
+        self._write_jsonl(paths["v2_actions"], actions)
+        self._write_jsonl(paths["v2_events"], events)
+        decision_path = root / "reviewed-training-decision.json"
+        decision_path.write_text(
+            json.dumps(
+                self._reviewed_decision(
+                    paths["v2_actions"], **decision_overrides
+                )
+            ),
+            encoding="utf-8",
+        )
+        report = write_training_label_migration(
+            manifest_path=paths["manifest"],
+            action_labels_v2_path=paths["v2_actions"],
+            event_labels_v2_path=paths["v2_events"],
+            action_labels_v3_path=paths["v3_actions"],
+            event_labels_v3_path=paths["v3_events"],
+            report_path=paths["migration_report"],
+            reviewed_decision_paths=[decision_path],
+        )
+        migrated_actions = [
+            json.loads(line)
+            for line in paths["v3_actions"].read_text(encoding="utf-8").splitlines()
+        ]
+        migrated_events = [
+            json.loads(line)
+            for line in paths["v3_events"].read_text(encoding="utf-8").splitlines()
+        ]
+        return report, migrated_actions, migrated_events
 
     def test_migration_deduplicates_fall_links_actions_and_emits_ignore_masks(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -354,6 +436,370 @@ class FallRiskTrainingLabelsV3Test(unittest.TestCase):
             )
             self.assertEqual(report["manual_negative_count"], 1)
             self.assertEqual(report["unmatched_manual_negative_decisions"], [])
+
+    def test_reviewed_decision_rejects_an_action_label_hash_mismatch(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            paths = self._paths(root)
+            manifest, _ = self._manifest(root)
+            source_path, source_hash = self._source(root)
+            action = self._action(
+                source_path,
+                source_hash,
+                label_id="action_1",
+                action_id="C03",
+                action_name="stumble",
+                start_frame=10,
+                end_frame=20,
+            )
+            self._write_jsonl(paths["manifest"], [manifest])
+            self._write_jsonl(paths["v2_actions"], [action])
+            self._write_jsonl(paths["v2_events"], [])
+            decision = self._reviewed_decision(paths["v2_actions"])
+            decision["action_labels_sha256"] = "0" * 64
+            decision_path = root / "stale-decision.json"
+            decision_path.write_text(json.dumps(decision), encoding="utf-8")
+
+            with self.assertRaisesRegex(ValueError, "action-label hash mismatch"):
+                write_training_label_migration(
+                    manifest_path=paths["manifest"],
+                    action_labels_v2_path=paths["v2_actions"],
+                    event_labels_v2_path=paths["v2_events"],
+                    action_labels_v3_path=paths["v3_actions"],
+                    event_labels_v3_path=paths["v3_events"],
+                    report_path=paths["migration_report"],
+                    reviewed_decision_paths=[decision_path],
+                )
+
+    def test_reviewed_ntu_full_clip_fall_uses_first_and_last_frame(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            manifest, _ = self._manifest(root)
+            manifest.update(
+                video_id="ntu_rgbd_s001_p001_r001_a043_c001",
+                dataset="ntu_rgbd",
+            )
+            source_path, source_hash = self._source(root)
+            action = self._action(
+                source_path,
+                source_hash,
+                label_id="action_1",
+                action_id="D02",
+                action_name="lateral_fall",
+                start_frame=0,
+                end_frame=198,
+            )
+            action.update(
+                video_id=manifest["video_id"],
+                source="ntu_rgbd_manual_clip_label",
+                labeler="ntu_reviewer",
+            )
+            event = self._mapped_fall(action)
+            event.update(start_frame=5, end_frame=150, start_time=0.2, end_time=6.0)
+
+            report, _, migrated_events = self._write_migration_with_reviewed_decision(
+                root,
+                manifests=[manifest],
+                actions=[action],
+                events=[event],
+                decision_overrides={
+                    "ntu_full_clip_fall_boundary": {
+                        "enabled": True,
+                        "video_id_prefix": "ntu_rgbd_",
+                        "action_ids": ["D01", "D02", "D03", "D05"],
+                        "onset_frame": "first_frame",
+                        "offset_frame": "last_frame",
+                        "accepted_source_end_frame_gaps": [0, 1],
+                        "boundary_precision": "exact",
+                        "training_tier_policy": "preserve",
+                    }
+                },
+            )
+
+        [fall] = migrated_events
+        self.assertEqual(fall["start_frame"], 0)
+        self.assertEqual(fall["end_frame_exclusive"], 200)
+        self.assertEqual(fall["onset_frame"], 0)
+        self.assertEqual(fall["boundary_precision"], "exact")
+        self.assertEqual(fall["review_status"], "adjudicated")
+        self.assertEqual(fall["reviewer_ids"], ["project_owner"])
+        self.assertEqual(
+            report["reviewed_decision_matches"]["ntu_full_clip_fall_boundary"], 1
+        )
+
+    def test_reviewed_c03_becomes_a_linked_near_fall_positive(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            manifest, _ = self._manifest(root)
+            source_path, source_hash = self._source(root)
+            action = self._action(
+                source_path,
+                source_hash,
+                label_id="action_1",
+                action_id="C03",
+                action_name="stumble",
+                start_frame=10,
+                end_frame=20,
+            )
+
+            report, migrated_actions, migrated_events = (
+                self._write_migration_with_reviewed_decision(
+                    root,
+                    manifests=[manifest],
+                    actions=[action],
+                    events=[],
+                    decision_overrides={
+                        "near_fall_positive_actions": [
+                            {
+                                "action_id": "C03",
+                                "event_subtype": "stumble_recovery",
+                                "recovery_frame": "last_frame",
+                                "training_tier_policy": "preserve",
+                            }
+                        ]
+                    },
+                )
+            )
+
+        [near_fall] = migrated_events
+        [migrated_action] = migrated_actions
+        self.assertEqual(near_fall["task_type"], "near_fall_event")
+        self.assertEqual(near_fall["label_role"], "positive")
+        self.assertEqual(near_fall["event_type"], "near_fall")
+        self.assertEqual(near_fall["event_subtype"], "stumble_recovery")
+        self.assertEqual(near_fall["onset_frame"], 10)
+        self.assertEqual(near_fall["recovery_frame"], 20)
+        self.assertIsNone(near_fall["peak_frame"])
+        self.assertIsNone(near_fall["impact_frame"])
+        self.assertEqual(near_fall["linked_action_ids"], [migrated_action["label_id"]])
+        self.assertEqual(migrated_action["linked_event_id"], near_fall["label_id"])
+        self.assertEqual(near_fall["review_status"], "adjudicated")
+        self.assertIn("reviewed C03 labels are near-fall positives", near_fall["note"])
+        self.assertNotIn("NTU full-clip fall", near_fall["note"])
+        self.assertEqual(report["reviewed_decision_matches"]["near_fall_positive"], 1)
+        self.assertEqual(report["unmatched_reviewed_decisions"], [])
+
+    def test_reviewed_action_mappings_skip_ignored_and_do_not_duplicate_targets(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            manifest, _ = self._manifest(root)
+            source_path, source_hash = self._source(root)
+            actions = [
+                self._action(
+                    source_path,
+                    source_hash,
+                    label_id="action_1",
+                    action_id="A03",
+                    action_name="controlled_sit_down",
+                    start_frame=10,
+                    end_frame=20,
+                ),
+                self._action(
+                    source_path,
+                    source_hash,
+                    label_id="action_2",
+                    action_id="A03",
+                    action_name="controlled_sit_down",
+                    start_frame=30,
+                    end_frame=40,
+                    quality="heavy_occlusion",
+                ),
+            ]
+
+            report, _, migrated_events = self._write_migration_with_reviewed_decision(
+                root,
+                manifests=[manifest],
+                actions=actions,
+                events=[],
+                decision_overrides={
+                    "action_hard_negative_mappings": [
+                        {
+                            "task_type": "fall_event",
+                            "action_ids": ["A03"],
+                            "hard_negative_type": "controlled_sit_down",
+                        },
+                        {
+                            "task_type": "near_fall_event",
+                            "action_ids": ["A03"],
+                            "hard_negative_type": "fast_but_controlled_sit",
+                        },
+                    ]
+                },
+            )
+
+        negatives = [row for row in migrated_events if row["label_role"] == "negative"]
+        self.assertEqual(len(negatives), 2)
+        self.assertEqual(
+            {(row["task_type"], row["hard_negative_type"]) for row in negatives},
+            {
+                ("fall_event", "controlled_sit_down"),
+                ("near_fall_event", "fast_but_controlled_sit"),
+            },
+        )
+        self.assertTrue(
+            all("canonical action A03" in row["note"] for row in negatives)
+        )
+        self.assertTrue(
+            all("NTU full-clip fall" not in row["note"] for row in negatives)
+        )
+        self.assertEqual(report["reviewed_decision_matches"]["action_hard_negative"], 2)
+
+    def test_reviewed_video_override_distinguishes_bed_entry_from_lie_down(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            first_manifest, _ = self._manifest(root)
+            first_manifest.update(
+                asset_id="asset_ur",
+                video_id="ur_fall_adl_10_cam0",
+                source_group_id="ur_fall",
+                original_event_id="ur_fall_adl_10",
+            )
+            second_video = root / "video_2.avi"
+            second_video.write_bytes(b"video-2")
+            second_manifest = {
+                **first_manifest,
+                "asset_id": "asset_other",
+                "video_id": "other_lie_down",
+                "path": second_video.as_posix(),
+                "sha256": hashlib.sha256(second_video.read_bytes()).hexdigest(),
+                "source_group_id": "other_source",
+                "original_event_id": "other_lie_down",
+            }
+            source_path, source_hash = self._source(root)
+            actions = []
+            for index, manifest in enumerate((first_manifest, second_manifest), start=1):
+                action = self._action(
+                    source_path,
+                    source_hash,
+                    label_id=f"action_{index}",
+                    action_id="A07",
+                    action_name="controlled_lie_down",
+                    start_frame=10,
+                    end_frame=20,
+                )
+                action.update(asset_id=manifest["asset_id"], video_id=manifest["video_id"])
+                actions.append(action)
+
+            _, _, migrated_events = self._write_migration_with_reviewed_decision(
+                root,
+                manifests=[first_manifest, second_manifest],
+                actions=actions,
+                events=[],
+                decision_overrides={
+                    "action_hard_negative_mappings": [
+                        {
+                            "task_type": "fall_event",
+                            "action_ids": ["A07"],
+                            "hard_negative_type": "controlled_lie_down",
+                        }
+                    ],
+                    "video_hard_negative_overrides": [
+                        {
+                            "task_type": "fall_event",
+                            "action_id": "A07",
+                            "video_ids": ["ur_fall_adl_10_cam0"],
+                            "hard_negative_type": "bed_entry_or_exit",
+                        }
+                    ],
+                },
+            )
+
+        hard_negative_by_video = {
+            row["video_id"]: row["hard_negative_type"] for row in migrated_events
+        }
+        self.assertEqual(
+            hard_negative_by_video,
+            {
+                "ur_fall_adl_10_cam0": "bed_entry_or_exit",
+                "other_lie_down": "controlled_lie_down",
+            },
+        )
+
+    def test_reviewed_event_mapping_does_not_convert_ignored_falls(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            manifest, _ = self._manifest(root, eligible=False)
+            source_path, source_hash = self._source(root)
+            action = self._action(
+                source_path,
+                source_hash,
+                label_id="action_1",
+                action_id="D02",
+                action_name="lateral_fall",
+                start_frame=10,
+                end_frame=20,
+            )
+
+            report, _, migrated_events = self._write_migration_with_reviewed_decision(
+                root,
+                manifests=[manifest],
+                actions=[action],
+                events=[self._mapped_fall(action)],
+                decision_overrides={
+                    "event_hard_negative_mappings": [
+                        {
+                            "source_task_type": "fall_event",
+                            "source_label_role": "positive",
+                            "task_type": "near_fall_event",
+                            "hard_negative_type": "progressed_to_fall",
+                        }
+                    ]
+                },
+            )
+
+        self.assertEqual(len(migrated_events), 1)
+        self.assertEqual(migrated_events[0]["training_tier"], "ignore")
+        self.assertEqual(migrated_events[0]["label_role"], "positive")
+        self.assertEqual(
+            report["unmatched_reviewed_decisions"],
+            [
+                "fixture-reviewed-training-decision:"
+                "event_hard_negative:fall_event:near_fall_event"
+            ],
+        )
+
+    def test_reviewed_partial_occlusion_is_primary_only_for_event_negative(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            manifest, _ = self._manifest(root)
+            source_path, source_hash = self._source(root)
+            action = self._action(
+                source_path,
+                source_hash,
+                label_id="action_1",
+                action_id="A01",
+                action_name="normal_walk",
+                start_frame=10,
+                end_frame=20,
+                quality="partial_occlusion",
+            )
+
+            _, migrated_actions, migrated_events = (
+                self._write_migration_with_reviewed_decision(
+                    root,
+                    manifests=[manifest],
+                    actions=[action],
+                    events=[],
+                    decision_overrides={
+                        "quality_hard_negative_mappings": [
+                            {
+                                "task_type": "fall_event",
+                                "quality_flag": "partial_occlusion",
+                                "action_ids": ["A01"],
+                                "hard_negative_type": "occlusion_or_camera_motion",
+                                "training_tier_policy": "reviewed_primary",
+                            }
+                        ]
+                    },
+                )
+            )
+
+        self.assertEqual(migrated_actions[0]["training_tier"], "auxiliary")
+        self.assertEqual(migrated_events[0]["training_tier"], "primary")
+        self.assertEqual(
+            migrated_events[0]["hard_negative_type"],
+            "occlusion_or_camera_motion",
+        )
 
     def test_mapped_action_fall_is_auxiliary_without_independent_event_source(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -1139,6 +1585,19 @@ class FallRiskTrainingLabelsV3Test(unittest.TestCase):
         self.assertIn("training_tier", action_schema["required"])
         self.assertIn("action_type_training_tier", action_schema["required"])
         self.assertIn("label_role", event_schema["required"])
+
+    def test_repository_reviewed_decision_is_bound_to_current_v2_actions(self) -> None:
+        decision = json.loads(REVIEWED_DECISION.read_text(encoding="utf-8"))
+        action_labels = ROOT / "data/annotations/fall_risk/action_labels.jsonl"
+
+        self.assertEqual(
+            decision["action_labels_sha256"],
+            hashlib.sha256(action_labels.read_bytes()).hexdigest(),
+        )
+        self.assertEqual(
+            decision["source_task_id"],
+            "019fcb65-e9d1-7400-b018-aba2d2fc9941",
+        )
 
 
 if __name__ == "__main__":

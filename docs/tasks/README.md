@@ -1,18 +1,18 @@
 # 当前任务
 
-更新时间：2026-08-03
+更新时间：2026-08-04
 
 本文件只记录尚未完成的工作。已经落地的能力写入模块 README；阶段结论和旧待办移入 `docs/archive/`。当前跌倒风险模块处于模型化增强阶段：规则 baseline 仍作为对照和安全 fallback，新增时序模型必须经过数据、split、评估和部署门禁后才能替换主路径。
 
 ## P0：形成可验证交付
 
-工作流 A 已实现统一 manifest、v2 标注导入/发布、模型训练标签 v3 迁移/统一 split/校验、四任务 split builder 和事件评估器，并用合成数据跑通 bundle。当前 v3 有 9,314 条动作、2,567 条事件、11,881 条 split assignment，结构与 hash 校验合法，已接入 6 条人工裁决的 `squat_or_kneel` fall negative，但它们全部位于 train，另外六类 fall hard negative 和全部 near-fall positive 仍缺；当前剩余工作是补齐模型监督数据、处理 v2 formal blocker并冻结评估协议。
+工作流 A 已实现统一 manifest、v2 标注导入/发布、模型训练标签 v3 迁移/统一 split/校验、四任务 split builder 和事件评估器，并用合成数据跑通 bundle。项目负责人于 2026-08-04 裁决现有规范动作标签可用于任务级正负样本：当前 v3 有 9,314 条动作、9,498 条事件和 18,812 条 split assignment，fall/near-fall hard negative 类型覆盖完整，962 条 C03 已转为 near-fall positive，446 条当前 NTU 全片跌倒按首帧/尾帧生成精确边界；校验 `valid=true`、事件任务 `training_ready=true`。fall 和 near-fall 已在锁定 test 的前提下完成三 seed train/validation 开发实验。当前剩余工作是处理 v2 formal blocker、冻结事件标签与评估协议、补充连续背景/老人域/跨来源证据并建立一次性 test 发布流程；动作类型任务因稀有类别分区覆盖不足仍为 `training_ready=false`。
 
 | 任务 | 完成标准 |
 |---|---|
 | 使跌倒根标签通过 formal 校验 | 从 `generated/v2/` 合并来源文件和 hash 完整的明确标签；`U01/uncertain`、来源缺失和技术隔离记录不进入正式评估 |
-| 使训练标签 v3 达到模型门槛 | 对 fall/near-fall 分别逐窗补齐 hard negative；安全采集并双人复核 near-fall positive；校验报告中目标任务 `training_ready=true`，且不把未标注背景自动写成 negative |
-| 冻结四个跌倒任务 split | `fall_event_v1`、`near_fall_event_v1`、`functional_proxy_v1` 和 `longitudinal_baseline_v1` 分别取得合格样本、稳定 `split_id` 和无泄漏报告；没有真实参考终点的任务继续明确阻塞，不制造空壳正式 split |
+| 复核并冻结事件训练标签 v3 | 当前 fall/near-fall 事件门槛已通过；仍需数据负责人检查来源/场景分布、确认现有数据使用范围并冻结版本，且不得把未标注背景自动写成 negative |
+| 冻结四个跌倒任务 split | 当前 v2 根事件的 fall/near-fall split 仅为 provisional ready，v3 统一 split 也未冻结；四任务分别取得合格样本、稳定 `split_id`、无泄漏报告和冻结记录。没有真实参考终点的功能/纵向任务继续明确阻塞，不制造空壳正式 split |
 | 完成跌倒风险正式评估 | 预注册并冻结事件匹配与统计协议，指定测试集保管人与一次性发布流程；在真实冻结 split 上输出 Precision、Recall、F1、PR-AUC、合法分母下的误报指标、提前量、95% CI 和失败案例 bundle |
 | 解除 Workflow A 数据阻断 | 完成 CVAT 身份元数据处置、人员或保守源组说明、功能与纵向参考终点确认；解除证据写入 `reports/fall_risk/workflow_a_blockers.md` |
 | 完成徘徊方案步骤 3 固定 split | 按[徘徊样行为识别技术方案第 11 节](../modules/mental_health/plans/徘徊样行为识别技术方案.md)先补测试，再实现来源专用 builder：校验步骤 2 六个固定输入哈希；WP 每类精确分成 `280/60/60`（合计 `1120/240/240`，只称 `public_shape_benchmark`）；SmartCare 开发池按自然日替代组固定为 train 152、validation 38，官方 20 条全部且只进入 `sealed_external_test`；输出 split、assignments、近邻审计、报告及哈希，两次全新构建逐字节一致。步骤 3 完成前不开始预处理或模型训练 |
@@ -38,12 +38,15 @@
 ## P2：数据和模型增强
 
 - 当前阶段主线：为步态、坐站、近跌倒/跌倒事件构建时序模型训练任务，并在同一数据、同一 split、同一指标协议下与规则 baseline 对照；优先使用 TCN、MS-TCN++ 或 ST-GCN，保留规则安全覆盖。
-- 步态运行框架已支持统一 `[T,14,5]` 输入、TCN 常驻推理、规则解释分和显式降级；剩余门禁是训练出任务匹配且经过无泄漏验证、校准和外部测试的 RGB 步态 checkpoint。checkpoint 为空时继续标明 `rule_fallback`，不能把框架完成写成模型有效。
+- 步态已完成目标重构、有效权重、全动作共享预训练、质量捷径隔离、walking gate、条件异常头和物理一致增强。B01-B04 functional proxy 上已补跑六个 seed；单模型 F1 为 `0.145-0.253`，六 seed 动作段概率集成 validation F1 为 `0.308`、balanced accuracy 为 `0.733`、正常误报约 `40.8/小时`。验证集只有 12 个正动作段，test 未读取，集成仅作离线开发候选，运行时继续规则 fallback 且默认 checkpoint 保持 `null`。见[步态 TCN v5 六 seed 集成实验](../../reports/fall_risk/gait_window_v5_effect_first/development-20260803/README.md)。
+- 坐站已完成 provisional 数据审计、train/validation-only 派生 split、`[16,14,7]` 数据集、E0、Logistic smoke/pilot，以及候选双头 clip TCN smoke/pilot；test 姿态与指标保持锁定。TCN pilot 的 presence balanced accuracy/F1 为 0.981/0.986，方向 balanced accuracy/macro-F1 为 0.994/0.994，但 1,308/1,409 个事件来自 NTU，不能据此启动正式 E4 或替换规则。下一项最小行动是人工复核一批连续视频并补充显式背景和真实 onset/offset；若保持预裁剪任务，只能继续做标记为 provisional 的分析，不能宣称连续事件定位。见[坐站首轮 provisional 训练](../../reports/fall_risk/sit_stand_event_v1/README.md)。
+- 跌倒事件已基于当前 v3 action split 重跑 provisional candidate-clip TCN：`D01/D02/D03/D05` 正类、`A03/A05/A06/A09` 明确非跌倒 proxy，train/validation 生成 2,533 个 `[32,14,7]` 窗口，test 684 条标签保持锁定。三 seed validation F1 为 `0.958/0.961/0.963`，balanced accuracy 为 `0.958/0.960/0.962`，独立 evaluator 复算一致；方向头保持 `not_trained`。validation 保护组只有 9 个且以 NTU 为主，Fall Detection 2017 分域 balanced accuracy 为 `0.826-0.840`。该模型仍是预裁剪动作 proxy，不是连续事件定位或正式效果；连续背景分母、真实 onset/offset 和老人域证据仍缺，TCN 继续只作 shadow。见[跌倒 candidate-clip TCN v3 pilot](../../reports/fall_risk/fall_event_proxy_v2_v3split/README.md)。
+- 近跌倒已完成“恢复后确认”训练基础设施、synthetic 小样本烟测和新标签三 seed provisional pilot；2026-08-04 的项目负责人裁决将 962 条 C03 生成为 `stumble_recovery` 正例，并从已确认动作/跌倒事件生成八类 hard negative。当前 primary near-fall 正/负为 948/1,906，train/validation/test 均有正负监督，`training_ready.near_fall_event=true`。本轮只生成 876 个 train/validation 窗口，全部来自 NTU，test 未读取；validation F1 `0.990-0.997` 仅为来源受限开发结果，实际负例窗口类别不完整。下一步应补齐跨来源姿态/连续背景和 hard-negative 窗口覆盖，完成正式协议、连续背景误报验证和老人域外部验证前不得替换 `near-fall-rule-v0.1` 主路径。见[近跌倒恢复确认 TCN provisional pilot](../../reports/fall_risk/near_fall_event_v1/README.md)。
 - 模型替换门槛：来源完整标签、人员/源组无泄漏划分、冻结验证协议、误报漏报分析、推理延迟和低质量输入降级证据全部齐备。
 - 个体基线和最终风险融合暂不强行监督训练；需要连续个人数据或非空 `risk_labels.jsonl` 后再选择 EWMA/CUSUM、Logistic Regression、LightGBM 或时序融合模型。
 - 扩充老人域、近跌倒、低光、遮挡、辅助器具和跨房间数据。
 - 通用全视频姿态缓存已覆盖当前 manifest 的全部 6,512 个 eligible RGB 视频：`le2i_imvia` 184 个、`caucafall` 100 个、`ntu_rgbd` 3,914 个、`fall_detection_2017` 2,012 个、`fall_tiktok` 66 个、`pre_vfallp` 108 个、`toaga` 28 个和 `ur_fall` 100 个，剩余 0，且各批均通过完整解析验收。`gstride`、`ltmm` 以及 ToAGa/UR Fall 的表格、时序资产不属于 RGB 姿态缓存。UR Fall 的 `adl-07-cam0.mp4` 源归档本身截断，只缓存了 35 个可解码帧，不能视为完整 180 帧样本；`pre_vfallp` 的姿态缓存也不解除数据集隔离状态。姿态缓存完成不等于训练窗口或模型训练已就绪。
-- NTU RGB+D 媒体路径已按仓库内 `data/external/ntu` 重建，3,924 个 AVI 和主 manifest 纳入的 3,914 个资产均可访问；A043 S001-S017 的 938 个已标视频已接入。S016/C003/P008/R001 job revision 已以严格文件名绑定叠加到完整 S016 project；S013/C001、S015/C003 和两组三视角 A05 裁决已写入决定文件及 JSONL。后续仍需补齐 S002 缺少的 10 个 C001 任务，并继续补标 446 个全片跌倒窗口的 onset 及复核跨视角方向/边界差异；未标注 A043 不按文件名直接导入。
+- NTU RGB+D 媒体路径已按仓库内 `data/external/ntu` 重建，3,924 个 AVI 和主 manifest 纳入的 3,914 个资产均可访问；A043 S001-S017 的 938 个已标视频已接入。S016/C003/P008/R001 job revision 已以严格文件名绑定叠加到完整 S016 project；S013/C001、S015/C003 和两组三视角 A05 裁决已写入决定文件及 JSONL。当前 v3 中 446 条全片跌倒已按项目负责人裁决使用首帧 onset、尾帧 offset；后续仍需补齐 S002 缺少的 10 个 C001 任务并复核跨视角方向差异，未标注 A043 不按文件名直接导入。
 - 抖音/B站跌倒视频整理批次已按项目负责人决定记录为项目自采并授权内部训练；后续若取得人员对应关系，应把当前单一保守来源池细化为脱敏 subject group 后重新冻结 split。该决定不作为公开再分发授权。
 - KINECAL 轻量 TCN 固定划分 baseline 已跑通，但 7 人测试集 balanced accuracy 仅 `0.333`、ROC-AUC `0.583`；进入主链前必须完成重复参与者级交叉验证、RGB 姿态微调和独立外部测试。
 - 补消融实验：完整跌倒管线、去掉个体基线、去掉近跌倒、仅事件检测。

@@ -3,7 +3,7 @@ model_path: yolov8n-pose.pt
 # checkpoint 才能配置为主分支；null 时规则 baseline 自动兜底。
 gait_model_path: null
 gait_model_device: auto
-gait_model_window_frames: 64
+gait_model_window_frames: 16
 api_token: change-me
 callback_token: change-me
 max_inference_fps: 8.0

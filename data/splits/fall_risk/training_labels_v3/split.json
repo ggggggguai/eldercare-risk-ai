@@ -1,144 +1,144 @@
 {
   "allocation_method": "deterministic_group_level_supervision_balance",
   "asset_count": 6516,
-  "assignment_count": 11881,
-  "assignments_sha256": "83433d0f62e2a2b24fccccc5ca66154da72d6b3fb6495ba025f84645b29ddb4c",
+  "assignment_count": 18812,
+  "assignments_sha256": "878a3b46afc570ca32baf37220579301b5cdb420009249318012fc79ac68f715",
   "group_count": 184,
   "input_sha256": {
-    "action_labels": "9955ec8e0c08ff91f397e8e07cb7e90270ac02accbadbba35f7b2870f60371d1",
-    "event_labels": "de4700d8b31c723742b3d29fb7538ce91a01b75f5ce801602864db69bbcf29b2",
+    "action_labels": "894c6d052159be5f6aad19778b3484aa49e663e29b5030465134fc906b554e5f",
+    "event_labels": "7b263e8c1b2d2eae5d8e88cdc23316beb8d41a0e6479a76c620f127a372b8f82",
     "manifest": "38f15531110ca5401e10575ade5aaf6b7baf497dc04c143a1005d9f013bc61db"
   },
   "leakage_issues": [],
   "partition_action_type_counts": {
     "backward_fall": {
-      "test": 200,
-      "train": 92,
-      "validation": 96
+      "test": 62,
+      "train": 298,
+      "validation": 28
     },
     "controlled_bend": {
-      "test": 45,
-      "train": 39,
-      "validation": 3
+      "test": 3,
+      "train": 76,
+      "validation": 8
     },
     "controlled_sit_down": {
-      "test": 216,
-      "train": 460,
-      "validation": 511
+      "test": 325,
+      "train": 540,
+      "validation": 322
     },
     "controlled_squat": {
-      "test": 6,
-      "train": 125,
-      "validation": 18
+      "test": 5,
+      "train": 142,
+      "validation": 2
     },
     "dragging_walk": {
-      "test": 29,
-      "train": 2,
-      "validation": 1
+      "test": 1,
+      "train": 23,
+      "validation": 8
     },
     "failed_sit_to_stand": {
       "test": 0,
-      "train": 28,
-      "validation": 1
-    },
-    "forward_fall": {
-      "test": 244,
-      "train": 268,
-      "validation": 225
-    },
-    "kneel_or_floor_activity": {
-      "test": 11,
-      "train": 21,
+      "train": 29,
       "validation": 0
     },
+    "forward_fall": {
+      "test": 139,
+      "train": 468,
+      "validation": 130
+    },
+    "kneel_or_floor_activity": {
+      "test": 1,
+      "train": 27,
+      "validation": 4
+    },
     "lateral_fall": {
-      "test": 251,
-      "train": 301,
-      "validation": 264
+      "test": 143,
+      "train": 465,
+      "validation": 208
     },
     "normal_sit_to_stand": {
-      "test": 216,
-      "train": 513,
-      "validation": 511
+      "test": 347,
+      "train": 577,
+      "validation": 316
     },
     "normal_step_adjustment": {
-      "test": 9,
-      "train": 59,
-      "validation": 2
+      "test": 1,
+      "train": 69,
+      "validation": 0
     },
     "normal_turn": {
-      "test": 61,
-      "train": 117,
-      "validation": 84
+      "test": 83,
+      "train": 158,
+      "validation": 21
     },
     "normal_walk": {
-      "test": 653,
-      "train": 751,
-      "validation": 379
+      "test": 261,
+      "train": 1274,
+      "validation": 248
     },
     "seated_fall": {
-      "test": 87,
-      "train": 110,
-      "validation": 9
+      "test": 6,
+      "train": 177,
+      "validation": 23
     },
     "slow_walk": {
-      "test": 203,
-      "train": 3,
-      "validation": 70
+      "test": 14,
+      "train": 229,
+      "validation": 33
     },
     "stumble": {
-      "test": 108,
-      "train": 378,
-      "validation": 462
+      "test": 300,
+      "train": 348,
+      "validation": 300
     },
     "swaying_walk": {
-      "test": 59,
-      "train": 2,
-      "validation": 2
+      "test": 2,
+      "train": 58,
+      "validation": 3
     },
     "unstable_turn": {
-      "test": 5,
-      "train": 18,
-      "validation": 12
+      "test": 12,
+      "train": 21,
+      "validation": 2
     }
   },
   "partition_asset_counts": {
-    "test": 1778,
-    "train": 2632,
-    "validation": 2106
+    "test": 1318,
+    "train": 3769,
+    "validation": 1429
   },
   "partition_label_counts": {
-    "test": 3754,
-    "train": 4626,
-    "validation": 3501
+    "test": 3730,
+    "train": 11364,
+    "validation": 3718
   },
   "partition_supervision_counts": {
     "fall_event": {
       "test": {
-        "primary_negative": 0,
-        "primary_positive": 7
+        "primary_negative": 369,
+        "primary_positive": 14
       },
       "train": {
-        "primary_negative": 6,
+        "primary_negative": 958,
         "primary_positive": 74
       },
       "validation": {
-        "primary_negative": 0,
-        "primary_positive": 14
+        "primary_negative": 396,
+        "primary_positive": 7
       }
     },
     "near_fall_event": {
       "test": {
-        "primary_negative": 0,
-        "primary_positive": 0
+        "primary_negative": 433,
+        "primary_positive": 300
       },
       "train": {
-        "primary_negative": 0,
-        "primary_positive": 0
+        "primary_negative": 1109,
+        "primary_positive": 348
       },
       "validation": {
-        "primary_negative": 0,
-        "primary_positive": 0
+        "primary_negative": 364,
+        "primary_positive": 300
       }
     }
   },
@@ -149,5 +149,5 @@
   },
   "schema_version": "fall-risk-training-split-v3",
   "seed": "fall-risk-training-labels-v3-20260721",
-  "split_id": "splitv3_32db8736e890c9fad95a8292"
+  "split_id": "splitv3_f89832f6cad5b9c5f630d00b"
 }

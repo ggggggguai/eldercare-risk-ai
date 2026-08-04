@@ -93,7 +93,9 @@ gait:
   checkpoint: null
   expected_task: gait_instability_vs_normal_activity
   input_format: t_v_c
-  window_frames: 64
+  target_fps: 4.0
+  window_sec: 4.0
+  window_frames: 16
   joint_count: 14
   channels: [x, y, dx, dy, quality]
   fallback_backend: rule_baseline

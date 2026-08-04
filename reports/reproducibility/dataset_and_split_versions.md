@@ -1,6 +1,6 @@
 # 跌倒风险数据与 Split 版本记录
 
-记录日期：2026-08-02
+记录日期：2026-08-04
 
 目标名：`fall-risk-data-v2`
 
@@ -21,16 +21,17 @@
 | split 开发配置 | v2 provisional | `eb7fb40c0e21e81eda06fe6f4ef107d1f8a648f4f1559e39e3c16ef27ec53a04` |
 | v2 根标签发布报告 | 9,314 action / 6,338 event；排除 71 条重叠 fall，A043 仅按人工 CVAT 决定接入，Fall Detection 2017 批次保留候选 QC 状态；隔离目录名与报告 `batch_id` 不一致的候选批次 | `bfe98754b9f7a09a2186474e8bdc517d9fb2cf8ca6c6d0e194bfb293c2de8538` |
 | v2 formal 校验报告 | `errors=0`、`blockers=285`、`formal_ready=false` | `386356a4aa8643264b2206e2e9be88d0508865a96d5ffd2998474089a655689d` |
-| v3 action 训练标签 | 9,314；父类 primary=8,444、auxiliary=702、ignore=168 | `9955ec8e0c08ff91f397e8e07cb7e90270ac02accbadbba35f7b2870f60371d1` |
-| v3 event 训练标签 | 2,567；fall positive=2,303、ignore=258、negative=6 | `de4700d8b31c723742b3d29fb7538ce91a01b75f5ce801602864db69bbcf29b2` |
+| v3 受审训练决策 | 绑定当前 v2 action hash；NTU 全片边界、C03 正例、hard negative 与 UR Fall A07 覆盖规则 | `d87bfc260f904508f799dc29239e02ca34085cac4c5a0cde269c605836b3db90` |
+| v3 action 训练标签 | 9,314；父类 primary=8,444、auxiliary=702、ignore=168 | `894c6d052159be5f6aad19778b3484aa49e663e29b5030465134fc906b554e5f` |
+| v3 event 训练标签 | 9,498；fall 正/负=2,303/1,774、near-fall 正/负=962/4,201、ignore=258 | `7b263e8c1b2d2eae5d8e88cdc23316beb8d41a0e6479a76c620f127a372b8f82` |
 | v3 action schema | `fall-risk-action-label-v3` | `1937070abb1cf230ad44185b91569f1f3a76f101a34b28b40168f76ef7f7abfd` |
-| v3 event schema | `fall-risk-event-label-v3` | `6335b6b79699ebf1da59b68d1ec533c416cd0d48f4cc052117562c1af07ddbbf` |
+| v3 event schema | `fall-risk-event-label-v3` | `30542206f41f8704717d6b8baf34c835ed8b37d36a884f4a764d196826a3c6ee` |
 
 ## 模型训练标签 v3
 
-v3 是从上述 v2 根标签确定性生成的独立训练视图，不改变 `fall-risk-data-v2` 发布候选。迁移报告 SHA-256 为 `4917400a4db59e37b6fc89fe776e9b783f17a6416fd00dfc17fcfd914f6f3dfd`，校验报告 SHA-256 为 `c1441c9221c655c1da5a6d23b303b4d4eed1839265f3431961e46fb397df9ae4`。
+v3 是从上述 v2 根标签和哈希绑定受审决策确定性生成的独立训练视图，不改变 `fall-risk-data-v2` 发布候选。迁移报告 SHA-256 为 `d2eab56a42e1d3aa79f130e6eb4cc44884538f175bc82cf9bf63b4faf79567a4`，校验报告 SHA-256 为 `6334434a6b5ae3af71666591a7b31c62c4ad1c46a6394204d0321c4d85832634`。
 
-迁移结果合并 71 个 LE2I/CVAT 重叠 fall，220 个 D04 均与唯一父 fall 双向关联。NTU 的 2,976 条精确全片动作全部为 `primary/exact/single_annotated`，具体动作 tier 也为 primary；Fall Detection 2017 贡献 2,977 条 v3 动作和 1,097 条事件窗口；A042/C03 不会自动升级为 v3 near-fall 训练正例。A043 决定文件生成 6 条 `manual_v3/adjudicated` 的 `squat_or_kneel` fall negative，裁决零漏配。v3 统一 split 有 11,881 条标签分配、6,516 个资产和 184 个保守泄漏组，`split_id=splitv3_32db8736e890c9fad95a8292`，校验未发现跨 partition 泄漏。primary fall 正例按 train/validation/test 分为 74/14/7，negative 为 6/0/0；部分动作类别没有覆盖三个 partition，另外六类 fall hard negative 和 near-fall positive 仍缺，因此三项 `training_ready` 均为 false。
+迁移结果合并 71 个 LE2I/CVAT 重叠 fall；218 个 D04 与唯一父 fall 双向关联，2 个无唯一父事件的 D04 保持 ignore。项目裁决的 36 个展开指令全部匹配：446 条 NTU 全片跌倒统一为 `[0, frame_count)` 精确边界，962 条 C03 生成 near-fall 正例，明确动作/跌倒事件生成 5,975 条负例，7 类 fall 和 8 类 near-fall hard negative 均有 primary 覆盖。v3 统一 split 有 18,812 条标签分配、6,516 个资产和 184 个保守泄漏组，`split_id=splitv3_f89832f6cad5b9c5f630d00b`，校验未发现跨 partition 泄漏。primary fall 正/负按 train/validation/test 分为 `74/7/14` 和 `958/396/369`；primary near-fall 正/负为 `348/300/300` 和 `1109/364/433`。`training_ready.fall_event=true`、`training_ready.near_fall_event=true`；稀有动作类型三分区覆盖不足使 `action_type=false`。
 
 复现命令：
 
@@ -46,7 +47,7 @@ v3 训练标签共用一份统一 split，不能复用下方绑定 v2 根标签�
 
 | split | 状态 | 标签/资产/组 | split_id | assignments SHA-256 | split.json SHA-256 |
 |---|---|---:|---|---|---|
-| `training_labels_v3` | split valid（provisional；训练门禁 false） | 11,881 / 6,516 / 184 | `splitv3_32db8736e890c9fad95a8292` | `83433d0f62e2a2b24fccccc5ca66154da72d6b3fb6495ba025f84645b29ddb4c` | `13b6f42f7232285816ea0f7b76017604168453e230d19145c1bcf7eaf409ef68` |
+| `training_labels_v3` | split valid（provisional；事件门禁 true、动作类型门禁 false） | 18,812 / 6,516 / 184 | `splitv3_f89832f6cad5b9c5f630d00b` | `878a3b46afc570ca32baf37220579301b5cdb420009249318012fc79ac68f715` | `13e7f6dd6321a0fde391e6012282a283297f9114f1fcac2821645c71f70ce71e` |
 
 split 产物已按 v2 根标签重建；`fall_event_v1` 是任务协议标识，不是旧标签版本。
 
