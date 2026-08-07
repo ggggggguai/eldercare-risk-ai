@@ -559,25 +559,26 @@ conda run -n eldercare-ai python scripts/annotation/validate_fall_risk_labels.py
 从现行 v2 根标签生成独立 v3 文件：
 
 ```bash
-conda run -n eldercare-ai python scripts/annotation/migrate_fall_labels_v2_to_v3.py
-conda run -n eldercare-ai python scripts/annotation/build_fall_training_split_v3.py
-conda run -n eldercare-ai python scripts/annotation/validate_fall_labels_v3.py
+conda run -n eldercare-ai python scripts/annotation/migrate_fall_labels_v2_to_v3.py --overwrite
+conda run -n eldercare-ai python scripts/annotation/build_fall_training_split_v3.py --overwrite
+conda run -n eldercare-ai python scripts/annotation/validate_fall_labels_v3.py --overwrite
 ```
 
-迁移器只自动完成字段、half-open 边界、来源合并、D04 父事件关联和 U01 ignore。以下内容必须人工完成：
+迁移器自动完成字段、half-open 边界、来源合并、D04 父事件关联和 U01 ignore。任务级正负映射只允许来自受控裁决配置；默认配置 `configs/data/fall_risk_training_decision_20260804.json` 绑定当前 v2 `action_labels.jsonl` 的 SHA-256，输入标签变化后会拒绝运行。该裁决固定：
 
-- C03-C05 是否形成 near-fall positive。
-- fall/near-fall hard-negative 窗口。
-- near-fall recovery frame 和双人复核。
-- 来源冲突、目标身份冲突和不确定边界。
+- 当前 NTU 全片跌倒使用首帧 onset、尾帧 offset，v3 写为 `[0, frame_count)`。
+- 全部 C03 为 `stumble_recovery` near-fall positive，`recovery_frame=end_frame_exclusive-1`；动作与事件双向关联。
+- A02/A03/A05-A12 等明确动作按任务分别映射为 fall/near-fall hard negative；已有 fall positive 作为 near-fall 的 `progressed_to_fall` negative。
+- 7 条明确 UR Fall A07 以视频白名单映射为 `bed_entry_or_exit`，其他 A07 为 `controlled_lie_down`。
+- 只有 `partial_occlusion` 且动作语义明确、非 ignore 的片段可成为 `occlusion_or_camera_motion`；重遮挡、出画、多人目标不确定和 U01 不生成 negative。
+
+配置记录的是项目负责人对现有规范标签语义的裁决，不虚构第二名人工复核员。未来 C04/C05、新背景窗、来源冲突、目标身份冲突和不确定边界仍须单独人工复核；迁移器不得从目录名、规则候选或未标注背景自行推断。
 
 迁移器会根据独立 `sample_group_id/source_group_id` 数量生成 `action_type_training_tier`：少于 10 个 sample group 为 ignore；10-29 个，或来源少于 3 个 source group，为 auxiliary；至少 30 个 sample group且至少 3 个 source group才为 primary。训练具体动作头时必须读取该字段，不能直接复用父类 `training_tier`。
 
-当前 v3 统一 split 覆盖 1,853 条动作/事件标签和 426 个资产，按保守关系形成 31 个泄漏组，校验未发现跨 partition 泄漏；primary fall 正例按 train/validation/test 分为 74/14/7。Pre_VFallp 的未知人员视频共用保守源组，不得为改善分区分布而拆散。CaucaFall 的 100 个视频按 10 名受试者分组，同一受试者不得跨 partition。标签或 manifest 改变后必须依次重跑迁移、split 和校验；旧 v2 split 不得复用。
+当前 v3 统一 split 覆盖 18,812 条动作/事件标签分配和 6,516 个资产，按保守关系形成 184 个泄漏组，校验未发现跨 partition 泄漏。primary fall 正/负按 train/validation/test 分为 `74/7/14` 和 `958/396/369`；primary near-fall 正/负为 `348/300/300` 和 `1109/364/433`。Pre_VFallp 的未知人员视频共用保守源组，不得为改善分区分布而拆散。CaucaFall 的 100 个视频按 10 名受试者分组，同一受试者不得跨 partition。Fall Detection 2017 人工批次当前仅为待 QC 的候选来源，不得因为已进入 split 就当作 frozen 评估数据。标签或 manifest 改变后必须依次重跑迁移、split 和校验；旧 v2 split 不得复用。
 
-当前 v3 校验结构合法且 split 有效，但 primary `slow_walk` 在 test 分区没有样本，因此 `training_ready.action_type=false`。event negative=0、near-fall positive=0，两个事件任务也均为 `training_ready=false`；不得通过随机抽未标注背景、复制 C04 或拆散保守源组来消除提示。
-
-
+当前 v3 校验 `valid=true`、`issues=[]`，两个事件任务均为 `training_ready=true`；部分 primary 动作类仍未覆盖三个分区，因此 `training_ready.action_type=false`。该结果只表示事件级监督和 split 门槛具备，不代表连续背景、老人域泛化、正式模型效果或 test 指标已经完成；仍不得通过随机抽未标注背景、复制 C04 或拆散保守源组改善数字。
 
 ```bash
 conda run -n eldercare-ai python scripts/annotation/validate_fall_risk_labels.py \
@@ -591,6 +592,15 @@ conda run -n eldercare-ai python scripts/annotation/validate_fall_risk_labels.py
   --report-output reports/fall_risk/annotation_validation_formal_v2.json
 ```
 
+### 11.6 发布人工近跌倒决定
+
+对当前受审 C03 之外的新增近跌倒，人工确认结果使用 `near-fall-manual-decision-v1` JSONL，由 `scripts/annotation/publish_near_fall_labels_v3.py` 发布为独立 v3 候选。详细字段、八类 hard negative 和候选 split/校验命令见 `scripts/annotation/README.md` 的“发布人工近跌倒 v3 候选”。执行时必须遵守：
+
+- near-fall 正例必须看到恢复稳定且未形成跌倒，记录 `onset_frame` 和 `recovery_frame`；该独立候选发布流程要求两名复核员。项目负责人单人 adjudication 只通过另行哈希绑定的受控训练决策配置进入正式迁移，不使用候选发布器伪造第二名复核员。
+- `progressed_to_fall` 标为 near-fall binary negative；不要增加 outcome 辅助标签。
+- 背景负例必须逐窗人工确认；动作码、目录名、规则候选和 LE2I `0/0` 都不能自动转成监督标签。
+- `uncertain/U01`、重度遮挡、出画、多人目标不确定和镜头切换不能进入 primary loss。
+- 发布器只生成候选，不覆盖 `event_labels_v3.jsonl`；数据负责人审核、版本化批准后才可重建正式 split。
 
 
 ## 12. 质检清单

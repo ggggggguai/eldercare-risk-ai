@@ -16,6 +16,16 @@ from typing import Any, Callable, Iterable, Mapping
 
 import yaml
 
+from elderly_monitoring.modules.fall_risk.fall_tiktok import (
+    FallTiktokCollectionDecision,
+    load_fall_tiktok_collection_decision,
+    load_fall_tiktok_source_map,
+)
+from elderly_monitoring.modules.fall_risk.ntu_rgbd_cvat import (
+    NTU_RGBD_A043_BATCH_ID,
+    load_ntu_rgbd_a043_decision,
+)
+
 
 VIDEO_METADATA_FIELDS = (
     "fps_num",
@@ -94,6 +104,7 @@ _PROVENANCE = {
     "caucafall": _Provenance(
         source_uri="https://doi.org/10.17632/7w7fccy7ky.4",
     ),
+    "fall_tiktok": _Provenance(source_uri=None),
     "ntu_rgbd": _Provenance(
         source_uri="https://rose1.ntu.edu.sg/dataset/actionRecognition/",
     ),
@@ -108,6 +119,20 @@ _SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 _PRE_VFALLP_MEDIA_INVENTORY_SCHEMA = "pre-vfallp-internal-media-inventory-v1"
 _NTU_RGBD_EXTERNAL_MANIFEST = Path("data/manifests/ntu_rgbd_clip_manifest.jsonl")
 _NTU_RGBD_LABEL_MAP = Path("configs/data/ntu_rgbd_clip_label_map_v2.json")
+_NTU_RGBD_A043_DECISION = Path("configs/data/ntu_rgbd_a043_cvat_decision_v1.json")
+_NTU_RGBD_A043_BATCH = Path(
+    "data/annotations/fall_risk/generated/v2/ntu_rgbd_a043_cvat_review"
+)
+_NTU_RGBD_A043_ACTION_LABELS = _NTU_RGBD_A043_BATCH / "action_labels.jsonl"
+_NTU_RGBD_A043_SOURCE_ANNOTATIONS = _NTU_RGBD_A043_BATCH / "source_annotations.zip"
+_FALL_TIKTOK_SOURCE_MAP = Path("configs/data/fall_tiktok_source_map_v1.json")
+_FALL_TIKTOK_COLLECTION_DECISION = Path(
+    "configs/data/fall_tiktok_collection_decision_v1.json"
+)
+_FALL_TIKTOK_REDACTED_CVAT = Path(
+    "data/annotations/fall_risk/cvat_exports/raw/fall_tiktok/"
+    "fall_tiktok_cvat_redacted.zip"
+)
 _INTERNAL_AUTHORIZATION_EVIDENCE_TYPES = {
     "cvat_export_archive",
     "local_media_inventory",
@@ -248,6 +273,7 @@ def build_fall_risk_manifest(
         _adapt_ltmm,
         _adapt_pre_vfallp,
         _adapt_caucafall,
+        _adapt_fall_tiktok,
     )
     for adapter in adapters:
         rows.extend(adapter(root, probe))
@@ -287,8 +313,10 @@ def _load_reviewed_ntu_rgbd_rows(root: Path) -> list[dict[str, Any]]:
         for entry in mappings
         if isinstance(entry, dict) and entry.get("mode") == "manual_exact"
     }
+    accepted_a043_video_ids, a043_decision = _load_accepted_ntu_a043_video_ids(root)
 
     rows: list[dict[str, Any]] = []
+    matched_a043_video_ids: set[str] = set()
     for line_number, line in enumerate(
         manifest_path.read_text(encoding="utf-8").splitlines(), 1
     ):
@@ -299,13 +327,69 @@ def _load_reviewed_ntu_rgbd_rows(root: Path) -> list[dict[str, Any]]:
             raise ValueError(f"{manifest_path}:{line_number}: row must be an object")
         if row.get("dataset") != "ntu_rgbd":
             raise ValueError(f"{manifest_path}:{line_number}: unexpected dataset")
-        if row.get("source_action_code") not in reviewed_codes:
+        source_action_code = row.get("source_action_code")
+        video_id = str(row.get("video_id") or "")
+        is_manual_a043 = (
+            source_action_code == "A043" and video_id in accepted_a043_video_ids
+        )
+        if source_action_code not in reviewed_codes and not is_manual_a043:
             continue
         reviewed_row = dict(row)
-        reviewed_row["label_source"] = "manual_exact_clip_boundary"
-        reviewed_row["annotation_path"] = _NTU_RGBD_LABEL_MAP.as_posix()
+        if is_manual_a043:
+            matched_a043_video_ids.add(video_id)
+            assert a043_decision is not None
+            reviewed_row["label_source"] = "cvat_manual"
+            reviewed_row["annotation_path"] = (
+                _NTU_RGBD_A043_SOURCE_ANNOTATIONS.as_posix()
+            )
+            reviewed_row["label_batch_id"] = NTU_RGBD_A043_BATCH_ID
+            reviewed_row["label_decision_id"] = a043_decision["decision_id"]
+            reviewed_row["label_decision_path"] = _NTU_RGBD_A043_DECISION.as_posix()
+        else:
+            reviewed_row["label_source"] = "manual_exact_clip_boundary"
+            reviewed_row["annotation_path"] = _NTU_RGBD_LABEL_MAP.as_posix()
         rows.append(reviewed_row)
+    missing_a043 = sorted(accepted_a043_video_ids - matched_a043_video_ids)
+    if missing_a043:
+        raise ValueError(
+            "accepted NTU RGB+D A043 video_id missing from external manifest: "
+            + ", ".join(missing_a043[:5])
+        )
     return rows
+
+
+def _load_accepted_ntu_a043_video_ids(
+    root: Path,
+) -> tuple[set[str], dict[str, Any] | None]:
+    decision_path = root / _NTU_RGBD_A043_DECISION
+    action_path = root / _NTU_RGBD_A043_ACTION_LABELS
+    annotation_path = root / _NTU_RGBD_A043_SOURCE_ANNOTATIONS
+    artifacts = (decision_path, action_path, annotation_path)
+    if not any(path.exists() for path in artifacts):
+        return set(), None
+    missing = [path for path in artifacts if not path.is_file()]
+    if missing:
+        raise FileNotFoundError(missing[0])
+
+    decision = load_ntu_rgbd_a043_decision(decision_path)
+    video_ids: set[str] = set()
+    for line_number, line in enumerate(
+        action_path.read_text(encoding="utf-8").splitlines(), 1
+    ):
+        if not line.strip():
+            raise ValueError(f"{action_path}:{line_number}: blank JSONL line")
+        row = json.loads(line)
+        if not isinstance(row, dict):
+            raise ValueError(f"{action_path}:{line_number}: row must be an object")
+        video_id = row.get("video_id")
+        if not isinstance(video_id, str) or not video_id:
+            raise ValueError(f"{action_path}:{line_number}: missing video_id")
+        if row.get("source") != "cvat":
+            raise ValueError(f"{action_path}:{line_number}: source must be cvat")
+        video_ids.add(video_id)
+    if not video_ids:
+        raise ValueError(f"accepted NTU RGB+D A043 batch is empty: {action_path}")
+    return video_ids, decision
 
 
 def write_fall_risk_manifest(
@@ -985,6 +1069,89 @@ def _adapt_pre_vfallp(root: Path, probe: _VideoProbe) -> list[dict[str, Any]]:
             )
         )
     return rows
+
+
+def _adapt_fall_tiktok(root: Path, probe: _VideoProbe) -> list[dict[str, Any]]:
+    dataset_root = root / "data/external/抖音b站跌倒视频整理"
+    if not dataset_root.is_dir():
+        return []
+
+    source_map_path = root / _FALL_TIKTOK_SOURCE_MAP
+    entries = load_fall_tiktok_source_map(source_map_path)
+    decision_path = root / _FALL_TIKTOK_COLLECTION_DECISION
+    decision = load_fall_tiktok_collection_decision(decision_path)
+    redacted_cvat_path = root / _FALL_TIKTOK_REDACTED_CVAT
+    clip_annotation_path = (
+        redacted_cvat_path if redacted_cvat_path.is_file() else source_map_path
+    )
+    rows: list[dict[str, Any]] = []
+    for entry in entries:
+        sequence = int(entry["sequence"])
+        filename = str(entry["filename"])
+        original_event_id = f"fall_tiktok_sample_{sequence:03d}"
+        source_group_id = decision.source_group_id
+        clip_video_id = f"fall_tiktok_clip_{sequence:03d}"
+        clip_path = dataset_root / "annotated_clips" / filename
+        if not clip_path.is_file():
+            raise FileNotFoundError(clip_path)
+
+        clip_row = _asset_row(
+            root,
+            clip_path,
+            dataset="fall_tiktok",
+            subset="annotated_clips",
+            media_type="video",
+            modality="rgb_video",
+            video_id=clip_video_id,
+            subject_id="unknown",
+            source_group_id=source_group_id,
+            original_event_id=original_event_id,
+            scene_region="unknown",
+            view="unknown",
+            label_source="cvat_manual",
+            annotation_path=clip_annotation_path,
+            probe=probe,
+        )
+        _apply_fall_tiktok_collection_decision(
+            clip_row, decision, decision_path=decision_path, root=root
+        )
+        clip_row.update(
+            {
+                "source_sequence": sequence,
+                "original_filename": entry["original_filename"],
+            }
+        )
+        rows.append(clip_row)
+    return rows
+
+
+def _apply_fall_tiktok_collection_decision(
+    row: dict[str, Any],
+    decision: FallTiktokCollectionDecision,
+    *,
+    decision_path: Path,
+    root: Path,
+) -> None:
+    reasons = set(row["exclusion_reasons"])
+    reasons.discard("source_unknown")
+    row.update(
+        {
+            "source_uri": decision.source_uri,
+            "eligibility": not reasons,
+            "exclusion_reasons": sorted(reasons),
+            "provenance_status": decision.provenance_status,
+            "collection_status": decision.collection_status,
+            "training_use": decision.training_use,
+            "redistribution_use": decision.redistribution_use,
+            "consent_status": decision.consent_status,
+            "subject_grouping_status": decision.subject_grouping_status,
+            "collection_decision_id": decision.decision_id,
+            "collection_decision_path": _repo_relative(decision_path, root),
+            "collection_decision_sha256": _sha256_file(decision_path),
+            "collection_decided_at": decision.decided_at,
+            "collection_decided_by": decision.decided_by,
+        }
+    )
 
 
 def _adapt_caucafall(root: Path, probe: _VideoProbe) -> list[dict[str, Any]]:

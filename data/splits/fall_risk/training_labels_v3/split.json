@@ -1,124 +1,144 @@
 {
   "allocation_method": "deterministic_group_level_supervision_balance",
-  "asset_count": 3501,
-  "assignment_count": 5223,
-  "assignments_sha256": "6b7ed71c5442425f7d4112d52b64dfa0a8cd3ce9424f1d72144748e0dffd36af",
-  "group_count": 154,
+  "asset_count": 6516,
+  "assignment_count": 18812,
+  "assignments_sha256": "878a3b46afc570ca32baf37220579301b5cdb420009249318012fc79ac68f715",
+  "group_count": 184,
   "input_sha256": {
-    "action_labels": "ba787841b5146c6c462ba70f55499d4d2b0a47e5397055a0a7949ca4b6235310",
-    "event_labels": "4cbbda2f57bbeadc496c49f1de0732f685a5a71b1d78fc762348fecabc392cd9",
-    "manifest": "deac5fa3e271238087cdad5c883afa52aedc9a72cacf7eee8ab9bd0724b8111a"
+    "action_labels": "894c6d052159be5f6aad19778b3484aa49e663e29b5030465134fc906b554e5f",
+    "event_labels": "7b263e8c1b2d2eae5d8e88cdc23316beb8d41a0e6479a76c620f127a372b8f82",
+    "manifest": "38f15531110ca5401e10575ade5aaf6b7baf497dc04c143a1005d9f013bc61db"
   },
   "leakage_issues": [],
   "partition_action_type_counts": {
+    "backward_fall": {
+      "test": 62,
+      "train": 298,
+      "validation": 28
+    },
+    "controlled_bend": {
+      "test": 3,
+      "train": 76,
+      "validation": 8
+    },
     "controlled_sit_down": {
-      "test": 431,
-      "train": 361,
-      "validation": 238
+      "test": 325,
+      "train": 540,
+      "validation": 322
     },
     "controlled_squat": {
-      "test": 0,
-      "train": 119,
-      "validation": 18
+      "test": 5,
+      "train": 142,
+      "validation": 2
     },
     "dragging_walk": {
-      "test": 3,
-      "train": 2,
-      "validation": 21
+      "test": 1,
+      "train": 23,
+      "validation": 8
+    },
+    "failed_sit_to_stand": {
+      "test": 0,
+      "train": 29,
+      "validation": 0
     },
     "forward_fall": {
-      "test": 5,
-      "train": 52,
-      "validation": 48
+      "test": 139,
+      "train": 468,
+      "validation": 130
+    },
+    "kneel_or_floor_activity": {
+      "test": 1,
+      "train": 27,
+      "validation": 4
     },
     "lateral_fall": {
-      "test": 2,
-      "train": 49,
-      "validation": 57
+      "test": 143,
+      "train": 465,
+      "validation": 208
     },
     "normal_sit_to_stand": {
-      "test": 424,
-      "train": 378,
-      "validation": 256
+      "test": 347,
+      "train": 577,
+      "validation": 316
     },
     "normal_step_adjustment": {
-      "test": 0,
-      "train": 36,
+      "test": 1,
+      "train": 69,
       "validation": 0
     },
     "normal_turn": {
-      "test": 14,
-      "train": 80,
-      "validation": 90
+      "test": 83,
+      "train": 158,
+      "validation": 21
     },
     "normal_walk": {
-      "test": 16,
-      "train": 118,
-      "validation": 161
+      "test": 261,
+      "train": 1274,
+      "validation": 248
     },
     "seated_fall": {
-      "test": 0,
-      "train": 40,
-      "validation": 0
+      "test": 6,
+      "train": 177,
+      "validation": 23
     },
     "slow_walk": {
-      "test": 0,
-      "train": 3,
-      "validation": 86
+      "test": 14,
+      "train": 229,
+      "validation": 33
     },
     "stumble": {
-      "test": 420,
-      "train": 330,
-      "validation": 198
+      "test": 300,
+      "train": 348,
+      "validation": 300
     },
     "swaying_walk": {
-      "test": 3,
-      "train": 2,
-      "validation": 45
+      "test": 2,
+      "train": 58,
+      "validation": 3
     },
     "unstable_turn": {
-      "test": 2,
-      "train": 17,
-      "validation": 13
+      "test": 12,
+      "train": 21,
+      "validation": 2
     }
   },
   "partition_asset_counts": {
-    "test": 1290,
-    "train": 1409,
-    "validation": 802
+    "test": 1318,
+    "train": 3769,
+    "validation": 1429
   },
   "partition_label_counts": {
-    "test": 1398,
-    "train": 2208,
-    "validation": 1617
+    "test": 3730,
+    "train": 11364,
+    "validation": 3718
   },
   "partition_supervision_counts": {
     "fall_event": {
       "test": {
-        "primary_negative": 0,
-        "primary_positive": 7
+        "primary_negative": 369,
+        "primary_positive": 14
       },
       "train": {
-        "primary_negative": 0,
+        "primary_negative": 958,
         "primary_positive": 74
       },
       "validation": {
-        "primary_negative": 0,
-        "primary_positive": 14
+        "primary_negative": 396,
+        "primary_positive": 7
       }
     },
     "near_fall_event": {
       "test": {
-        "primary_negative": 0,
-        "primary_positive": 0
+        "primary_negative": 433,
+        "primary_positive": 300
       },
       "train": {
-        "primary_negative": 0,
-        "primary_positive": 0
+        "primary_negative": 1109,
+        "primary_positive": 348
       },
       "validation": {
-        "primary_negative": 0,
-        "primary_positive": 0
+        "primary_negative": 364,
+        "primary_positive": 300
       }
     }
   },
@@ -129,5 +149,5 @@
   },
   "schema_version": "fall-risk-training-split-v3",
   "seed": "fall-risk-training-labels-v3-20260721",
-  "split_id": "splitv3_23e61c44a3a44dd8ffba4b40"
+  "split_id": "splitv3_f89832f6cad5b9c5f630d00b"
 }

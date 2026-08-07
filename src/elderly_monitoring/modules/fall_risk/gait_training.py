@@ -31,7 +31,38 @@ GAIT_TABULAR_FEATURE_NAMES = GAIT_STABILITY_FEATURE_NAMES + (
     "jump_outlier_per_frame",
 )
 GAIT_TARGET_MAPPING = {"normal_activity": 0, "gait_instability": 1}
-_NORMAL_WALK_ACTIONS = {"A01", "normal_walk"}
+GAIT_TARGET_PROFILES = (
+    "gait_instability_b01_b04",
+    "observable_instability_b02_b04",
+)
+_NORMAL_ACTIVITY_ACTION_IDS = tuple(f"A{index:02d}" for index in range(1, 13))
+_UNSTABLE_GAIT_ACTION_IDS = ("B01", "B02", "B03", "B04")
+_NORMAL_ACTIVITY_ACTIONS = {
+    "A01",
+    "A02",
+    "A03",
+    "A04",
+    "A05",
+    "A06",
+    "A07",
+    "A08",
+    "A09",
+    "A10",
+    "A11",
+    "A12",
+    "normal_walk",
+    "normal_turn",
+    "controlled_sit_down",
+    "normal_sit_to_stand",
+    "controlled_squat",
+    "controlled_bend",
+    "controlled_lie_down",
+    "routine_support_contact",
+    "kneel_or_floor_activity",
+    "normal_step_adjustment",
+    "assisted_sit_or_lowering",
+    "normal_hop",
+}
 _UNSTABLE_GAIT_ACTIONS = {
     "B01",
     "B02",
@@ -42,15 +73,24 @@ _UNSTABLE_GAIT_ACTIONS = {
     "shuffling_walk",
     "swaying_walk",
 }
+GAIT_WALKING_ACTION_IDS = frozenset({"A01", "B01", "B02", "B03", "B04"})
 _PARTITIONS = ("train", "validation", "test")
+_ALLOWED_PARTITIONS = (*_PARTITIONS, "excluded")
+_V3_ACTION_SCHEMA = "fall-risk-action-label-v3"
 
 
 @dataclass(frozen=True)
 class GaitWindowPreparationConfig:
-    window_frames: int = 64
-    stride_frames: int = 32
-    min_observed_frames: int = 12
+    window_frames: int = 16
+    stride_frames: int = 8
+    min_observed_frames: int = 10
     require_usable_gait: bool = True
+    target_fps: float = 4.0
+    max_gap_sec: float = 0.5
+    max_windows_per_segment: int = 4
+    auxiliary_weight: float = 0.35
+    target_profile: str = "gait_instability_b01_b04"
+    excluded_action_ids: tuple[str, ...] = ()
     seed: int = 42
     train_fraction: float = 0.70
     validation_fraction: float = 0.15
@@ -71,6 +111,23 @@ class GaitWindowPreparationConfig:
             raise ValueError("train and validation fractions must leave a test split")
         if self.split_search_iterations < 1:
             raise ValueError("split_search_iterations must be positive")
+        if self.target_fps <= 0:
+            raise ValueError("target_fps must be positive")
+        if self.max_gap_sec <= 0:
+            raise ValueError("max_gap_sec must be positive")
+        if self.max_windows_per_segment < 1:
+            raise ValueError("max_windows_per_segment must be positive")
+        if not 0 < self.auxiliary_weight <= 1:
+            raise ValueError("auxiliary_weight must be within (0, 1]")
+        if self.target_profile not in GAIT_TARGET_PROFILES:
+            raise ValueError(
+                "target_profile must be gait_instability_b01_b04 or "
+                "observable_instability_b02_b04"
+            )
+        if any(not action_id.strip() for action_id in self.excluded_action_ids):
+            raise ValueError("excluded_action_ids must not contain empty values")
+        if len(set(self.excluded_action_ids)) != len(self.excluded_action_ids):
+            raise ValueError("excluded_action_ids must be unique")
 
 
 def select_gait_training_labels(
@@ -80,21 +137,39 @@ def select_gait_training_labels(
     for source in rows:
         row = dict(source)
         action_id = str(row.get("action_id", ""))
-        action_name = str(row.get("action_name", ""))
+        is_v3 = row.get("schema_version") == _V3_ACTION_SCHEMA
+        action_name = str(
+            row.get("action_type", "") if is_v3 else row.get("action_name", "")
+        )
         event_type = str(row.get("event_type", ""))
-        if event_type == "gait_instability" and (
-            action_id in _UNSTABLE_GAIT_ACTIONS or action_name in _UNSTABLE_GAIT_ACTIONS
-        ):
+        if action_id in _UNSTABLE_GAIT_ACTIONS or action_name in _UNSTABLE_GAIT_ACTIONS:
+            if not is_v3 and event_type != "gait_instability":
+                continue
             label = 1
             target_name = "gait_instability"
-        elif event_type == "normal_activity" and (
-            action_id in _NORMAL_WALK_ACTIONS or action_name in _NORMAL_WALK_ACTIONS
-        ):
+        elif action_id in _NORMAL_ACTIVITY_ACTIONS or action_name in _NORMAL_ACTIVITY_ACTIONS:
+            if not is_v3 and event_type != "normal_activity":
+                continue
             label = 0
             target_name = "normal_activity"
         else:
             continue
-        if row.get("quality") not in (None, "", "clear", "partial_occlusion"):
+        if is_v3:
+            if row.get("training_tier") == "ignore":
+                continue
+            end_exclusive = row.get("end_frame_exclusive")
+            if not isinstance(end_exclusive, int) or end_exclusive <= int(
+                row.get("start_frame", -1)
+            ):
+                raise ValueError(
+                    f"v3 gait label {row.get('label_id')} has invalid half-open frame bounds"
+                )
+            row["action_name"] = action_name
+            row["event_type"] = target_name
+            row["end_frame"] = end_exclusive - 1
+            if row.get("end_time_exclusive") is not None:
+                row["end_time"] = row["end_time_exclusive"]
+        elif row.get("quality") not in (None, "", "clear", "partial_occlusion"):
             continue
         row["label"] = label
         row["target_name"] = target_name
@@ -102,11 +177,86 @@ def select_gait_training_labels(
     return selected
 
 
+def _target_contract(
+    config: GaitWindowPreparationConfig,
+    excluded_action_ids: set[str],
+) -> dict[str, Any]:
+    return {
+        "profile": config.target_profile,
+        "negative_action_ids": [
+            action_id
+            for action_id in _NORMAL_ACTIVITY_ACTION_IDS
+            if action_id not in excluded_action_ids
+        ],
+        "positive_action_ids": [
+            action_id
+            for action_id in _UNSTABLE_GAIT_ACTION_IDS
+            if action_id not in excluded_action_ids
+        ],
+        "functional_proxy_action_ids": (
+            ["B01"]
+            if config.target_profile == "observable_instability_b02_b04"
+            else []
+        ),
+    }
+
+
+def enrich_gait_training_labels(
+    rows: Iterable[Mapping[str, Any]],
+    *,
+    manifest_rows: Iterable[Mapping[str, Any]],
+) -> list[dict[str, Any]]:
+    """Select gait labels and join their authoritative video manifest metadata."""
+
+    manifests: dict[str, dict[str, Any]] = {}
+    for source in manifest_rows:
+        manifest = dict(source)
+        raw_video_id = manifest.get("video_id")
+        if raw_video_id is None or raw_video_id == "":
+            continue
+        video_id = str(raw_video_id)
+        if video_id in manifests:
+            raise ValueError(f"duplicate gait manifest video_id: {video_id}")
+        manifests[video_id] = manifest
+
+    enriched: list[dict[str, Any]] = []
+    for label in select_gait_training_labels(rows):
+        video_id = str(label.get("video_id", ""))
+        manifest = manifests.get(video_id)
+        if manifest is None:
+            raise ValueError(f"gait label references missing manifest video: {video_id}")
+        if manifest.get("eligibility") is not True:
+            raise ValueError(f"gait label references ineligible manifest video: {video_id}")
+        label_asset = str(label.get("asset_id", ""))
+        manifest_asset = str(manifest.get("asset_id", ""))
+        if label_asset and manifest_asset and label_asset != manifest_asset:
+            raise ValueError(f"gait label/manifest asset mismatch for {video_id}")
+        path = str(manifest.get("path", ""))
+        if not path:
+            raise ValueError(f"gait manifest is missing video path: {video_id}")
+        row = dict(label)
+        row.update(
+            {
+                "file_path": path,
+                "scene": str(manifest.get("scene_region", "unknown")),
+                "dataset": str(manifest.get("dataset", "unknown")),
+                "fps": manifest.get("fps"),
+                "frame_count": manifest.get("frame_count"),
+                "manifest_content_sha256": manifest.get("sha256"),
+            }
+        )
+        enriched.append(row)
+    return enriched
+
+
 def prepare_gait_window_dataset(
     labels_path: str | Path,
     pose_dir: str | Path,
     output_dir: str | Path,
     *,
+    manifest_path: str | Path | None = None,
+    assignments_path: str | Path | None = None,
+    split_report_path: str | Path | None = None,
     config: GaitWindowPreparationConfig | None = None,
     overwrite: bool = False,
 ) -> dict[str, Any]:
@@ -114,11 +264,57 @@ def prepare_gait_window_dataset(
     label_source = Path(labels_path)
     pose_root = Path(pose_dir)
     destination = Path(output_dir)
-    labels = select_gait_training_labels(_read_jsonl(label_source))
+    source_rows = _read_jsonl(label_source)
+    is_v3 = bool(source_rows) and all(
+        row.get("schema_version") == _V3_ACTION_SCHEMA for row in source_rows
+    )
+    manifest_source = Path(manifest_path) if manifest_path is not None else None
+    assignments_source = Path(assignments_path) if assignments_path is not None else None
+    split_report_source = Path(split_report_path) if split_report_path is not None else None
+    frozen_assignments: dict[str, dict[str, Any]] = {}
+    if is_v3:
+        if (
+            manifest_source is None
+            or assignments_source is None
+            or split_report_source is None
+        ):
+            raise ValueError(
+                "v3 gait preparation requires manifest_path, assignments_path and split_report_path"
+            )
+        split_report = _validate_split_report(
+            label_source,
+            manifest_source,
+            assignments_source,
+            split_report_source,
+        )
+        labels = enrich_gait_training_labels(
+            source_rows,
+            manifest_rows=_read_jsonl(manifest_source),
+        )
+        frozen_assignments = _load_frozen_assignments(
+            labels,
+            _read_jsonl(assignments_source),
+        )
+    else:
+        split_report = None
+        if any(
+            path is not None
+            for path in (manifest_source, assignments_source, split_report_source)
+        ):
+            raise ValueError("manifest/assignments/split report require v3 labels")
+        labels = select_gait_training_labels(source_rows)
+    excluded_action_ids = set(preparation.excluded_action_ids)
+    if preparation.target_profile == "observable_instability_b02_b04":
+        excluded_action_ids.add("B01")
+    labels = [
+        label
+        for label in labels
+        if str(label.get("action_id", "")) not in excluded_action_ids
+    ]
     if not labels:
         raise ValueError("no gait_instability or normal_walk labels were selected")
 
-    split_group = _split_group_field(labels)
+    split_group = "split_group_id" if is_v3 else _split_group_field(labels)
     pose_cache: dict[str, list[dict[str, Any]]] = {}
     pose_paths: dict[str, Path] = {}
     samples: list[dict[str, Any]] = []
@@ -153,13 +349,33 @@ def prepare_gait_window_dataset(
             continue
         start_frame = int(label["start_frame"])
         end_frame = int(label["end_frame"])
-        frame_records: list[Mapping[str, Any] | None] = [
-            selected_records.get(frame_id)
-            for frame_id in range(start_frame, end_frame + 1)
-        ]
-        for window_index, window_start in enumerate(
-            _window_starts(len(frame_records), preparation)
-        ):
+        if is_v3:
+            assignment = frozen_assignments[str(label["label_id"])]
+            label["split_group_id"] = str(assignment["split_group_id"])
+            start_time = float(label["start_time"])
+            end_time = float(label["end_time_exclusive"])
+            segment_frame_count = max(
+                1,
+                int(np.ceil(max(0.0, end_time - start_time) * preparation.target_fps)),
+            )
+            frame_records = resample_pose_records(
+                list(selected_records.values()),
+                start_time_sec=start_time,
+                window_frames=segment_frame_count,
+                target_fps=preparation.target_fps,
+                max_gap_sec=preparation.max_gap_sec,
+            )
+        else:
+            assignment = None
+            frame_records = [
+                selected_records.get(frame_id)
+                for frame_id in range(start_frame, end_frame + 1)
+            ]
+        window_starts = _limit_window_starts(
+            _window_starts(len(frame_records), preparation),
+            preparation.max_windows_per_segment,
+        )
+        for window_index, window_start in enumerate(window_starts):
             slots = frame_records[
                 window_start : window_start + preparation.window_frames
             ]
@@ -185,6 +401,48 @@ def prepare_gait_window_dataset(
 
             sample_id = f"{label['label_id']}:window-{window_index:03d}"
             split_group_id = str(label[split_group])
+            observed_frame_ids = [
+                int(record["frame_id"])
+                for record in observed_records
+                if record.get("frame_id") is not None
+            ]
+            if is_v3:
+                window_start_time = start_time + (window_start / preparation.target_fps)
+                window_end_time_exclusive = min(
+                    end_time,
+                    window_start_time
+                    + (preparation.window_frames / preparation.target_fps),
+                )
+                window_start_frame = min(observed_frame_ids)
+                window_end_frame = max(observed_frame_ids)
+                window_end_time = window_end_time_exclusive - (
+                    1.0 / preparation.target_fps
+                )
+                segment_duration_sec = float(label["end_time_exclusive"]) - float(
+                    label["start_time"]
+                )
+            else:
+                window_start_time = (
+                    float(slots[0]["timestamp_sec"])
+                    if slots and slots[0] is not None
+                    else None
+                )
+                window_end_time_exclusive = None
+                window_start_frame = start_frame + window_start
+                window_end_frame = min(
+                    end_frame,
+                    start_frame + window_start + preparation.window_frames - 1,
+                )
+                window_end_time = (
+                    float(slots[-1]["timestamp_sec"])
+                    if slots and slots[-1] is not None
+                    else None
+                )
+                segment_duration_sec = max(
+                    0.0,
+                    float(label.get("end_time", 0.0))
+                    - float(label.get("start_time", 0.0)),
+                )
             tensors.append(tensor)
             rule_scores.append(float(rule["gait_risk_score"]))
             tabular_rows.append(_tabular_features(rule))
@@ -195,18 +453,35 @@ def prepare_gait_window_dataset(
                     "label_id": str(label["label_id"]),
                     "video_id": video_id,
                     "split_group_id": split_group_id,
+                    "source_group_id": str(label.get("source_group_id", split_group_id)),
+                    "sample_group_id": str(label.get("sample_group_id", label["label_id"])),
+                    "dataset": str(label.get("dataset", "unknown")),
+                    "training_tier": str(label.get("training_tier", "primary")),
                     "label": int(label["label"]),
                     "target_name": str(label["target_name"]),
                     "action_id": str(label.get("action_id", "")),
                     "action_name": str(label.get("action_name", "")),
                     "scene": str(label.get("scene", "unknown")),
-                    "start_frame": start_frame + window_start,
-                    "end_frame": min(
-                        end_frame,
-                        start_frame + window_start + preparation.window_frames - 1,
-                    ),
+                    "start_frame": window_start_frame,
+                    "end_frame": window_end_frame,
                     "observed_frame_count": len(observed_records),
+                    "start_time_sec": window_start_time,
+                    "end_time_sec": window_end_time,
+                    "end_time_exclusive": window_end_time_exclusive,
+                    "segment_duration_sec": segment_duration_sec,
                     "rule_gait_risk_score": float(rule["gait_risk_score"]),
+                    "partition": (
+                        "excluded"
+                        if assignment
+                        and label.get("training_tier") == "auxiliary"
+                        and assignment["partition"] != "train"
+                        else str(assignment["partition"])
+                        if assignment
+                        else None
+                    ),
+                    "frozen_partition": (
+                        str(assignment["partition"]) if assignment else None
+                    ),
                 }
             )
 
@@ -214,16 +489,61 @@ def prepare_gait_window_dataset(
         raise ValueError("no usable gait windows were generated")
     labels_array = np.asarray([sample["label"] for sample in samples], dtype=np.int64)
     group_ids = np.asarray([sample["split_group_id"] for sample in samples])
-    assignments = _search_group_split(labels_array, group_ids, preparation)
-    partitions = np.asarray([assignments[str(group)] for group in group_ids])
+    if is_v3:
+        assignments: dict[str, str] = {}
+        for sample in samples:
+            group = str(sample["split_group_id"])
+            frozen_partition = str(sample["frozen_partition"])
+            if group in assignments and assignments[group] != frozen_partition:
+                raise ValueError(f"frozen gait split group {group} has conflicting partitions")
+            assignments[group] = frozen_partition
+        partitions = np.asarray([str(sample["partition"]) for sample in samples])
+        _validate_formal_partitions(samples)
+    else:
+        assignments = _search_group_split(labels_array, group_ids, preparation)
+        partitions = np.asarray([assignments[str(group)] for group in group_ids])
     for sample, partition in zip(samples, partitions, strict=True):
         sample["partition"] = str(partition)
+
+    fold_a_partitions = np.asarray(
+        [_cross_source_partition(sample, holdout="pre_vfallp") for sample in samples]
+    )
+    fold_b_partitions = np.asarray(
+        [_cross_source_partition(sample, holdout="le2i_imvia") for sample in samples]
+    )
+    partition_schemes = {"frozen": "partitions"}
+    if not is_v3:
+        partition_schemes.update(
+            {"fold_a": "fold_a_partitions", "fold_b": "fold_b_partitions"}
+        )
+
+    segment_window_counts = Counter(str(sample["label_id"]) for sample in samples)
+    sample_weights = np.asarray(
+        [
+            (
+                preparation.auxiliary_weight
+                if sample["training_tier"] == "auxiliary"
+                else 1.0
+            )
+            / segment_window_counts[str(sample["label_id"])]
+            for sample in samples
+        ],
+        dtype=np.float32,
+    )
 
     destination.mkdir(parents=True, exist_ok=True)
     dataset_path = destination / "dataset.npz"
     metadata_path = destination / "metadata.json"
     samples_path = destination / "samples.jsonl"
-    for path in (dataset_path, metadata_path, samples_path):
+    split_path = destination / "split.json"
+    assignments_output_path = destination / "assignments.jsonl"
+    for path in (
+        dataset_path,
+        metadata_path,
+        samples_path,
+        split_path,
+        assignments_output_path,
+    ):
         if path.exists() and not overwrite:
             raise FileExistsError(f"gait dataset output already exists: {path}")
 
@@ -233,6 +553,21 @@ def prepare_gait_window_dataset(
     sample_ids = np.asarray([sample["sample_id"] for sample in samples])
     video_ids = np.asarray([sample["video_id"] for sample in samples])
     scenes = np.asarray([sample["scene"] for sample in samples])
+    source_group_ids = np.asarray([sample["source_group_id"] for sample in samples])
+    sample_group_ids = np.asarray([sample["sample_group_id"] for sample in samples])
+    datasets = np.asarray([sample["dataset"] for sample in samples])
+    training_tiers = np.asarray([sample["training_tier"] for sample in samples])
+    action_segment_ids = np.asarray([sample["label_id"] for sample in samples])
+    action_ids = np.asarray([sample["action_id"] for sample in samples])
+    walking_targets = np.asarray(
+        [int(action_id in GAIT_WALKING_ACTION_IDS) for action_id in action_ids],
+        dtype=np.int64,
+    )
+    for sample, walking_target in zip(samples, walking_targets, strict=True):
+        sample["walking_target"] = int(walking_target)
+    segment_durations_sec = np.asarray(
+        [sample["segment_duration_sec"] for sample in samples], dtype=np.float32
+    )
     _write_npz_atomic(
         dataset_path,
         features=features_array,
@@ -242,11 +577,37 @@ def prepare_gait_window_dataset(
         participant_ids=group_ids,
         video_ids=video_ids,
         groups=scenes,
+        source_group_ids=source_group_ids,
+        sample_group_ids=sample_group_ids,
+        datasets=datasets,
+        training_tiers=training_tiers,
+        action_segment_ids=action_segment_ids,
+        action_ids=action_ids,
+        walking_targets=walking_targets,
+        segment_durations_sec=segment_durations_sec,
+        sample_weights=sample_weights,
         partitions=partitions,
+        fold_a_partitions=fold_a_partitions,
+        fold_b_partitions=fold_b_partitions,
         tabular_features=tabular_array,
         rule_scores=rule_array,
     )
     _write_jsonl_atomic(samples_path, samples)
+    _write_jsonl_atomic(
+        assignments_output_path,
+        [
+            {
+                "sample_id": sample["sample_id"],
+                "label_id": sample["label_id"],
+                "split_group_id": sample["split_group_id"],
+                "source_group_id": sample["source_group_id"],
+                "sample_group_id": sample["sample_group_id"],
+                "training_tier": sample["training_tier"],
+                "partition": sample["partition"],
+            }
+            for sample in samples
+        ],
+    )
 
     class_counts = Counter(int(value) for value in labels_array)
     partition_counts = Counter(str(value) for value in partitions)
@@ -254,7 +615,14 @@ def prepare_gait_window_dataset(
     metadata = {
         "schema_version": "gait-window-dataset-v1",
         "task": "gait_instability_vs_normal_activity",
-        "negative_label_policy": "A01_normal_walk_only",
+        "negative_label_policy": "A01_A12_normal_activity_hard_negatives",
+        "excluded_action_ids": sorted(excluded_action_ids),
+        "target_contract": _target_contract(preparation, excluded_action_ids),
+        "walking_gate_contract": {
+            "walking_action_ids": sorted(GAIT_WALKING_ACTION_IDS),
+            "non_walking_policy": "not_applicable_for_conditional_gait_head",
+            "final_probability": "p_walking_times_p_abnormal_given_walking",
+        },
         "label_mapping": dict(GAIT_TARGET_MAPPING),
         "joint_order": list(CANONICAL_GAIT_JOINTS),
         "channel_order": list(GAIT_TCN_CHANNELS),
@@ -262,34 +630,49 @@ def prepare_gait_window_dataset(
         "feature_shape": list(features_array.shape),
         "preparation_config": asdict(preparation),
         "split_group": split_group,
-        "split_is_provisional": split_group != "subject_id",
+        "split_is_provisional": not is_v3,
         "split_limitations": (
             [
                 "source labels do not provide usable subject_id values",
                 "video-grouped separation cannot rule out the same actor across videos",
             ]
-            if split_group != "subject_id"
+            if not is_v3
             else []
         ),
+        "split_protocol": "frozen_training_labels_v3" if is_v3 else "development_random_group",
         "sample_count": len(samples),
         "split_group_count": len(assignments),
         "class_counts": {str(key): class_counts.get(key, 0) for key in (0, 1)},
         "window_partition_counts": {
-            partition: partition_counts.get(partition, 0) for partition in _PARTITIONS
+            partition: partition_counts.get(partition, 0)
+            for partition in _ALLOWED_PARTITIONS
         },
         "group_partition_counts": {
             partition: group_partition_counts.get(partition, 0)
-            for partition in _PARTITIONS
+            for partition in _ALLOWED_PARTITIONS
         },
+        "partition_schemes": partition_schemes,
         "group_assignments": dict(sorted(assignments.items())),
         "rejected_window_counts": dict(sorted(rejected.items())),
         "labels_path": label_source.as_posix(),
         "labels_sha256": _sha256_file(label_source),
+        "manifest_path": manifest_source.as_posix() if manifest_source else None,
+        "manifest_sha256": _sha256_file(manifest_source) if manifest_source else None,
+        "assignments_path": assignments_source.as_posix() if assignments_source else None,
+        "assignments_sha256": _sha256_file(assignments_source) if assignments_source else None,
+        "source_split_report_path": (
+            split_report_source.as_posix() if split_report_source else None
+        ),
+        "source_split_report_sha256": (
+            _sha256_file(split_report_source) if split_report_source else None
+        ),
+        "source_split_id": split_report.get("split_id") if split_report else None,
         "pose_inputs": {
             video_id: {"path": path.as_posix(), "sha256": _sha256_file(path)}
             for video_id, path in sorted(pose_paths.items())
         },
         "samples_sha256": _sha256_file(samples_path),
+        "assignments_output_sha256": _sha256_file(assignments_output_path),
         "dataset_sha256": _sha256_file(dataset_path),
         "limitations": [
             "labels describe observable gait actions and are not clinical diagnoses",
@@ -297,6 +680,18 @@ def prepare_gait_window_dataset(
             "the dataset is isolated from AlgorithmEvent and the realtime main path",
         ],
     }
+    _write_json_atomic(
+        split_path,
+        {
+            "schema_version": "gait-window-split-v1",
+            "protocol": metadata["split_protocol"],
+            "group_assignments": metadata["group_assignments"],
+            "window_partition_counts": metadata["window_partition_counts"],
+            "labels_sha256": metadata["labels_sha256"],
+            "assignments_sha256": metadata["assignments_sha256"],
+        },
+    )
+    metadata["split_sha256"] = _sha256_file(split_path)
     _write_json_atomic(metadata_path, metadata)
     return {
         "output_dir": destination.as_posix(),
@@ -315,6 +710,192 @@ def _split_group_field(labels: Sequence[Mapping[str, Any]]) -> str:
     if subject_ids and all(value and value.lower() != "unknown" for value in subject_ids):
         return "subject_id"
     return "video_id"
+
+
+def resample_pose_records(
+    records: Sequence[Mapping[str, Any]],
+    *,
+    start_time_sec: float,
+    window_frames: int,
+    target_fps: float,
+    max_gap_sec: float,
+) -> list[dict[str, Any] | None]:
+    """Select nearest pose observations on a fixed source-time grid."""
+
+    if window_frames < 1 or target_fps <= 0 or max_gap_sec <= 0:
+        raise ValueError("invalid gait resampling contract")
+    timed = sorted(
+        (
+            (float(record["timestamp_sec"]), dict(record))
+            for record in records
+            if _optional_float(record.get("timestamp_sec")) is not None
+        ),
+        key=lambda item: item[0],
+    )
+    if not timed:
+        return [None] * window_frames
+    selected_by_target: dict[int, tuple[float, int]] = {}
+    final_target_index = window_frames - 1
+    for source_index, (source_time, _) in enumerate(timed):
+        relative_index = (source_time - start_time_sec) * target_fps
+        target_index = int(np.floor(relative_index + 0.5))
+        target_index = min(final_target_index, max(0, target_index))
+        target_time = start_time_sec + (target_index / target_fps)
+        distance = abs(source_time - target_time)
+        if distance > max_gap_sec:
+            continue
+        candidate = (distance, source_index)
+        if target_index not in selected_by_target or candidate < selected_by_target[
+            target_index
+        ]:
+            selected_by_target[target_index] = candidate
+
+    output: list[dict[str, Any] | None] = []
+    for target_index in range(window_frames):
+        candidate = selected_by_target.get(target_index)
+        if candidate is None:
+            output.append(None)
+            continue
+        selected = dict(timed[candidate[1]][1])
+        selected["timestamp_sec"] = round(
+            start_time_sec + (target_index / target_fps), 6
+        )
+        output.append(selected)
+    return output
+
+
+def _load_frozen_assignments(
+    labels: Sequence[Mapping[str, Any]],
+    assignment_rows: Sequence[Mapping[str, Any]],
+) -> dict[str, dict[str, Any]]:
+    assignments: dict[str, dict[str, Any]] = {}
+    for source in assignment_rows:
+        if source.get("label_kind") != "action":
+            continue
+        label_id = str(source.get("label_id", ""))
+        if not label_id:
+            continue
+        if label_id in assignments:
+            raise ValueError(f"duplicate frozen split assignment: {label_id}")
+        assignments[label_id] = dict(source)
+    for label in labels:
+        label_id = str(label["label_id"])
+        assignment = assignments.get(label_id)
+        if assignment is None:
+            raise ValueError(f"missing frozen split assignment for gait label {label_id}")
+        for field in (
+            "asset_id",
+            "video_id",
+            "source_group_id",
+            "sample_group_id",
+            "training_tier",
+        ):
+            if str(assignment.get(field, "")) != str(label.get(field, "")):
+                raise ValueError(f"frozen split {field} mismatch for gait label {label_id}")
+        if assignment.get("partition") not in _PARTITIONS:
+            raise ValueError(f"invalid frozen partition for gait label {label_id}")
+        if not str(assignment.get("split_group_id", "")):
+            raise ValueError(f"missing split_group_id for gait label {label_id}")
+    return assignments
+
+
+def _validate_split_report(
+    labels_path: Path,
+    manifest_path: Path,
+    assignments_path: Path,
+    split_report_path: Path,
+) -> dict[str, Any]:
+    report = json.loads(split_report_path.read_text(encoding="utf-8"))
+    if report.get("schema_version") != "fall-risk-training-split-v3":
+        raise ValueError("unsupported frozen gait split report schema")
+    if report.get("leakage_issues"):
+        raise ValueError("frozen gait split report contains leakage issues")
+    input_hashes = report.get("input_sha256")
+    if not isinstance(input_hashes, Mapping):
+        raise ValueError("frozen gait split report is missing input hashes")
+    if input_hashes.get("action_labels") != _sha256_file(labels_path):
+        raise ValueError("frozen gait split action label SHA-256 mismatch")
+    if input_hashes.get("manifest") != _sha256_file(manifest_path):
+        raise ValueError("frozen gait split manifest SHA-256 mismatch")
+    if report.get("assignments_sha256") != _sha256_file(assignments_path):
+        raise ValueError("frozen gait split assignments SHA-256 mismatch")
+    return dict(report)
+
+
+def _validate_formal_partitions(samples: Sequence[Mapping[str, Any]]) -> None:
+    partition_by_group: dict[str, set[str]] = defaultdict(set)
+    for sample in samples:
+        partition = str(sample["partition"])
+        if partition != "excluded":
+            partition_by_group[str(sample["split_group_id"])].add(partition)
+        if partition in {"validation", "test"} and sample["training_tier"] != "primary":
+            raise ValueError("auxiliary gait samples must not enter validation or test")
+    leaked = sorted(group for group, values in partition_by_group.items() if len(values) != 1)
+    if leaked:
+        raise ValueError(f"frozen gait split groups cross partitions: {leaked[:10]}")
+
+
+def _cross_source_partition(
+    sample: Mapping[str, Any], *, holdout: str
+) -> str:
+    if str(sample.get("frozen_partition", "")) == "test":
+        return "excluded"
+    dataset = str(sample.get("dataset", "unknown"))
+    tier = str(sample.get("training_tier", "primary"))
+    training_sources = {"le2i_imvia", "pre_vfallp", "caucafall", "ur_fall"}
+    if dataset == holdout:
+        return "validation" if tier == "primary" else "excluded"
+    if dataset in training_sources:
+        return "train"
+    return "excluded"
+
+
+def validate_frozen_partition_selection(
+    frozen_partitions: Sequence[Any], selected_partitions: Sequence[Any]
+) -> None:
+    if len(frozen_partitions) != len(selected_partitions):
+        raise ValueError("frozen and selected gait partitions have inconsistent lengths")
+    violations = Counter()
+    for frozen, selected in zip(
+        frozen_partitions, selected_partitions, strict=True
+    ):
+        frozen_name = str(frozen)
+        selected_name = str(selected)
+        if selected_name != "excluded" and selected_name != frozen_name:
+            violations[f"{frozen_name}_to_{selected_name}"] += 1
+    if violations:
+        raise ValueError(
+            "selected gait partition scheme reuses frozen assignments: "
+            f"{dict(sorted(violations.items()))}"
+        )
+
+
+def _validate_cross_source_fold(
+    samples: Sequence[Mapping[str, Any]], partitions: np.ndarray, name: str
+) -> None:
+    labels = np.asarray([int(sample["label"]) for sample in samples], dtype=np.int64)
+    for partition in ("train", "validation"):
+        if set(labels[partitions == partition].tolist()) != {0, 1}:
+            raise ValueError(f"gait {name} {partition} partition lacks a binary class")
+    for field in ("split_group_id", "source_group_id", "sample_group_id"):
+        partition_by_group: dict[str, set[str]] = defaultdict(set)
+        for sample, partition in zip(samples, partitions, strict=True):
+            if partition != "excluded":
+                partition_by_group[str(sample[field])].add(str(partition))
+        leaked = [
+            group for group, values in partition_by_group.items() if len(values) != 1
+        ]
+        if leaked:
+            raise ValueError(
+                f"gait {name} {field} values cross partitions: {leaked[:10]}"
+            )
+
+
+def _limit_window_starts(starts: Sequence[int], maximum: int) -> list[int]:
+    if len(starts) <= maximum:
+        return list(starts)
+    indices = np.linspace(0, len(starts) - 1, num=maximum, dtype=np.int64)
+    return [int(starts[index]) for index in sorted(set(indices.tolist()))]
 
 
 def _resolve_pose_path(root: Path, video_id: str) -> Path | None:

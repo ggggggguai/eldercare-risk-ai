@@ -86,7 +86,7 @@
         ],
         "properties": {
           "source_type": {
-            "enum": ["v2_cvat_action", "v2_cvat_action_mapping", "v2_le2i_txt", "manual_v3"]
+            "enum": ["v2_cvat_action", "v2_cvat_action_mapping", "v2_le2i_txt", "v2_toaga_official_walking", "v2_ntu_rgbd_clip_label", "v2_ntu_rgbd_manual_clip_label", "manual_v3"]
           },
           "source_record_id": {"type": "string", "minLength": 1},
           "source_annotation_path": {"type": "string", "minLength": 1},

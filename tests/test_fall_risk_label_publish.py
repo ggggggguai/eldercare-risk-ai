@@ -127,6 +127,131 @@ class FallRiskLabelPublishTest(unittest.TestCase):
             )
             self.assertEqual(report["excluded_source_batches"], [])
 
+    def test_reviewed_ntu_a043_cvat_batch_is_published(self) -> None:
+        with tempfile.TemporaryDirectory() as tempdir:
+            root = Path(tempdir)
+            source = root / "v2"
+            accepted = source / "accepted"
+            manual = source / "ntu_rgbd_a043_cvat_review"
+            accepted.mkdir(parents=True)
+            manual.mkdir(parents=True)
+            (accepted / "action_labels.jsonl").write_text(
+                json.dumps({"label_id": "accepted", "video_id": "video_1"}) + "\n",
+                encoding="utf-8",
+            )
+            (accepted / "event_labels.jsonl").write_text(
+                json.dumps(
+                    {
+                        "label_id": "event_accepted",
+                        "video_id": "video_1",
+                        "event_type": "fall",
+                        "label_source": "cvat_action_mapping",
+                        "start_time": 0,
+                        "end_time": 1,
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            (manual / "action_labels.jsonl").write_text(
+                json.dumps({"label_id": "manual", "video_id": "video_2"}) + "\n",
+                encoding="utf-8",
+            )
+            (manual / "event_labels.jsonl").write_text(
+                json.dumps({"label_id": "event_manual", "video_id": "video_2"}) + "\n",
+                encoding="utf-8",
+            )
+
+            report = publish_v2_labels(
+                source,
+                action_output=root / "action.jsonl",
+                event_output=root / "event.jsonl",
+                report_output=root / "report.json",
+            )
+
+            rows = [
+                json.loads(line)
+                for line in (root / "action.jsonl").read_text().splitlines()
+            ]
+            self.assertEqual(
+                [row["label_id"] for row in rows], ["accepted", "manual"]
+            )
+            self.assertEqual(report["excluded_source_batches"], [])
+            self.assertEqual(
+                report["input_counts"]["excluded_source_isolated_action_labels"],
+                0,
+            )
+            self.assertEqual(
+                report["input_counts"]["excluded_source_isolated_event_labels"],
+                0,
+            )
+
+    def test_import_report_batch_id_mismatch_is_excluded(self) -> None:
+        with tempfile.TemporaryDirectory() as tempdir:
+            root = Path(tempdir)
+            source = root / "v2"
+            accepted = source / "ntu_rgbd_a043_cvat_review"
+            candidate = source / "ntu_rgbd_a043_cvat_review_candidate"
+            accepted.mkdir(parents=True)
+            candidate.mkdir(parents=True)
+            for batch, suffix in ((accepted, "accepted"), (candidate, "candidate")):
+                (batch / "action_labels.jsonl").write_text(
+                    json.dumps(
+                        {"label_id": f"action_{suffix}", "video_id": suffix}
+                    )
+                    + "\n",
+                    encoding="utf-8",
+                )
+                (batch / "event_labels.jsonl").write_text(
+                    json.dumps(
+                        {
+                            "label_id": f"event_{suffix}",
+                            "video_id": suffix,
+                            "event_type": "fall",
+                            "label_source": "cvat_action_mapping",
+                            "start_time": 0,
+                            "end_time": 1,
+                        }
+                    )
+                    + "\n",
+                    encoding="utf-8",
+                )
+                (batch / "import_report.json").write_text(
+                    json.dumps(
+                        {
+                            "batch_id": "ntu_rgbd_a043_cvat_review",
+                            "publication_status": "accepted_for_v2_publication",
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+
+            report = publish_v2_labels(
+                source,
+                action_output=root / "action.jsonl",
+                event_output=root / "event.jsonl",
+                report_output=root / "report.json",
+            )
+
+            actions = [
+                json.loads(line)
+                for line in (root / "action.jsonl").read_text().splitlines()
+            ]
+            self.assertEqual([row["label_id"] for row in actions], ["action_accepted"])
+            self.assertEqual(
+                report["excluded_source_batches"],
+                [
+                    {
+                        "batch_id": "ntu_rgbd_a043_cvat_review_candidate",
+                        "reason": "import_report_batch_id_mismatch",
+                    }
+                ],
+            )
+            self.assertEqual(
+                report["input_counts"]["excluded_source_isolated_action_labels"],
+                1,
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

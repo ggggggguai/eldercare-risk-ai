@@ -254,6 +254,81 @@ class LightweightGaitTCNTest(unittest.TestCase):
         self.assertEqual(tuple(logits.shape), (4, 2))
         self.assertLess(parameter_count, 100_000)
 
+    def test_mask_only_quality_cannot_change_encoded_output(self) -> None:
+        model = LightweightGaitTCN(
+            joint_count=14,
+            input_channels=5,
+            hidden_channels=8,
+            dilations=(1,),
+            dropout=0.0,
+            use_quality_as_feature=False,
+        ).eval()
+        low_quality = torch.randn(2, 8, 14, 5)
+        low_quality[..., 4] = 0.2
+        high_quality = low_quality.clone()
+        high_quality[..., 4] = 0.9
+
+        with torch.inference_mode():
+            low_logits = model(low_quality)
+            high_logits = model(high_quality)
+
+        torch.testing.assert_close(low_logits, high_logits)
+
+    def test_mask_only_quality_keeps_binary_joint_visibility(self) -> None:
+        model = LightweightGaitTCN(
+            joint_count=14,
+            input_channels=5,
+            hidden_channels=8,
+            dilations=(1,),
+            dropout=0.0,
+            use_quality_as_feature=False,
+        ).eval()
+        captured: list[torch.Tensor] = []
+        handle = model.input_projection[0].register_forward_pre_hook(
+            lambda _module, inputs: captured.append(inputs[0].detach().clone())
+        )
+        features = torch.randn(1, 8, 14, 5)
+        features[..., 4] = 0.7
+        features[:, :, 3, :4] = 0.0
+        features[:, :, 3, 4] = 0.0
+
+        try:
+            with torch.inference_mode():
+                model(features)
+        finally:
+            handle.remove()
+
+        encoded = captured[0].transpose(1, 2).reshape(1, 8, 14, 5)
+        self.assertTrue(torch.all(encoded[:, :, :3, 4] == 1.0))
+        self.assertTrue(torch.all(encoded[:, :, 3, 4] == 0.0))
+
+    def test_hierarchical_probability_is_gated_by_walking_probability(self) -> None:
+        model = LightweightGaitTCN(
+            joint_count=14,
+            input_channels=5,
+            hidden_channels=8,
+            dilations=(1,),
+            dropout=0.0,
+            use_quality_as_feature=False,
+            hierarchical_walking_gate=True,
+        ).eval()
+        with torch.no_grad():
+            for parameter in model.parameters():
+                parameter.zero_()
+            model.classifier[-1].bias.copy_(torch.tensor([-2.0, 2.0]))
+            model.walking_classifier[-1].bias.copy_(torch.tensor([2.0, -2.0]))
+        features = torch.zeros(1, 8, 14, 5)
+        features[..., 4] = 1.0
+
+        with torch.inference_mode():
+            probabilities = model.predict_probabilities(features)
+
+        conditional = float(probabilities["conditional_gait_probability"][0])
+        walking = float(probabilities["walking_probability"][0])
+        risk = float(probabilities["gait_risk_probability"][0])
+        self.assertAlmostEqual(risk, conditional * walking, places=6)
+        self.assertLess(risk, 0.05)
+
     def test_aggregates_window_probabilities_by_participant(self) -> None:
         rows = aggregate_participant_predictions(
             participant_ids=["SPPB1", "SPPB1", "SPPB2"],
@@ -380,6 +455,64 @@ class LightweightGaitTCNTest(unittest.TestCase):
                     device="cpu",
                     expected_task="gait_instability_vs_normal_activity",
                 )
+
+    def test_runtime_predictor_enforces_checkpoint_observation_minimum(self) -> None:
+        model = LightweightGaitTCN(
+            joint_count=14,
+            input_channels=5,
+            hidden_channels=8,
+            dilations=(1,),
+            dropout=0.0,
+        )
+        with tempfile.TemporaryDirectory() as tempdir:
+            checkpoint_path = Path(tempdir) / "model.pt"
+            torch.save(
+                {
+                    "schema_version": "gait-tcn-checkpoint-v1",
+                    "state_dict": model.state_dict(),
+                    "model_config": {
+                        "joint_count": 14,
+                        "input_channels": 5,
+                        "hidden_channels": 8,
+                        "kernel_size": 5,
+                        "dilations": [1],
+                        "dropout": 0.0,
+                        "class_count": 2,
+                    },
+                    "task": "gait_instability_vs_normal_activity",
+                    "label_mapping": {"normal_activity": 0, "gait_instability": 1},
+                    "input_contract": {
+                        "window_frames": 8,
+                        "target_fps": 4.0,
+                        "max_gap_sec": 0.5,
+                        "min_observed_frames": 4,
+                    },
+                },
+                checkpoint_path,
+            )
+            predictor = GaitTCNPredictor(
+                checkpoint_path,
+                device="cpu",
+                expected_task="gait_instability_vs_normal_activity",
+            )
+            sparse_record = {
+                "frame_id": 100,
+                "timestamp_sec": 1.75,
+                "keypoints": [
+                    {
+                        "name": name,
+                        "x_smooth": 0.5 + (x * 0.1),
+                        "y_smooth": 0.5 - (y * 0.1),
+                        "valid": True,
+                        "quality_weight": 0.9,
+                        "is_jump_outlier": False,
+                    }
+                    for name, (x, y) in SOURCE_JOINTS.items()
+                ],
+            }
+
+            with self.assertRaisesRegex(ValueError, "observed pose frames"):
+                predictor.predict_records([sparse_record])
 
     def test_trains_one_epoch_and_writes_checkpoint_and_metrics(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:

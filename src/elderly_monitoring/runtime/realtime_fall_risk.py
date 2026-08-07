@@ -82,7 +82,7 @@ class FallRiskSessionEngine:
             gait_predictor = GaitTCNPredictor(
                 gait_model_path,
                 device=str(kwargs.get("gait_model_device", "auto")),
-                window_frames=int(kwargs.get("gait_model_window_frames", 64)),
+                window_frames=int(kwargs.get("gait_model_window_frames", 16)),
                 expected_task="gait_instability_vs_normal_activity",
             )
         self.assembler = FeatureAssembler(

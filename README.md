@@ -1,9 +1,11 @@
 # 老年人多模态风险预警算法工程
 
+更新时间：2026-08-04
+
 本工程只覆盖算法开发部分，面向两个模块：
 
-- `fall_risk`：跌倒风险前置预警算法，承接 `docs/modules/fall_risk/plans/跌倒风险算法研发计划.md`。
-- `mental_health`：心理健康风险预警算法，当前已具备行为/睡眠适配、日级聚合、个人基线、风险评分和离线 CLI。
+- `fall_risk`：跌倒风险前置预警算法。规则主路径、实时 HTTP 会话和回调链路可运行；v3 事件监督与步态、坐站、近跌倒/跌倒候选模型开发链已建立，但候选模型仍为 provisional/shadow，尚未替换规则主路径。
+- `mental_health`：心理健康风险预警算法。行为/睡眠适配、日级聚合、个人基线、风险评分和离线 CLI 已实现；徘徊专项完成了隔离数据转换与人工复核步骤，尚未进入正式 split、模型或现有评分主链。
 
 系统开发不在本工程范围内。家属端、社区端、账号、消息推送、工单流转、可视化看板等只通过标准 JSON 接口对接。
 
@@ -29,19 +31,31 @@ tests/                   算法单元测试
 conda run -n eldercare-ai python -m pytest -q
 ```
 
-环境创建、更新和已验证依赖版本见 `environment-reference.txt`。文档索引见 `docs/README.md`。面向协作代理和自动化工具的项目规则见 `AGENTS.md`。
+标准环境定义见 `environment.yml`，本机已验证依赖版本见 `environment-reference.txt`。运行脚本前应确认 editable 安装指向当前仓库：
+
+```bash
+conda run -n eldercare-ai python -m pip show elderly-monitoring-algorithms
+```
+
+文档唯一总入口见 `docs/README.md`，面向协作代理和自动化工具的项目规则见 `AGENTS.md`。
 
 ## 当前研发阶段与优先级
 
-当前跌倒风险模块处于模型化增强阶段。现有 YOLOv8-Pose + ByteTrack、姿态质量控制、规则步态/坐站/近跌倒、个体基线和风险融合仍是可运行 baseline；增强工作将优先把步态、坐站、近跌倒/跌倒事件规则替换为可验证的 TCN、MS-TCN++ 或 ST-GCN 时序模型，同时保留规则安全覆盖和可解释 fallback。模型只有在标签、无泄漏 split、冻结评估协议以及延迟/稳定性证据齐备后才能进入主路径。
+当前跌倒风险模块处于模型化增强阶段。YOLOv8-Pose + ByteTrack、姿态质量控制、规则步态/坐站/近跌倒、个体基线和风险融合仍是运行主路径；步态、坐站、近跌倒和跌倒事件已经具备训练、validation 复评或 shadow 推理的候选实现。现有实验仍受动作类型门禁、连续背景、老人域、跨来源、冻结 test、延迟和稳定性证据限制，不能描述为正式模型效果或已部署能力。
+
+跌倒数据同时存在两个不同层级：v2 是根标签和发布候选契约，formal 校验仍有 blocker；v3 是由 v2 与哈希绑定项目裁决确定性生成的模型训练契约，当前 fall/near-fall 事件监督门禁通过，但 split 尚未冻结，动作类型门禁仍未通过。两者不能互相替代。
+
+心理健康模块的日级 baseline 已可离线运行；徘徊专项当前只完成安全转换、严格契约和人工联系表复核，正式 split、预处理、分类模型、片段状态机、日级字段及摄像头域验证仍未完成。
 
 当前优先级：
 
-1. 为两个模块分别建立固定验证集、指标脚本和可复现实验报告。
-2. 为步态、坐站、近跌倒/跌倒事件模型构建来源完整的时序训练样本，并与现有规则 baseline 做受控对照。
-3. 完成真实萤石直播地址、算法会话和后端风险回调联调。
-4. 用真实或半真实数据校准模型、规则 fallback、心理健康日级偏离和置信度。
-5. 固定两个模块共享的身份、时间、风险等级和事件字段契约，同时保持独立评分与输出。
+1. 处理跌倒 v2 formal blocker，复核并冻结 v3 事件标签、split 和一次性 test 发布协议。
+2. 为候选模型补充连续背景、老人域、跨来源和困难负样本证据，并完成与规则 baseline 的同协议对照、延迟和稳定性验收。
+3. 完成真实萤石直播、算法会话与业务后端风险回调联调，以及固定硬件长时资源验收。
+4. 完成徘徊专项固定 split，再进入预处理和模型训练；不得提前把转换产物称为识别能力。
+5. 继续保持两个模块独立评分、独立验证和独立输出，只共享 `AlgorithmEvent` 字段契约。
+
+详细实现状态以 `docs/architecture/算法工程骨架.md` 和两个模块 README 为准；尚未完成的工作只在 `docs/tasks/README.md` 维护，实验数值以 `reports/` 下对应报告为准。
 
 ## 不做的内容
 
@@ -57,7 +71,7 @@ conda run -n eldercare-ai python -m pytest -q
 conda run -n eldercare-ai python -m pip install -e ".[vision,service]"
 ```
 
-必需环境变量为 `ALGORITHM_API_TOKEN` 和 `CALLBACK_TOKEN`；模型路径由 `MODEL_PATH` 指定，默认是仓库根目录的 `yolov8n-pose.pt`。可选的 `BASELINE_HISTORY_PATH` 指向个体历史 JSONL。启动单 worker 服务：
+必需环境变量为 `ALGORITHM_API_TOKEN` 和 `CALLBACK_TOKEN`；姿态模型路径由 `MODEL_PATH` 指定，默认是仓库根目录的 `yolov8n-pose.pt`。可选的 `BASELINE_HISTORY_PATH` 指向个体历史 JSONL。`GAIT_MODEL_PATH` 默认保持为空，只有通过步态稳定性替换门禁的 checkpoint 才能配置；当前 provisional 模型不应作为服务默认主分支。启动单 worker 服务：
 
 ```bash
 ALGORITHM_API_TOKEN=replace-me CALLBACK_TOKEN=replace-me \

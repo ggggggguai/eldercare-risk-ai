@@ -10,6 +10,11 @@ from elderly_monitoring.modules.fall_risk.training_labels_v3 import (
 )
 
 
+DEFAULT_REVIEWED_DECISION = Path(
+    "configs/data/fall_risk_training_decision_20260804.json"
+)
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Migrate v2 fall-risk labels into model-training v3 labels."
@@ -44,6 +49,26 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         default=Path("reports/fall_risk/training-labels-v3-migration.json"),
     )
+    parser.add_argument(
+        "--manual-negative-decision",
+        type=Path,
+        action="append",
+        default=None,
+        help=(
+            "Reviewed decision config that authorizes explicit v3 event negatives; "
+            "repeat for multiple legacy files."
+        ),
+    )
+    parser.add_argument(
+        "--reviewed-decision",
+        type=Path,
+        action="append",
+        default=None,
+        help=(
+            "Hash-bound project-owner decision for deterministic event labels; "
+            "repeat for multiple files. Defaults to the 2026-08-04 decision."
+        ),
+    )
     parser.add_argument("--overwrite", action="store_true")
     return parser.parse_args()
 
@@ -57,6 +82,16 @@ def main() -> int:
         action_labels_v3_path=args.action_labels_v3,
         event_labels_v3_path=args.event_labels_v3,
         report_path=args.report_output,
+        manual_negative_decision_paths=(
+            args.manual_negative_decision
+            if args.manual_negative_decision is not None
+            else []
+        ),
+        reviewed_decision_paths=(
+            args.reviewed_decision
+            if args.reviewed_decision is not None
+            else [DEFAULT_REVIEWED_DECISION]
+        ),
         overwrite=args.overwrite,
     )
     print(json.dumps(report, ensure_ascii=False, sort_keys=True, indent=2))

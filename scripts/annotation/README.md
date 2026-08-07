@@ -46,6 +46,19 @@ conda run -n eldercare-ai python scripts/annotation/convert_cvat_fall_labels.py 
 
 转换器按每条视频的真实 FPS 生成动作和映射事件 JSONL，并绑定原始导出路径与 SHA-256。不同导出使用不同目录，现有输出不会被覆盖。原始导出包含身份元数据时只输出告警，不将身份值复制进标签。
 
+`fall_detection_2017` 的两个外部包需要使用专用合并器。它用 `flat_mp4修改.zip` 替换 `ADL_20240921` 项目，将 `ADL_20240922` 的 image 漏标任务 552 和 `Fall_20240919` 的 job 漏标任务 832 注入基础项目；同时把 640x360 框缩放到 manifest 的 1920x1080。四个 XML 227/230 帧任务按端点线性重采样到真实 57/58 帧，具体映射写入 `import_report.json`，不会把时间轴差异当作坐标缩放处理。
+
+```bash
+conda run -n eldercare-ai python scripts/annotation/import_fall_detection_2017_cvat_labels.py \
+  --base-archive "/absolute/path/to/flat_mp4.zip" \
+  --revision-archive "/absolute/path/to/flat_mp4修改.zip" \
+  --manifest data/manifests/fall_risk_video_manifest.jsonl \
+  --output-dir data/annotations/fall_risk/generated/v2/fall_detection_2017_manual \
+  --overwrite
+```
+
+输出为候选 `action_labels.jsonl`、`event_labels.jsonl`、脱敏规范化 `source_annotations.zip` 和导入报告。当前批次导入 2,011 个 eligible 视频、2,977 条动作/映射事件；`20240917123819.mp4` 没有标注，两个重复内容视频按 manifest 技术排除。`20240922115152.mp4` 的 `U01` 备注“挥手”原样保留，并在报告中标为需要人工复核的语义警告。
+
 Pre_VFallp 使用专用导入器。它支持压缩包目录内嵌 task ZIP、CVAT 多任务项目导出、项目全局帧到单视频局部帧的还原，以及在唯一媒体匹配且帧数相同时将 `_resized.mp4` 来源映射回 manifest 原视频。导入器会生成脱敏 task ZIP、候选 action/event JSONL 和导入报告：
 
 ```bash
@@ -94,13 +107,56 @@ conda run -n eldercare-ai python scripts/annotation/import_caucafall_cvat_labels
 
 ```bash
 conda run -n eldercare-ai python scripts/annotation/import_ntu_rgbd_clip_labels.py \
-  --source-root "/Users/guai/Documents/qq files/ntu (1).zip/ntu" \
+  --source-root data/external/ntu \
+  --overwrite \
   --workers 8
 ```
 
-该命令为外部目录生成 `data/manifests/ntu_rgbd_clip_manifest.jsonl`，并把动作标签写入 `generated/v2/ntu_rgbd_clip_labels/`。`configs/data/ntu_rgbd_clip_label_map_v2.json` 记录 2026-07-25 项目负责人的人工精确边界决定：`A008 -> A03`、`A009 -> A04`、`A042 -> C03`、`A080 -> A05` 共导入 2,976 条；`A043` 的 948 条明确排除。导入行使用 `source=ntu_rgbd_manual_clip_label`，进入 v2 根标签及 v3/split，并迁移为 `primary/exact/single_annotated`；只生成动作标签，不从 C03 自动生成 near-fall 事件。媒体路径保持绝对本地路径，运行校验和训练前必须确保该目录仍存在。
+该命令从仓库内 `data/external/ntu` 生成 `data/manifests/ntu_rgbd_clip_manifest.jsonl`，并把动作标签写入 `generated/v2/ntu_rgbd_clip_labels/`。`configs/data/ntu_rgbd_clip_label_map_v2.json` 记录 2026-07-25 项目负责人的人工精确边界决定：`A008 -> A03`、`A009 -> A04`、`A042 -> C03`、`A080 -> A05` 共导入 2,976 条；`A043` 不在这里按文件名直接导入。导入行使用 `source=ntu_rgbd_manual_clip_label`，进入 v2 根标签及 v3/split，并迁移为 `primary/exact/single_annotated`；只生成动作标签，不从 C03 自动生成 near-fall 事件。manifest 仍记录绝对媒体路径，因此移动仓库后必须用新位置重建本文件和全部下游 hash 绑定产物。
 
-## 7. 发布 v2 根标签
+## 7. 导入 NTU RGB+D A043 人工 CVAT 批次
+
+```bash
+conda run -n eldercare-ai python scripts/annotation/import_ntu_rgbd_a043_cvat_labels.py \
+  --source "/path/to/nturgbd_rgb_s001.zip" \
+  --source "/path/to/nturgbd_rgb_s002" \
+  --source "/path/to/nturgbd_rgb_s003" \
+  --source "/path/to/nturgbd_rgb_s004" \
+  --source "/path/to/nturgbd_rgb_s005" \
+  --source "/path/to/nturgbd_rgb_s006.zip" \
+  --source "/path/to/nturgbd_rgb_s007.zip" \
+  --source "/path/to/nturgbd_rgb_s008.zip" \
+  --source "/path/to/nturgbd_rgb_s009.zip" \
+  --source "/path/to/nturgbd_rgb_s010.zip" \
+  --source "/path/to/ntu s11-s15.zip" \
+  --source "/path/to/nturgbd_rgb_s016.zip" \
+  --source "/path/to/nturgbd_rgb_s017.zip" \
+  --revision "/path/to/s06-s10/修改的标注.zip" \
+  --revision "/path/to/S006C003P007R002A043_rgb.avi.zip" \
+  --revision "/path/to/S008C001P015R002A043_rgb.avi.zip" \
+  --revision "/path/to/S016C003P008R001A043.zip" \
+  --allow-incomplete
+```
+
+该导入器按源文件名和帧数关联 `ntu_rgbd_clip_manifest.jsonl`，支持 CVAT project/task/job ZIP 及 AVI/MP4 source 名；`--revision` 只能替换基础包中同名任务，原始空任务若没有修订会阻断。job XML 本身没有源视频名，因此 job ZIP 文件名必须严格匹配 `SxxxCxxxPxxxRxxxA043[ _rgb].zip`，否则拒绝导入。导入报告同时记录基础 project、revision job 的 SHA-256 和唯一源名；生成的 `source_annotations.zip` 是带完整 project task/source 元数据的规范化重建包，不冒充 CVAT 原生 project 再导出。导入器验证连续、无重叠动作序列，支持正常行走后跌倒、末帧 `outside=1`、跌倒后坐站、受控躺下非跌倒、受控下蹲困难负样本和全片跌倒协议；生成的脱敏项目用显式 `project_global` 帧坐标，补齐受试者 ID，并删除账号、邮箱和本地 URL。
+
+当前 S001-S017 共 938 个视频，生成 1,428 条动作和 1,428 条映射事件；S016 的 `S016C003P008R001A043` job revision 已覆盖原 project 中的 D03，并按三视角裁决为 D02。S013/P018/R001/C001 裁决为 D01，S015/P015/R001/C003 裁决为 D02；S011/P015/R001 和 S017/P020/R001 的六个三视角下蹲视频裁决为 A05，并授权为 fall hard negative。产物与脱敏合并 ZIP 位于 `generated/v2/ntu_rgbd_a043_cvat_review/`。主 manifest 从该批次动作 JSONL 提取 `video_id` 白名单，发布器只接纳目录名与报告 `batch_id` 一致的批次；未标注 A043 和候选目录不会进入根标签。S002 仍缺 10 个 C001 任务，因此真实导入需要显式 `--allow-incomplete`；原导入中 446 个全片跌倒没有片内 onset，已由 2026-08-04 裁决在 v3 统一为首帧 onset、媒体尾帧 offset。
+
+脱敏合并包中的媒体名规范为原始 `.avi`，导入器同时接受原始 CVAT `.mp4` 名和该受控 `.avi` 名，因此 `source_annotations.zip` 可用于确定性重放；动作码、帧数和 manifest 唯一匹配规则不变。
+
+## 8. 导入抖音/B站跌倒视频 CVAT 标注
+
+原始目录中的 66 个稀疏编号视频已按旧编号升序重命名为 `1.mp4` 至 `66.mp4`，可逆映射保存在 `configs/data/fall_tiktok_source_map_v1.json`。CVAT 实际标注的是 66 个剪辑，统一保存为 `data/external/抖音b站跌倒视频整理/annotated_clips/1.mp4` 至 `66.mp4`。
+
+```bash
+conda run -n eldercare-ai python scripts/annotation/import_fall_tiktok_cvat_labels.py \
+  --input "/Users/guai/Documents/qq files/fall_tiktok.zip" \
+  --overwrite
+```
+
+导入器按 source map 将 `001.mp4` 至 `066.mp4` 的 CVAT 任务绑定到 `fall_tiktok_clip_001` 至 `fall_tiktok_clip_066`，移除身份元数据，并输出脱敏 CVAT ZIP、150 条动作、150 条映射事件和导入报告。`configs/data/fall_tiktok_collection_decision_v1.json` 记录项目负责人确认的项目自采及内部训练授权；该决定不授予公开再分发权，未知人员仍合并到单一保守 source group。manifest 中 66 个标注剪辑和 64 个非重复原视频 eligible，2 个重复原视频保持技术排除。v3 迁移结果为动作 primary=126、auxiliary=21、ignore=3，事件 auxiliary=65、ignore=6。
+
+## 9. 发布 v2 根标签
 
 ```bash
 conda run -n eldercare-ai python scripts/annotation/publish_v2_fall_labels.py \
@@ -110,7 +166,7 @@ conda run -n eldercare-ai python scripts/annotation/publish_v2_fall_labels.py \
 
 发布器保留全部 v2 动作标签；官方 LE2I TXT 跌倒窗口优先，排除与其重叠的 CVAT `fall` 事件，并在 `reports/fall_risk/fall-risk-data-v2-root-publish.json` 记录来源和输出 hash。
 
-## 8. 严格校验
+## 10. 严格校验
 
 ```bash
 conda run -n eldercare-ai python scripts/annotation/validate_fall_risk_labels.py \
@@ -126,12 +182,12 @@ conda run -n eldercare-ai python scripts/annotation/validate_fall_risk_labels.py
 
 校验器检查 schema、媒体与标注来源、hash、时间/帧换算、动作到事件映射、人员标识、技术排除和 `uncertain/U01`。
 
-## 9. 生成模型训练标签 v3
+## 11. 生成模型训练标签 v3
 
 v3 训练标签从现行 v2 根标签确定性生成，不覆盖 v2：
 
 ```bash
-conda run -n eldercare-ai python scripts/annotation/migrate_fall_labels_v2_to_v3.py
+conda run -n eldercare-ai python scripts/annotation/migrate_fall_labels_v2_to_v3.py --overwrite
 ```
 
 迁移器执行以下训练语义转换：
@@ -139,23 +195,67 @@ conda run -n eldercare-ai python scripts/annotation/migrate_fall_labels_v2_to_v3
 - v2 inclusive end 转为 v3 half-open end。
 - 动作改为 `action_family + action_type` 层级目标。
 - 父类与具体动作分别生成 `training_tier` 和 `action_type_training_tier`；具体动作层级按 sample/source group 数量计算并受父类层级上限约束。
-- C03-C05 不自动升级为 near-fall positive。
+- C03 仅依据默认的哈希绑定项目裁决升级为 `stumble_recovery` near-fall positive；C04/C05 不自动升级。
 - D04 改为 `post_fall_immobile` 并关联父 fall。
 - LE2I/CVAT 重叠 fall 合并为一个 event，多个来源写入 `source_refs`。
 - U01 为 fall/near-fall 分别生成 ignore mask。
+- 默认读取 `fall_risk_training_decision_20260804.json`；它绑定当前 v2 action SHA-256，固定 NTU 全片边界、C03 正例、任务级 hard-negative 映射和 UR Fall A07 视频覆盖规则。标签 hash 漂移、重复 action/task 目标或裁决零匹配都会被报告或拒绝。
+- 明确动作只按裁决映射为 task-specific negative；`partial_occlusion` 可在事件任务中由复核决定成为 primary `occlusion_or_camera_motion`，但动作任务层级仍保持 auxiliary。重遮挡、出画、多人不确定和 U01 不生成 negative。
 - 未标注背景和 LE2I `0/0` 不自动生成 negative。
 
-当前输出为 4,759 条动作和 464 条事件窗口，其中 NTU 的 2,976 条人工精确动作在父级和具体动作层均为 primary；event positive=312、negative=0、ignore=152、near-fall positive=0。Pre_VFallp 的 13 条 v2 `near_fall` 映射和 NTU 的 948 条 C03 动作，按 v3 契约都不会自动升级为 near-fall 训练正例。
+当前输出为 9,314 条动作和 9,498 条事件窗口，其中 event positive=3,265、negative=5,975、ignore=258；fall 正/负=2,303/1,774，near-fall 正/负=962/4,201。项目裁决的 36 个展开指令全部匹配：446 条 NTU 全片跌倒使用 `[0, frame_count)` 精确边界，962 条 C03 生成双向关联正例，7 条 UR Fall A07 为 `bed_entry_or_exit`，其余动作/事件生成完整的 7 类 fall 和 8 类 near-fall hard negative。该裁决是项目负责人对现有规范标签语义的 adjudication，保留原 annotator，不虚构第二名复核员；也不构成老人域或连续监控数据。
+
+### 11.1 发布新增人工近跌倒 v3 候选
+
+当前受审 C03 已通过上述项目裁决进入正式 v3。对未来新增 C04/C05 或独立背景窗口，先由标注员逐视频确认并生成 `near-fall-manual-decision-v1` JSONL。每一行都必须绑定一个不可变人工复核导出文件及其 SHA-256，不能把规则结果、动作码、目录名或未标注背景作为来源。正例必须满足：
+
+- `label_role=positive`、`target_status=confirmed`。
+- `onset_frame <= peak_frame <= recovery_frame`；`peak_frame` 可为 `null`，但 `recovery_frame` 不可缺失。
+- `review_status=double_reviewed` 或 `adjudicated`，且 `reviewer_ids` 至少有两个不同人员。
+- `physical_event_id` 唯一，`event_subtype` 为五类 recovery subtype 之一。
+- 首版 `linked_action_ids=[]`；当前发布器不改 action 标签，不能生成不对称引用。
+
+负例必须逐窗人工确认，至少一名复核员，所有 event/point/physical event 字段为 `null`。除显式人工背景窗外，训练门禁要求以下八类全部有覆盖：`normal_turn`、`normal_step_adjustment`、`routine_support_contact`、`fast_but_controlled_sit`、`controlled_squat`、`controlled_bend`、`exercise_or_stretch`、`progressed_to_fall`。人工背景窗不能替代这八类；`progressed_to_fall` 首版是 near-fall binary negative。
+
+输入行的共同字段和一个正例示例如下；JSONL 实际保存时每条记录占一行：
+
+```json
+{"schema_version":"near-fall-manual-decision-v1","decision_id":"near_fall_positive_001","source_type":"manual_near_fall_v1","video_id":"video_1","track_id":"person_1","label_role":"positive","start_frame":100,"end_frame_exclusive":181,"frame_index_base":0,"target_status":"confirmed","boundary_precision":"exact","quality_flags":[],"annotator_id":"annotator_01","reviewer_ids":["reviewer_01","reviewer_02"],"review_status":"double_reviewed","note":"Confirmed recovery without a fall.","source_annotation_path":"data/annotations/fall_risk/reviews/near_fall_batch_001.json","source_annotation_sha256":"<64 lowercase hex>","physical_event_id":"physical_<24 lowercase hex>","event_subtype":"stumble_recovery","hard_negative_type":null,"onset_frame":112,"peak_frame":138,"impact_frame":null,"recovery_frame":172,"linked_action_ids":[],"contact_evidence":"observed"}
+```
+
+发布器只写独立候选文件，不允许直接覆盖 v3 事实源：
+
+```bash
+conda run -n eldercare-ai python scripts/annotation/publish_near_fall_labels_v3.py \
+  --decisions data/annotations/fall_risk/near_fall_manual_decisions_v1.jsonl \
+  --output-event-labels data/annotations/fall_risk/event_labels_v3.near_fall_candidate.jsonl \
+  --report reports/fall_risk/near-fall-label-publication-v1.json
+```
+
+命令会验证人工来源、来源 hash、manifest 资格、half-open 边界、双审、恢复点、低质量排除、稳定 ID 和重复项。候选需由数据负责人逐行审核后才能进入版本化事实源；发布器不会自动执行该批准动作。
+
+### 11.2 重建候选 split 并校验门禁
 
 生成动作和事件共用的 v3 防泄漏 split：
 
 ```bash
-conda run -n eldercare-ai python scripts/annotation/build_fall_training_split_v3.py
+conda run -n eldercare-ai python scripts/annotation/build_fall_training_split_v3.py \
+  --event-labels data/annotations/fall_risk/event_labels_v3.near_fall_candidate.jsonl \
+  --assignments-output /tmp/near_fall_v3_candidate_split/assignments.jsonl \
+  --report-output /tmp/near_fall_v3_candidate_split/split.json
+
+conda run -n eldercare-ai python scripts/annotation/validate_fall_labels_v3.py \
+  --event-labels data/annotations/fall_risk/event_labels_v3.near_fall_candidate.jsonl \
+  --split-assignments /tmp/near_fall_v3_candidate_split/assignments.jsonl \
+  --split-report /tmp/near_fall_v3_candidate_split/split.json \
+  --report-output /tmp/near_fall_v3_candidate_validation.json
 ```
 
-当前 split 有 5,223 条标签分配、3,501 个资产和 154 个保守泄漏组，校验未发现跨 partition 泄漏，primary fall 正例按 train/validation/test 分为 74/14/7。NTU 按受试者组不跨 partition；Pre_VFallp 维持一个保守源组；CaucaFall 按 10 名受试者分组。旧 v2 `fall_event_v1` split 不适用于 v3。
+只有候选报告同时满足 `valid=true` 和 `training_ready.near_fall_event=true`，且人工检查确认 train/validation 的人员、来源、场景和八类 hard negative 覆盖足够，才能准备真实 train/validation 数据。此步骤不读取 test 姿态、不输出 test 指标，也不能通过拆分同一受试者或来源组改善数字。
 
-## 10. 校验模型训练标签 v3
+正式 v3 split 有 18,812 条标签分配、6,516 个资产和 184 个保守泄漏组，校验未发现跨 partition 泄漏。primary fall 正/负按 train/validation/test 分为 `74/7/14` 和 `958/396/369`；primary near-fall 正/负为 `348/300/300` 和 `1109/364/433`。NTU 按受试者组不跨 partition，Pre_VFallp 维持一个保守源组，CaucaFall 按 10 名受试者分组；不能为了改善分区数字而拆散保护组。旧 v2 `fall_event_v1` split 不适用于 v3。
+
+## 12. 校验模型训练标签 v3
 
 ```bash
 conda run -n eldercare-ai python scripts/annotation/validate_fall_labels_v3.py
@@ -166,13 +266,13 @@ conda run -n eldercare-ai python scripts/annotation/validate_fall_labels_v3.py
 ```text
 valid=true
 training_ready.action_type=false
-training_ready.fall_event=false
-training_ready.near_fall_event=false
+training_ready.fall_event=true
+training_ready.near_fall_event=true
 ```
 
-`action_type=false` 的直接原因是 `slow_walk` 在 test 分区没有 primary 样本；在人工补齐 hard negative、near-fall 正例并恢复每个 primary 类的三分区覆盖前，不得用自动背景窗或拆散保守源组绕过门禁。
+`action_type=false` 的直接原因是部分稀有 primary 类仍未覆盖全部分区。两个事件门槛为 true 只表示现有事件监督可按统一 split 开发训练；未取得连续背景分母、老人域验证和冻结评估协议前，不得把它解释为正式模型效果，也不得用自动背景窗或拆散保守源组改善数字。
 
-## 10. 下载 KINECAL 风险组骨架
+## 13. 下载 KINECAL 风险组骨架
 
 ```bash
 conda run -n eldercare-ai python scripts/annotation/download_kinecal.py \

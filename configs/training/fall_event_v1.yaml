@@ -1,0 +1,53 @@
+schema_version: fall-event-training-config-v1
+task: fall_event_v1
+current_status: provisional
+proxy_task: fall_action_presence_proxy_v1
+
+dataset:
+  target_fps: 8.0
+  window_sec: 4.0
+  max_gap_sec: 0.25
+  min_observed_frames: 12
+  min_usable_frame_ratio: 0.60
+  min_core_joint_coverage: 0.70
+  seed: 42
+
+training_profiles:
+  smoke:
+    epochs: 2
+    batch_size: 64
+    hidden_channels: 16
+    kernel_size: 3
+    dilations: [1, 2]
+    dropout: 0.10
+    learning_rate: 0.001
+    weight_decay: 0.0001
+    patience: 2
+    subtype_loss_weight: 0.0
+    threshold: 0.5
+    seed: 42
+    device: cpu
+    augment_mirror: false
+  pilot:
+    epochs: 40
+    batch_size: 128
+    hidden_channels: 32
+    kernel_size: 3
+    dilations: [1, 2, 4, 8]
+    dropout: 0.20
+    learning_rate: 0.001
+    weight_decay: 0.0001
+    patience: 8
+    subtype_loss_weight: 0.0
+    threshold: 0.5
+    seed: 42
+    device: cpu
+    augment_mirror: true
+
+gates:
+  allow_provisional_required: true
+  test_features_allowed: false
+  test_metrics_allowed: false
+  continuous_event_localization_requires_explicit_background: true
+  formal_replacement_requires_training_ready_fall_event: true
+  runtime_integration_allowed: false

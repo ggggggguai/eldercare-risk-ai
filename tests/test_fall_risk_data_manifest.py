@@ -213,6 +213,90 @@ class FallRiskDataManifestTest(unittest.TestCase):
         self.assertIsNone(gstride_table["video_id"])
         self.assertIsNone(gstride_table["annotation_path"])
 
+    def test_fall_tiktok_manifest_keeps_annotated_clips_without_raw_sources(self) -> None:
+        entries = [
+            {"sequence": 1, "original_filename": "7.mp4", "filename": "1.mp4"},
+            {"sequence": 2, "original_filename": "12.mp4", "filename": "2.mp4"},
+        ]
+        self._write(
+            "configs/data/fall_tiktok_source_map_v1.json",
+            json.dumps(
+                {
+                    "schema_version": "fall-tiktok-source-map-v1",
+                    "dataset": "fall_tiktok",
+                    "source_directory": "data/external/抖音b站跌倒视频整理",
+                    "entries": entries,
+                }
+            ).encode(),
+        )
+        self._write(
+            "configs/data/fall_tiktok_collection_decision_v1.json",
+            json.dumps(
+                {
+                    "schema_version": "fall-tiktok-collection-decision-v1",
+                    "decision_id": "fixture-training-authorization",
+                    "decided_at": "2026-07-28",
+                    "decided_by": "project_owner",
+                    "dataset": "fall_tiktok",
+                    "collection_status": "project_collected",
+                    "training_use": "authorized",
+                    "redistribution_use": "not_authorized_by_this_decision",
+                    "consent_status": "not_recorded",
+                    "subject_grouping_status": "unknown",
+                    "source_group_id": "fall_tiktok_project_collection_pool",
+                    "source_uri": "internal://collection/fall_tiktok_fixture",
+                    "provenance_status": "project_collected_training_authorized",
+                }
+            ).encode(),
+        )
+        for filename in ("1.mp4", "2.mp4"):
+            self._write(
+                f"data/external/抖音b站跌倒视频整理/annotated_clips/{filename}",
+                f"clip-{filename}".encode(),
+            )
+
+        rows = [
+            row
+            for row in build_fall_risk_manifest(
+                self.repo, probe_video=self._probe_video
+            ).rows
+            if row["dataset"] == "fall_tiktok"
+        ]
+
+        self.assertEqual(len(rows), 2)
+        by_video = {row["video_id"]: row for row in rows}
+        clip = by_video["fall_tiktok_clip_001"]
+        self.assertNotIn("fall_tiktok_raw_001", by_video)
+        self.assertEqual(clip["original_event_id"], "fall_tiktok_sample_001")
+        self.assertEqual(clip["source_group_id"], "fall_tiktok_project_collection_pool")
+        self.assertEqual(clip["original_filename"], "7.mp4")
+        self.assertNotIn("derived_from_video_id", clip)
+        self.assertEqual(clip["subset"], "annotated_clips")
+        self.assertEqual(clip["label_source"], "cvat_manual")
+        self.assertTrue(all(row["eligibility"] is True for row in rows))
+        self.assertTrue(all(row["exclusion_reasons"] == [] for row in rows))
+        self.assertTrue(
+            all(
+                row["source_uri"]
+                == "internal://collection/fall_tiktok_fixture"
+                for row in rows
+            )
+        )
+        self.assertTrue(
+            all(
+                row["provenance_status"]
+                == "project_collected_training_authorized"
+                for row in rows
+            )
+        )
+        self.assertTrue(
+            all(
+                row["collection_decision_id"]
+                == "fixture-training-authorization"
+                for row in rows
+            )
+        )
+
     def test_ntu_rgbd_external_manifest_preserves_trial_and_subject_groups(self) -> None:
         source_root = self.repo / "external-ntu"
         first_view = source_root / "part_a" / "S006C001P016R001A042_rgb.avi"
@@ -252,10 +336,12 @@ class FallRiskDataManifestTest(unittest.TestCase):
 
     def test_main_manifest_includes_only_manually_reviewed_ntu_clips(self) -> None:
         ntu_video = self.repo / "external-ntu" / "S006C001P016R001A042_rgb.avi"
-        excluded_video = self.repo / "external-ntu" / "S006C001P016R001A043_rgb.avi"
+        accepted_a043 = self.repo / "external-ntu" / "S006C001P016R001A043_rgb.avi"
+        unlabelled_a043 = self.repo / "external-ntu" / "S006C002P016R001A043_rgb.avi"
         ntu_video.parent.mkdir(parents=True)
         ntu_video.write_bytes(b"reviewed-ntu")
-        excluded_video.write_bytes(b"excluded-ntu")
+        accepted_a043.write_bytes(b"accepted-a043")
+        unlabelled_a043.write_bytes(b"unlabelled-a043")
         external = build_ntu_rgbd_clip_manifest(
             ntu_video.parent, probe_video=self._probe_video
         )
@@ -293,15 +379,64 @@ class FallRiskDataManifestTest(unittest.TestCase):
             ),
             encoding="utf-8",
         )
+        self._write(
+            "configs/data/ntu_rgbd_a043_cvat_decision_v1.json",
+            json.dumps(
+                {
+                    "schema_version": "ntu-rgbd-a043-cvat-decision-v1",
+                    "decision_id": "fixture-a043-acceptance",
+                    "reviewed_at": "2026-07-28",
+                    "reviewer_id": "project_owner",
+                    "source_action_code": "A043",
+                    "decision": "accept_manual_cvat_labels",
+                    "direct_filename_import": False,
+                    "accepted_batch_id": "ntu_rgbd_a043_cvat_review",
+                    "accepted_protocols": [
+                        "segmented_nonfall_controlled_lie_down",
+                        "segmented_normal_to_fall",
+                        "segmented_normal_to_fall_to_sit_to_stand",
+                        "segmented_normal_to_fall_with_trailing_outside",
+                        "whole_clip_controlled_squat_hard_negative",
+                        "whole_clip_fall_without_onset",
+                        "whole_clip_uncertain",
+                    ],
+                    "v3_event_training_policy": "auxiliary_approximate",
+                    "adjudications": [],
+                }
+            ).encode(),
+        )
+        accepted_video_id = "ntu_rgbd_s006_p016_r001_a043_c001"
+        self._write(
+            "data/annotations/fall_risk/generated/v2/"
+            "ntu_rgbd_a043_cvat_review/action_labels.jsonl",
+            (json.dumps({"video_id": accepted_video_id, "source": "cvat"}) + "\n").encode(),
+        )
+        self._write(
+            "data/annotations/fall_risk/generated/v2/"
+            "ntu_rgbd_a043_cvat_review/source_annotations.zip",
+            b"fixture-redacted-cvat",
+        )
 
         rows = build_fall_risk_manifest(
             self.repo, probe_video=self._probe_video
         ).rows
         ntu_rows = [row for row in rows if row["dataset"] == "ntu_rgbd"]
 
-        self.assertEqual(len(ntu_rows), 1)
-        self.assertEqual(ntu_rows[0]["source_action_code"], "A042")
-        self.assertEqual(ntu_rows[0]["label_source"], "manual_exact_clip_boundary")
+        self.assertEqual(len(ntu_rows), 2)
+        by_video = {row["video_id"]: row for row in ntu_rows}
+        self.assertEqual(
+            by_video["ntu_rgbd_s006_p016_r001_a042_c001"]["label_source"],
+            "manual_exact_clip_boundary",
+        )
+        accepted = by_video[accepted_video_id]
+        self.assertEqual(accepted["label_source"], "cvat_manual")
+        self.assertEqual(
+            accepted["annotation_path"],
+            "data/annotations/fall_risk/generated/v2/"
+            "ntu_rgbd_a043_cvat_review/source_annotations.zip",
+        )
+        self.assertEqual(accepted["label_decision_id"], "fixture-a043-acceptance")
+        self.assertNotIn("ntu_rgbd_s006_p016_r001_a043_c002", by_video)
 
     def test_missing_source_quarantine_and_duplicate_content_are_ineligible(self) -> None:
         rows = build_fall_risk_manifest(

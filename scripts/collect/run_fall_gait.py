@@ -10,7 +10,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="从稳定姿态关键点 JSONL 提取步态稳定性特征和规则风险分。")
     parser.add_argument("--input", type=Path, required=True, help="输入 cleaned/smoothed pose JSONL 路径。")
     parser.add_argument("--output", type=Path, required=True, help="输出 gait feature JSONL 路径。")
-    parser.add_argument("--window-sec", type=float, default=2.0, help="步态分析时间窗秒数。")
+    parser.add_argument("--window-sec", type=float, default=4.0, help="步态分析时间窗秒数。")
     parser.add_argument("--window-frames", type=int, default=None, help="可选固定帧数窗口，设置后优先于秒级窗口。")
     parser.add_argument("--min-window-frames", type=int, default=5, help="生成一个步态窗口所需的最少帧数。")
     parser.add_argument("--min-usable-frame-ratio", type=float, default=0.60, help="窗口内可用于步态分析的最小帧比例。")
@@ -36,7 +36,7 @@ def main() -> None:
     parser.add_argument(
         "--tcn-window-frames",
         type=int,
-        default=64,
+        default=16,
         help="送入 TCN 的固定窗口帧数。",
     )
     args = parser.parse_args()

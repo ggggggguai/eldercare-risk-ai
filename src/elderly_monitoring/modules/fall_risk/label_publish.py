@@ -43,21 +43,24 @@ def publish_v2_labels(
     all_event_files = sorted(
         path for path in source_root.glob("*/event_labels.jsonl")
     )
+    excluded_batches = _excluded_source_batches(
+        {path.parent for path in [*all_action_files, *all_event_files]}
+    )
     source_files = [
         path
         for path in all_action_files
-        if path.parent.name not in ROOT_ISOLATED_BATCH_IDS
+        if path.parent.name not in excluded_batches
     ]
     event_files = [
         path
         for path in all_event_files
-        if path.parent.name not in ROOT_ISOLATED_BATCH_IDS
+        if path.parent.name not in excluded_batches
     ]
     excluded_action_files = [
-        path for path in all_action_files if path.parent.name in ROOT_ISOLATED_BATCH_IDS
+        path for path in all_action_files if path.parent.name in excluded_batches
     ]
     excluded_event_files = [
-        path for path in all_event_files if path.parent.name in ROOT_ISOLATED_BATCH_IDS
+        path for path in all_event_files if path.parent.name in excluded_batches
     ]
     if not source_files:
         raise FileNotFoundError(f"no v2 action label files under {source_root}")
@@ -102,14 +105,9 @@ def publish_v2_labels(
         "excluded_source_batches": [
             {
                 "batch_id": batch_id,
-                "reason": "source_isolated",
+                "reason": excluded_batches[batch_id],
             }
-            for batch_id in sorted(
-                {
-                    path.parent.name
-                    for path in [*excluded_action_files, *excluded_event_files]
-                }
-            )
+            for batch_id in sorted(excluded_batches)
         ],
         "precedence": "le2i_txt_overlapping_fall_over_cvat_action_mapping",
         "input_counts": {
@@ -133,6 +131,40 @@ def publish_v2_labels(
     }
     _write_json(report_output, report)
     return report
+
+
+def _excluded_source_batches(batch_dirs: Iterable[Path]) -> dict[str, str]:
+    excluded = {
+        batch_dir.name: "source_isolated"
+        for batch_dir in batch_dirs
+        if batch_dir.name in ROOT_ISOLATED_BATCH_IDS
+    }
+    for batch_dir in sorted(batch_dirs):
+        if batch_dir.name in excluded:
+            continue
+        report_path = batch_dir / "import_report.json"
+        if not report_path.is_file():
+            continue
+        try:
+            report = json.loads(report_path.read_text(encoding="utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise ValueError(f"invalid import report: {report_path}") from exc
+        if not isinstance(report, dict):
+            raise ValueError(f"import report must be an object: {report_path}")
+        declared_batch_id = report.get("batch_id")
+        if declared_batch_id is not None:
+            if not isinstance(declared_batch_id, str) or not declared_batch_id:
+                raise ValueError(f"invalid import report batch_id: {report_path}")
+            if declared_batch_id != batch_dir.name:
+                excluded[batch_dir.name] = "import_report_batch_id_mismatch"
+                continue
+        publication_status = report.get("publication_status")
+        if (
+            publication_status is not None
+            and publication_status != "accepted_for_v2_publication"
+        ):
+            excluded[batch_dir.name] = "publication_status_not_accepted"
+    return excluded
 
 
 def _read_rows(paths: Iterable[Path]) -> list[dict[str, Any]]:

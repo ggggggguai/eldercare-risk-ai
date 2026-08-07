@@ -11,10 +11,15 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Any, Iterable, Mapping, Sequence
 
+from elderly_monitoring.modules.fall_risk.ntu_rgbd_cvat import (
+    load_ntu_rgbd_a043_decision,
+)
+
 
 ACTION_SCHEMA_VERSION = "fall-risk-action-label-v3"
 EVENT_SCHEMA_VERSION = "fall-risk-event-label-v3"
 SPLIT_SCHEMA_VERSION = "fall-risk-training-split-v3"
+REVIEWED_DECISION_SCHEMA_VERSION = "fall-risk-reviewed-training-decision-v1"
 SPLIT_PARTITIONS = ("train", "validation", "test")
 DEFAULT_SPLIT_RATIOS = {"train": 0.7, "validation": 0.15, "test": 0.15}
 
@@ -130,6 +135,13 @@ HARD_NEGATIVES_BY_TASK = {
 }
 
 _TIER_RANK = {"ignore": 0, "auxiliary": 1, "primary": 2}
+_NTU_RGBD_A043_SOURCE_PATTERN = re.compile(
+    r"S(?P<setup>\d{3})C(?P<camera>\d{3})P(?P<person>\d{3})"
+    r"R(?P<repetition>\d{3})A043_rgb\.(?:mp4|avi)"
+)
+_NTU_RGBD_HARD_NEGATIVE_TYPES = {
+    "A05_controlled_squat": "squat_or_kneel",
+}
 
 
 @dataclass(frozen=True)
@@ -144,6 +156,8 @@ def migrate_v2_training_labels(
     manifest_rows: Sequence[Mapping[str, Any]],
     action_rows: Sequence[Mapping[str, Any]],
     event_rows: Sequence[Mapping[str, Any]],
+    manual_negative_decisions: Sequence[Mapping[str, Any]] = (),
+    reviewed_decisions: Sequence[Mapping[str, Any]] = (),
 ) -> TrainingLabelMigrationResult:
     video_manifest_rows = [
         row
@@ -182,6 +196,12 @@ def migrate_v2_training_labels(
     events_v3: list[dict[str, Any]] = []
     action_to_event_id: dict[str, str] = {}
     deduplicated_official_action_falls = 0
+    validated_reviewed_decisions = _validated_reviewed_training_decisions(
+        reviewed_decisions
+    )
+    reviewed_directives = _reviewed_directives(validated_reviewed_decisions)
+    matched_reviewed_directives: Counter[str] = Counter()
+    reviewed_decision_matches: Counter[str] = Counter()
 
     for event in official_falls:
         video_id = _required_string(event, "video_id")
@@ -196,13 +216,22 @@ def migrate_v2_training_labels(
                 f"official fall {event.get('label_id')} overlaps multiple fall actions"
             )
         matched_action = candidates[0] if candidates else None
+        reviewed_boundary = _matching_ntu_full_clip_boundary(
+            reviewed_directives["ntu_full_clip_fall_boundary"],
+            matched_action,
+            manifest,
+        )
         migrated = _migrate_fall_event(
             event,
             manifest,
             matched_action=matched_action,
             action_v3_by_v2=action_v3_by_v2,
             official=True,
+            reviewed_boundary=reviewed_boundary,
         )
+        if reviewed_boundary is not None:
+            matched_reviewed_directives[str(reviewed_boundary["directive_key"])] += 1
+            reviewed_decision_matches["ntu_full_clip_fall_boundary"] += 1
         events_v3.append(migrated)
         if matched_action is not None:
             action_to_event_id[_required_string(matched_action, "label_id")] = migrated[
@@ -222,13 +251,22 @@ def migrate_v2_training_labels(
         manifest = _required_manifest(
             manifests, _required_string(event, "video_id")
         )
+        reviewed_boundary = _matching_ntu_full_clip_boundary(
+            reviewed_directives["ntu_full_clip_fall_boundary"],
+            source_action,
+            manifest,
+        )
         migrated = _migrate_fall_event(
             event,
             manifest,
             matched_action=source_action,
             action_v3_by_v2=action_v3_by_v2,
             official=False,
+            reviewed_boundary=reviewed_boundary,
         )
+        if reviewed_boundary is not None:
+            matched_reviewed_directives[str(reviewed_boundary["directive_key"])] += 1
+            reviewed_decision_matches["ntu_full_clip_fall_boundary"] += 1
         events_v3.append(migrated)
         action_to_event_id[source_action_id] = migrated["label_id"]
 
@@ -259,6 +297,103 @@ def migrate_v2_training_labels(
 
     _assign_action_type_training_tiers(actions_v3)
 
+    occupied_action_targets = {
+        (action_id, str(event["task_type"]))
+        for event in events_v3
+        for action_id in event.get("linked_action_ids") or []
+    }
+    for action in actions_v3:
+        positive_rule = reviewed_directives["near_fall_positive"].get(
+            str(action["action_id"])
+        )
+        if positive_rule is None:
+            continue
+        target = (str(action["label_id"]), "near_fall_event")
+        if target in occupied_action_targets:
+            raise ValueError(
+                "reviewed decision would duplicate an action/task event: "
+                f"{action['label_id']}:near_fall_event"
+            )
+        event = _near_fall_positive_from_action(action, positive_rule)
+        events_v3.append(event)
+        action["linked_event_id"] = event["label_id"]
+        occupied_action_targets.add(target)
+        matched_reviewed_directives[str(positive_rule["directive_key"])] += 1
+        reviewed_decision_matches["near_fall_positive"] += 1
+
+    for action in actions_v3:
+        if action.get("training_tier") == "ignore":
+            continue
+        for task_type in HARD_NEGATIVES_BY_TASK:
+            rule = _reviewed_action_negative_rule(
+                reviewed_directives,
+                action,
+                task_type,
+            )
+            if rule is None:
+                continue
+            target = (str(action["label_id"]), task_type)
+            if target in occupied_action_targets:
+                raise ValueError(
+                    "reviewed decision would duplicate an action/task event: "
+                    f"{action['label_id']}:{task_type}"
+                )
+            events_v3.append(_event_negative_from_action(action, rule))
+            occupied_action_targets.add(target)
+            matched_reviewed_directives[str(rule["directive_key"])] += 1
+            reviewed_decision_matches[str(rule["match_category"])] += 1
+
+    for source_event in tuple(events_v3):
+        if (
+            source_event.get("label_role") != "positive"
+            or source_event.get("training_tier") == "ignore"
+        ):
+            continue
+        for rule in reviewed_directives["event_hard_negative"]:
+            if (
+                source_event.get("task_type") != rule["source_task_type"]
+                or source_event.get("label_role") != rule["source_label_role"]
+            ):
+                continue
+            events_v3.append(_event_negative_from_event(source_event, rule))
+            matched_reviewed_directives[str(rule["directive_key"])] += 1
+            reviewed_decision_matches["event_hard_negative"] += 1
+
+    validated_manual_negative_decisions = _validated_manual_negative_decisions(
+        manual_negative_decisions
+    )
+    matched_manual_negative_decisions: set[str] = set()
+    for decision in validated_manual_negative_decisions:
+        candidates = [
+            action
+            for action in actions_v3
+            if action.get("video_id") == decision["video_id"]
+            and action.get("action_id") == decision["source_action_id"]
+        ]
+        decision_key = str(decision["decision_key"])
+        if not candidates:
+            continue
+        if len(candidates) != 1:
+            raise ValueError(
+                "manual negative decision matches multiple actions: "
+                f"{decision_key}"
+            )
+        action = candidates[0]
+        if action.get("training_tier") == "ignore":
+            raise ValueError(
+                "manual negative decision targets an ignored action: "
+                f"{decision_key}"
+            )
+        target = (str(action["label_id"]), str(decision["task_type"]))
+        if target in occupied_action_targets:
+            raise ValueError(
+                "manual and reviewed decisions target the same action/task: "
+                f"{action['label_id']}:{decision['task_type']}"
+            )
+        events_v3.append(_event_negative_from_action(action, decision))
+        occupied_action_targets.add(target)
+        matched_manual_negative_decisions.add(decision_key)
+
     for v2_action in action_rows:
         if v2_action.get("action_id") != "U01":
             continue
@@ -275,6 +410,11 @@ def migrate_v2_training_labels(
         events_v3=events_v3,
         deduplicated_official_action_falls=deduplicated_official_action_falls,
         unresolved_post_fall_states=unresolved_post_fall_states,
+        manual_negative_decisions=validated_manual_negative_decisions,
+        matched_manual_negative_decisions=matched_manual_negative_decisions,
+        reviewed_directives=reviewed_directives["all"],
+        matched_reviewed_directives=matched_reviewed_directives,
+        reviewed_decision_matches=reviewed_decision_matches,
     )
     return TrainingLabelMigrationResult(actions_v3, events_v3, report)
 
@@ -287,6 +427,8 @@ def write_training_label_migration(
     action_labels_v3_path: Path | str,
     event_labels_v3_path: Path | str,
     report_path: Path | str,
+    manual_negative_decision_paths: Sequence[Path | str] = (),
+    reviewed_decision_paths: Sequence[Path | str] = (),
     overwrite: bool = False,
 ) -> dict[str, Any]:
     input_paths = {
@@ -294,10 +436,28 @@ def write_training_label_migration(
         "action_labels_v2": Path(action_labels_v2_path),
         "event_labels_v2": Path(event_labels_v2_path),
     }
+    decision_paths = [Path(path) for path in manual_negative_decision_paths]
+    if len(decision_paths) != len(set(decision_paths)):
+        raise ValueError("manual negative decision paths must be unique")
+    for index, path in enumerate(decision_paths):
+        input_paths[f"manual_negative_decision_{index}"] = path
+    manual_negative_decisions = _load_manual_negative_decisions(decision_paths)
+    reviewed_paths = [Path(path) for path in reviewed_decision_paths]
+    if len(reviewed_paths) != len(set(reviewed_paths)):
+        raise ValueError("reviewed decision paths must be unique")
+    for index, path in enumerate(reviewed_paths):
+        input_paths[f"reviewed_decision_{index}"] = path
+    action_rows = read_jsonl_strict(input_paths["action_labels_v2"])
+    reviewed_decisions = _load_reviewed_training_decisions(
+        reviewed_paths,
+        action_labels_sha256=_sha256_file(input_paths["action_labels_v2"]),
+    )
     result = migrate_v2_training_labels(
         manifest_rows=read_jsonl_strict(input_paths["manifest"]),
-        action_rows=read_jsonl_strict(input_paths["action_labels_v2"]),
+        action_rows=action_rows,
         event_rows=read_jsonl_strict(input_paths["event_labels_v2"]),
+        manual_negative_decisions=manual_negative_decisions,
+        reviewed_decisions=reviewed_decisions,
     )
     outputs = {
         "action_labels_v3": Path(action_labels_v3_path),
@@ -823,6 +983,567 @@ def read_jsonl_strict(path: Path | str) -> list[dict[str, Any]]:
     return rows
 
 
+def _load_manual_negative_decisions(
+    decision_paths: Sequence[Path],
+) -> list[dict[str, Any]]:
+    decisions: list[dict[str, Any]] = []
+    for path in decision_paths:
+        payload = load_ntu_rgbd_a043_decision(path)
+        decision_id = _required_string(payload, "decision_id")
+        reviewer_id = _required_string(payload, "reviewer_id")
+        decision_sha256 = _sha256_file(path)
+        for adjudication in payload["adjudications"]:
+            if adjudication.get("type") != "accepted_hard_negative":
+                continue
+            accepted_label = _required_string(adjudication, "accepted_label")
+            hard_negative_type = _NTU_RGBD_HARD_NEGATIVE_TYPES.get(accepted_label)
+            if hard_negative_type is None:
+                raise ValueError(
+                    "unsupported NTU RGB+D hard-negative label: "
+                    f"{accepted_label}"
+                )
+            source_action_id = accepted_label.split("_", 1)[0]
+            for source_name in adjudication["source_names"]:
+                video_id = _ntu_rgbd_a043_video_id(str(source_name))
+                decisions.append(
+                    {
+                        "decision_key": f"{decision_id}:{video_id}:fall_event",
+                        "decision_id": decision_id,
+                        "video_id": video_id,
+                        "source_action_id": source_action_id,
+                        "task_type": "fall_event",
+                        "hard_negative_type": hard_negative_type,
+                        "reviewer_id": reviewer_id,
+                        "reason": _required_string(adjudication, "reason"),
+                        "source_annotation_path": path.as_posix(),
+                        "source_annotation_sha256": decision_sha256,
+                    }
+                )
+    return _validated_manual_negative_decisions(decisions)
+
+
+def _load_reviewed_training_decisions(
+    decision_paths: Sequence[Path],
+    *,
+    action_labels_sha256: str,
+) -> list[dict[str, Any]]:
+    decisions: list[dict[str, Any]] = []
+    for path in decision_paths:
+        payload = _read_json_strict(path)
+        pinned_hash = _required_string(payload, "action_labels_sha256")
+        if pinned_hash != action_labels_sha256:
+            raise ValueError(
+                "reviewed decision action-label hash mismatch: "
+                f"{path} pins {pinned_hash}, current is {action_labels_sha256}"
+            )
+        decisions.append(
+            {
+                **payload,
+                "source_annotation_path": path.as_posix(),
+                "source_annotation_sha256": _sha256_file(path),
+            }
+        )
+    return _validated_reviewed_training_decisions(decisions)
+
+
+def _validated_reviewed_training_decisions(
+    decisions: Sequence[Mapping[str, Any]],
+) -> list[dict[str, Any]]:
+    required = {
+        "schema_version",
+        "decision_id",
+        "reviewed_at",
+        "reviewer_id",
+        "source_task_id",
+        "action_labels_sha256",
+        "ntu_full_clip_fall_boundary",
+        "near_fall_positive_actions",
+        "action_hard_negative_mappings",
+        "video_hard_negative_overrides",
+        "quality_hard_negative_mappings",
+        "event_hard_negative_mappings",
+        "rationale",
+        "source_annotation_path",
+        "source_annotation_sha256",
+    }
+    normalized: list[dict[str, Any]] = []
+    seen_decision_ids: set[str] = set()
+    for index, decision in enumerate(decisions):
+        if set(decision) != required:
+            raise ValueError(f"reviewed decision {index} has an invalid shape")
+        if decision.get("schema_version") != REVIEWED_DECISION_SCHEMA_VERSION:
+            raise ValueError(f"reviewed decision {index} has an invalid schema_version")
+        row = dict(decision)
+        for field in (
+            "decision_id",
+            "reviewed_at",
+            "reviewer_id",
+            "source_task_id",
+            "action_labels_sha256",
+            "source_annotation_path",
+            "source_annotation_sha256",
+        ):
+            _required_string(row, field)
+        for hash_field in ("action_labels_sha256", "source_annotation_sha256"):
+            if re.fullmatch(r"[0-9a-f]{64}", str(row[hash_field])) is None:
+                raise ValueError(
+                    f"reviewed decision {index} has an invalid {hash_field}"
+                )
+        decision_id = str(row["decision_id"])
+        if decision_id in seen_decision_ids:
+            raise ValueError(f"duplicate reviewed decision_id: {decision_id}")
+        seen_decision_ids.add(decision_id)
+
+        rationale = row["rationale"]
+        if (
+            not isinstance(rationale, list)
+            or not rationale
+            or any(not isinstance(value, str) or not value.strip() for value in rationale)
+        ):
+            raise ValueError(f"reviewed decision {index} has invalid rationale")
+        _validate_ntu_boundary_policy(row["ntu_full_clip_fall_boundary"], index)
+        _validate_near_fall_positive_rules(row["near_fall_positive_actions"], index)
+        _validate_action_negative_rules(
+            row["action_hard_negative_mappings"], index, "action"
+        )
+        _validate_video_negative_overrides(
+            row["video_hard_negative_overrides"], index
+        )
+        _validate_quality_negative_rules(
+            row["quality_hard_negative_mappings"], index
+        )
+        _validate_event_negative_rules(row["event_hard_negative_mappings"], index)
+        normalized.append(row)
+    return sorted(normalized, key=lambda row: str(row["decision_id"]))
+
+
+def _validate_ntu_boundary_policy(value: Any, decision_index: int) -> None:
+    if not isinstance(value, Mapping):
+        raise ValueError(
+            f"reviewed decision {decision_index} has invalid NTU boundary policy"
+        )
+    if value == {"enabled": False}:
+        return
+    expected = {
+        "enabled",
+        "video_id_prefix",
+        "action_ids",
+        "onset_frame",
+        "offset_frame",
+        "accepted_source_end_frame_gaps",
+        "boundary_precision",
+        "training_tier_policy",
+    }
+    if set(value) != expected or value.get("enabled") is not True:
+        raise ValueError(
+            f"reviewed decision {decision_index} has invalid NTU boundary policy"
+        )
+    if value.get("video_id_prefix") != "ntu_rgbd_":
+        raise ValueError("NTU boundary policy must target ntu_rgbd_ video IDs")
+    action_ids = value.get("action_ids")
+    if (
+        not isinstance(action_ids, list)
+        or not action_ids
+        or any(action_id not in FALL_ACTION_SUBTYPES for action_id in action_ids)
+    ):
+        raise ValueError("NTU boundary policy has invalid fall action_ids")
+    if len(action_ids) != len(set(action_ids)):
+        raise ValueError("NTU boundary policy has duplicate action_ids")
+    if (
+        value.get("onset_frame") != "first_frame"
+        or value.get("offset_frame") != "last_frame"
+        or value.get("accepted_source_end_frame_gaps") != [0, 1]
+        or value.get("boundary_precision") != "exact"
+        or value.get("training_tier_policy") != "preserve"
+    ):
+        raise ValueError("unsupported NTU full-clip boundary policy")
+
+
+def _validate_near_fall_positive_rules(value: Any, decision_index: int) -> None:
+    if not isinstance(value, list):
+        raise ValueError(
+            f"reviewed decision {decision_index} has invalid near-fall rules"
+        )
+    expected = {
+        "action_id",
+        "event_subtype",
+        "recovery_frame",
+        "training_tier_policy",
+    }
+    seen: set[str] = set()
+    for rule in value:
+        if not isinstance(rule, Mapping) or set(rule) != expected:
+            raise ValueError("invalid reviewed near-fall positive rule")
+        action_id = str(rule.get("action_id"))
+        if action_id not in {"C03", "C04", "C05"} or action_id in seen:
+            raise ValueError("invalid or duplicate near-fall positive action_id")
+        if (
+            rule.get("event_subtype")
+            not in {
+                "stumble_recovery",
+                "rapid_support_recovery",
+                "rapid_body_drop_recovery",
+            }
+            or rule.get("recovery_frame") != "last_frame"
+            or rule.get("training_tier_policy") != "preserve"
+        ):
+            raise ValueError("unsupported reviewed near-fall positive rule")
+        seen.add(action_id)
+
+
+def _validate_action_negative_rules(
+    value: Any, decision_index: int, rule_kind: str
+) -> None:
+    if not isinstance(value, list):
+        raise ValueError(
+            f"reviewed decision {decision_index} has invalid {rule_kind} negative rules"
+        )
+    expected = {"task_type", "action_ids", "hard_negative_type"}
+    seen: set[tuple[str, str]] = set()
+    for rule in value:
+        if not isinstance(rule, Mapping) or set(rule) != expected:
+            raise ValueError("invalid reviewed action hard-negative rule")
+        task_type = str(rule.get("task_type"))
+        hard_negative_type = str(rule.get("hard_negative_type"))
+        action_ids = rule.get("action_ids")
+        if (
+            task_type not in HARD_NEGATIVES_BY_TASK
+            or hard_negative_type not in HARD_NEGATIVES_BY_TASK[task_type]
+            or not isinstance(action_ids, list)
+            or not action_ids
+        ):
+            raise ValueError("invalid reviewed action hard-negative rule values")
+        for action_id in action_ids:
+            target = (task_type, str(action_id))
+            if action_id not in ACTION_DEFINITIONS or target in seen:
+                raise ValueError("duplicate or unsupported action hard-negative target")
+            seen.add(target)
+
+
+def _validate_video_negative_overrides(value: Any, decision_index: int) -> None:
+    if not isinstance(value, list):
+        raise ValueError(
+            f"reviewed decision {decision_index} has invalid video overrides"
+        )
+    expected = {"task_type", "action_id", "video_ids", "hard_negative_type"}
+    seen: set[tuple[str, str]] = set()
+    for rule in value:
+        if not isinstance(rule, Mapping) or set(rule) != expected:
+            raise ValueError("invalid reviewed video hard-negative override")
+        task_type = str(rule.get("task_type"))
+        action_id = str(rule.get("action_id"))
+        hard_negative_type = str(rule.get("hard_negative_type"))
+        video_ids = rule.get("video_ids")
+        if (
+            task_type not in HARD_NEGATIVES_BY_TASK
+            or action_id not in ACTION_DEFINITIONS
+            or hard_negative_type not in HARD_NEGATIVES_BY_TASK[task_type]
+            or not isinstance(video_ids, list)
+            or not video_ids
+        ):
+            raise ValueError("invalid reviewed video hard-negative override values")
+        for video_id in video_ids:
+            target = (task_type, str(video_id))
+            if not isinstance(video_id, str) or not video_id or target in seen:
+                raise ValueError("duplicate or invalid video hard-negative target")
+            seen.add(target)
+
+
+def _validate_quality_negative_rules(value: Any, decision_index: int) -> None:
+    if not isinstance(value, list):
+        raise ValueError(
+            f"reviewed decision {decision_index} has invalid quality rules"
+        )
+    expected = {
+        "task_type",
+        "quality_flag",
+        "action_ids",
+        "hard_negative_type",
+        "training_tier_policy",
+    }
+    seen: set[tuple[str, str, str]] = set()
+    for rule in value:
+        if not isinstance(rule, Mapping) or set(rule) != expected:
+            raise ValueError("invalid reviewed quality hard-negative rule")
+        task_type = str(rule.get("task_type"))
+        quality_flag = str(rule.get("quality_flag"))
+        hard_negative_type = str(rule.get("hard_negative_type"))
+        action_ids = rule.get("action_ids")
+        if (
+            task_type not in HARD_NEGATIVES_BY_TASK
+            or quality_flag != "partial_occlusion"
+            or hard_negative_type not in HARD_NEGATIVES_BY_TASK[task_type]
+            or rule.get("training_tier_policy") != "reviewed_primary"
+            or not isinstance(action_ids, list)
+            or not action_ids
+        ):
+            raise ValueError("invalid reviewed quality hard-negative rule values")
+        for action_id in action_ids:
+            target = (task_type, quality_flag, str(action_id))
+            if action_id not in ACTION_DEFINITIONS or target in seen:
+                raise ValueError("duplicate or unsupported quality hard-negative target")
+            seen.add(target)
+
+
+def _validate_event_negative_rules(value: Any, decision_index: int) -> None:
+    if not isinstance(value, list):
+        raise ValueError(
+            f"reviewed decision {decision_index} has invalid event negative rules"
+        )
+    expected = {
+        "source_task_type",
+        "source_label_role",
+        "task_type",
+        "hard_negative_type",
+    }
+    seen: set[tuple[str, str, str]] = set()
+    for rule in value:
+        if not isinstance(rule, Mapping) or set(rule) != expected:
+            raise ValueError("invalid reviewed event hard-negative rule")
+        source_task_type = str(rule.get("source_task_type"))
+        source_label_role = str(rule.get("source_label_role"))
+        task_type = str(rule.get("task_type"))
+        hard_negative_type = str(rule.get("hard_negative_type"))
+        target = (source_task_type, source_label_role, task_type)
+        if (
+            source_task_type != "fall_event"
+            or source_label_role != "positive"
+            or task_type != "near_fall_event"
+            or hard_negative_type not in HARD_NEGATIVES_BY_TASK[task_type]
+            or target in seen
+        ):
+            raise ValueError("unsupported or duplicate event hard-negative rule")
+        seen.add(target)
+
+
+def _reviewed_directives(
+    decisions: Sequence[Mapping[str, Any]],
+) -> dict[str, Any]:
+    result: dict[str, Any] = {
+        "ntu_full_clip_fall_boundary": [],
+        "near_fall_positive": {},
+        "action_hard_negative": {},
+        "video_hard_negative_override": {},
+        "quality_hard_negative": {},
+        "event_hard_negative": [],
+        "all": [],
+    }
+    for decision in decisions:
+        decision_id = str(decision["decision_id"])
+
+        def add(
+            rule: Mapping[str, Any], directive_key: str, *, reason: str
+        ) -> dict[str, Any]:
+            expanded = {
+                **rule,
+                "directive_key": directive_key,
+                "decision_id": decision_id,
+                "reviewer_id": str(decision["reviewer_id"]),
+                "source_annotation_path": str(decision["source_annotation_path"]),
+                "source_annotation_sha256": str(
+                    decision["source_annotation_sha256"]
+                ),
+                "reason": reason,
+            }
+            result["all"].append(expanded)
+            return expanded
+
+        boundary = decision["ntu_full_clip_fall_boundary"]
+        if boundary.get("enabled"):
+            result["ntu_full_clip_fall_boundary"].append(
+                add(
+                    boundary,
+                    f"{decision_id}:ntu_full_clip_fall_boundary",
+                    reason=(
+                        f"Reviewed decision {decision_id}: NTU full-clip fall labels "
+                        "use the first frame as onset and the last media frame as offset."
+                    ),
+                )
+            )
+        for rule in decision["near_fall_positive_actions"]:
+            action_id = str(rule["action_id"])
+            if action_id in result["near_fall_positive"]:
+                raise ValueError(f"duplicate reviewed near-fall target: {action_id}")
+            result["near_fall_positive"][action_id] = add(
+                rule,
+                f"{decision_id}:near_fall_positive:{action_id}",
+                reason=(
+                    f"Reviewed decision {decision_id}: reviewed {action_id} labels are "
+                    f"near-fall positives ({rule['event_subtype']}) with recovery at "
+                    "their inclusive last frame."
+                ),
+            )
+        for rule in decision["action_hard_negative_mappings"]:
+            for action_id_value in rule["action_ids"]:
+                action_id = str(action_id_value)
+                target = (str(rule["task_type"]), action_id)
+                if target in result["action_hard_negative"]:
+                    raise ValueError(f"duplicate reviewed action negative target: {target}")
+                result["action_hard_negative"][target] = add(
+                    {
+                        key: value
+                        for key, value in rule.items()
+                        if key != "action_ids"
+                    }
+                    | {"source_action_id": action_id, "match_category": "action_hard_negative"},
+                    f"{decision_id}:action_hard_negative:{target[0]}:{action_id}",
+                    reason=(
+                        f"Reviewed decision {decision_id}: canonical action {action_id} "
+                        f"is an explicit {target[0]} negative "
+                        f"({rule['hard_negative_type']})."
+                    ),
+                )
+        for rule in decision["video_hard_negative_overrides"]:
+            for video_id_value in rule["video_ids"]:
+                video_id = str(video_id_value)
+                target = (str(rule["task_type"]), str(rule["action_id"]), video_id)
+                if target in result["video_hard_negative_override"]:
+                    raise ValueError(f"duplicate reviewed video negative target: {target}")
+                result["video_hard_negative_override"][target] = add(
+                    {
+                        key: value
+                        for key, value in rule.items()
+                        if key != "video_ids"
+                    }
+                    | {
+                        "video_id": video_id,
+                        "source_action_id": str(rule["action_id"]),
+                        "match_category": "video_hard_negative_override",
+                    },
+                    f"{decision_id}:video_hard_negative_override:{target[0]}:{video_id}",
+                    reason=(
+                        f"Reviewed decision {decision_id}: video {video_id} action "
+                        f"{rule['action_id']} is an explicit {target[0]} negative "
+                        f"({rule['hard_negative_type']})."
+                    ),
+                )
+        for rule in decision["quality_hard_negative_mappings"]:
+            for action_id_value in rule["action_ids"]:
+                action_id = str(action_id_value)
+                target = (
+                    str(rule["task_type"]),
+                    action_id,
+                    str(rule["quality_flag"]),
+                )
+                if target in result["quality_hard_negative"]:
+                    raise ValueError(f"duplicate reviewed quality negative target: {target}")
+                result["quality_hard_negative"][target] = add(
+                    {
+                        key: value
+                        for key, value in rule.items()
+                        if key != "action_ids"
+                    }
+                    | {
+                        "source_action_id": action_id,
+                        "match_category": "quality_hard_negative",
+                        "event_training_tier": "primary",
+                    },
+                    f"{decision_id}:quality_hard_negative:{target[0]}:{action_id}:{target[2]}",
+                    reason=(
+                        f"Reviewed decision {decision_id}: {target[2]} on canonical "
+                        f"action {action_id} is an explicit {target[0]} negative "
+                        f"({rule['hard_negative_type']})."
+                    ),
+                )
+        for rule in decision["event_hard_negative_mappings"]:
+            result["event_hard_negative"].append(
+                add(
+                    rule,
+                    f"{decision_id}:event_hard_negative:{rule['source_task_type']}:{rule['task_type']}",
+                    reason=(
+                        f"Reviewed decision {decision_id}: a confirmed "
+                        f"{rule['source_task_type']} positive is an explicit "
+                        f"{rule['task_type']} negative ({rule['hard_negative_type']})."
+                    ),
+                )
+            )
+    return result
+
+
+def _reviewed_action_negative_rule(
+    directives: Mapping[str, Any],
+    action: Mapping[str, Any],
+    task_type: str,
+) -> Mapping[str, Any] | None:
+    action_id = str(action["action_id"])
+    video_id = str(action["video_id"])
+    override = directives["video_hard_negative_override"].get(
+        (task_type, action_id, video_id)
+    )
+    if override is not None:
+        return override
+    direct = directives["action_hard_negative"].get((task_type, action_id))
+    if direct is not None:
+        return direct
+    for quality_flag in action.get("quality_flags") or []:
+        quality_rule = directives["quality_hard_negative"].get(
+            (task_type, action_id, str(quality_flag))
+        )
+        if quality_rule is not None:
+            return quality_rule
+    return None
+
+
+def _validated_manual_negative_decisions(
+    decisions: Sequence[Mapping[str, Any]],
+) -> list[dict[str, Any]]:
+    required = {
+        "decision_key",
+        "decision_id",
+        "video_id",
+        "source_action_id",
+        "task_type",
+        "hard_negative_type",
+        "reviewer_id",
+        "reason",
+        "source_annotation_path",
+        "source_annotation_sha256",
+    }
+    normalized: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    seen_targets: set[tuple[str, str]] = set()
+    for index, decision in enumerate(decisions):
+        if set(decision) != required:
+            raise ValueError(f"manual negative decision {index} has an invalid shape")
+        row = {key: _required_string(decision, key) for key in required}
+        if row["task_type"] not in HARD_NEGATIVES_BY_TASK:
+            raise ValueError(
+                f"manual negative decision {index} has an invalid task_type"
+            )
+        if row["hard_negative_type"] not in HARD_NEGATIVES_BY_TASK[row["task_type"]]:
+            raise ValueError(
+                f"manual negative decision {index} has an invalid hard-negative type"
+            )
+        if re.fullmatch(r"[0-9a-f]{64}", row["source_annotation_sha256"]) is None:
+            raise ValueError(
+                f"manual negative decision {index} has an invalid source hash"
+            )
+        if row["decision_key"] in seen:
+            raise ValueError(
+                f"duplicate manual negative decision: {row['decision_key']}"
+            )
+        target = (row["video_id"], row["task_type"])
+        if target in seen_targets:
+            raise ValueError(
+                "duplicate manual negative target: "
+                f"{row['video_id']}:{row['task_type']}"
+            )
+        seen.add(row["decision_key"])
+        seen_targets.add(target)
+        normalized.append(row)
+    return sorted(normalized, key=lambda row: row["decision_key"])
+
+
+def _ntu_rgbd_a043_video_id(source_name: str) -> str:
+    match = _NTU_RGBD_A043_SOURCE_PATTERN.fullmatch(Path(source_name).name)
+    if match is None:
+        raise ValueError(f"invalid NTU RGB+D A043 source name: {source_name}")
+    return (
+        f"ntu_rgbd_s{match.group('setup')}_p{match.group('person')}_"
+        f"r{match.group('repetition')}_a043_c{match.group('camera')}"
+    )
+
+
 def _migrate_action(
     row: Mapping[str, Any], manifest: Mapping[str, Any]
 ) -> dict[str, Any]:
@@ -944,6 +1665,7 @@ def _migrate_fall_event(
     matched_action: Mapping[str, Any] | None,
     action_v3_by_v2: Mapping[str, Mapping[str, Any]],
     official: bool,
+    reviewed_boundary: Mapping[str, Any] | None,
 ) -> dict[str, Any]:
     anchor_label_id = _required_string(row, "label_id")
     physical_event_id = _stable_id(
@@ -974,6 +1696,26 @@ def _migrate_fall_event(
             subject_id = str(matched_v3["subject_id"])
 
     interval = _interval_from_v2(row, manifest)
+    boundary_precision = "exact" if official else "approximate"
+    reviewer_ids: list[str] = []
+    review_status = "source_verified" if official else "single_annotated"
+    note = str(row.get("note") or "")
+    if reviewed_boundary is not None:
+        frame_count = _required_int(manifest, "frame_count")
+        fps_num = _required_int(manifest, "fps_num")
+        fps_den = _required_int(manifest, "fps_den")
+        interval = {
+            "start_frame": 0,
+            "end_frame_exclusive": frame_count,
+            "frame_index_base": 0,
+            "start_time": 0.0,
+            "end_time_exclusive": _frame_time(frame_count, fps_num, fps_den),
+        }
+        boundary_precision = "exact"
+        reviewer_ids = [str(reviewed_boundary["reviewer_id"])]
+        review_status = "adjudicated"
+        source_refs.append(_manual_source_ref(reviewed_boundary))
+        note = _join_notes(note, str(reviewed_boundary["reason"]))
     target_status = _target_status(subject_id, quality_flags)
     eligible = bool(manifest.get("eligibility", True))
     if not eligible or target_status == "uncertain":
@@ -997,16 +1739,16 @@ def _migrate_fall_event(
         "track_id": track_id,
         **interval,
         "target_status": target_status,
-        "boundary_precision": "exact" if official else "approximate",
+        "boundary_precision": boundary_precision,
         "quality_flags": quality_flags,
         "training_tier": training_tier,
         "source_refs": source_refs,
         "annotator_id": "official_source" if official else str(
             matched_action.get("labeler", "unknown") if matched_action else "unknown"
         ),
-        "reviewer_ids": [],
-        "review_status": "source_verified" if official else "single_annotated",
-        "note": str(row.get("note") or ""),
+        "reviewer_ids": reviewer_ids,
+        "review_status": review_status,
+        "note": note,
         "physical_event_id": physical_event_id,
         "task_type": "fall_event",
         "label_role": "positive",
@@ -1021,6 +1763,88 @@ def _migrate_fall_event(
         "linked_action_ids": linked_action_ids,
         "contact_evidence": "not_applicable",
         "subtype_training_tier": subtype_tier,
+    }
+
+
+def _matching_ntu_full_clip_boundary(
+    rules: Sequence[Mapping[str, Any]],
+    action: Mapping[str, Any] | None,
+    manifest: Mapping[str, Any],
+) -> Mapping[str, Any] | None:
+    if action is None:
+        return None
+    video_id = _required_string(action, "video_id")
+    frame_count = _required_int(manifest, "frame_count")
+    matches = [
+        rule
+        for rule in rules
+        if video_id.startswith(str(rule["video_id_prefix"]))
+        and action.get("action_id") in rule["action_ids"]
+        and action.get("start_frame") == 0
+        and frame_count - 1 - int(action.get("end_frame", -1))
+        in rule["accepted_source_end_frame_gaps"]
+    ]
+    if len(matches) > 1:
+        raise ValueError(
+            f"multiple reviewed NTU full-clip boundary policies match {video_id}"
+        )
+    return matches[0] if matches else None
+
+
+def _near_fall_positive_from_action(
+    action: Mapping[str, Any], decision: Mapping[str, Any]
+) -> dict[str, Any]:
+    physical_event_id = _stable_id(
+        "physical", EVENT_SCHEMA_VERSION, "near_fall", action["label_id"]
+    )
+    task_type = "near_fall_event"
+    return {
+        **{
+            key: action[key]
+            for key in (
+                "asset_id",
+                "video_id",
+                "content_sha256",
+                "subject_id",
+                "source_group_id",
+                "sample_group_id",
+                "track_id",
+                "start_frame",
+                "end_frame_exclusive",
+                "frame_index_base",
+                "start_time",
+                "end_time_exclusive",
+                "target_status",
+                "boundary_precision",
+                "quality_flags",
+                "training_tier",
+                "annotator_id",
+            )
+        },
+        "schema_version": EVENT_SCHEMA_VERSION,
+        "label_id": _stable_id(
+            "eventv3", EVENT_SCHEMA_VERSION, task_type, physical_event_id
+        ),
+        "source_refs": _unique_source_refs(
+            [*action["source_refs"], _manual_source_ref(decision)]
+        ),
+        "reviewer_ids": [str(decision["reviewer_id"])],
+        "review_status": "adjudicated",
+        "note": _join_notes(str(action.get("note") or ""), str(decision["reason"])),
+        "physical_event_id": physical_event_id,
+        "task_type": task_type,
+        "label_role": "positive",
+        "event_type": "near_fall",
+        "event_subtype": str(decision["event_subtype"]),
+        "event_outcome": "recovered_without_fall",
+        "hard_negative_type": None,
+        "onset_frame": int(action["start_frame"]),
+        "peak_frame": None,
+        "impact_frame": None,
+        "recovery_frame": int(action["end_frame_exclusive"]) - 1,
+        "linked_action_ids": [str(action["label_id"])],
+        "contact_evidence": "unknown",
+        "subtype_training_tier": str(action["training_tier"]),
     }
 
 
@@ -1073,6 +1897,146 @@ def _event_ignore_from_action(
         "contact_evidence": "not_applicable",
         "subtype_training_tier": "ignore",
     }
+
+
+def _event_negative_from_action(
+    action: Mapping[str, Any], decision: Mapping[str, Any]
+) -> dict[str, Any]:
+    common = {
+        key: action[key]
+        for key in (
+            "asset_id",
+            "video_id",
+            "content_sha256",
+            "subject_id",
+            "source_group_id",
+            "sample_group_id",
+            "track_id",
+            "start_frame",
+            "end_frame_exclusive",
+            "frame_index_base",
+            "start_time",
+            "end_time_exclusive",
+            "target_status",
+            "boundary_precision",
+            "quality_flags",
+            "training_tier",
+            "annotator_id",
+        )
+    }
+    if decision.get("event_training_tier") is not None:
+        common["training_tier"] = str(decision["event_training_tier"])
+    task_type = str(decision["task_type"])
+    return {
+        **common,
+        "schema_version": EVENT_SCHEMA_VERSION,
+        "label_id": _stable_id(
+            "eventv3",
+            EVENT_SCHEMA_VERSION,
+            task_type,
+            "negative",
+            action["label_id"],
+            decision["decision_id"],
+        ),
+        "source_refs": _unique_source_refs(
+            [*action["source_refs"], _manual_source_ref(decision)]
+        ),
+        "reviewer_ids": [str(decision["reviewer_id"])],
+        "review_status": "adjudicated",
+        "note": str(decision["reason"]),
+        "physical_event_id": None,
+        "task_type": task_type,
+        "label_role": "negative",
+        "event_type": None,
+        "event_subtype": None,
+        "event_outcome": None,
+        "hard_negative_type": str(decision["hard_negative_type"]),
+        "onset_frame": None,
+        "peak_frame": None,
+        "impact_frame": None,
+        "recovery_frame": None,
+        "linked_action_ids": [str(action["label_id"])],
+        "contact_evidence": "not_applicable",
+        "subtype_training_tier": "ignore",
+    }
+
+
+def _event_negative_from_event(
+    source_event: Mapping[str, Any], decision: Mapping[str, Any]
+) -> dict[str, Any]:
+    task_type = str(decision["task_type"])
+    return {
+        **{
+            key: source_event[key]
+            for key in (
+                "asset_id",
+                "video_id",
+                "content_sha256",
+                "subject_id",
+                "source_group_id",
+                "sample_group_id",
+                "track_id",
+                "start_frame",
+                "end_frame_exclusive",
+                "frame_index_base",
+                "start_time",
+                "end_time_exclusive",
+                "target_status",
+                "boundary_precision",
+                "quality_flags",
+                "training_tier",
+                "annotator_id",
+            )
+        },
+        "schema_version": EVENT_SCHEMA_VERSION,
+        "label_id": _stable_id(
+            "eventv3",
+            EVENT_SCHEMA_VERSION,
+            task_type,
+            "negative",
+            source_event["label_id"],
+            decision["decision_id"],
+        ),
+        "source_refs": _unique_source_refs(
+            [*source_event["source_refs"], _manual_source_ref(decision)]
+        ),
+        "reviewer_ids": [str(decision["reviewer_id"])],
+        "review_status": "adjudicated",
+        "note": _join_notes(
+            str(source_event.get("note") or ""), str(decision["reason"])
+        ),
+        "physical_event_id": None,
+        "task_type": task_type,
+        "label_role": "negative",
+        "event_type": None,
+        "event_subtype": None,
+        "event_outcome": None,
+        "hard_negative_type": str(decision["hard_negative_type"]),
+        "onset_frame": None,
+        "peak_frame": None,
+        "impact_frame": None,
+        "recovery_frame": None,
+        "linked_action_ids": list(source_event["linked_action_ids"]),
+        "contact_evidence": "not_applicable",
+        "subtype_training_tier": "ignore",
+    }
+
+
+def _manual_source_ref(decision: Mapping[str, Any]) -> dict[str, str]:
+    decision_key = str(
+        decision.get("decision_key") or decision.get("directive_key")
+    )
+    return {
+        "source_type": "manual_v3",
+        "source_record_id": decision_key,
+        "source_annotation_path": str(decision["source_annotation_path"]),
+        "source_annotation_sha256": str(decision["source_annotation_sha256"]),
+        "source_label_id": decision_key,
+    }
+
+
+def _join_notes(*values: str) -> str:
+    return " ".join(value.strip() for value in values if value.strip())
 
 
 def _common_from_v2_action(
@@ -1220,6 +2184,11 @@ def _migration_report(
     events_v3: Sequence[Mapping[str, Any]],
     deduplicated_official_action_falls: int,
     unresolved_post_fall_states: int,
+    manual_negative_decisions: Sequence[Mapping[str, Any]],
+    matched_manual_negative_decisions: set[str],
+    reviewed_directives: Sequence[Mapping[str, Any]],
+    matched_reviewed_directives: Mapping[str, int],
+    reviewed_decision_matches: Mapping[str, int],
 ) -> dict[str, Any]:
     excluded_events = Counter(
         str(row.get("event_type"))
@@ -1255,7 +2224,34 @@ def _migration_report(
         "deduplicated_official_action_falls": deduplicated_official_action_falls,
         "unresolved_post_fall_states": unresolved_post_fall_states,
         "excluded_v2_event_counts": dict(sorted(excluded_events.items())),
-        "automatic_negative_count": 0,
+        "manual_negative_count": len(matched_manual_negative_decisions),
+        "unmatched_manual_negative_decisions": sorted(
+            str(decision["decision_key"])
+            for decision in manual_negative_decisions
+            if str(decision["decision_key"])
+            not in matched_manual_negative_decisions
+        ),
+        "reviewed_decision_matches": dict(sorted(reviewed_decision_matches.items())),
+        "matched_reviewed_directive_count": sum(
+            str(rule["directive_key"]) in matched_reviewed_directives
+            for rule in reviewed_directives
+        ),
+        "unmatched_reviewed_decisions": sorted(
+            str(rule["directive_key"])
+            for rule in reviewed_directives
+            if str(rule["directive_key"]) not in matched_reviewed_directives
+        ),
+        "automatic_negative_count": sum(
+            row.get("label_role") == "negative"
+            and any(
+                source.get("source_type") == "manual_v3"
+                and ":" in str(source.get("source_record_id"))
+                for source in row.get("source_refs") or []
+                if isinstance(source, Mapping)
+            )
+            for row in events_v3
+        )
+        - len(matched_manual_negative_decisions),
     }
 
 

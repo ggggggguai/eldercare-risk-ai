@@ -1,13 +1,13 @@
 # 跌倒风险数据审计
 
-核验日期：2026-07-25
+核验日期：2026-08-04
 
 ## Manifest
 
-- 资产总数：3,554。
-- 视频：2,540。
-- 技术可用资产：3,540。
-- 技术排除资产：14。
+- 资产总数：7,534。
+- 视频：6,520。
+- `eligibility=true`：7,520。
+- `eligibility=false`：14。
 - 排除原因：`duplicate_content=14`。
 - manifest 保存媒体 hash、FPS、时长、人员/源组、来源地址和技术排除信息。
 
@@ -30,9 +30,12 @@ Pre_VFallp 的 108 条视频已按用户内部授权例外全部解除技术隔�
 | `generated/v2/pre_vfallp_weakness_fall_side` | 52 | 52 | 18 个 CVAT 视频；候选 formal 校验 `valid=true` |
 | `generated/v2/caucafall_manual` | 311 | 311 | 100 个视频、10 名受试者；脱敏 CVAT 导入，原始包不入库 |
 | `generated/v2/cvat_ur_fall` | 268 | 268 | 99 个视频；`adl-07-cam0.mp4` 按人工决定不标注；规范化脱敏 CVAT 导入 |
-| `generated/v2/ntu_rgbd_clip_labels` | 2,976 | 0 | 2026-07-25 人工确认精确全片边界；进入根标签，A043 948 条排除 |
+| `generated/v2/ntu_rgbd_clip_labels` | 2,976 | 0 | 2026-07-25 人工确认精确全片边界；A043 不按文件名直接导入 |
+| `generated/v2/ntu_rgbd_a043_cvat_review` | 1,428 | 1,428 | 938 个 S001-S017 A043 人工 CVAT 视频按 2026-07-30 决定接受；未标注 A043 不导入 |
+| `generated/v2/fall_detection_2017_manual` | 2,977 | 2,977 | 2,011 个源成功导入；项目采集人工 CVAT，来源仍未完成治理，候选策略要求 QC 复核 |
+| `generated/v2/fall_tiktok_manual` | 150 | 150 | 66 个任务；项目自采并授权内部训练，候选校验通过 |
 
-LE2I 官方 TXT 共 130 份，其中 99 个跌倒窗口、31 个 `0/0` 无跌倒窗口。Lecture room 导出包含 27 个有轨迹任务和 250 条轨迹；同一项目导出中的 33 个 Office 任务为空。Office 的 158 条轨迹来自独立的 33 任务导出。TOAGA 的 28 条动作只使用来源派生全片 `A01`，不伪造 CVAT 框或事件。CaucaFall 新增 311 条人工动作和 311 条映射事件，UR Fall 新增 268 条人工动作和 268 条映射事件。NTU RGB+D 新增 2,976 条人工精确全片动作，不生成事件；A043 的 948 条明确排除。可发布 v2 批次合并为 4,759 条根动作和 1,783 条根事件；71 条与官方窗口重叠的 CVAT `fall` 事件按官方来源优先级排除。发布明细和输入/输出 hash 见 `reports/fall_risk/fall-risk-data-v2-root-publish.json`。
+LE2I 官方 TXT 共 130 份，其中 99 个跌倒窗口、31 个 `0/0` 无跌倒窗口。Lecture room 导出包含 27 个有轨迹任务和 250 条轨迹；同一项目导出中的 33 个 Office 任务为空。Office 的 158 条轨迹来自独立的 33 任务导出。TOAGA 的 28 条动作只使用来源派生全片 `A01`，不伪造 CVAT 框或事件。CaucaFall 新增 311 条人工动作和 311 条映射事件，UR Fall 新增 268/268。NTU RGB+D 的 2,976 条精确全片动作和 A043 人工 CVAT 的 1,428/1,428 已按各自决定接入；Fall Detection 2017 新增 2,977/2,977 v2 标签，抖音/B站自采批次新增 150/150 并按现行层级进入内部训练。当前 v2 根标签为 9,314 条动作和 6,338 条事件；71 条与官方窗口重叠的 CVAT `fall` 事件按官方来源优先级排除。目录名与报告 `batch_id` 不一致的 S001-S017 候选目录被隔离，不参与发布。发布明细和输入/输出 hash 见 `reports/fall_risk/fall-risk-data-v2-root-publish.json`。
 
 ### CaucaFall 来源与限制
 
@@ -49,6 +52,22 @@ LE2I 官方 TXT 共 130 份，其中 99 个跌倒窗口、31 个 `0/0` 无跌倒
 - 原始外部 ZIP SHA-256 为 `505112280219b7a24dde757d21a4f37ae54dbb55963f6145f6dc01d9298ef257`，因含身份元数据不复制进仓库。
 - 仓库内脱敏 ZIP SHA-256 为 `3ee9760d9718841988757674c1cb52e27aa155bd42ecdc1da331e4348b19e7a1`；规范化 99 个任务名、为 track `46/169/191` 补充 `U01` 原因并移除身份节点，其他标签语义按人工验收结果保留。
 - 本批次已随根标签迁移进入 v3 和统一训练 split。
+
+### 抖音/B站跌倒视频整理来源与限制
+
+- 原始批次的 66 个稀疏编号已按旧编号升序映射为 `1.mp4` 至 `66.mp4`；根目录原始视频已移入废纸篓，当前媒体只保留 `annotated_clips/1.mp4` 至 `66.mp4`。旧名到新名的 66 条可逆映射仍固定在 `configs/data/fall_tiktok_source_map_v1.json`。
+- CVAT 实际标注使用的 66 个剪辑保存为 `annotated_clips/1.mp4` 至 `66.mp4`。内容关联核验 65 组通过自动特征阈值，第 39 组因竖屏字幕与横屏裁剪得分偏低，人工画面复核确认同源，因此 66/66 组均已确认。
+- 66 个任务包含 150 条轨迹，生成 150 条动作和 150 条映射事件。来源级 audit 报告 `reports/fall_risk/fall_tiktok_candidate_validation.json` 为 `valid=true`、`errors=0`、`blockers=0`；formal 模式仍会把 3 条 U01 在动作/事件两层记为 6 个预期 blocker。
+- 外部原始 `fall_tiktok.zip` SHA-256 为 `e1879e18a25a943831f6360f4668d313aa1e44a306d16252cffe95008a3133ee`，不复制进仓库；脱敏副本 SHA-256 为 `e8114a9ce011e2653aa1f6e11c79df031e22224dc9496bd0df3159948a280d64`，共移除 134 个身份元素。
+- 项目负责人于 2026-07-28 确认为项目自采并授权内部训练，决定文件为 `configs/data/fall_tiktok_collection_decision_v1.json`，SHA-256 为 `b7070e235c25b54754c0169b0e8e3abc8e343f199be2762ceb55e50aa432a02c`。该决定不授予公开再分发权，也不虚构未记录的 consent ID。
+- 当前 manifest 仅有 66 个标注剪辑 eligible；原始视频不再作为媒体资产，旧的 2 条重复排除记录只保留在来源审计中。未知人员共用 `fall_tiktok_project_collection_pool`，禁止为了分区平衡拆散。v3 动作为 primary=126、auxiliary=21、ignore=3，事件为 auxiliary=65、ignore=6；统一 split 将该来源组的 221 条 assignment 全部放在 test，取得人员对应关系并重新分组前不进入 train。
+
+### NTU RGB+D A043 人工决定与限制
+
+- 2026-07-30 接受决定固定在 `configs/data/ntu_rgbd_a043_cvat_decision_v1.json`，SHA-256 为 `6c90ce9bd9137aa28ba473504ca7afe75b5f50e15fa3a3b85054f6ea04867492`。只有正式人工 CVAT 批次出现的 938 个 A043 `video_id` 进入主 manifest；未标注 A043 仍禁止按文件名直接导入。
+- S001-S017 批次生成 1,428 条动作和 1,428 条映射事件。S016/C003/P008/R001 的 job ZIP 不含源名，只允许由严格 ZIP 文件名绑定到原完整 S016 project 的唯一任务；报告分别保留 project/job SHA-256，并生成含完整 task/source 元数据的规范化 project ZIP。脱敏合并 ZIP SHA-256 为 `ad7fa9c316c57eadc964c31438cd7e35e6956a14eaf0c43310005c998c28eac2`。
+- 三视角裁决结果为：S013/P018/R001/C001=D01，S015/P015/R001/C003=D02，S016/P008/R001/C003=D02；S011/P015/R001 和 S017/P020/R001 的六个视角均为 A05 fall hard negative。来源批次 audit/formal 均为 `errors=0`、`blockers=0`、`warnings=0`。
+- S002 仍缺 10 个 C001 任务。原 CVAT 导入把 446 个全片跌倒记录为“无片内 onset”，其中 48 条因尾帧 `outside` 停在媒体倒数第二帧；2026-08-04 项目负责人裁决首帧为 onset、媒体尾帧为 offset，当前 v3 已把 446 条全部统一为 `[0, frame_count)` 精确边界。306 个完整三视角组中有 303 组一致含跌倒、3 组一致非跌倒、0 组跌倒覆盖冲突；51 个方向不一致、36 个原 CVAT 边界差超过 5 帧，方向 QC 限制不因边界裁决而消失。
 
 ### Lecture room 来源追溯
 
@@ -81,7 +100,7 @@ LE2I 官方 TXT 共 130 份，其中 99 个跌倒窗口、31 个 `0/0` 无跌倒
 
 ## 当前结论
 
-v2 根标签已完成重建，正式校验结果为 `errors=5,952`、`blockers=179`、`formal_ready=false`。5,952 个 error 来自 2,976 条 NTU 记录的旧解压媒体路径不存在，在 manifest 和 action 层各计一次；这不否定人工边界，但在重新解压或重建路径前不能用于训练。blocker 还包括 `U01/uncertain` 和现有技术/治理限制；`risk_labels.jsonl` 和 subject profiles 仍为空，因此功能/纵向任务继续阻塞。当前仍是可追溯发布候选，不是 frozen 数据版本。
+v2 根标签已完成重建，NTU 外部 manifest 已重定位到仓库内 `data/external/ntu`；3,924 个 NTU AVI 和主 manifest 纳入的 3,914 个资产均可访问。Fall Detection 2017 人工批次已进入 v2 根标签，但仍保留项目来源和 QC 门禁。全库正式校验结果为 `errors=0`、`blockers=285`、`formal_ready=false`，其中 27 条为 `formal_manifest_ineligible`、258 条为 `formal_uncertain`。`risk_labels.jsonl` 和 subject profiles 仍为空，因此功能/纵向任务继续阻塞。当前仍是可追溯发布候选，不是 frozen 数据版本。
 
 ## 模型训练标签 v3
 
@@ -89,10 +108,12 @@ v2 根标签已完成重建，正式校验结果为 `errors=5,952`、`blockers=1
 
 | 产物 | 数量 | 结果 |
 |---|---:|---|
-| `action_labels_v3.jsonl` | 4,759 | primary=4,297、auxiliary=349、ignore=113 |
-| `event_labels_v3.jsonl` | 464 | fall positive=312、task-specific ignore=152 |
+| `action_labels_v3.jsonl` | 9,314 | primary=8,444、auxiliary=702、ignore=168 |
+| `event_labels_v3.jsonl` | 9,498 | fall 正/负=2,303/1,774、near-fall 正/负=962/4,201、task-specific ignore=258 |
 
-迁移合并了 71 个 LE2I/CVAT 重叠 fall，159 个 D04 均与唯一父 fall 双向关联；没有把 C03-C05 自动升级为 near-fall，也没有从未标注背景或 LE2I `0/0` 自动生成 negative。NTU 的 2,976 条动作全部为 `primary/exact/single_annotated`，具体动作 tier 也全部为 primary；TOAGA 的 28 条 `normal_walk` 保持 `auxiliary/source_verified/boundary_precision=unknown`。统一 v3 split 有 5,223 条标签分配、3,501 个资产和 154 个保守泄漏组，跨分区泄漏为 0，primary fall 正例按 train/validation/test 分为 74/14/7。v3 校验 `valid=true`、`issues=[]`，但 primary 动作类别未完整覆盖各分区，因此 `training_ready.action_type=false`；event negative=0、near-fall positive=0，两个事件任务也均为 false。
+迁移合并了 71 个 LE2I/CVAT 重叠 fall；218 个 D04 与唯一父 fall 双向关联，另 2 个无唯一父事件的 D04 保持 ignore。`configs/data/fall_risk_training_decision_20260804.json` 绑定当前 v2 action SHA-256，36 个展开指令全部匹配：446 条当前 NTU 全片跌倒按首帧 onset、尾帧 offset 生成 `[0, frame_count)` 精确边界；962 条受审 C03 生成 `stumble_recovery` 正例；明确动作/跌倒事件生成 5,975 条 task-specific negative，其中 7 条 UR Fall A07 为 `bed_entry_or_exit`。7 类 fall 和 8 类 near-fall hard negative 均有 primary 覆盖；未标注背景、LE2I `0/0`、U01、重遮挡和出画未转为 negative。
+
+统一 v3 split 有 18,812 条标签分配、6,516 个资产和 184 个保守泄漏组，跨分区泄漏为 0。primary fall 正/负按 train/validation/test 分为 `74/7/14` 和 `958/396/369`；primary near-fall 正/负为 `348/300/300` 和 `1109/364/433`。v3 校验 `valid=true`、`issues=[]`，`training_ready.fall_event=true`、`training_ready.near_fall_event=true`；部分稀有 primary 动作类型仍未覆盖各分区，因此 `training_ready.action_type=false`。该门槛只证明现有来源上的事件监督与 split 可用于开发，不证明连续背景误报率、老人域泛化、正式模型效果或长期风险预测。
 
 迁移与校验证据：
 
@@ -107,7 +128,7 @@ data/splits/fall_risk/training_labels_v3/split.json
 
 | 文件 | 记录数 | SHA-256 |
 |---|---:|---|
-| `action_labels.jsonl` | 4,759 | `08a13d283e39f3aa1d7f91cf4077253a7eac923014201fb33e2426e9ed8ce23c` |
-| `event_labels.jsonl` | 1,783 | `eb431bedf9104c9cfbd7bf166b1555f1c824b1d23a2a1d21784bb54ab88fd8ea` |
+| `action_labels.jsonl` | 9,314 | `058540ce76076b373bfa86c70d0b157fa10af5cbb521aa7c4c58a3ac7a1b3af6` |
+| `event_labels.jsonl` | 6,338 | `fff793d735d89a7675e833cd97969c9c58fe3595abdcb57b734a7d3e43232099` |
 
 正式校验报告由以下命令生成到 `reports/fall_risk/label_validation_formal_v2.json`；该报告只反映当前输入，不代表模型指标或临床有效性。

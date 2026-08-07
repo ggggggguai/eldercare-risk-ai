@@ -19,13 +19,24 @@ Workflow A 当前入口：
 - [`fall_risk/workflow_a_blockers.md`](fall_risk/workflow_a_blockers.md)：来源、隐私、真值与数据门槛。
 - [`fall_risk/fall-risk-data-v2-release-candidate.md`](fall_risk/fall-risk-data-v2-release-candidate.md)：发布候选验收结论。
 - [`fall_risk/training-labels-v3-migration.json`](fall_risk/training-labels-v3-migration.json)：v2 到模型训练标签 v3 的确定性迁移计数与 hash。
-- [`fall_risk/training-labels-v3-validation.json`](fall_risk/training-labels-v3-validation.json)：v3 schema、引用、训练等级和训练门禁结果。
+- [`fall_risk/training-labels-v3-validation.json`](fall_risk/training-labels-v3-validation.json)：v3 schema、引用、训练等级和训练门禁结果；当前两个事件任务通过，动作类型任务未通过。
 - [`fall_risk/runtime/README.md`](fall_risk/runtime/README.md)：实时链路阶段 0/1 的固定输入、配置指纹和离线服务回放；不是算法效果报告。
 - [`reproducibility/dataset_and_split_versions.md`](reproducibility/dataset_and_split_versions.md)：数据、split、配置和合成证据包哈希。
 
 模型实验入口：
 
 - [`fall_risk/kinecal_gait_tcn/README.md`](fall_risk/kinecal_gait_tcn/README.md)：KINECAL 14 点轻量步态 TCN 的固定划分 baseline、失败结论和复现命令。
+- [`fall_risk/gait_window_v4_hierarchical_masked/development-20260803/README.md`](fall_risk/gait_window_v4_hierarchical_masked/development-20260803/README.md)：不增加数据条件下的质量捷径隔离、walking gate、三个 seed 结果和不替换主路径的结论。
+- [`fall_risk/gait_window_v5_effect_first/development-20260803/README.md`](fall_risk/gait_window_v5_effect_first/development-20260803/README.md)：B01-B04 functional proxy 的六 seed 训练与概率集成结果；F1 `0.308`，test 未读取，未替换规则主路径。
+- [`fall_risk/sit_stand_event_v1/README.md`](fall_risk/sit_stand_event_v1/README.md)：坐站 candidate-clip Logistic/TCN provisional validation；不提供连续事件定位或 test 结论。
+- [`fall_risk/near_fall_event_v1/README.md`](fall_risk/near_fall_event_v1/README.md)：近跌倒恢复确认 TCN 三 seed provisional pilot；validation F1 `0.990-0.997`，窗口全部来自 NTU，test 未读取，未替换规则主路径。
+- [`fall_risk/fall_event_proxy_v2_v3split/README.md`](fall_risk/fall_event_proxy_v2_v3split/README.md)：当前 v3 split 的跌倒 candidate-clip TCN 三 seed provisional pilot；validation F1 `0.958-0.963`，test 未读取，未替换规则主路径。
+
+心理健康实验入口：
+
+- [`mental_health/wandering_step2/README.md`](mental_health/wandering_step2/README.md)：WanderingPatterns/SmartCare 步骤 2 的来源哈希、转换计数、异常、确定性验证和人工联系表入口；不是正式 split、模型效果或现有心理健康评分能力。
+- [`mental_health/wandering_step2/HUMAN_REVIEW.md`](mental_health/wandering_step2/HUMAN_REVIEW.md)：六类固定抽样联系表的人工复核记录与后续限制。
 - [`mental_health/wandering_step5/README.md`](mental_health/wandering_step5/README.md)：徘徊步骤 5 固定 26 维手工特征、两项五 seed RF 对照、两阶段封存评估、安全加载、确定性与真实指标。
 - [`mental_health/wandering_step6/README.md`](mental_health/wandering_step6/README.md)：徘徊步骤 6 两项独立纯 TCN、10 个安全 NPZ、validation 早停、固定 WP 评估、RF 同 seed 差值、双构建确定性和 CPU 基准。
 - [`mental_health/wandering_step7/README.md`](mental_health/wandering_step7/README.md)：徘徊步骤 7 bbox-only adapter、Camera QC、高度补偿、RF/TCN 最小离线推理、合成 camera contract 和双构建确定性。
+- [`mental_health/wandering_step8/visual_review/v3/README.md`](mental_health/wandering_step8/visual_review/v3/README.md)：徘徊步骤 8 v3 图审入口；正式结论为 `model_compatibility_warning`，详细兼容性 JSON/JSONL 按 `.gitignore` 本地保留。
