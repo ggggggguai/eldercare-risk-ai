@@ -15,8 +15,9 @@
 | 冻结四个跌倒任务 split | `fall_event_v1`、`near_fall_event_v1`、`functional_proxy_v1` 和 `longitudinal_baseline_v1` 分别取得合格样本、稳定 `split_id` 和无泄漏报告；没有真实参考终点的任务继续明确阻塞，不制造空壳正式 split |
 | 完成跌倒风险正式评估 | 预注册并冻结事件匹配与统计协议，指定测试集保管人与一次性发布流程；在真实冻结 split 上输出 Precision、Recall、F1、PR-AUC、合法分母下的误报指标、提前量、95% CI 和失败案例 bundle |
 | 解除 Workflow A 数据阻断 | 完成 CVAT 身份元数据处置、人员或保守源组说明、功能与纵向参考终点确认；解除证据写入 `reports/fall_risk/workflow_a_blockers.md` |
-| 实现徘徊方案步骤 8 语义保持增强、通用污染和兼容性报告 | 只按技术方案步骤 8 独立实现可重放的相似/投影变换、虚拟 bbox 高度场和 low/medium/high 通用观测污染；全部走步骤 7 同一高度补偿与 Camera QC，保存参数/seed/接受拒绝原因和 clean-corrupted 配对。冻结 validation/test 不调用训练增强，severe ID switch/长缺口/相机移动只验证拒识；四类各人工抽查至少 100 对后再关闭门禁，并明确通用污染不是目标摄像头实测分布 |
-| 固化徘徊步骤 3–7 的版本库交接 | 已新增路径级 `.gitattributes` 强制徘徊冻结 YAML/JSON/JSONL/MD/Python 为 LF，并在未暂存状态复核步骤 4/5/6 固定哈希不变；步骤 3–7 新增文件当前仍未由项目负责人决定暂存或提交。提交前后仍需再次校验固定输入和 development/test/camera manifest SHA-256，不能用关闭 loader 校验掩盖换行或版本漂移 |
+| 完成徘徊方案步骤 8 语义保持增强、通用污染和兼容性报告 | **已完成，结论为 `model_compatibility_warning`。** v1/v2 分别保持 `diagnostic_invalid_pacing_gate` 与 `diagnostic_quota_blocked_precommit`。v3 正式 A=`0e255e0f89493c1ad389ac6d183c82843cbe0efc2978d5be7fbae66ce8dc4b1a`，双重建六文件逐字节一致；1,491 个 train pairs、834 个 pressure views、240 个 gated faults、48 个 limitation controls 均通过契约。负责人复核 440 对并签署，A→V→H→C 全链路通过；C=`e27aa0716bb1cd39f6c37ac98c31b3d201d08b7673f61aadaa2ba1355f58bdbf`，4,144 条预测、24 个独立分组、12 条观察线 warning。主聚合含全部 QC-ready pressure，不把所有 warning 简化成纯 label-preserving 排名；不得调参消除或写成目标摄像头、真实老人或临床效果 |
+| 固化徘徊步骤 8 的版本库交接 | 步骤 8 的配置、三个模块、三个脚本、三份测试仍未跟踪，现行 Markdown 有修改；正式/确定性 augmentation、visual/H、compatibility 和失效证据归档均在工作区。三组窄测 `42 passed`，全部徘徊测试 `190 passed, 104 subtests passed`；完整测试 `568 passed, 1 failed, 171 subtests passed`，唯一失败是范围外跌倒固定视频缺失。项目负责人决定暂存/提交前后必须复核 A/V/H/C、v2/v3 config 和全部上游 manifest 哈希；不得清理归档、关闭 loader 校验或覆盖正式目录 |
+| 实现徘徊步骤 9 P0 前向契约 | **协议已冻结，代码未开始；必须排在步骤 8 版本库交接决定之后。** 实现文件只新增 `wandering_topowander_mpt_v1.yaml`、`model.py`、`test_wandering_model.py`，完成后另写复现 README；先红测再实现三输入、mask-aware TCN、19 patch/11 维语义、对称 relation + signed offset、两层 Transformer、三个 head 和 deterministic NPZ。不得读取任何数据/模型 bundle、训练或报告分数；完成状态只允许 `step9_forward_contract_verified`。步骤 10 另行处理 v3 pair 仅覆盖 933/1,257 parent 的事实，不在线补 pair |
 | 建立心理健康评估口径 | 固定日级验证样本、人工复核标签和分层一致性指标，不使用医学诊断表述 |
 | 完成真实萤石链路联调 | 使用真实设备或开放平台直播地址启动会话，后端收到并验收风险回调 |
 | 固定接口契约 | 后端确认字段、鉴权、时间格式、幂等规则和风险动作编码，并保存联调记录 |
@@ -34,7 +35,7 @@
 | 校准近跌倒误报 | 增加弯腰、快速坐下、转身、遮挡和多人场景负样本，报告阈值曲线与失败案例 |
 | 完善个体基线冷启动 | 明确无历史、初始基线和稳定基线阶段的分数上限、置信度和更新策略 |
 | 建立心理健康运行调度 | 明确日级任务由谁触发、输入从何处读取、结果如何交付和重跑 |
-| 接入摄像头徘徊证据 | 步骤 7 已完成 bbox-only 合成 camera contract；后续先按步骤 8–12 完成增强、目标模型、校准/OOD，再用授权固定摄像头旁路验证，最后实现 episode、日级字段和摄像头域评估。只有冻结测试证明有效后才接入 `routine_irregularity_score` |
+| 接入摄像头徘徊证据 | 步骤 7 已完成 bbox-only 合成 camera contract，步骤 8 已完成通用合成压力兼容性报告；步骤 9 P0 前向协议已冻结但未实现，步骤 10–12 仍未冻结。后续先验证目标模型工程契约，再另行冻结 pair-aware 训练、校准/OOD，用授权固定摄像头旁路验证，最后实现 episode、日级字段和摄像头域评估。只有冻结测试证明有效后才接入 `routine_irregularity_score` |
 
 ## P2：数据和模型增强
 
