@@ -1,0 +1,29 @@
+{
+  "after": {
+    "flow_v1": {
+      "file_count": 167,
+      "path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/data/processed/microexpression/flow_v1",
+      "sha256": "32e3ff1920ca283750a740b0ecc1de5bdf832d887a3a54c5d277a6a95718becd"
+    },
+    "paper_v2_combined": {
+      "file_count": 173,
+      "path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/data/processed/microexpression/paper_v2/combined",
+      "sha256": "0456f875ef765f71e06bc65e5cf71cc36cd47e41867f8f9c3ddcd1606b74494a"
+    }
+  },
+  "before": {
+    "flow_v1": {
+      "file_count": 167,
+      "path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/data/processed/microexpression/flow_v1",
+      "sha256": "32e3ff1920ca283750a740b0ecc1de5bdf832d887a3a54c5d277a6a95718becd"
+    },
+    "paper_v2_combined": {
+      "file_count": 173,
+      "path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/data/processed/microexpression/paper_v2/combined",
+      "sha256": "0456f875ef765f71e06bc65e5cf71cc36cd47e41867f8f9c3ddcd1606b74494a"
+    }
+  },
+  "schema_version": "causalnet_history_fingerprint_v1",
+  "status": "pass",
+  "task_id": "FLOW-ME-004"
+}

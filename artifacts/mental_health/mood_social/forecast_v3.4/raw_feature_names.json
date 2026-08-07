@@ -1,0 +1,39 @@
+{
+  "label_fields_excluded": [
+    "phq9_score_start",
+    "phq9_score_end",
+    "phq9_cat_start",
+    "phq9_cat_end"
+  ],
+  "raw_feature_count": 27,
+  "raw_feature_names": [
+    "steps_awake_mean",
+    "steps_mvpa_iqr",
+    "steps_lpa_iqr",
+    "steps_awake_sum_iqr",
+    "steps__active_day_count_",
+    "steps__sedentary_day_count_",
+    "steps_mvpa_sum_recent",
+    "steps_lpa_sum_recent",
+    "steps_rolling_6_median_recent",
+    "steps_rolling_6_max_recent",
+    "sleep_asleep_weekday_mean",
+    "sleep_asleep_weekend_mean",
+    "sleep_in_bed_weekday_mean",
+    "sleep_in_bed_weekend_mean",
+    "sleep_ratio_asleep_in_bed_weekday_mean",
+    "sleep_ratio_asleep_in_bed_weekend_mean",
+    "sleep_in_bed_iqr",
+    "sleep_asleep_iqr",
+    "sleep_ratio_asleep_in_bed_iqr",
+    "sleep_main_start_hour_adj_median",
+    "sleep_main_start_hour_adj_iqr",
+    "sleep_main_start_hour_adj_range",
+    "sleep__hypersomnia_count_",
+    "sleep__hyposomnia_count_",
+    "sleep_asleep_mean_recent",
+    "sleep_in_bed_mean_recent",
+    "sleep_ratio_asleep_in_bed_mean_recent"
+  ],
+  "schema_version": "mood-social-forecast-v3.4-feature-list-v1"
+}

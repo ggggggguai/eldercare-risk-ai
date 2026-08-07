@@ -1,0 +1,97 @@
+{
+  "schema_version": "mhssa_tgcn_smic_loso_package_v1",
+  "model_id": "mhssa_tgcn_smic_loso_v1",
+  "run_id": "MHSSA-SMIC-LOSO-20260806-001",
+  "status": "experimental",
+  "protocol_status": "completed",
+  "checkpoints": [
+    {
+      "path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/models/mental_health/facial_affect/mhssa_tgcn_smic_loso_v1/folds/loso_s01/best.pt",
+      "sha256": "94a77c0c27ca34c1b7002a1ee810eef58cb498ff4e214fa1d4e2c3c3c0390486",
+      "strict_reload_verified": true
+    },
+    {
+      "path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/models/mental_health/facial_affect/mhssa_tgcn_smic_loso_v1/folds/loso_s02/best.pt",
+      "sha256": "22f62ec1f5c692e2d23d2fc8c3e697837a4545615434aedc8aac8db3ca8c2368",
+      "strict_reload_verified": true
+    },
+    {
+      "path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/models/mental_health/facial_affect/mhssa_tgcn_smic_loso_v1/folds/loso_s03/best.pt",
+      "sha256": "6114eb63e1c471106cb7c950f53d680a31a404bb5d8a548946429a209fe06efb",
+      "strict_reload_verified": true
+    },
+    {
+      "path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/models/mental_health/facial_affect/mhssa_tgcn_smic_loso_v1/folds/loso_s04/best.pt",
+      "sha256": "67787fd9f087953b2aae811da5f80fc0b6ed77083772a6b189defd1b24b3cd4e",
+      "strict_reload_verified": true
+    },
+    {
+      "path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/models/mental_health/facial_affect/mhssa_tgcn_smic_loso_v1/folds/loso_s05/best.pt",
+      "sha256": "47e5412b933794dfaba0c8b7dbe72690dee8c782736c1e8a5f3d83f6abb01def",
+      "strict_reload_verified": true
+    },
+    {
+      "path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/models/mental_health/facial_affect/mhssa_tgcn_smic_loso_v1/folds/loso_s06/best.pt",
+      "sha256": "0447a09422195cd6dee558be23dc510a3d3b3fd6d0000b19dbce9b61b42ffae7",
+      "strict_reload_verified": true
+    },
+    {
+      "path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/models/mental_health/facial_affect/mhssa_tgcn_smic_loso_v1/folds/loso_s08/best.pt",
+      "sha256": "6fd05060d5a634e4667c4734ebfdc84dc146310245dd9ca32f6283db9d9cf7a7",
+      "strict_reload_verified": true
+    },
+    {
+      "path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/models/mental_health/facial_affect/mhssa_tgcn_smic_loso_v1/folds/loso_s09/best.pt",
+      "sha256": "5f8ce19ade8734860ffa3b571d0f6638ac4810bfafd52fd0bd3a714abbc35779",
+      "strict_reload_verified": true
+    },
+    {
+      "path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/models/mental_health/facial_affect/mhssa_tgcn_smic_loso_v1/folds/loso_s11/best.pt",
+      "sha256": "0b87bf9010cc67e905e3c9cee24106ae61fa3a10cd760066a55e52ecd095f165",
+      "strict_reload_verified": true
+    },
+    {
+      "path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/models/mental_health/facial_affect/mhssa_tgcn_smic_loso_v1/folds/loso_s12/best.pt",
+      "sha256": "d6cada7c73bf59eeb087a171836e117a168534315322c486c79a5359a5726819",
+      "strict_reload_verified": true
+    },
+    {
+      "path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/models/mental_health/facial_affect/mhssa_tgcn_smic_loso_v1/folds/loso_s13/best.pt",
+      "sha256": "71a6fff4db09d190291e27a282c5d34fbd7878429227cddc867248c93e2f7780",
+      "strict_reload_verified": true
+    },
+    {
+      "path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/models/mental_health/facial_affect/mhssa_tgcn_smic_loso_v1/folds/loso_s14/best.pt",
+      "sha256": "926d108a7816d215787fbd48b0b3b3f867e622af6260d0e01e1c0e39c482d6cd",
+      "strict_reload_verified": true
+    },
+    {
+      "path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/models/mental_health/facial_affect/mhssa_tgcn_smic_loso_v1/folds/loso_s15/best.pt",
+      "sha256": "03633f08468f79059915f928de938152a5d0db7359acabf98c863b1d2482dbb9",
+      "strict_reload_verified": true
+    },
+    {
+      "path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/models/mental_health/facial_affect/mhssa_tgcn_smic_loso_v1/folds/loso_s18/best.pt",
+      "sha256": "fdb96950df29b1253ce15e59aed81b79c81c35c053c63704f72aa265a7486b39",
+      "strict_reload_verified": true
+    },
+    {
+      "path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/models/mental_health/facial_affect/mhssa_tgcn_smic_loso_v1/folds/loso_s19/best.pt",
+      "sha256": "00d3081370775f628f7ae22e090f8e857d43f47006d2eee3379479bd8c85b322",
+      "strict_reload_verified": true
+    },
+    {
+      "path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/models/mental_health/facial_affect/mhssa_tgcn_smic_loso_v1/folds/loso_s20/best.pt",
+      "sha256": "45c25f5cd4e45ebe07d7fad678836f81f024e78e93c99ee3a4282a7ff0b316a7",
+      "strict_reload_verified": true
+    }
+  ],
+  "artifact_manifest_sha256": "baa574855209d47a398f09c7b8f27aba6f442b0d9a25054346e73f372573cc86",
+  "split_manifest_sha256": "dec3acd9dafbaa4f0d746b275d0ed5413e43f0a1fce7d2f92303b41fc6dc1b40",
+  "resolved_config_sha256": "3762d1f9b956909226894f9f0febdf60f92599550e10ae06e754fc31fbe827b7",
+  "metrics": {
+    "path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/reports/microexpression/MHSSA-SMIC-LOSO-20260806-001/metrics.json",
+    "sha256": "1235cfa4451ec810017d1d0af84a43218a0c2f979193f303a22c06828d9a00d1"
+  },
+  "test_used_for_selection": false
+}

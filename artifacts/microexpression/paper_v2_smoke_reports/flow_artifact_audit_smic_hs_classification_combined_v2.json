@@ -1,0 +1,27 @@
+{
+  "schema_version": "microexpression_paper_v2_artifact_audit_v1",
+  "task_id": "FLOW-ME-002",
+  "status": "pass",
+  "artifact_count": 1,
+  "unique_sample_count": 1,
+  "total_bytes": 19513,
+  "flow_value_range": [
+    -1.0,
+    1.0
+  ],
+  "issue_count": 0,
+  "issues": [],
+  "historical_v1_guard": {
+    "status": "pass",
+    "before": {
+      "path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/data/processed/microexpression/flow_v1",
+      "file_count": 167,
+      "sha256": "32e3ff1920ca283750a740b0ecc1de5bdf832d887a3a54c5d277a6a95718becd"
+    },
+    "after": {
+      "path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/data/processed/microexpression/flow_v1",
+      "file_count": 167,
+      "sha256": "32e3ff1920ca283750a740b0ecc1de5bdf832d887a3a54c5d277a6a95718becd"
+    }
+  }
+}

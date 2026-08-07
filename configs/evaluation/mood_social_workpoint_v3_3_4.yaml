@@ -1,0 +1,36 @@
+task_id: OPT-WORKPOINT-001
+run_id: MH-20260804-022
+scope: competition_demo
+production_threshold_selected: false
+
+input:
+  oof_path: reports/mental_health/mood_social/MH-20260804-021/oof_predictions.parquet
+  oof_sha256: e613559abb35e1f2e91f9d73141f5e2225f67037b4c645998aa0e86fae92542a
+  promotion_path: reports/mental_health/mood_social/MH-20260804-021/promotion.json
+  promotion_sha256: e9b2e41e587b602c90f28be4de9b57c037412cad3e94c7b976981562c0563984
+  split_path: data/processed/mental_health/mood_social/v3.3.3/splits/split_manifest.json
+  split_sha256: e9915dbc590a6ea454c34d26558ac5866c57ee8a8e78f44cdcc79c859df77ee3
+  runtime_policy_path: configs/runtime/mood_social_runtime_policy_v3_3_3.yaml
+  runtime_policy_file_sha256: 34f57e0354d9887b969b1e484fb7edb5951f292f19698d81f52a924ce923b521
+
+selection:
+  rule: maximum_f1_with_sensitivity_at_least_0.80_then_lower_alert_rate
+  minimum_sensitivity: 0.80
+  fallback_source: current_online_baseline
+  candidate_source: v334_candidate
+  candidate_requires_promotion: true
+  threshold_grid_start: 0.01
+  threshold_grid_stop: 0.99
+  threshold_grid_step: 0.01
+
+replay:
+  fixture_scope: synthetic_contiguous_day_cases_v1
+  three_day_smoothing: true
+  consecutive_upgrade_days: 2
+  upgrade_margin: 0.03
+  downgrade_margin: 0.05
+  evidence_interruption: true
+
+output:
+  report_directory: reports/mental_health/mood_social/MH-20260804-022
+  manifest_path: models/mental_health/mood_social/v3.3.3/candidates/MH-20260804-022/competition_workpoint_manifest.json

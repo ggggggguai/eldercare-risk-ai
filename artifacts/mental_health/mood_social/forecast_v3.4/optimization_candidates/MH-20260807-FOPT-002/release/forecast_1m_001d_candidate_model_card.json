@@ -1,0 +1,99 @@
+{
+  "baseline": {
+    "auprc": 0.48218554174070916,
+    "auroc": 0.6641423253868071,
+    "brier": 0.2051242482578397,
+    "ece": 0.012775082326750639,
+    "macro_f1": 0.61697786121797,
+    "sensitivity": 0.48913119452016496,
+    "specificity": 0.7454712926005526
+  },
+  "bootstrap_auprc": {
+    "confidence_level": 0.95,
+    "degenerate_repetitions": 0,
+    "intervals": {
+      "auprc": {
+        "lower": -0.014125787469178436,
+        "upper": 0.015335162435980472
+      },
+      "auroc": {
+        "lower": -0.0005280955729267984,
+        "upper": 0.015155112873818545
+      },
+      "brier": {
+        "lower": -0.005082792955302497,
+        "upper": -0.0020997950166992234
+      },
+      "ece": {
+        "lower": -0.00725720576354373,
+        "upper": 0.014647304099750161
+      },
+      "macro_f1": {
+        "lower": -0.0012442016248013388,
+        "upper": 0.017156085015205342
+      },
+      "sensitivity": {
+        "lower": 0.012071489201413089,
+        "upper": 0.04481712741974773
+      },
+      "specificity": {
+        "lower": -0.018691482863104177,
+        "upper": 0.0007510233996161318
+      }
+    },
+    "medians": {
+      "auprc": 0.00042725353386885434,
+      "auroc": 0.007232598963177517,
+      "brier": -0.0036422976147366393,
+      "ece": 0.003960295736008524,
+      "macro_f1": 0.007980370337480891,
+      "sensitivity": 0.02891479335136965,
+      "specificity": -0.009450176789379983
+    },
+    "participant_count": 3635,
+    "scope": "full",
+    "seed": 20260728,
+    "valid_repetitions": 2000
+  },
+  "candidate": {
+    "auprc": 0.4827992642133894,
+    "auroc": 0.6714530078801199,
+    "brier": 0.20150551276952167,
+    "ece": 0.019375962496463492,
+    "macro_f1": 0.6249826504312483,
+    "sensitivity": 0.5178583909974139,
+    "specificity": 0.736158018626548
+  },
+  "candidate_status": "audit_only_not_promoted",
+  "decision": {
+    "auprc_non_decreasing_fold_count": 3,
+    "bootstrap_auprc_median": 0.00042725353386885434,
+    "criteria": {
+      "at_least_three_non_decreasing_folds": true,
+      "auprc_delta_at_least_0_005": false,
+      "auroc_delta_not_below_minus_0_005": true,
+      "brier_delta_at_most_0_002": true,
+      "ece_within_frozen_limit": true,
+      "no_fold_auprc_drop_over_0_02": true,
+      "paired_bootstrap_auprc_median_positive": true
+    },
+    "min_fold_auprc_delta": -0.014002590262608416,
+    "point_deltas": {
+      "auprc": 0.000613722472680267,
+      "auroc": 0.007310682493312792,
+      "brier": -0.0036187354883180367,
+      "ece": 0.006600880169712853,
+      "macro_f1": 0.008004789213278296,
+      "sensitivity": 0.028727196477248973,
+      "specificity": -0.00931327397400461
+    },
+    "status": "retain_baseline"
+  },
+  "decision_authority": "shadow_only",
+  "execution_mode": "offline_only",
+  "product_visible": false,
+  "recommended_fallback": "MH-20260805-FCAST-001",
+  "release_status": "experimental",
+  "run_id": "MH-20260807-FOPT-002",
+  "task_id": "forecast_1m"
+}

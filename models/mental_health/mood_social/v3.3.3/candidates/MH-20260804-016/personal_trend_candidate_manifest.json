@@ -1,0 +1,26 @@
+{
+  "dataset_id_as_model_input": false,
+  "model006_online": false,
+  "model_sha256": "74f52d00c46daab9cfea60861a9e71c9baf24926551ab642fd94bdd5657dd087",
+  "model_version": "personal-trend-optimization-candidate-v3.3.4-v1",
+  "production": false,
+  "run_id": "MH-20260804-016",
+  "runtime_features": [
+    "median_mad_7d",
+    "median_mad_28d",
+    "ewma",
+    "theil_sen",
+    "change_point",
+    "weekday_weekend_rhythm",
+    "abnormal_day_exclusion"
+  ],
+  "selected_candidates": {
+    "activity": "concordance_guarded",
+    "sleep": "concordance_guarded",
+    "social": "baseline_probability"
+  },
+  "social_direct_s10_phq9_validation": false,
+  "strict_oof": true,
+  "synthetic_calls_as_supervision": false,
+  "task_id": "OPT-TREND-001"
+}

@@ -1,0 +1,10 @@
+{
+  "checkpoint_sha256": "b7077898ebb56218dd2a1b0a975efa7b9ca3422e1711ab62223598c5c06b73f8",
+  "feature_version": "cognitive_features_v3.3.0",
+  "moca_std_fallback_used": false,
+  "moca_train_subject_count": 367,
+  "moca_train_subject_mean": 21.6866485013624,
+  "moca_train_subject_std": 5.423474201900755,
+  "schema_version": "cognitive_feature_stats_v1",
+  "text_quality_version": "cognitive_text_quality_v3.3.1"
+}

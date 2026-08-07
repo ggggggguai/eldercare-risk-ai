@@ -1,0 +1,10 @@
+{
+  "schema_version": "dstm_temporal_flow_sequence_v2",
+  "task_id": "MODEL-ME-006",
+  "status": "pass",
+  "sample_count": 164,
+  "failure_count": 0,
+  "manifest_path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/data/manifests/microexpression/paper_v2/dstm_temporal_flow_artifact_manifest_smic_hs_v2.jsonl",
+  "audit_path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/data/manifests/microexpression/paper_v2/dstm_temporal_flow_artifact_audit_smic_hs_v2.json",
+  "config_sha256": "b8c4847349b6a5dbe4cdb4035685ccdd6c09b8989f9c183915cc2b8c35e5a82e"
+}

@@ -1,0 +1,15 @@
+{
+  "candidate_promoted": false,
+  "decision_authority": "shadow_only",
+  "execution_mode": "offline_only",
+  "online_model_version": "mood-fusion-v3.3.3",
+  "online_package_run_id": "MH-20260802-013",
+  "product_integration_performed": false,
+  "product_visible": false,
+  "promotion_status": "retain_v3_4_baseline",
+  "reason": "forecast_1m did not meet the frozen AUPRC gate; both horizons are required",
+  "recommended_artifact": "MH-20260805-FCAST-001",
+  "release_status": "experimental",
+  "run_id": "MH-20260807-FOPT-002",
+  "task_id": "FORECAST-OPT-001G"
+}

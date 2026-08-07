@@ -1,0 +1,29 @@
+{
+  "candidate_scope": "offline_candidate",
+  "candidates": [
+    "lgbm_temporal",
+    "catboost_temporal",
+    "xgboost_temporal",
+    "lgbm_temporal_bagging3"
+  ],
+  "dataset_id_as_model_input": false,
+  "experts": [
+    "activity",
+    "sleep",
+    "joint"
+  ],
+  "feature_coverage_as_risk_input": false,
+  "feature_masks_as_risk_inputs": false,
+  "model006_online": false,
+  "model_sha256": "1d95bf490a8dbf4b8dad9ed296ffc9239c9db9e417fc6d62d1177fa171c8e376",
+  "model_version": "mood-social-expert-optimization-candidate-v3.3.4-v1",
+  "production": false,
+  "run_id": "MH-20260804-015",
+  "selected_candidates": {
+    "activity": "catboost_temporal",
+    "joint": "catboost_temporal",
+    "sleep": "catboost_temporal"
+  },
+  "strict_oof": true,
+  "task_id": "OPT-EXPERT-001"
+}

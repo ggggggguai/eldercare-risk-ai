@@ -1,0 +1,56 @@
+{
+  "per_task": {
+    "forecast_1m": {
+      "auprc_non_decreasing_fold_count": 3,
+      "bootstrap_auprc_median": 0.00042725353386885434,
+      "criteria": {
+        "at_least_three_non_decreasing_folds": true,
+        "auprc_delta_at_least_0_005": false,
+        "auroc_delta_not_below_minus_0_005": true,
+        "brier_delta_at_most_0_002": true,
+        "ece_within_frozen_limit": true,
+        "no_fold_auprc_drop_over_0_02": true,
+        "paired_bootstrap_auprc_median_positive": true
+      },
+      "min_fold_auprc_delta": -0.014002590262608416,
+      "point_deltas": {
+        "auprc": 0.000613722472680267,
+        "auroc": 0.007310682493312792,
+        "brier": -0.0036187354883180367,
+        "ece": 0.006600880169712853,
+        "macro_f1": 0.008004789213278296,
+        "sensitivity": 0.028727196477248973,
+        "specificity": -0.00931327397400461
+      },
+      "status": "retain_baseline"
+    },
+    "forecast_2m": {
+      "auprc_non_decreasing_fold_count": 5,
+      "bootstrap_auprc_median": 0.00780184543377116,
+      "criteria": {
+        "at_least_three_non_decreasing_folds": true,
+        "auprc_delta_at_least_0_005": true,
+        "auroc_delta_not_below_minus_0_005": true,
+        "brier_delta_at_most_0_002": true,
+        "ece_within_frozen_limit": true,
+        "no_fold_auprc_drop_over_0_02": true,
+        "paired_bootstrap_auprc_median_positive": true
+      },
+      "min_fold_auprc_delta": 0.012252916198612296,
+      "point_deltas": {
+        "auprc": 0.0075983965154782784,
+        "auroc": 0.009590228389401712,
+        "brier": -0.0030534756755054293,
+        "ece": -0.0001299828651040967,
+        "macro_f1": 0.007293346910658638,
+        "sensitivity": 0.009751271905031111,
+        "specificity": 0.004937163375224318
+      },
+      "status": "promote_candidate"
+    }
+  },
+  "product_integration_performed": false,
+  "product_visible": false,
+  "reason": "both horizons must pass every frozen gate; failed gates retain the original offline baseline",
+  "status": "retain_v3_4_baseline"
+}

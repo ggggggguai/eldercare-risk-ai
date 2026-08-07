@@ -1,0 +1,105 @@
+schema_version: cognitive_change_clue_config_v3_4
+model_version: cognitive-mm-v3.4.0
+feature_version: cognitive_features_v3.3.0
+text_quality_version: cognitive_text_quality_v3.3.1
+seed: 20260805
+
+dataset:
+  name: CogPic
+  source_scope: official_train_only
+  source_processed_root: data/processed/cognitive_change_clue/v3.3.0
+  processed_root: data/processed/cognitive_change_clue/v3.4.0
+  source_split: data/processed/cognitive_change_clue/v3.3.0/cogpic_subject_split_v33.json
+  manifest: data/processed/cognitive_change_clue/v3.3.0/cogpic_manifest.parquet
+  feature_root: data/processed/cognitive_change_clue/v3.3.0/features
+  expected_official_train_subjects: 459
+  expected_official_test_subjects: 115
+  expected_tasks_per_subject: 3
+
+cross_validation:
+  outer_folds: 5
+  outer_seed: 20260805
+  inner_calibration_fraction: 0.15
+  inner_calibration_seed_base: 20260805
+  inner_validation_fraction: 0.15
+  inner_validation_seed_base: 20260905
+  subject_sort: unicode_codepoint_ascending
+  label_order: [HC, MCI, AD]
+
+model:
+  projection_dim: 256
+  fusion_hidden_dims: [128, 64]
+  dropout: 0.2
+  loss_weights:
+    hc_vs_non_hc: 1.0
+    mci_vs_hc: 0.3
+    ad_mci_hc: 0.3
+    moca: 0.1
+
+training:
+  deterministic: true
+  cublas_workspace_config: ":4096:8"
+  micro_batch_size: 4
+  gradient_accumulation_steps: 4
+  num_workers: 0
+  train_shuffle: true
+  train_drop_last: false
+  validation_shuffle: false
+  validation_drop_last: false
+  max_epochs: 50
+  learning_rate: 0.0001
+  weight_decay: 0.0001
+  adam_betas: [0.9, 0.999]
+  adam_eps: 0.00000001
+  max_grad_norm: 1.0
+  amp: true
+  scheduler:
+    mode: max
+    factor: 0.5
+    patience: 3
+    threshold: 0.0001
+    threshold_mode: abs
+    min_lr: 0.000001
+
+masking:
+  seed_base: 20260805
+  pair_combinations: [audio_text, audio_face, text_face]
+  single_combinations: [audio, text]
+
+selection:
+  primary_metric: subject_roc_auc_mean
+  auc_tie_tolerance: 0.005
+  checkpoint_auc_tolerance: 0.000001
+  early_stopping_min_delta: 0.0001
+  early_stopping_patience: 8
+  target_sensitivity: 0.80
+  threshold_min: 0.0
+  threshold_max: 1.0
+  threshold_step: 0.001
+
+calibration:
+  methods: [platt, temperature, isotonic]
+  temporary_method: platt
+  ece_bins: 10
+  brier_tie_tolerance: 0.002
+  ece_tie_tolerance: 0.005
+  temperature_bounds: [0.05, 10.0]
+  temperature_xatol: 0.00000001
+
+face:
+  alpha_candidates: [0.10, 0.25, 0.50]
+  minimum_positive_auc_folds: 4
+  require_positive_mean_auc_gain: true
+  minimum_pooled_sensitivity: 0.80
+  require_non_decreasing_specificity: true
+
+outputs:
+  report_root: reports/cognitive_change_clue/v3.4.0
+  model_root: models/mental_health/cognitive_change_clue/v3.4.0
+  prediction_schema_version: cognitive_v34_raw_prediction_v1
+  required_split_roles:
+    - inner_validation
+    - inner_calibration
+    - outer_evaluation
+  official_test_enabled: false
+

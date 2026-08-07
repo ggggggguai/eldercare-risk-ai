@@ -41,6 +41,20 @@ from .deployment_optimization import (
     load_deployment_optimization_inputs,
     optimize_deployment_fusion,
 )
+from .calibration_optimization import (
+    AUDIT_VARIANTS,
+    CALIBRATION_METHODS as CALIBRATION_OPTIMIZATION_METHODS,
+    MODEL_VERSION as CALIBRATION_MODEL_VERSION,
+    RUN_ID as CALIBRATION_RUN_ID,
+    SELECTABLE_VARIANTS,
+    TASK_ID as CALIBRATION_TASK_ID,
+    CalibrationCandidateModel,
+    CalibrationConfig,
+    CalibrationOptimizationError,
+    load_calibration_config,
+    load_calibration_inputs,
+    optimize_calibration,
+)
 
 __all__ = [
     "FusionOOFConfig",
@@ -76,4 +90,16 @@ __all__ = [
     "load_deployment_optimization_config",
     "load_deployment_optimization_inputs",
     "optimize_deployment_fusion",
+    "AUDIT_VARIANTS",
+    "CALIBRATION_OPTIMIZATION_METHODS",
+    "CALIBRATION_MODEL_VERSION",
+    "CALIBRATION_RUN_ID",
+    "SELECTABLE_VARIANTS",
+    "CALIBRATION_TASK_ID",
+    "CalibrationCandidateModel",
+    "CalibrationConfig",
+    "CalibrationOptimizationError",
+    "load_calibration_config",
+    "load_calibration_inputs",
+    "optimize_calibration",
 ]

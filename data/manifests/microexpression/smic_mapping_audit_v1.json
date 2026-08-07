@@ -1,0 +1,223 @@
+{
+  "schema_version": "smic_mapping_audit_v1",
+  "task_id": "DATA-ME-002",
+  "status": "pass",
+  "generated_at": "2026-08-06T07:19:49.150453+00:00",
+  "source": {
+    "smic_root": "D:/揭榜挂帅专项赛数据集/数据集/心理/SMIC/SMIC_all_cropped/HS",
+    "smic_csv": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/微表情识别/MHSSA-Tranformer-GCN-main/smic_class2_for_optical_flow.csv",
+    "smic_csv_sha256": "a12569d4225258cc1392aefee36f8c34a7f0016cd2236bef93c28482bcd30f15"
+  },
+  "mapping_rules": {
+    "canonical_subject_id": "sNN",
+    "local_subject_id": "sN without zero padding",
+    "csv_to_local_example": "s01 -> s1",
+    "classification_labels": {
+      "0": "negative",
+      "1": "positive",
+      "2": "surprise"
+    },
+    "non_micro_sample_role": "spotting_negative",
+    "non_micro_enters_three_class_label_space": false,
+    "subject_grouping_key": "source_dataset::subject_id"
+  },
+  "csv": {
+    "row_count": 164,
+    "id_count": 164,
+    "label_counts": {
+      "negative": 70,
+      "positive": 51,
+      "surprise": 43
+    },
+    "subject_counts": {
+      "s01": 6,
+      "s02": 6,
+      "s03": 39,
+      "s04": 19,
+      "s05": 2,
+      "s06": 4,
+      "s08": 13,
+      "s09": 4,
+      "s11": 7,
+      "s12": 9,
+      "s13": 10,
+      "s14": 10,
+      "s15": 4,
+      "s18": 7,
+      "s19": 2,
+      "s20": 22
+    }
+  },
+  "manifest": {
+    "smic_row_count": 328,
+    "classification_count": 164,
+    "spotting_negative_count": 164,
+    "classification_id_count": 164
+  },
+  "directories": {
+    "local_subject_count": 16,
+    "local_subject_dirs": [
+      "s1",
+      "s11",
+      "s12",
+      "s13",
+      "s14",
+      "s15",
+      "s18",
+      "s19",
+      "s2",
+      "s20",
+      "s3",
+      "s4",
+      "s5",
+      "s6",
+      "s8",
+      "s9"
+    ],
+    "micro_sequence_dir_count": 164,
+    "non_micro_dir_count": 164,
+    "non_micro_manifest_count": 164
+  },
+  "subject_summary": {
+    "s01": {
+      "local_subject_id": "s1",
+      "classification_csv_count": 6,
+      "classification_path_available_count": 6,
+      "non_micro_manifest_count": 6,
+      "subject_grouping_key": "smic_hs::s01",
+      "micro_and_non_micro_same_subject": true
+    },
+    "s02": {
+      "local_subject_id": "s2",
+      "classification_csv_count": 6,
+      "classification_path_available_count": 6,
+      "non_micro_manifest_count": 6,
+      "subject_grouping_key": "smic_hs::s02",
+      "micro_and_non_micro_same_subject": true
+    },
+    "s03": {
+      "local_subject_id": "s3",
+      "classification_csv_count": 39,
+      "classification_path_available_count": 39,
+      "non_micro_manifest_count": 39,
+      "subject_grouping_key": "smic_hs::s03",
+      "micro_and_non_micro_same_subject": true
+    },
+    "s04": {
+      "local_subject_id": "s4",
+      "classification_csv_count": 19,
+      "classification_path_available_count": 19,
+      "non_micro_manifest_count": 19,
+      "subject_grouping_key": "smic_hs::s04",
+      "micro_and_non_micro_same_subject": true
+    },
+    "s05": {
+      "local_subject_id": "s5",
+      "classification_csv_count": 2,
+      "classification_path_available_count": 2,
+      "non_micro_manifest_count": 2,
+      "subject_grouping_key": "smic_hs::s05",
+      "micro_and_non_micro_same_subject": true
+    },
+    "s06": {
+      "local_subject_id": "s6",
+      "classification_csv_count": 4,
+      "classification_path_available_count": 4,
+      "non_micro_manifest_count": 4,
+      "subject_grouping_key": "smic_hs::s06",
+      "micro_and_non_micro_same_subject": true
+    },
+    "s08": {
+      "local_subject_id": "s8",
+      "classification_csv_count": 13,
+      "classification_path_available_count": 13,
+      "non_micro_manifest_count": 13,
+      "subject_grouping_key": "smic_hs::s08",
+      "micro_and_non_micro_same_subject": true
+    },
+    "s09": {
+      "local_subject_id": "s9",
+      "classification_csv_count": 4,
+      "classification_path_available_count": 4,
+      "non_micro_manifest_count": 4,
+      "subject_grouping_key": "smic_hs::s09",
+      "micro_and_non_micro_same_subject": true
+    },
+    "s11": {
+      "local_subject_id": "s11",
+      "classification_csv_count": 7,
+      "classification_path_available_count": 7,
+      "non_micro_manifest_count": 7,
+      "subject_grouping_key": "smic_hs::s11",
+      "micro_and_non_micro_same_subject": true
+    },
+    "s12": {
+      "local_subject_id": "s12",
+      "classification_csv_count": 9,
+      "classification_path_available_count": 9,
+      "non_micro_manifest_count": 9,
+      "subject_grouping_key": "smic_hs::s12",
+      "micro_and_non_micro_same_subject": true
+    },
+    "s13": {
+      "local_subject_id": "s13",
+      "classification_csv_count": 10,
+      "classification_path_available_count": 10,
+      "non_micro_manifest_count": 10,
+      "subject_grouping_key": "smic_hs::s13",
+      "micro_and_non_micro_same_subject": true
+    },
+    "s14": {
+      "local_subject_id": "s14",
+      "classification_csv_count": 10,
+      "classification_path_available_count": 10,
+      "non_micro_manifest_count": 10,
+      "subject_grouping_key": "smic_hs::s14",
+      "micro_and_non_micro_same_subject": true
+    },
+    "s15": {
+      "local_subject_id": "s15",
+      "classification_csv_count": 4,
+      "classification_path_available_count": 4,
+      "non_micro_manifest_count": 4,
+      "subject_grouping_key": "smic_hs::s15",
+      "micro_and_non_micro_same_subject": true
+    },
+    "s18": {
+      "local_subject_id": "s18",
+      "classification_csv_count": 7,
+      "classification_path_available_count": 7,
+      "non_micro_manifest_count": 7,
+      "subject_grouping_key": "smic_hs::s18",
+      "micro_and_non_micro_same_subject": true
+    },
+    "s19": {
+      "local_subject_id": "s19",
+      "classification_csv_count": 2,
+      "classification_path_available_count": 2,
+      "non_micro_manifest_count": 2,
+      "subject_grouping_key": "smic_hs::s19",
+      "micro_and_non_micro_same_subject": true
+    },
+    "s20": {
+      "local_subject_id": "s20",
+      "classification_csv_count": 22,
+      "classification_path_available_count": 22,
+      "non_micro_manifest_count": 22,
+      "subject_grouping_key": "smic_hs::s20",
+      "micro_and_non_micro_same_subject": true
+    }
+  },
+  "row_checks": {
+    "mapped_rows": 164,
+    "path_available_rows": 164,
+    "label_directory_match_rows": 164,
+    "manifest_present_rows": 164
+  },
+  "issues": [],
+  "limitations": [
+    "本任务只审计 SMIC 目录、CSV 标签和 manifest 映射，不检查人脸关键点或光流质量。",
+    "non_micro 用于 spotting 工程误报调试，不作为三分类第四类训练标签。",
+    "subject-level split 尚未生成，当前只冻结 source_dataset::subject_id 分组键。"
+  ]
+}

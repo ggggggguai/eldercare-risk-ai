@@ -1,0 +1,42 @@
+{
+  "schema_version": "smic_window_spotter_preprocess_summary_v1",
+  "task_id": "SPOT-ME-002",
+  "source_manifest": "C:\\Users\\Administrator\\Desktop\\揭榜挂帅专项赛\\algorithm\\eldercare-risk-ai-main\\data\\manifests\\microexpression\\sequence_manifest_v1.jsonl",
+  "source_manifest_sha256": "053bb0d199c311eb342103463ced288976f47cd1c6153d636bd7eb7d37848b69",
+  "output_root": "C:\\Users\\Administrator\\Desktop\\揭榜挂帅专项赛\\algorithm\\eldercare-risk-ai-main\\data\\processed\\microexpression\\spotter_v1",
+  "manifest": "C:\\Users\\Administrator\\Desktop\\揭榜挂帅专项赛\\algorithm\\eldercare-risk-ai-main\\data\\manifests\\microexpression\\spotter_v1_manifest.jsonl",
+  "manifest_sha256": "a094131714c6fbdcd102cf1c1e1df37a06f7f2bc7530c06731f850b25bd5746e",
+  "feature_schema": {
+    "schema_version": "smic_window_spotter_features_v1",
+    "task_id": "SPOT-ME-002",
+    "feature_dim": 120,
+    "feature_groups": [
+      "temporal_absolute_frame_difference",
+      "temporal_onset_displacement",
+      "temporal_optical_flow_magnitude",
+      "spatial_absolute_frame_difference",
+      "spatial_onset_displacement",
+      "spatial_optical_flow_magnitude"
+    ],
+    "config": {
+      "image_size": 64,
+      "max_frames": 16,
+      "temporal_bins": 8,
+      "spatial_grid": 4,
+      "flow_winsize": 15,
+      "flow_levels": 3,
+      "flow_iterations": 3,
+      "flow_poly_n": 5,
+      "flow_poly_sigma": 1.2
+    },
+    "config_sha256": "76310b75b0bb0786e2d2f44993fe29066a80980382a111b31e13ea1139a56ef9",
+    "uses_frame_count_as_feature": false
+  },
+  "window_count": 328,
+  "micro_count": 164,
+  "non_micro_count": 164,
+  "subject_count": 16,
+  "failure_count": 0,
+  "uses_frame_count_as_feature": false,
+  "long_video_spotting_claim": false
+}

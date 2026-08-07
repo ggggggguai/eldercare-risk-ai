@@ -10,17 +10,19 @@
 
 跌倒风险与心理健康风险共享上游感知、人员身份和姿态质量数据，但分别评分并分别输出各自的 `AlgorithmEvent`。心理健康管线只产生 `module=mental_health` 的独立事件。
 
-`M-ACT-001` ActivityExpert、`M-SLP-001` SleepExpert、`M-JNT-001` ActivitySleepJointExpert 和 `M-PHY-001` PhysiologyExpert 已训练并登记为 standalone active 工件，但其余专家、融合、ART-001 完整模型包和正式推理接入尚未完成。2026-07-25 的三套数据审计是历史事实记录，不再单独决定当前训练角色；情绪与社交关注新主线以项目级 V3.3.3 冻结文档和实现级接口契约为准。
+五个 standalone 专家、PersonalTrend、严格 OOF 融合、ART-001 完整模型包和 V3 正式推理接入均已完成。当前活动包为 `MH-20260802-013`，对外版本为 `mood-fusion-v3.3.3`。V3.3.4 优化候选 `MH-20260804-021` 未通过冻结晋级门，因此 ART-002/API-003 保持该活动包，不创建虚假 V3.3.4 在线包。2026-07-25 的三套数据审计是历史事实记录，不再单独决定当前训练角色；情绪与社交关注主线以项目级冻结文档、版本化模型包和实现级接口契约为准。
 
 ## V3.3.3 情绪与社交关注接口状态
 
-独立 `mood_social` 新包已经完成 V3.3.3 配置，以及 `mood_social_infer_request_v3`、`mood_social_infer_response_v3`、`mood_social_error_v1` 的严格 Pydantic 模型。CAM-001 已完成严格 V3 摄像头日级活动和场景化原始步态上游；MH-003 已完成统一日级/7 日特征 Schema、确定性映射、`feature_mask`、`day_mask` 和原始步态趋势上下文。这不表示端到端生产接入已经完成。`POST /v1/mental-health/mood-social/infer` 已注册为路由空壳：
+独立 `mood_social` 包已经完成 V3.3.3 配置，以及 `mood_social_infer_request_v3`、`mood_social_infer_response_v3`、`mood_social_error_v1` 的严格 Pydantic 模型。CAM-001 已完成严格 V3 摄像头日级活动和场景化原始步态上游；MH-003 已完成统一日级/7 日特征 Schema、确定性映射、`feature_mask`、`day_mask` 和原始步态趋势上下文。`POST /v1/mental-health/mood-social/infer` 已接入版本化模型包与完整 V3 推理编排：
 
 - 所有请求、响应和错误嵌套对象均拒绝未知字段；
 - V1、V2 和其他请求 schema 返回结构化 422；
 - 新路由的 401、422、500、503 使用独立 `mood_social_error_v1`；
-- 当前只有 standalone ActivityExpert、SleepExpert、ActivitySleepJointExpert 和 PhysiologyExpert，完整生产模型包和 V3 推理编排尚未完成，合法请求返回 `MODEL_ARTIFACT_UNAVAILABLE` 503；
-- 不调用旧 `MentalHealthRiskPipeline`、规则评分卡或 `/daily-risk`，也不伪造 HTTP 200 模型结果；
+- 有有效证据且模型包通过 manifest、`SHA256SUMS` 和 payload hash 校验时，使用 ART-001 `MH-20260802-013` 完成五专家、PersonalTrend、融合和非诊断输出；
+- 没有有效证据时返回 HTTP 200、`available=false`，不调用旧 `MentalHealthRiskPipeline`、规则评分卡或 `/daily-risk`；
+- 模型包缺失、损坏或 hash 不一致时返回结构化 `MODEL_ARTIFACT_UNAVAILABLE` 503；
+- API-003 读取 ART-002 的不晋级决定并继续解析到 ART-001，对外模型版本保持 `mood-fusion-v3.3.3`；
 - 旧 `/v1/mental-health/daily-risk` 及本文件后续所述评分卡/CLI 仍是 legacy 兼容能力，不是 V3.3.3 新生产结果。
 
 V3.3.3 默认配置仍位于项目根目录 `configs/modules/mood_social_v3_3_3.yaml`。源码运行和普通安装运行都会从当前工作目录及其父目录发现该外部配置；部署需要显式指定根目录时使用 `ELDERLY_MONITORING_PROJECT_ROOT`，只覆盖配置文件时使用 `MOOD_SOCIAL_CONFIG_PATH`。模型相对目录始终按项目根目录解析。

@@ -87,8 +87,23 @@ def decode_audio_path(path: str | Path, settings: ASRSettings) -> DecodedAudio:
     )
 
 
-def decode_audio_bytes(payload: bytes, settings: ASRSettings) -> DecodedAudio:
-    return _decode_payload(payload, settings)
+def decode_audio_bytes(
+    payload: bytes,
+    settings: ASRSettings,
+    *,
+    declared_format: str | None = None,
+    declared_sample_rate: int | None = None,
+    declared_channels: int | None = None,
+) -> DecodedAudio:
+    """Decode in-memory media while preserving optional boundary declarations."""
+
+    return _decode_payload(
+        payload,
+        settings,
+        declared_format=declared_format,
+        declared_sample_rate=declared_sample_rate,
+        declared_channels=declared_channels,
+    )
 
 
 def _download(source: str, settings: ASRSettings) -> bytes:

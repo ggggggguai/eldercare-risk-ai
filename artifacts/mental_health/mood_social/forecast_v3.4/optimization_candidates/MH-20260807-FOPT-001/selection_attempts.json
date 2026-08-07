@@ -1,0 +1,28 @@
+{
+  "attempts": [
+    {
+      "attempt_id": 1,
+      "completed_outer_folds": 0,
+      "ended_at": "2026-08-07T03:57:54.1225495Z",
+      "planned_fix": "Use the already explicit masks once and cache full-history auxiliary OOF predictions across all 36 candidates.",
+      "reason": "The first fold exceeded 15 minutes because explicit history missing masks were duplicated by the baseline preprocessor and auxiliary predictions were recomputed per feature group.",
+      "scope_change": "none",
+      "stage": "FORECAST-OPT-001C",
+      "status": "terminated_for_efficiency_fix"
+    },
+    {
+      "detail": "HistoryPreprocessor reuses explicit masks; auxiliary OOF uses the full 432-feature history cache shared by all candidates.",
+      "event_index": 2,
+      "status": "started",
+      "timestamp": "2026-08-07T04:00:51.487912+00:00"
+    },
+    {
+      "detail": "Terminated after the corrected first fold still exceeded 16 minutes in serial execution. The earlier PID 17576 survived its tool-session termination and wrote an obsolete fold-0 result before being explicitly stopped; FOPT-001 is retained as a failed performance run and will not be resumed or promoted.",
+      "event_index": 3,
+      "status": "terminated_for_parallel_execution_fix",
+      "timestamp": "2026-08-07T04:17:44Z"
+    }
+  ],
+  "run_id": "MH-20260807-FOPT-001",
+  "schema_version": "mood-social-forecast-v3.4-opt-selection-attempts-v1"
+}

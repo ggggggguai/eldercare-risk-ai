@@ -1,0 +1,13 @@
+{
+  "schema_version": "microexpression_flow_artifact_audit_v1",
+  "task_id": "FLOW-ME-001",
+  "status": "pass",
+  "artifact_count": 164,
+  "total_bytes": 3488334,
+  "flow_value_range": [
+    -0.933769702911377,
+    0.9528504610061646
+  ],
+  "issue_count": 0,
+  "issues": []
+}

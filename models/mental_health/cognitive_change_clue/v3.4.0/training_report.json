@@ -1,0 +1,43 @@
+{
+  "calibration_sha256": "3636ce4267836f7008cc66b35367be65baf138a41d6b4273a39bc0d06c8416a1",
+  "calibration_subjects": 92,
+  "calibration_tasks": 276,
+  "candidate_id": "V34-A2",
+  "checkpoint_sha256": "afa9efc375c4cc29403422b4f1135c332fde25ebfe563ac1c4f29777161e2d4a",
+  "duration_seconds": 134.1489101999905,
+  "five_fold_best_epochs": [
+    7,
+    4,
+    11,
+    23,
+    3
+  ],
+  "fixed_epoch_source": "algorithm/eldercare-risk-ai-main/reports/cognitive_change_clue/v3.4.0/runs/COG-20260806-001/V34-A2_cv_summary.json",
+  "fixed_epochs": 7,
+  "input_hashes": {
+    "a2_cv_summary": "a3f2f48dea577dd05ba3ed3097d13c2870415311731109f441f2cdc8659e3f29",
+    "audio_index": "f6e0ddf7867e22c021d39d8889e71075eb9d265cf2c3990ffb51196e980c6269",
+    "calibration_decision": "f5ddb69a3d6bb28f8fa2c9292ef6cfddb160140ba988d1fadf5c1fd58fc09561",
+    "candidate_config": "b5d6b6bfa67cb0d66a9c15d98bf4d64caaf27322d020edb8908bb88dfc7ea584",
+    "face_index": "6e3bdd841645097e9c92bcba602d4a859ea3fb4162b34bd8699be4fc8785e741",
+    "feature_cache_manifest": "986de6445f73dbcbf1c54f9091de3b4ca78ce792f91b9432b7006959ec836262",
+    "feature_selection": "e328a13acac277372b591fc5d85293ecb80b3117bfac17d433f61e521e681935",
+    "fixed_split": "05ee63247c721c10e355408c98218df86fae74a19be7eb735e8510d7d7b48e86",
+    "manifest": "ce0c4d0c59111b14f3304db2772b314cf1cc2be032872fd72a08a028c92f743d",
+    "split": "05ee63247c721c10e355408c98218df86fae74a19be7eb735e8510d7d7b48e86",
+    "text_index": "8d98bb590c7f6d8e0c98bad6082a1130eea0473371db2e08f288343c1a63eb33",
+    "v34_config": "7b331b9879f05fe544f51b20d2a7cd90af74fd5f6a1e2c05d17046e70fc7aa77"
+  },
+  "limitations": [
+    "The fixed 92-subject split is a final package implementation record, not a new independent Test.",
+    "No official Test media or predictions were read or generated."
+  ],
+  "model_version": "cognitive-mm-v3.4.0",
+  "official_test_evaluated": false,
+  "run_id": "COG-20260806-012",
+  "schema_version": "cognitive_v34_final_training_report_v1",
+  "status": "passed",
+  "task_id": "PKG-COG-V34",
+  "train_subjects": 367,
+  "train_tasks": 1101
+}

@@ -503,6 +503,65 @@ class MoodSocialRequestSchemaTest(unittest.TestCase):
             {error["type"] for error in context.exception.errors()},
         )
 
+    def test_date_collection_and_attention_history_edges(self) -> None:
+        payload = _minimal_request_payload()
+        target = str(payload["target_date"])
+
+        mismatched_current = copy.deepcopy(payload)
+        mismatched_current["current_daily_features"]["date"] = _date_before(
+            target,
+            1,
+        )
+        with self.assertRaises(ValidationError):
+            MoodSocialInferRequest.model_validate(mismatched_current)
+
+        too_many = copy.deepcopy(payload)
+        too_many["history_daily_features"] = [
+            {
+                "date": _date_before(target, days_before),
+                "activity": _zero_coverage_activity(),
+                "sleep": None,
+                "physiology": None,
+                "social": None,
+            }
+            for days_before in range(29, 0, -1)
+        ]
+        with self.assertRaises(ValidationError):
+            MoodSocialInferRequest.model_validate(too_many)
+
+        ordered = copy.deepcopy(payload)
+        ordered["history_daily_features"] = [
+            {
+                "date": _date_before(target, days_before),
+                "activity": _zero_coverage_activity(),
+                "sleep": None,
+                "physiology": None,
+                "social": None,
+            }
+            for days_before in (2, 1)
+        ]
+        reversed_history = copy.deepcopy(ordered)
+        reversed_history["history_daily_features"].reverse()
+        with self.assertRaises(ValidationError):
+            MoodSocialInferRequest.model_validate(reversed_history)
+
+        duplicate_history = copy.deepcopy(ordered)
+        duplicate_history["history_daily_features"][1]["date"] = (
+            duplicate_history["history_daily_features"][0]["date"]
+        )
+        with self.assertRaises(ValidationError):
+            MoodSocialInferRequest.model_validate(duplicate_history)
+
+        missing_model_version = copy.deepcopy(payload)
+        missing_model_version["history_attention_indices"] = [
+            {
+                "date": _date_before(target, 1),
+                "attention_index": 0.2,
+            }
+        ]
+        with self.assertRaises(ValidationError):
+            MoodSocialInferRequest.model_validate(missing_model_version)
+
 
 class MoodSocialResponseSchemaTest(unittest.TestCase):
     def test_validates_frozen_unavailable_shape(self) -> None:
@@ -664,6 +723,54 @@ class MoodSocialResponseSchemaTest(unittest.TestCase):
         invalid["detail"]["extra"] = True
         with self.assertRaises(ValidationError):
             MoodSocialErrorResponse.model_validate(invalid)
+
+    def test_attribution_rejects_change_without_evidence_and_prohibited_output(
+        self,
+    ) -> None:
+        missing_change_branch = _available_response_payload()
+        missing_change_branch["model_contributions"] = [
+            {
+                "factor": "personal_activity_deviation",
+                "label": "活动状态偏离个人历史",
+                "direction": "up",
+                "contribution": 0.2,
+            }
+        ]
+        missing_change_branch["summary"] = (
+            "活动状态偏离个人历史，建议家属主动沟通并继续观察。"
+        )
+        with self.assertRaises(ValidationError):
+            MoodSocialInferResponse.model_validate(missing_change_branch)
+
+        four_contributions = _available_response_payload()
+        four_contributions["model_contributions"] = [
+            {
+                "factor": factor,
+                "label": label,
+                "direction": "up",
+                "contribution": contribution,
+            }
+            for factor, label, contribution in (
+                ("observed_daytime_activity_low", "有效观测时段内白天活动偏低", 0.4),
+                ("observed_low_activity_time_high", "有效观测时段内低活动时间偏高", 0.3),
+                ("activity_rhythm_irregular", "日间活动节律不规则", 0.2),
+                ("bias", "偏置", 0.1),
+            )
+        ]
+        with self.assertRaises(ValidationError):
+            MoodSocialInferResponse.model_validate(four_contributions)
+
+        prohibited_factor = _available_response_payload()
+        prohibited_factor["model_contributions"] = [
+            {
+                "factor": "mask",
+                "label": "掩码",
+                "direction": "up",
+                "contribution": 0.2,
+            }
+        ]
+        with self.assertRaises(ValidationError):
+            MoodSocialInferResponse.model_validate(prohibited_factor)
 
 
 class MoodSocialRouteTest(unittest.TestCase):

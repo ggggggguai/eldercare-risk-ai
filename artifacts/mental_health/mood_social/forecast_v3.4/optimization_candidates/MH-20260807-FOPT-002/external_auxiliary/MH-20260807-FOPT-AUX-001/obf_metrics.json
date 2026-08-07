@@ -1,0 +1,83 @@
+{
+  "leave_collection_start_year_out": {
+    "audits": [
+      {
+        "held_out_year": 2002,
+        "selected_alpha": 100.0,
+        "test_rows": 5,
+        "train_rows": 18
+      },
+      {
+        "held_out_year": 2003,
+        "selected_alpha": 100.0,
+        "test_rows": 6,
+        "train_rows": 17
+      },
+      {
+        "held_out_year": 2004,
+        "selected_alpha": 100.0,
+        "test_rows": 5,
+        "train_rows": 18
+      },
+      {
+        "held_out_year": 2005,
+        "selected_alpha": 100.0,
+        "test_rows": 7,
+        "train_rows": 16
+      }
+    ],
+    "mae_delta_vs_null": 0.18359097326180018,
+    "metrics": {
+      "mae": 3.248808364566148,
+      "prediction_mean": -2.6309200149002234,
+      "rmse": 4.172651414615015,
+      "spearman": -0.6204762286795223,
+      "target_mean": -2.739130434782609
+    },
+    "null_metrics": {
+      "mae": 3.0652173913043477,
+      "prediction_mean": -2.7597328786587094,
+      "rmse": 3.930307883249289,
+      "spearman": -0.1654049598240483,
+      "target_mean": -2.739130434782609
+    },
+    "years": [
+      2002,
+      2003,
+      2004,
+      2005
+    ]
+  },
+  "nested_loocv": {
+    "features": [
+      "activity_mean",
+      "activity_sd",
+      "activity_zero_fraction",
+      "activity_median",
+      "activity_q25",
+      "activity_q75",
+      "relative_amplitude",
+      "interdaily_stability",
+      "intradaily_variability",
+      "daily_total_mean",
+      "daily_total_cv"
+    ],
+    "mae_delta_vs_null": 0.5404502307959342,
+    "metrics": {
+      "mae": 3.734126120123997,
+      "prediction_mean": -2.5635995895673753,
+      "rmse": 5.106745924247552,
+      "spearman": -0.9279820617881087,
+      "target_mean": -2.739130434782609
+    },
+    "null_metrics": {
+      "mae": 3.1936758893280626,
+      "prediction_mean": -2.739130434782609,
+      "rmse": 4.057438837167528,
+      "spearman": -1.0,
+      "target_mean": -2.739130434782609
+    },
+    "row_count": 23,
+    "target": "madrs_change"
+  }
+}

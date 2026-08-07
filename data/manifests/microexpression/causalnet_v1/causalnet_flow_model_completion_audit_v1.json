@@ -1,0 +1,90 @@
+{
+  "artifacts": {
+    "artifact_count": 164,
+    "current_config_fingerprint": "291e4e994090d79479a0e7030b8b1c3a8b04dcb82f28559084be5d54a8ea650e",
+    "current_preprocess_code_hash": "4632c64d731b891167c84e0b6e2955854b0339132f47471b2ffb8f3485ee0b0a",
+    "current_source_manifest_hash": "96d4247b8c1daa3a5d0fc16fa62456577cdf2f4a697f69716f5f09b6123cbcaf",
+    "expected_count": 164,
+    "history_guard": {
+      "after": {
+        "flow_v1": {
+          "file_count": 167,
+          "path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/data/processed/microexpression/flow_v1",
+          "sha256": "32e3ff1920ca283750a740b0ecc1de5bdf832d887a3a54c5d277a6a95718becd"
+        },
+        "paper_v2_combined": {
+          "file_count": 173,
+          "path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/data/processed/microexpression/paper_v2/combined",
+          "sha256": "0456f875ef765f71e06bc65e5cf71cc36cd47e41867f8f9c3ddcd1606b74494a"
+        }
+      },
+      "before": {
+        "flow_v1": {
+          "file_count": 167,
+          "path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/data/processed/microexpression/flow_v1",
+          "sha256": "32e3ff1920ca283750a740b0ecc1de5bdf832d887a3a54c5d277a6a95718becd"
+        },
+        "paper_v2_combined": {
+          "file_count": 173,
+          "path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/data/processed/microexpression/paper_v2/combined",
+          "sha256": "0456f875ef765f71e06bc65e5cf71cc36cd47e41867f8f9c3ddcd1606b74494a"
+        }
+      },
+      "status": "pass"
+    },
+    "manifest_sha256": "111a137b1cebad78b8f61009017b4cf41e6fc89f0b36f48b9f638732490a7040",
+    "nonblank_visualization_count": 6,
+    "readable_visualization_count": 6,
+    "visualization_count": 6
+  },
+  "final_metrics_claim": false,
+  "issue_count": 0,
+  "issues": [],
+  "model": {
+    "checkpoint_metadata_expected": {
+      "architecture_correction": "preserve_real_2x2_before_cross_attention",
+      "code_hash": "7813f2f4cf398e0a40dd227793ffcfbedf32f2eb0594a40621cc77dffd2f3457",
+      "model_schema_version": "causalnet_project_adaptation_v1",
+      "paper_reproduction_claim": false,
+      "preprocessing_config_hash": "469772ae575312438cbb20178ac3e226d188b97d2aec5ed1a9a458d11ae2eb3c",
+      "source_manifest_hash": "111a137b1cebad78b8f61009017b4cf41e6fc89f0b36f48b9f638732490a7040",
+      "upstream_bit_exact": false,
+      "upstream_commit": "7bdf163face030eeae4358fc7638cf538305acce",
+      "upstream_license": "MIT",
+      "upstream_repository": "https://github.com/tony19980810/CausalNet"
+    },
+    "checkpoint_path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/reports/microexpression/causalnet_v1/MODEL-ME-008-CausalNet-GPU-SMOKE/causalnet_model_me_008_smoke.pt",
+    "checkpoint_sha256": "c02be7223b93bab0ae3b618b3bacb58f407f29889cbef93a36a0241cb68230af",
+    "gpu": {
+      "cuda_name": "NVIDIA GeForce RTX 4060 Laptop GPU",
+      "cuda_peak_allocated_bytes": 379060224,
+      "cuda_peak_reserved_bytes": 402653184,
+      "cuda_total_memory_bytes": 8585216000,
+      "device": "cuda",
+      "gradient_max": 7.575284957885742,
+      "input_shape": [
+        1,
+        4,
+        3,
+        28,
+        28
+      ],
+      "logits_shape": [
+        1,
+        3
+      ],
+      "loss": 2.0218873023986816,
+      "sample_id": "smic_hs__s01__s1_ne_01",
+      "status": "pass"
+    },
+    "smoke_report_sha256": "7342ed9e0e205d77adc33bf891410c6da5f4e2826d9634e38519b5fa81f368fc"
+  },
+  "schema_version": "causalnet_flow_model_completion_audit_v1",
+  "status": "pass",
+  "system_integration_started": false,
+  "tasks": [
+    "FLOW-ME-004",
+    "MODEL-ME-008"
+  ],
+  "training_started": false
+}

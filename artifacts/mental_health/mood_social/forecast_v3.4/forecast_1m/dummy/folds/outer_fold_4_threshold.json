@@ -1,0 +1,45 @@
+{
+  "candidate_count": 7,
+  "candidates": [
+    {
+      "macro_f1": 0.24801069587906893,
+      "sensitivity": 1.0,
+      "threshold": 0.0
+    },
+    {
+      "macro_f1": 0.24801069587906893,
+      "sensitivity": 1.0,
+      "threshold": 0.3272785898538263
+    },
+    {
+      "macro_f1": 0.38323851784775637,
+      "sensitivity": 0.7942787583688373,
+      "threshold": 0.3286001147446931
+    },
+    {
+      "macro_f1": 0.457275584311069,
+      "sensitivity": 0.5910790366055124,
+      "threshold": 0.33000143307537977
+    },
+    {
+      "macro_f1": 0.49119485942311303,
+      "sensitivity": 0.3919659160073036,
+      "threshold": 0.3311130210571551
+    },
+    {
+      "macro_f1": 0.48484191992411535,
+      "sensitivity": 0.1958960090426919,
+      "threshold": 0.3320407870170903
+    },
+    {
+      "macro_f1": 0.4012671050598327,
+      "sensitivity": 0.0,
+      "threshold": 1.0
+    }
+  ],
+  "metric": "participant_equal_macro_f1",
+  "operator": "greater_than_or_equal",
+  "selected_macro_f1": 0.49119485942311303,
+  "selected_sensitivity": 0.3919659160073036,
+  "selected_threshold": 0.3311130210571551
+}

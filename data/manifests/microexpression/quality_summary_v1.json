@@ -1,0 +1,99 @@
+{
+  "manifest_schema_version": "microexpression_sequence_manifest_v1",
+  "task_id": "DATA-ME-001",
+  "generated_at": "2026-08-06T06:32:16.914088+00:00",
+  "paper_reproduction_claim": false,
+  "source": {
+    "casme_root": "D:/揭榜挂帅专项赛数据集/数据集/心理/CASME2/Cropped",
+    "smic_root": "D:/揭榜挂帅专项赛数据集/数据集/心理/SMIC/SMIC_all_cropped/HS",
+    "casme_csv": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/微表情识别/MHSSA-Tranformer-GCN-main/casme_class2_for_optical_flow.csv",
+    "casme_csv_sha256": "6fad79ad063e61117ff03858012037e929ecb444c7d52ec22ae7179868696ec3",
+    "smic_csv": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/微表情识别/MHSSA-Tranformer-GCN-main/smic_class2_for_optical_flow.csv",
+    "smic_csv_sha256": "a12569d4225258cc1392aefee36f8c34a7f0016cd2236bef93c28482bcd30f15"
+  },
+  "raw_inventory": {
+    "casme2": {
+      "subject_dirs": 30,
+      "sequence_dirs": 259,
+      "image_files": 11423
+    },
+    "smic_hs": {
+      "subject_dirs": 16,
+      "micro_sequence_dirs": 164,
+      "non_micro_sequence_dirs": 164,
+      "image_files": 10630
+    }
+  },
+  "manifest": {
+    "path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/data/manifests/microexpression/sequence_manifest_v1.jsonl",
+    "sha256": "053bb0d199c311eb342103463ced288976f47cd1c6153d636bd7eb7d37848b69",
+    "row_count": 473,
+    "subject_count_by_dataset": {
+      "casme2": 24,
+      "smic_hs": 16
+    },
+    "rows_by_dataset_and_role": {
+      "casme2": {
+        "classification": 145
+      },
+      "smic_hs": {
+        "classification": 164,
+        "spotting_negative": 164
+      }
+    },
+    "classification_labels_by_dataset": {
+      "casme2": {
+        "0": {
+          "negative": 88
+        },
+        "1": {
+          "positive": 32
+        },
+        "2": {
+          "surprise": 25
+        }
+      },
+      "smic_hs": {
+        "0": {
+          "negative": 70
+        },
+        "1": {
+          "positive": 51
+        },
+        "2": {
+          "surprise": 43
+        }
+      }
+    },
+    "path_status": {
+      "available": 473
+    },
+    "quality_status": {
+      "pending": 473
+    },
+    "frame_annotation_source": {
+      "missing": 473
+    },
+    "frame_count": {
+      "total": 17040,
+      "min": 11,
+      "max": 61,
+      "by_extension": {
+        ".bmp": 10630,
+        ".jpg": 6410
+      }
+    },
+    "excluded_count": 0,
+    "excluded_sample_ids": []
+  },
+  "path_mapping": {
+    "path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/data/manifests/microexpression/path_mapping_v1.csv",
+    "sha256": "5bdb732c719a6524e71dfde96a31995e5fee7ce6312c27d6c349adbd2e01c8f3",
+    "row_count": 473
+  },
+  "validation": {
+    "sample_ids_unique": true,
+    "all_frame_dirs_available": true,
+    "non_micro_outside_class_label_space": true
+  }
+}

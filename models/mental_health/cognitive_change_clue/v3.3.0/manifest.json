@@ -1,0 +1,104 @@
+{
+  "artifacts": {
+    "asr_reference": {
+      "path": "asr_package_ref.json",
+      "sha256": "711362750461f01166bcfc63180d70f10596ab9bc35f1e4040dfe5072dab5b76"
+    },
+    "calibration": {
+      "path": "calibration.json",
+      "sha256": "f7a673e0063e53304b66d9337870a27ba32514f357acd4f3aead84f70e072914"
+    },
+    "config": {
+      "path": "config_snapshot.yaml",
+      "sha256": "0e52f4f7c2d35c21dc7c5fdb3c5b37475b22388beac095268c8a2a53d024fe91"
+    },
+    "detector": {
+      "path": "detectors/mediapipe_face_detection_short_range.tflite",
+      "sha256": "bbff11cebd1eb27a1e004cae0b0e63ec8c551cbf34a4451148b4908b8db3eca8"
+    },
+    "feature_stats": {
+      "path": "feature_stats.json",
+      "sha256": "48d82738a6b1059ac3359b12edf397939a09632c14585523c6393841690b16d2"
+    },
+    "fusion": {
+      "path": "fusion.pt",
+      "sha256": "b7077898ebb56218dd2a1b0a975efa7b9ca3422e1711ab62223598c5c06b73f8"
+    },
+    "lockfile": {
+      "path": "requirements-cognitive-v3.3.lock",
+      "sha256": "2d11f260869ae09ae92c78bc68f5ba4b018138e395e9c927f70fa8cea72d01e0"
+    },
+    "split": {
+      "path": "cogpic_subject_split_v33.json",
+      "sha256": "05ee63247c721c10e355408c98218df86fae74a19be7eb735e8510d7d7b48e86"
+    }
+  },
+  "asr": {
+    "name": "funasr-paraformer-zh",
+    "package": "algorithm/eldercare-risk-ai-main/models/asr/asr-paraformer-zh-v1.0",
+    "package_sha256": "5f3d9fc1bd67db333e60d993cec281744a5f0bfc3798c2e3dc70d925f8705b37",
+    "schema_version": "asr_transcript_v1",
+    "version": "asr-paraformer-zh-v1.0"
+  },
+  "detectors": {
+    "face_detection": "detectors/mediapipe_face_detection_short_range.tflite",
+    "face_detection_sha256": "bbff11cebd1eb27a1e004cae0b0e63ec8c551cbf34a4451148b4908b8db3eca8",
+    "min_detection_confidence": 0.6
+  },
+  "encoders": {
+    "audio": {
+      "artifact": "encoders/wavlm_base_plus.pth",
+      "name": "WAVLM_BASE_PLUS",
+      "pooling": "last_layer_valid_frame_mean_window_duration_mean",
+      "sample_rate": 16000,
+      "sha256": "136a3e720c04f2c77bf7a4dc6a3868b14d5a2c145a988114b733cb1a8428be98"
+    },
+    "face": {
+      "artifact": "encoders/resnet18_imagenet1k_v1.pth",
+      "name": "resnet18",
+      "pooling": "valid_face_mean",
+      "sha256": "f37072fd47e89c5e827621c5baffa7500819f7896bbacec160b1a16c560e07ec",
+      "weights": "IMAGENET1K_V1"
+    },
+    "text": {
+      "artifact": "encoders/roberta",
+      "hf_revision": "5c58d0b8ec1d9014354d691c538661bf00bfdb44",
+      "max_length": 256,
+      "name": "hfl/chinese-roberta-wwm-ext",
+      "num_token_mode": "literal_text_no_new_token",
+      "pooling": "cls",
+      "sha256": "6e27791d13c5ce59c07c46d5006ca160a17d98ab592edc9e785954344114b977"
+    }
+  },
+  "feature_version": "cognitive_features_v3.3.0",
+  "lockfile_sha256": "2d11f260869ae09ae92c78bc68f5ba4b018138e395e9c927f70fa8cea72d01e0",
+  "model_structure": {
+    "dropout": 0.2,
+    "fusion_hidden_dims": [
+      128,
+      64
+    ],
+    "projection_dim": 256
+  },
+  "model_version": "cognitive-mm-v3.3.0",
+  "network_access": "forbidden",
+  "schema_version": "cognitive_model_manifest_v1",
+  "source_checkpoint": "algorithm/eldercare-risk-ai-main/reports/cognitive_change_clue/v3.3.0/runs/COG-20260804-002/best_checkpoint.pt",
+  "source_checkpoint_sha256": "b7077898ebb56218dd2a1b0a975efa7b9ca3422e1711ab62223598c5c06b73f8",
+  "supported_api_modalities": [
+    "audio+text+face",
+    "audio+text",
+    "audio+face",
+    "audio"
+  ],
+  "text_quality_version": "cognitive_text_quality_v3.3.1",
+  "training": {
+    "dataset": "CogPic",
+    "seed": 20260802,
+    "split_file": "cogpic_subject_split_v33.json",
+    "split_sha256": "05ee63247c721c10e355408c98218df86fae74a19be7eb735e8510d7d7b48e86",
+    "test_subjects": 115,
+    "train_subjects": 367,
+    "validation_subjects": 92
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "bootstrap_performed": false,
+  "config_sha256": "456b677aebb283d127816044b6d8a877db024922b98fa96364dd906f3858111c",
+  "created_at": "2026-08-07T06:12:29.541185+00:00",
+  "decision_authority": "shadow_only",
+  "execution_mode": "offline_only",
+  "failed_fold_count": 0,
+  "fusion_module_sha256": "1e35831d7c0d6cc3ecc1a9d9cedbae9679435761e871a1eb8b0c9ee04edfeccf",
+  "outer_test_used_for_selection": false,
+  "product_integration_performed": false,
+  "product_visible": false,
+  "promotion_decision_performed": false,
+  "release_status": "experimental",
+  "run_id": "MH-20260807-FOPT-002",
+  "schema_version": "mood-social-forecast-v3.4-opt-fusion-manifest-v1",
+  "selection_manifest_sha256": "b1c7ff8c3c855ae3ae84bbb21e2dca44b460a0a933a0d7a0948b08b0384c65ac",
+  "status": "fusion_completed",
+  "strict_outer_oof_generated": true,
+  "task_id": "FORECAST-OPT-001D",
+  "task_row_counts": {
+    "forecast_1m": 9393,
+    "forecast_2m": 9280
+  },
+  "training_code_sha256": "fd6f9b207986bcd1f4a2c8b6c19366d73424e32cff5452970bb43da3e8ef9f9e"
+}

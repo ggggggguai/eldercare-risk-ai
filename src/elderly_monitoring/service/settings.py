@@ -8,6 +8,9 @@ from typing import Any, Mapping
 import yaml
 
 
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+
+
 @dataclass(frozen=True)
 class ServiceSettings:
     model_path: Path = Path("yolov8n-pose.pt")
@@ -40,6 +43,14 @@ class ServiceSettings:
     ezviz_llm_base_url: str = "https://openai.ezviz.com/v1"
     ezviz_llm_model: str = "qwen3.6-plus"
     ezviz_llm_timeout_sec: float = 30.0
+    cognitive_model_package_path: Path = (
+        PROJECT_ROOT / "models" / "mental_health" / "cognitive_change_clue" / "v3.3.0"
+    )
+    cognitive_model_package_v34_path: Path = (
+        PROJECT_ROOT / "models" / "mental_health" / "cognitive_change_clue" / "v3.4.0"
+    )
+    cognitive_asr_url: str = "http://127.0.0.1:8011/v1/asr/transcribe"
+    cognitive_inference_device: str = "cpu"
 
     def __post_init__(self) -> None:
         if not isinstance(self.model_path, Path):
@@ -48,6 +59,18 @@ class ServiceSettings:
             object.__setattr__(self, "baseline_history_path", Path(self.baseline_history_path))
         if self.gait_model_path is not None and not isinstance(self.gait_model_path, Path):
             object.__setattr__(self, "gait_model_path", Path(self.gait_model_path))
+        if not isinstance(self.cognitive_model_package_path, Path):
+            object.__setattr__(
+                self,
+                "cognitive_model_package_path",
+                Path(self.cognitive_model_package_path),
+            )
+        if not isinstance(self.cognitive_model_package_v34_path, Path):
+            object.__setattr__(
+                self,
+                "cognitive_model_package_v34_path",
+                Path(self.cognitive_model_package_v34_path),
+            )
         if self.gait_model_window_frames < 2:
             raise ValueError("gait_model_window_frames must be at least 2")
         if self.frame_queue_capacity < 1:
@@ -58,6 +81,8 @@ class ServiceSettings:
             raise ValueError("outbox_drain_timeout_sec must be non-negative")
         if self.session_stop_timeout_sec <= 0:
             raise ValueError("session_stop_timeout_sec must be positive")
+        if self.cognitive_inference_device not in {"auto", "cpu", "cuda:0"}:
+            raise ValueError("cognitive_inference_device must be auto, cpu, or cuda:0")
 
     @classmethod
     def load(cls, path: Path | None = None, environ: Mapping[str, str] | None = None) -> "ServiceSettings":
@@ -95,6 +120,10 @@ class ServiceSettings:
             "EZVIZ_LLM_BASE_URL": ("ezviz_llm_base_url", str),
             "EZVIZ_LLM_MODEL": ("ezviz_llm_model", str),
             "EZVIZ_LLM_TIMEOUT_SECONDS": ("ezviz_llm_timeout_sec", float),
+            "COGNITIVE_MODEL_PACKAGE_PATH": ("cognitive_model_package_path", Path),
+            "COGNITIVE_MODEL_PACKAGE_V34_PATH": ("cognitive_model_package_v34_path", Path),
+            "COGNITIVE_ASR_URL": ("cognitive_asr_url", str),
+            "COGNITIVE_INFERENCE_DEVICE": ("cognitive_inference_device", str),
         }
         for env_name, (field_name, converter) in overrides.items():
             if env_name in env:
@@ -105,6 +134,14 @@ class ServiceSettings:
             raw["baseline_history_path"] = Path(raw["baseline_history_path"])
         if raw.get("gait_model_path"):
             raw["gait_model_path"] = Path(raw["gait_model_path"])
+        if raw.get("cognitive_model_package_path"):
+            raw["cognitive_model_package_path"] = Path(
+                raw["cognitive_model_package_path"]
+            )
+        if raw.get("cognitive_model_package_v34_path"):
+            raw["cognitive_model_package_v34_path"] = Path(
+                raw["cognitive_model_package_v34_path"]
+            )
         if "callback_retry_delays_sec" in raw:
             raw["callback_retry_delays_sec"] = tuple(float(value) for value in raw["callback_retry_delays_sec"])
         return cls(**raw)

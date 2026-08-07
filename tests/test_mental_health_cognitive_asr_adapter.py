@@ -28,7 +28,8 @@ def test_adapter_exposes_text_and_quality_mask_without_task_fields() -> None:
     assert "<NUM>" in result.normalized_text
     assert result.char_count >= 80
     assert result.mean_confidence == 0.0
-    assert result.quality_weight == 0.7
+    assert result.confidence_available is False
+    assert result.quality_weight == 1.0
     assert "task_id" not in payload
     assert "prompt" not in payload
 
@@ -44,10 +45,11 @@ def test_adapter_applies_v3_3_normalization_and_short_text_gate() -> None:
     transcript = _transcript("completed", "ＡＢＣ  123@@，测试。", 0.8)
     result = build_cognitive_text_input(transcript)
     assert result.text is None
-    assert result.normalized_text == "ABC <NUM>，测试。"
+    assert result.normalized_text == "ABC <NUM>测试。"
     assert result.char_count == 6
-    assert result.quality_weight == 0.0525
+    assert result.quality_weight == 0.075
     assert result.text_available is False
+    assert result.confidence_available is False
 
 
 def test_adapter_uses_finite_segment_confidence_in_v3_3_q_text() -> None:
@@ -65,4 +67,5 @@ def test_adapter_uses_finite_segment_confidence_in_v3_3_q_text() -> None:
     assert result.char_count == 40
     assert result.mean_confidence == 0.8
     assert result.quality_weight == 0.59
+    assert result.confidence_available is True
     assert result.text_available is True

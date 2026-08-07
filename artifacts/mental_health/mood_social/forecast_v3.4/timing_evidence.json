@@ -1,0 +1,24 @@
+{
+  "allowed_claim": "名义提前约 1 个月或约 2 个月的公开数据条件实验",
+  "evidence_excerpt": [
+    "公开矩阵没有真实日期，month只表示名义研究月份。",
+    "官方构造确认标签月 wearable 数据来自 end PHQ-9 前 8–14 天。",
+    "名义月份偏移实验只使用 m-1 或 m-2 月行，不称固定 30/60 天预测。"
+  ],
+  "experiment_version": "mood-social-forecast-v3.4",
+  "local_evidence_file": "数据集/心理/PSYCHE-D/数据集说明.md",
+  "natural_dates_available": false,
+  "official_source": {
+    "doi": "10.5281/zenodo.5085146",
+    "license_boundary": "CC BY-NC 4.0; non-commercial competition use with attribution",
+    "name": "PSYCHE-D: Prediction of Severity Change-Depression",
+    "zenodo_version": "0.1"
+  },
+  "prohibited_claims": [
+    "固定30/60天预测",
+    "逐行真实日期已验证",
+    "目标老人域已验证"
+  ],
+  "schema_version": "mood-social-forecast-v3.4-timing-evidence-v1",
+  "timing_evidence": "design_level"
+}

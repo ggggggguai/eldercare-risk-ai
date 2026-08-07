@@ -1,0 +1,73 @@
+task_id: OPT-FUSION-003
+run_id: MH-20260804-021
+training_version: mood-social-fusion-optimization-v3.3.4-v1
+frozen_document_version: V3.3.4
+random_seed: 20260728
+
+input:
+  fusion_oof_table_path: reports/mental_health/mood_social/MH-20260802-009/fusion_oof_table.parquet
+  fusion_oof_table_sha256: ca3682a840f8bd642620400ef9f214f06f3f2b6289124c260c697f64d5ecba24
+  baseline_oof_path: reports/mental_health/mood_social/MH-20260802-012/oof_predictions.parquet
+  baseline_oof_sha256: 7a0e36ebd8a795076e3ddacd754771f6b6aed6d9045d346ac8e44b272bda0c6a
+  baseline_probability_column: deployment_candidate_probability
+  calibration_oof_path: reports/mental_health/mood_social/MH-20260804-014/oof_predictions.parquet
+  calibration_oof_sha256: 1f0cc079ad4a9c815bad5ce4e4a2f2329a47cb5925815c320bae26a2f93e1943
+  expert_oof_path: reports/mental_health/mood_social/MH-20260804-015/oof_predictions.parquet
+  expert_oof_sha256: 1f638f43bb8bb6930eb48b8596b07522366f8d940abced28f506ac5c3f945bdf
+  trend_oof_path: reports/mental_health/mood_social/MH-20260804-016/oof_predictions.parquet
+  trend_oof_sha256: c05ab7cf95ff1fcd8ebe0c7e0d0a67abc67a9e632aa44aa638102ca072bc8174
+  split:
+    path: data/processed/mental_health/mood_social/v3.3.3/splits/split_manifest.json
+    sha256: e9915dbc590a6ea454c34d26558ac5866c57ee8a8e78f44cdcc79c859df77ee3
+    outer_folds: 5
+    inner_folds: 5
+
+candidates:
+  ids:
+    - baseline_refit
+    - interactions
+    - reliability_gated
+    - global_calibrated
+    - coverage_calibrated
+    - probability_average_25
+    - probability_average_50
+    - probability_average_75
+    - rank_average
+    - multiseed_interactions
+  multiseed_seeds: [20260728, 20260729, 20260730]
+  selection_rule: pooled_inner_natural_auprc_desc_then_brier_asc_then_candidate_id
+  production_rule: outer_selection_count_desc_then_mean_inner_auprc_desc_then_candidate_id
+  public_dataset_id_as_model_input: false
+  input_probability_representation: selected_oof_probability
+  calibration_candidate: corrected_coverage_platt
+  weak_branch_scales:
+    physiology: 0.25
+    social_context: 0.50
+    trend_social: 0.25
+
+promotion_gate:
+  baseline_run_id: MH-20260802-012
+  minimum_natural_auprc_delta: 0.01
+  minimum_natural_auroc_delta: 0.0
+  maximum_natural_brier_increase: 0.005
+  minimum_non_degraded_outer_folds: 3
+  outer_fold_auprc_tolerance: 0.0
+  source_minimum_positive_rows: 20
+  maximum_leave_one_source_auprc_drop: 0.02
+  all_conditions_required: true
+
+output:
+  model_path: models/mental_health/mood_social/v3.3.3/candidates/MH-20260804-021/mood_fusion_v3_3_4_candidate.joblib
+  manifest_path: models/mental_health/mood_social/v3.3.3/candidates/MH-20260804-021/mood_fusion_v3_3_4_candidate_manifest.json
+  report_directory: reports/mental_health/mood_social/MH-20260804-021
+  overwrite: false
+
+production_boundary:
+  consume_public_dataset_id: false
+  select_production_threshold: false
+  change_active_experts: false
+  change_personal_trend: false
+  include_model006_predictions: false
+  change_http_behavior: false
+  change_attention_levels: false
+  overwrite_existing_models: false

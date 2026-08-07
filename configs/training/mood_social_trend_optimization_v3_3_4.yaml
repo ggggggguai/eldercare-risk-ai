@@ -1,0 +1,60 @@
+task_id: OPT-TREND-001
+run_id: MH-20260804-016
+training_version: mood-social-trend-optimization-v3.3.4-v1
+frozen_document_version: V3.3.4-candidate
+random_seed: 20260728
+
+branches: [activity, sleep, social]
+
+split:
+  id: mood-social-v3.3.3-participant-nested-5x5-seed-20260728-v1
+  path: data/processed/mental_health/mood_social/v3.3.3/splits/split_manifest.json
+  sha256: e9915dbc590a6ea454c34d26558ac5866c57ee8a8e78f44cdcc79c859df77ee3
+  outer_folds: 5
+  inner_folds: 5
+
+upstream:
+  oof_path: reports/mental_health/mood_social/MH-20260801-008/oof_predictions.parquet
+  oof_sha256: f23d79b7be21a6a863414e139f537d61c8a9cb06e9a64e061dc60627893d408a
+  model_path: models/mental_health/mood_social/v3.3.3/personal_trend_expert.joblib
+  model_sha256: e924e2342077d5847650c3b650fb2f1ee0fa40ea2da5c4d406c26b0ba93ba58f
+
+runtime_features:
+  windows_days: [7, 28]
+  baseline_center: median
+  baseline_scale: MAD
+  ewma_alpha: 0.35
+  slope: theil_sen
+  change_point: earlier_vs_recent_median
+  rhythm: weekday_vs_weekend
+  exclude_abnormal_days: true
+  missing_day_forward_fill: false
+
+candidates:
+  ids: [baseline_probability, robust_dual_scale, ewma_theilsen_change_point, concordance_guarded]
+  calibration: platt_fit_on_training_partition_only
+  selection: inner_oof_auprc_desc_then_brier_asc_then_candidate_id
+  activity_sleep_concordance_reliability_bonus: 0.15
+  social_reliability_cap: 0.25
+
+evaluation:
+  metrics: [auprc, auroc, brier]
+  replay_smoothing_days: 3
+  report_availability: true
+  report_branch_reliability: true
+
+output:
+  model_path: models/mental_health/mood_social/v3.3.3/candidates/MH-20260804-016/personal_trend_candidate.joblib
+  manifest_path: models/mental_health/mood_social/v3.3.3/candidates/MH-20260804-016/personal_trend_candidate_manifest.json
+  report_directory: reports/mental_health/mood_social/MH-20260804-016
+  overwrite: false
+
+production_boundary:
+  offline_only: true
+  use_dataset_id_as_feature: false
+  use_synthetic_calls_as_supervision: false
+  social_direct_s10_phq9_validation: false
+  include_model006_predictions: false
+  select_threshold: false
+  change_http_behavior: false
+

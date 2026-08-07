@@ -1,0 +1,70 @@
+task_id: OPT-CALIB-001
+run_id: MH-20260804-014
+training_version: mood-social-calibration-optimization-v3.3.4-v1
+frozen_document_version: V3.3.4-candidate
+random_seed: 20260728
+
+input:
+  baseline_oof_path: reports/mental_health/mood_social/MH-20260802-010/oof_predictions.parquet
+  baseline_oof_sha256: 92f2dafd4b67c45d81456282f490adde810e975814dd3f47c3cd087b9dc3f9ac
+  current_online_oof_path: reports/mental_health/mood_social/MH-20260802-012/oof_predictions.parquet
+  current_online_oof_sha256: 7a0e36ebd8a795076e3ddacd754771f6b6aed6d9045d346ac8e44b272bda0c6a
+  fusion_oof_table_path: reports/mental_health/mood_social/MH-20260802-009/fusion_oof_table.parquet
+  fusion_oof_table_sha256: ca3682a840f8bd642620400ef9f214f06f3f2b6289124c260c697f64d5ecba24
+  split_path: data/processed/mental_health/mood_social/v3.3.3/splits/split_manifest.json
+  split_sha256: e9915dbc590a6ea454c34d26558ac5866c57ee8a8e78f44cdcc79c859df77ee3
+
+split:
+  id: mood-social-v3.3.3-participant-nested-5x5-seed-20260728-v1
+  outer_folds: 5
+  inner_folds: 5
+  participant_isolation: true
+  outer_test_policy: evaluation_only
+
+calibration:
+  methods: [platt, beta, temperature, isotonic]
+  primary_score: fusion_logit
+  global_fit_input: primary_probability
+  corrected_coverage_fit_input: global_probability
+  corrected_coverage_inference_input: global_probability
+  legacy_coverage_fit_input: primary_probability
+  legacy_coverage_inference_input: primary_probability
+  minimum_group_rows: 50
+  minimum_group_positive_rows: 5
+  minimum_group_negative_rows: 5
+  probability_clip_epsilon: 1.0e-7
+
+candidates:
+  selectable:
+    - global_platt
+    - global_beta
+    - global_temperature
+    - global_isotonic
+    - corrected_coverage_platt
+    - dual_raw_logit_platt
+  audit_only:
+    - legacy_mismatched_coverage_platt
+  selection: inner_oof_auprc_desc_then_brier_asc_then_variant_id
+  aggregate_selection: outer_selection_count_then_inner_auprc_then_brier_then_variant_id
+
+evaluation:
+  baseline_model: MH-20260802-012_coverage_calibrated
+  metrics: [auprc, auroc, brier, ece]
+  calibration_bins: 10
+  report_outer_fold_stability: true
+  report_threshold_curve: true
+  report_calibration_curve: true
+
+output:
+  model_path: models/mental_health/mood_social/v3.3.3/candidates/MH-20260804-014/calibration_candidate.joblib
+  manifest_path: models/mental_health/mood_social/v3.3.3/candidates/MH-20260804-014/calibration_candidate_manifest.json
+  report_directory: reports/mental_health/mood_social/MH-20260804-014
+  overwrite: false
+
+production_boundary:
+  offline_candidate_only: true
+  overwrite_online_package: false
+  change_http_behavior: false
+  include_model006_predictions: false
+  consume_public_dataset_id: false
+  select_threshold: false

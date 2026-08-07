@@ -1,0 +1,102 @@
+schema_version: cognitive_change_clue_config_v3_3
+feature_version: cognitive_features_v3.3.0
+seed: 20260802
+
+dataset:
+  name: CogPic
+  source_root: ../../../数据集/心理/CogPic/CogPic
+  processed_root: data/processed/cognitive_change_clue/v3.3.0
+  expected_subjects: 574
+  expected_tasks: 1722
+  official_train_subjects: 459
+  official_test_subjects: 115
+  derived_train_subjects: 367
+  derived_validation_subjects: 92
+
+audio:
+  encoder: torchaudio.pipelines.WAVLM_BASE_PLUS
+  sample_rate: 16000
+  window_ms: 20000
+  hop_ms: 10000
+  output_dim: 768
+  missing_threshold: 0.30
+
+text:
+  encoder: hfl/chinese-roberta-wwm-ext
+  hf_revision: 5c58d0b8ec1d9014354d691c538661bf00bfdb44
+  max_length: 256
+  pooling: cls
+  num_token_mode: literal_text_no_new_token
+  output_dim: 768
+  missing_threshold: 0.30
+  quality_version: cognitive_text_quality_v3.3.1
+  confidence_fallback: length_only
+
+face:
+  detector: mediapipe_face_detection_short_range
+  min_detection_confidence: 0.60
+  sample_count: 16
+  box_expansion: 0.20
+  encoder: resnet18
+  weights: IMAGENET1K_V1
+  output_dim: 512
+  missing_threshold: 0.40
+
+cache:
+  format: per_sample_npz_v1
+  index_format: deterministic_jsonl_v1
+
+model:
+  projection_dim: 256
+  fusion_hidden_dims: [128, 64]
+  dropout: 0.2
+  loss_weights:
+    hc_vs_non_hc: 1.0
+    mci_vs_hc: 0.3
+    ad_mci_hc: 0.3
+    moca: 0.1
+
+training:
+  seed: 20260802
+  deterministic: true
+  cublas_workspace_config: ":4096:8"
+  micro_batch_size: 4
+  gradient_accumulation_steps: 4
+  num_workers: 0
+  train_shuffle: true
+  train_drop_last: false
+  validation_shuffle: false
+  validation_drop_last: false
+  max_epochs: 50
+  learning_rate: 0.0001
+  weight_decay: 0.0001
+  adam_betas: [0.9, 0.999]
+  adam_eps: 0.00000001
+  max_grad_norm: 1.0
+  amp: true
+  scheduler:
+    mode: max
+    factor: 0.5
+    patience: 3
+    threshold: 0.0001
+    threshold_mode: abs
+    min_lr: 0.000001
+
+masking:
+  seed_base: 20260802
+  pair_combinations: [audio_text, audio_face, text_face]
+  single_combinations: [audio, text]
+
+validation:
+  checkpoint_auc_tolerance: 0.000001
+  early_stopping_min_delta: 0.0001
+  early_stopping_patience: 8
+  complete_modalities: [audio, text, face]
+  ablation_combinations:
+    - audio_text_face
+    - audio_text
+    - audio_face
+    - text_face
+    - audio
+    - text
+    - face

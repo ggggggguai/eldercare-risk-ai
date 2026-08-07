@@ -1,0 +1,23 @@
+{
+  "active_package_directory": "models/mental_health/mood_social/v3.3.3/packages/MH-20260802-013",
+  "active_package_run_id": "MH-20260802-013",
+  "candidate_not_promoted_reason": "OPT-FUSION-003 failed frozen five-condition promotion gate",
+  "fallback_preserved": true,
+  "model006_online": false,
+  "new_online_package_created": false,
+  "production_threshold_selected": false,
+  "promotion_passed": false,
+  "report_core_sha256": "6b683fbd72fb79b1eb6cf325af08393b66b56b91ff48f51fffc03314bc1a5b2f",
+  "run_id": "MH-20260804-019",
+  "task_id": "ART-002",
+  "upstream": {
+    "candidate_manifest_sha256": "12efac041b4739b9f5ee2eb5a393fe248cdca45476ccfb7f7dc5c5291c6422dc",
+    "candidate_model_sha256": "ddf90e5f2603d949901f7468d260a810422816335683b9e0bd0f7cc07d69e709",
+    "fallback_checksums_sha256": "e40ac1b96c3e4075a1f62523f446f7e1717cefa7d75a4a59128d11611e4f4ce3",
+    "fallback_manifest_sha256": "b06ba3fc042e07eb17738a21b3683f3029a3adeae6aadd16705b9eb51a0a08d8",
+    "fallback_payload_sha256": "7ef764ee343982d599503d10a986ab63c1dc61c5541d45452afebae1de0bd44c",
+    "promotion_sha256": "220924c24df42c2a28d9113d959ee35f933f2b77ec35087ba8c31b5d7e5788a9",
+    "workpoint_manifest_sha256": "6a46ff1d5d09a490173df843167a25eaee1608e1a5f732bbcc0575d82da3ac2c"
+  },
+  "version": "mood-social-art002-decision-v1"
+}

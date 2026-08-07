@@ -1,0 +1,37 @@
+{
+  "baseline_context_manifest_sha256": "b00fa78907f9a4d009ff6c000fe5e2ce778b305ebbc499efbc04033dc56d2843",
+  "baseline_file_count": 189,
+  "baseline_run_id": "MH-20260805-FCAST-001",
+  "code_file_sha256": {
+    "build_mood_forecast_optimization_context.py": "d35e82712250256a6d18dd6925b98c25a92b5278ea46ed1e89958061dda05d9e",
+    "forecast_optimization.py": "fa95fb55de9666028f0427eb9df149b412f91dc47fd22bff8676ff0d4687938e"
+  },
+  "config_sha256": "fbf7f9a2dd2af33c4b392fbc35ce4d1bc6535a8565d9beecf18a5f486826e3f5",
+  "created_at": "2026-08-07T04:22:24.067218+00:00",
+  "decision_authority": "shadow_only",
+  "environment_lock_sha256": "5398cb27f4f0c232a0a3463cd08117c25a523cc417ae2664137c90eb724c869d",
+  "execution_mode": "offline_only",
+  "feature_group_counts": {
+    "anchor_delta": 162,
+    "anchor_delta_rolling": 432,
+    "anchor_only": 54
+  },
+  "inner_fold_manifest_sha256": "64f9e4a8d548f9c5152275b9d1fc8933814bbc9730ca74af5557284657a4e4ef",
+  "optimization_version": "mood-social-forecast-v3.4-opt-v1",
+  "outer_fold_manifest_sha256": "e9915dbc590a6ea454c34d26558ac5866c57ee8a8e78f44cdcc79c859df77ee3",
+  "product_visible": false,
+  "release_status": "experimental",
+  "run_id": "MH-20260807-FOPT-002",
+  "schema_version": "mood-social-forecast-v3.4-opt-context-v1",
+  "search_space_sha256": "3bcf2c4198208dbcf30fbfb4ed60e049d68f256e0facc2321566c8f406a1e7ce",
+  "source_artifact_hashes": {
+    "Feature explanations - anonymized data - Sheet1.tsv": "e346b57eb81c8c7d22a6ff0bda71214e527d8bed72eef1c2218d7e5826612e3e",
+    "anon_processed_df_parquet": "4bf1d7622d947f5bb62067c91789e1ef5de0411f439a772b8a7941282cc1cd78",
+    "p0_feature_mapping_v1.yaml": "6aa7c562def0b9b4dabc0c1ad14fbbb3fdde7b47b6540d45810fa954e4a7caff"
+  },
+  "status": "context_built",
+  "task_counts": {
+    "forecast_1m": 9393,
+    "forecast_2m": 9280
+  }
+}

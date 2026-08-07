@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 from collections.abc import Callable
 
 from fastapi import Depends, FastAPI, HTTPException, Request, status
@@ -18,7 +19,28 @@ from elderly_monitoring.modules.mental_health.mood_social import (
     validation_error_response,
 )
 from elderly_monitoring.modules.asr import ASRRequest, ASRTranscript
-from elderly_monitoring.modules.asr.api import transcribe as transcribe_asr
+from elderly_monitoring.modules.mental_health.submodules.cognitive_change_clue.api import (
+    COGNITIVE_INFER_PATH,
+    CognitiveRuntimeProtocol,
+    create_cognitive_router,
+)
+from elderly_monitoring.modules.mental_health.submodules.cognitive_change_clue.asr_client import (
+    ASRHttpClient,
+)
+from elderly_monitoring.modules.mental_health.submodules.cognitive_change_clue.errors import (
+    CognitiveAPIError,
+    validation_error_response as cognitive_validation_error_response,
+)
+from elderly_monitoring.modules.mental_health.submodules.cognitive_change_clue.inference import (
+    CognitiveInferenceRuntime,
+)
+from elderly_monitoring.modules.mental_health.submodules.cognitive_change_clue.manifest import (
+    CognitiveModelPackage,
+)
+from elderly_monitoring.modules.mental_health.submodules.cognitive_change_clue.schemas import (
+    DEFAULT_MODEL_VERSION,
+    V34_MODEL_VERSION,
+)
 from elderly_monitoring.modules.roi_annotation.ezviz_client import EzvizVisionModelClient
 from elderly_monitoring.modules.roi_annotation.service import RoiAnnotationError, annotate_roi_image
 from elderly_monitoring.service.daytime_activity import build_daytime_activity_result
@@ -52,6 +74,7 @@ def create_app(
     settings: ServiceSettings | None = None,
     session_manager: SessionManager | None = None,
     asr_transcriber: Callable[[ASRRequest], ASRTranscript] | None = None,
+    cognitive_runtime: CognitiveRuntimeProtocol | None = None,
 ) -> FastAPI:
     service_settings = settings or ServiceSettings.load()
     manager = session_manager or SessionManager(
@@ -81,9 +104,46 @@ def create_app(
         max_inference_fps=service_settings.max_inference_fps,
         fall_state=service_settings.fall_state,
     )
-    app = FastAPI(title="Elderly Monitoring Fall Risk Service", version="0.2.0")
     bearer = HTTPBearer(auto_error=False)
-    run_asr = asr_transcriber or transcribe_asr
+    run_asr = asr_transcriber
+    run_cognitive = cognitive_runtime or CognitiveInferenceRuntime(
+        packages={
+            DEFAULT_MODEL_VERSION: CognitiveModelPackage(
+                service_settings.cognitive_model_package_path,
+                device=service_settings.cognitive_inference_device,
+                expected_model_version=DEFAULT_MODEL_VERSION,
+            ),
+            V34_MODEL_VERSION: CognitiveModelPackage(
+                service_settings.cognitive_model_package_v34_path,
+                device=service_settings.cognitive_inference_device,
+                expected_model_version=V34_MODEL_VERSION,
+            ),
+        },
+        asr_client=ASRHttpClient(
+            url=service_settings.cognitive_asr_url,
+            api_token=service_settings.api_token,
+        ),
+    )
+
+    @asynccontextmanager
+    async def lifespan(_: FastAPI):
+        try:
+            run_cognitive.verify_package()
+            package_error = None
+        except CognitiveAPIError as exc:
+            package_error = exc
+        app.state.cognitive_package_error = package_error
+        try:
+            yield
+        finally:
+            run_cognitive.close()
+
+    app = FastAPI(
+        title="Elderly Monitoring Fall Risk Service",
+        version="0.2.0",
+        lifespan=lifespan,
+    )
+    app.state.cognitive_package_error = None
 
     def require_token(credentials: HTTPAuthorizationCredentials | None = Depends(bearer)) -> None:
         if credentials is None or credentials.scheme.lower() != "bearer" or credentials.credentials != service_settings.api_token:
@@ -109,11 +169,27 @@ def create_app(
             content=exception.as_response().model_dump(mode="json"),
         )
 
+    @app.exception_handler(CognitiveAPIError)
+    async def cognitive_api_error(
+        _: Request,
+        exception: CognitiveAPIError,
+    ) -> JSONResponse:
+        return JSONResponse(
+            status_code=exception.status_code,
+            content=exception.as_response().model_dump(mode="json"),
+        )
+
     @app.exception_handler(RequestValidationError)
     async def request_validation_error(
         request: Request,
         exception: RequestValidationError,
     ) -> JSONResponse:
+        if request.url.path == COGNITIVE_INFER_PATH:
+            response = cognitive_validation_error_response(exception)
+            return JSONResponse(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                content=response.model_dump(mode="json"),
+            )
         if request.url.path != MOOD_SOCIAL_INFER_PATH:
             return await request_validation_exception_handler(request, exception)
         response = validation_error_response(exception)
@@ -195,13 +271,14 @@ def create_app(
             raise HTTPException(status_code=exc.status_code, detail={"category": exc.category, "message": str(exc)}) from exc
         return RoiAnnotateResponse(**result)
 
-    @app.post(
-        "/v1/asr/transcribe",
-        response_model=ASRTranscript,
-        dependencies=[Depends(require_token)],
-    )
-    def transcribe_audio(request: ASRRequest) -> ASRTranscript:
-        return run_asr(request)
+    if run_asr is not None:
+        @app.post(
+            "/v1/asr/transcribe",
+            response_model=ASRTranscript,
+            dependencies=[Depends(require_token)],
+        )
+        def transcribe_audio(request: ASRRequest) -> ASRTranscript:
+            return run_asr(request)
 
     @app.post(
         "/v1/mental-health/daytime-activity",
@@ -293,9 +370,17 @@ def create_app(
                 request_id=payload.request_id,
             ) from exc
 
+    app.include_router(
+        create_cognitive_router(
+            runtime=run_cognitive,
+            api_token=service_settings.api_token,
+        )
+    )
+
     app.state.settings = service_settings
     app.state.session_manager = manager
     app.state.asr_transcriber = run_asr
+    app.state.cognitive_runtime = run_cognitive
     return app
 
 

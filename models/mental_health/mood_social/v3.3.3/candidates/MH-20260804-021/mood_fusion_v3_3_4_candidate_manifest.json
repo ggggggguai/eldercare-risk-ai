@@ -1,0 +1,60 @@
+{
+  "input_features": [
+    "expert_activity_evidence",
+    "expert_sleep_evidence",
+    "expert_joint_evidence",
+    "expert_physiology_evidence",
+    "expert_social_context_evidence",
+    "trend_activity_evidence",
+    "trend_sleep_evidence",
+    "trend_social_evidence"
+  ],
+  "model_sha256": "53b3e1dba0bfae7ec8e03b7d2e078c15fc6272588630be6a1b089417eecb39aa",
+  "model_version": "mood-social-fusion-candidate-v3.3.4-v1",
+  "oof_sha256": "e613559abb35e1f2e91f9d73141f5e2225f67037b4c645998aa0e86fae92542a",
+  "package_default": "MH-20260802-013",
+  "positive_rows": 4079,
+  "production_boundary": {
+    "change_active_experts": false,
+    "change_attention_levels": false,
+    "change_http_behavior": false,
+    "change_personal_trend": false,
+    "consume_public_dataset_id": false,
+    "include_model006_predictions": false,
+    "overwrite_existing_models": false,
+    "select_production_threshold": false
+  },
+  "promotion_passed": false,
+  "report_core_sha256": "8e72c8539096ff57c9644b67a833a32ee993ee0c3555a67c3ba5d085e8605432",
+  "row_count": 22188,
+  "run_id": "MH-20260804-021",
+  "selected_candidate_id": "coverage_calibrated",
+  "strict_oof": true,
+  "task_id": "OPT-FUSION-003",
+  "training_version": "mood-social-fusion-optimization-v3.3.4-v1",
+  "upstream_protection": {
+    "baseline_oof_sha256": "7a0e36ebd8a795076e3ddacd754771f6b6aed6d9045d346ac8e44b272bda0c6a",
+    "baseline_probability_column": "deployment_candidate_probability",
+    "calibration_candidate": {
+      "run_id": "MH-20260804-014",
+      "selected": "probability__corrected_coverage_platt"
+    },
+    "calibration_oof_sha256": "1f0cc079ad4a9c815bad5ce4e4a2f2329a47cb5925815c320bae26a2f93e1943",
+    "expert_oof_sha256": "1f638f43bb8bb6930eb48b8596b07522366f8d940abced28f506ac5c3f945bdf",
+    "fusion_oof_table_sha256": "ca3682a840f8bd642620400ef9f214f06f3f2b6289124c260c697f64d5ecba24",
+    "model006_enters_fusion": false,
+    "new_expert_oof": {
+      "run_id": "MH-20260804-015",
+      "selected": "selected_probability"
+    },
+    "new_trend_oof": {
+      "run_id": "MH-20260804-016",
+      "selected": "selected_probability"
+    },
+    "public_dataset_id_as_model_input": false,
+    "split_sha256": "e9915dbc590a6ea454c34d26558ac5866c57ee8a8e78f44cdcc79c859df77ee3",
+    "trend_oof_sha256": "c05ab7cf95ff1fcd8ebe0c7e0d0a67abc67a9e632aa44aa638102ca072bc8174"
+  },
+  "uses_public_dataset_id": false,
+  "version": "mood-social-fusion-optimization-v3.3.4-manifest-v1"
+}

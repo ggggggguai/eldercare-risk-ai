@@ -1,0 +1,14 @@
+{
+  "candidate_scope": "offline_candidate",
+  "fit_input_stage": "global",
+  "model006_online": false,
+  "model_sha256": "e38b7afbea8da7171889f1c1a494909788edacb4b66bbb8309b60c85f59fd565",
+  "model_version": "mood-social-calibration-candidate-v3.3.4-v1",
+  "production": false,
+  "public_dataset_id_as_model_input": false,
+  "run_id": "MH-20260804-014",
+  "selected_variant": "corrected_coverage_platt",
+  "strict_oof": true,
+  "task_id": "OPT-CALIB-001",
+  "version": "mood-social-calibration-manifest-v1"
+}

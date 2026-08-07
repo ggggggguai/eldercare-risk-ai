@@ -1,0 +1,9 @@
+{
+  "auxiliary_labels_in_feature_manifest": false,
+  "cutoff_relation_all_rows": true,
+  "future_or_target_month_features_present": false,
+  "outer_test_used_for_selection": false,
+  "phq9_feature_present": false,
+  "schema_version": "mood-social-forecast-v3.4-opt-leakage-v1",
+  "source_field_count": 27
+}

@@ -1,0 +1,2 @@
+{"detail": "Strict inner-OOF fusion and calibration started.", "stage": "FORECAST-OPT-001D", "status": "started", "timestamp": "2026-08-07T05:44:00.590232+00:00"}
+{"detail": "All ten strict outer folds completed.", "stage": "FORECAST-OPT-001D", "status": "completed", "timestamp": "2026-08-07T06:12:29.553193+00:00"}

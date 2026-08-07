@@ -1,0 +1,7 @@
+{
+  "error": "candidate context hash mismatch: selection_attempts.json",
+  "error_type": "RuntimeError",
+  "run_id": "MH-20260807-FOPT-002",
+  "stage": "FORECAST-OPT-001C",
+  "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\Administrator\\Desktop\\揭榜挂帅专项赛\\algorithm\\eldercare-risk-ai-main\\scripts\\train_mood_forecast_optimization.py\", line 592, in main\n    run_selection(args.run_id)\n  File \"C:\\Users\\Administrator\\Desktop\\揭榜挂帅专项赛\\algorithm\\eldercare-risk-ai-main\\scripts\\train_mood_forecast_optimization.py\", line 377, in run_selection\n    context_manifest = _verify_candidate_context(root, config)\n                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Administrator\\Desktop\\揭榜挂帅专项赛\\algorithm\\eldercare-risk-ai-main\\scripts\\train_mood_forecast_optimization.py\", line 134, in _verify_candidate_context\n    raise RuntimeError(f\"candidate context hash mismatch: {relative}\")\nRuntimeError: candidate context hash mismatch: selection_attempts.json\n"
+}

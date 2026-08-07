@@ -1,0 +1,13 @@
+{
+  "a": 0.4232446501223649,
+  "b": 0.2938122528596002,
+  "checkpoint_sha256": "afa9efc375c4cc29403422b4f1135c332fde25ebfe563ac1c4f29777161e2d4a",
+  "fit_scope": "fixed_v33_validation_92_task_raw_logits",
+  "fit_subject_count": 92,
+  "fit_task_count": 276,
+  "method": "platt",
+  "model_version": "cognitive-mm-v3.4.0",
+  "official_test_evaluated": false,
+  "schema_version": "cognitive_calibration_v2",
+  "subject_probability_aggregation": "calibrate_each_task_then_mean_probability"
+}

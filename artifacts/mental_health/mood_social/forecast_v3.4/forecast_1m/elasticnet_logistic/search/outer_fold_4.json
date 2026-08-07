@@ -1,0 +1,193 @@
+{
+  "candidate_count": 20,
+  "inner_split_sha256": "64f9e4a8d548f9c5152275b9d1fc8933814bbc9730ca74af5557284657a4e4ef",
+  "model_family": "elasticnet_logistic",
+  "outer_fold_id": 4,
+  "records": [
+    {
+      "auprc": 0.47584717722883896,
+      "brier": 0.24975521522901817,
+      "candidate_index": 0,
+      "params": {
+        "C": 0.01,
+        "l1_ratio": 0.0
+      }
+    },
+    {
+      "auprc": 0.3301701489610476,
+      "brier": 0.2500013753494599,
+      "candidate_index": 1,
+      "params": {
+        "C": 0.01,
+        "l1_ratio": 0.25
+      }
+    },
+    {
+      "auprc": 0.3301701489610476,
+      "brier": 0.25000152686192145,
+      "candidate_index": 2,
+      "params": {
+        "C": 0.01,
+        "l1_ratio": 0.5
+      }
+    },
+    {
+      "auprc": 0.3301701489610476,
+      "brier": 0.25000174619798926,
+      "candidate_index": 3,
+      "params": {
+        "C": 0.01,
+        "l1_ratio": 0.75
+      }
+    },
+    {
+      "auprc": 0.3301701489610476,
+      "brier": 0.2500020396060402,
+      "candidate_index": 4,
+      "params": {
+        "C": 0.01,
+        "l1_ratio": 1.0
+      }
+    },
+    {
+      "auprc": 0.47615774540091105,
+      "brier": 0.24781326093906808,
+      "candidate_index": 5,
+      "params": {
+        "C": 0.1,
+        "l1_ratio": 0.0
+      }
+    },
+    {
+      "auprc": 0.3301701489610476,
+      "brier": 0.2500019416680954,
+      "candidate_index": 6,
+      "params": {
+        "C": 0.1,
+        "l1_ratio": 0.25
+      }
+    },
+    {
+      "auprc": 0.3301701489610476,
+      "brier": 0.2500019732456652,
+      "candidate_index": 7,
+      "params": {
+        "C": 0.1,
+        "l1_ratio": 0.5
+      }
+    },
+    {
+      "auprc": 0.3301701489610476,
+      "brier": 0.2500020058736382,
+      "candidate_index": 8,
+      "params": {
+        "C": 0.1,
+        "l1_ratio": 0.75
+      }
+    },
+    {
+      "auprc": 0.3301701489610476,
+      "brier": 0.25000203960609496,
+      "candidate_index": 9,
+      "params": {
+        "C": 0.1,
+        "l1_ratio": 1.0
+      }
+    },
+    {
+      "auprc": 0.4776566286747969,
+      "brier": 0.23999579054408532,
+      "candidate_index": 10,
+      "params": {
+        "C": 1.0,
+        "l1_ratio": 0.0
+      }
+    },
+    {
+      "auprc": 0.3281602855170915,
+      "brier": 0.25000234057846465,
+      "candidate_index": 11,
+      "params": {
+        "C": 1.0,
+        "l1_ratio": 0.25
+      }
+    },
+    {
+      "auprc": 0.3281602855170915,
+      "brier": 0.2500023446892322,
+      "candidate_index": 12,
+      "params": {
+        "C": 1.0,
+        "l1_ratio": 0.5
+      }
+    },
+    {
+      "auprc": 0.3281602855170915,
+      "brier": 0.2500025678191268,
+      "candidate_index": 13,
+      "params": {
+        "C": 1.0,
+        "l1_ratio": 0.75
+      }
+    },
+    {
+      "auprc": 0.3281602855170915,
+      "brier": 0.25000244678406003,
+      "candidate_index": 14,
+      "params": {
+        "C": 1.0,
+        "l1_ratio": 1.0
+      }
+    },
+    {
+      "auprc": 0.4791689570683415,
+      "brier": 0.23432216033701386,
+      "candidate_index": 15,
+      "params": {
+        "C": 10.0,
+        "l1_ratio": 0.0
+      }
+    },
+    {
+      "auprc": 0.4711601053292445,
+      "brier": 0.23884577941524776,
+      "candidate_index": 16,
+      "params": {
+        "C": 10.0,
+        "l1_ratio": 0.25
+      }
+    },
+    {
+      "auprc": 0.45428314936861836,
+      "brier": 0.24473756696518878,
+      "candidate_index": 17,
+      "params": {
+        "C": 10.0,
+        "l1_ratio": 0.5
+      }
+    },
+    {
+      "auprc": 0.4173015309687177,
+      "brier": 0.24924604601594139,
+      "candidate_index": 18,
+      "params": {
+        "C": 10.0,
+        "l1_ratio": 0.75
+      }
+    },
+    {
+      "auprc": 0.3281602855170915,
+      "brier": 0.2500022715172092,
+      "candidate_index": 19,
+      "params": {
+        "C": 10.0,
+        "l1_ratio": 1.0
+      }
+    }
+  ],
+  "schema_version": "mood-social-forecast-v3.4-search-record-v1",
+  "selected_params": {
+    "C": 10.0,
+    "l1_ratio": 0.0
+  }
+}

@@ -1,0 +1,80 @@
+{
+  "schema_version": "microexpression_flow_summary_v1",
+  "task_id": "FLOW-ME-001",
+  "status": "pass",
+  "sample_count": 164,
+  "quality_counts": {
+    "pass": 164
+  },
+  "label_counts": {
+    "negative": 70,
+    "positive": 51,
+    "surprise": 43
+  },
+  "face_detection_counts": {
+    "cropped_frame_fallback": 1,
+    "dlib_hog": 163
+  },
+  "landmark_mode": "dlib_68_v1",
+  "landmark_asset_sha256": "fbdc2cb80eb9aa7a758672cbfdda32ba6300efe9b6e6c7a299ff7e736b11b92f",
+  "flow_schema_version": "farneback_uvo_tanh_v1",
+  "preprocess_schema_version": "mhssa_tgcn_preprocess_v1",
+  "flow_config": {
+    "aligned_size": [
+      128,
+      128
+    ],
+    "flow_size": [
+      32,
+      32
+    ],
+    "normalization": "u=tanh(u/2), v=tanh(v/2), o=tanh(magnitude/2)",
+    "sha256": "182e618c6977b317e0b5725b5b0174e5ec7243cc8454f6db9bcd97673f78e712"
+  },
+  "tensor_contract": {
+    "patches": [
+      72,
+      147
+    ],
+    "region_ids": [
+      72
+    ],
+    "masks": [
+      72
+    ],
+    "keypoints": [
+      72,
+      2
+    ],
+    "flow": [
+      32,
+      32,
+      3
+    ],
+    "valid_patches": 43
+  },
+  "frame_statistics": {
+    "total": 5527,
+    "min": 11,
+    "max": 58
+  },
+  "alignment": {
+    "method": "ecc_euclidean_v1",
+    "failed_frame_count": 0
+  },
+  "estimated_apex": {
+    "min_index": 5,
+    "max_index": 48
+  },
+  "validation": {
+    "sample_ids_unique": true,
+    "all_artifacts_available": true,
+    "all_tensor_shapes_fixed": true,
+    "all_valid_patch_counts_fixed": true,
+    "all_landmark_assets_versioned": true
+  },
+  "manifest": {
+    "path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/data/manifests/microexpression/flow_artifact_manifest_smic_hs_classification_v1.jsonl",
+    "sha256": "baa574855209d47a398f09c7b8f27aba6f442b0d9a25054346e73f372573cc86"
+  }
+}

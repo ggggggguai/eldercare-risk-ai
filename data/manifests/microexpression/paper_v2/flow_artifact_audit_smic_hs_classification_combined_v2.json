@@ -1,0 +1,360 @@
+{
+  "schema_version": "microexpression_paper_v2_artifact_audit_v1",
+  "task_id": "FLOW-ME-002",
+  "status": "pass",
+  "artifact_count": 164,
+  "unique_sample_count": 164,
+  "total_bytes": 2714792,
+  "flow_value_range": [
+    -1.0,
+    1.0
+  ],
+  "issue_count": 0,
+  "issues": [],
+  "warning_count": 62,
+  "warnings": [
+    {
+      "sample_id": "smic_hs__s01__s1_po_02",
+      "code": "low_dc_rois_difference",
+      "apex_score": 0.008632362820208073
+    },
+    {
+      "sample_id": "smic_hs__s02__s2_sur_01",
+      "code": "low_dc_rois_difference",
+      "apex_score": 0.009017170406877995
+    },
+    {
+      "sample_id": "smic_hs__s02__s2_sur_05",
+      "code": "low_dc_rois_difference",
+      "apex_score": 0.008680999279022217
+    },
+    {
+      "sample_id": "smic_hs__s03__s3_ne_02",
+      "code": "low_dc_rois_difference",
+      "apex_score": 0.00899195671081543
+    },
+    {
+      "sample_id": "smic_hs__s03__s3_ne_03",
+      "code": "low_dc_rois_difference",
+      "apex_score": 0.007377028930932283
+    },
+    {
+      "sample_id": "smic_hs__s03__s3_ne_11",
+      "code": "apex_near_sequence_boundary",
+      "status": "near_offset",
+      "apex_index": 24,
+      "frame_count": 26
+    },
+    {
+      "sample_id": "smic_hs__s03__s3_ne_20",
+      "code": "low_dc_rois_difference",
+      "apex_score": 0.007734835613518953
+    },
+    {
+      "sample_id": "smic_hs__s03__s3_po_07",
+      "code": "low_dc_rois_difference",
+      "apex_score": 0.008501828648149967
+    },
+    {
+      "sample_id": "smic_hs__s03__s3_sur_01",
+      "code": "apex_near_sequence_boundary",
+      "status": "near_offset",
+      "apex_index": 28,
+      "frame_count": 30
+    },
+    {
+      "sample_id": "smic_hs__s03__s3_sur_04",
+      "code": "low_dc_rois_difference",
+      "apex_score": 0.009831132367253304
+    },
+    {
+      "sample_id": "smic_hs__s04__s4_ne_01",
+      "code": "low_dc_rois_difference",
+      "apex_score": 0.009114623069763184
+    },
+    {
+      "sample_id": "smic_hs__s04__s4_ne_02",
+      "code": "low_dc_rois_difference",
+      "apex_score": 0.006618499755859375
+    },
+    {
+      "sample_id": "smic_hs__s04__s4_ne_03",
+      "code": "low_dc_rois_difference",
+      "apex_score": 0.005709230899810791
+    },
+    {
+      "sample_id": "smic_hs__s04__s4_ne_04",
+      "code": "low_dc_rois_difference",
+      "apex_score": 0.00573700712993741
+    },
+    {
+      "sample_id": "smic_hs__s04__s4_ne_06",
+      "code": "low_dc_rois_difference",
+      "apex_score": 0.009414374828338623
+    },
+    {
+      "sample_id": "smic_hs__s04__s4_ne_08",
+      "code": "low_dc_rois_difference",
+      "apex_score": 0.006238043773919344
+    },
+    {
+      "sample_id": "smic_hs__s04__s4_ne_09",
+      "code": "low_dc_rois_difference",
+      "apex_score": 0.00885790679603815
+    },
+    {
+      "sample_id": "smic_hs__s04__s4_po_02",
+      "code": "low_dc_rois_difference",
+      "apex_score": 0.005858242977410555
+    },
+    {
+      "sample_id": "smic_hs__s04__s4_po_04",
+      "code": "low_dc_rois_difference",
+      "apex_score": 0.007798433303833008
+    },
+    {
+      "sample_id": "smic_hs__s04__s4_sur_02",
+      "code": "low_dc_rois_difference",
+      "apex_score": 0.00759393023326993
+    },
+    {
+      "sample_id": "smic_hs__s04__s4_sur_04",
+      "code": "low_dc_rois_difference",
+      "apex_score": 0.007918060757219791
+    },
+    {
+      "sample_id": "smic_hs__s04__s4_sur_05",
+      "code": "low_dc_rois_difference",
+      "apex_score": 0.006248891819268465
+    },
+    {
+      "sample_id": "smic_hs__s05__s5_ne_01",
+      "code": "low_dc_rois_difference",
+      "apex_score": 0.008071602322161198
+    },
+    {
+      "sample_id": "smic_hs__s05__s5_sur_01",
+      "code": "low_dc_rois_difference",
+      "apex_score": 0.006218195427209139
+    },
+    {
+      "sample_id": "smic_hs__s06__s6_ne_01",
+      "code": "apex_near_sequence_boundary",
+      "status": "near_onset",
+      "apex_index": 1,
+      "frame_count": 40
+    },
+    {
+      "sample_id": "smic_hs__s06__s6_ne_01",
+      "code": "low_dc_rois_difference",
+      "apex_score": 0.006360769737511873
+    },
+    {
+      "sample_id": "smic_hs__s06__s6_ne_02",
+      "code": "low_dc_rois_difference",
+      "apex_score": 0.007167459465563297
+    },
+    {
+      "sample_id": "smic_hs__s06__s6_sur_02",
+      "code": "low_dc_rois_difference",
+      "apex_score": 0.00664490507915616
+    },
+    {
+      "sample_id": "smic_hs__s08__s8_ne_04",
+      "code": "degraded_landmark_detection",
+      "face_detection_source_counts": {
+        "cropped_frame_fallback": 2
+      }
+    },
+    {
+      "sample_id": "smic_hs__s08__s8_po_01",
+      "code": "degraded_landmark_detection",
+      "face_detection_source_counts": {
+        "cropped_frame_fallback": 2
+      }
+    },
+    {
+      "sample_id": "smic_hs__s08__s8_po_01",
+      "code": "low_dc_rois_difference",
+      "apex_score": 0.009804129600524902
+    },
+    {
+      "sample_id": "smic_hs__s08__s8_po_02",
+      "code": "degraded_landmark_detection",
+      "face_detection_source_counts": {
+        "cropped_frame_fallback": 2
+      }
+    },
+    {
+      "sample_id": "smic_hs__s09__s9_sur_02",
+      "code": "apex_near_sequence_boundary",
+      "status": "near_onset",
+      "apex_index": 1,
+      "frame_count": 42
+    },
+    {
+      "sample_id": "smic_hs__s11__s11_ne_01",
+      "code": "low_dc_rois_difference",
+      "apex_score": 0.0085298428311944
+    },
+    {
+      "sample_id": "smic_hs__s11__s11_ne_02",
+      "code": "low_dc_rois_difference",
+      "apex_score": 0.009520054794847965
+    },
+    {
+      "sample_id": "smic_hs__s11__s11_ne_03",
+      "code": "low_dc_rois_difference",
+      "apex_score": 0.007557154167443514
+    },
+    {
+      "sample_id": "smic_hs__s11__s11_po_03",
+      "code": "low_dc_rois_difference",
+      "apex_score": 0.0074013471603393555
+    },
+    {
+      "sample_id": "smic_hs__s11__s11_sur_01",
+      "code": "low_dc_rois_difference",
+      "apex_score": 0.009298981167376041
+    },
+    {
+      "sample_id": "smic_hs__s12__s12_po_01",
+      "code": "low_dc_rois_difference",
+      "apex_score": 0.008310616947710514
+    },
+    {
+      "sample_id": "smic_hs__s13__s13_po_03",
+      "code": "low_dc_rois_difference",
+      "apex_score": 0.008974791504442692
+    },
+    {
+      "sample_id": "smic_hs__s13__s13_po_05",
+      "code": "low_dc_rois_difference",
+      "apex_score": 0.008551300503313541
+    },
+    {
+      "sample_id": "smic_hs__s13__s13_po_06",
+      "code": "low_dc_rois_difference",
+      "apex_score": 0.009074033237993717
+    },
+    {
+      "sample_id": "smic_hs__s14__s14_po_01",
+      "code": "low_dc_rois_difference",
+      "apex_score": 0.009235262870788574
+    },
+    {
+      "sample_id": "smic_hs__s14__s14_sur_03",
+      "code": "low_dc_rois_difference",
+      "apex_score": 0.009134353138506413
+    },
+    {
+      "sample_id": "smic_hs__s14__s14_sur_05",
+      "code": "low_dc_rois_difference",
+      "apex_score": 0.009539187885820866
+    },
+    {
+      "sample_id": "smic_hs__s15__s15_sur_01",
+      "code": "apex_near_sequence_boundary",
+      "status": "near_offset",
+      "apex_index": 31,
+      "frame_count": 33
+    },
+    {
+      "sample_id": "smic_hs__s18__s18_ne_01",
+      "code": "low_dc_rois_difference",
+      "apex_score": 0.007358551025390625
+    },
+    {
+      "sample_id": "smic_hs__s18__s18_sur_02",
+      "code": "low_dc_rois_difference",
+      "apex_score": 0.009263277053833008
+    },
+    {
+      "sample_id": "smic_hs__s18__s18_sur_03",
+      "code": "low_dc_rois_difference",
+      "apex_score": 0.00824588630348444
+    },
+    {
+      "sample_id": "smic_hs__s20__s20_ne_01",
+      "code": "apex_near_sequence_boundary",
+      "status": "near_onset",
+      "apex_index": 1,
+      "frame_count": 17
+    },
+    {
+      "sample_id": "smic_hs__s20__s20_ne_01",
+      "code": "low_dc_rois_difference",
+      "apex_score": 0.008376718498766422
+    },
+    {
+      "sample_id": "smic_hs__s20__s20_ne_02",
+      "code": "low_dc_rois_difference",
+      "apex_score": 0.008067966438829899
+    },
+    {
+      "sample_id": "smic_hs__s20__s20_ne_06",
+      "code": "apex_near_sequence_boundary",
+      "status": "near_offset",
+      "apex_index": 19,
+      "frame_count": 21
+    },
+    {
+      "sample_id": "smic_hs__s20__s20_ne_07",
+      "code": "low_dc_rois_difference",
+      "apex_score": 0.00846725795418024
+    },
+    {
+      "sample_id": "smic_hs__s20__s20_ne_09",
+      "code": "low_dc_rois_difference",
+      "apex_score": 0.009385466575622559
+    },
+    {
+      "sample_id": "smic_hs__s20__s20_ne_10",
+      "code": "low_dc_rois_difference",
+      "apex_score": 0.008067370392382145
+    },
+    {
+      "sample_id": "smic_hs__s20__s20_ne_11",
+      "code": "low_dc_rois_difference",
+      "apex_score": 0.006815195083618164
+    },
+    {
+      "sample_id": "smic_hs__s20__s20_ne_13",
+      "code": "low_dc_rois_difference",
+      "apex_score": 0.007646501529961824
+    },
+    {
+      "sample_id": "smic_hs__s20__s20_ne_14",
+      "code": "low_dc_rois_difference",
+      "apex_score": 0.006322980858385563
+    },
+    {
+      "sample_id": "smic_hs__s20__s20_po_03",
+      "code": "low_dc_rois_difference",
+      "apex_score": 0.008367061614990234
+    },
+    {
+      "sample_id": "smic_hs__s20__s20_sur_02",
+      "code": "low_dc_rois_difference",
+      "apex_score": 0.008373499847948551
+    },
+    {
+      "sample_id": "smic_hs__s20__s20_sur_05",
+      "code": "low_dc_rois_difference",
+      "apex_score": 0.008649349212646484
+    }
+  ],
+  "historical_v1_guard": {
+    "status": "pass",
+    "before": {
+      "path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/data/processed/microexpression/flow_v1",
+      "file_count": 167,
+      "sha256": "32e3ff1920ca283750a740b0ecc1de5bdf832d887a3a54c5d277a6a95718becd"
+    },
+    "after": {
+      "path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/data/processed/microexpression/flow_v1",
+      "file_count": 167,
+      "sha256": "32e3ff1920ca283750a740b0ecc1de5bdf832d887a3a54c5d277a6a95718becd"
+    }
+  }
+}

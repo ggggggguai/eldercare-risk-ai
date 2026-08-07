@@ -1,0 +1,179 @@
+{
+  "schema_version": "microexpression_open_source_audit_v1",
+  "task_id": "OSS-ME-001",
+  "status": "pass",
+  "issue_count": 0,
+  "issues": [],
+  "reference_snapshots_executable": false,
+  "project_count": 2,
+  "projects": [
+    {
+      "id": "causalnet",
+      "name": "CausalNet",
+      "repository": "https://github.com/tony19980810/CausalNet",
+      "commit": "7bdf163face030eeae4358fc7638cf538305acce",
+      "license": "MIT",
+      "usage_scope": "Architecture reference for a project-owned, audited three-class recognition implementation.",
+      "forbidden_usage": [
+        "Do not execute or import the reference snapshot as production code.",
+        "Do not reuse upstream test-every-epoch checkpoint selection.",
+        "Do not report upstream metrics as strict project results.",
+        "Do not claim a bit-exact or paper-exact reproduction after correcting the public tensor mismatch."
+      ],
+      "reference_file_count": 4,
+      "evidence": [
+        {
+          "path": "third_party/microexpression/CausalNet/reference/main_train.py",
+          "finding": "The public script evaluates the held-out subject every epoch and uses that result for selection and early stopping.",
+          "required_pattern_count": 4,
+          "missing_patterns": [],
+          "status": "pass"
+        },
+        {
+          "path": "third_party/microexpression/CausalNet/reference/Models.py",
+          "finding": "The public 28x28 path reshapes 256 channels to 64 channels before a 256-dimensional cross-attention layer.",
+          "required_pattern_count": 2,
+          "missing_patterns": [],
+          "status": "pass"
+        },
+        {
+          "path": "third_party/microexpression/CausalNet/reference/main_train.py",
+          "finding": "The audited public configuration selects the affected 28x28 path.",
+          "required_pattern_count": 1,
+          "missing_patterns": [],
+          "status": "pass"
+        }
+      ]
+    },
+    {
+      "id": "megc2024_code",
+      "name": "MEGC2024-CODE",
+      "repository": "https://github.com/hitheyuhong/MEGC2024-CODE",
+      "commit": "826aa718efcc44920a1f6ae373350fade7ed92da",
+      "license": "Apache-2.0",
+      "usage_scope": "Reference for spotting windows, interval expansion, interval suppression, and evaluation scaffolding.",
+      "forbidden_usage": [
+        "Do not execute or import the reference snapshot as production code.",
+        "Do not replace project subject-level splits with upstream five-fold splits.",
+        "Do not adopt fixed eight-epoch results as project metrics.",
+        "Do not present short-window SMIC classification as long-video spotting validation."
+      ],
+      "reference_file_count": 5,
+      "evidence": [
+        {
+          "path": "third_party/microexpression/MEGC2024-CODE/reference/README.md",
+          "finding": "The upstream training protocol is not the project strict subject-level Nested-LOSO protocol.",
+          "required_pattern_count": 2,
+          "missing_patterns": [],
+          "status": "pass"
+        },
+        {
+          "path": "third_party/microexpression/MEGC2024-CODE/reference/spot_util_casme.py",
+          "finding": "The source contains reusable conceptual scaffolding for peaks, intervals, and suppression.",
+          "required_pattern_count": 4,
+          "missing_patterns": [],
+          "status": "pass"
+        },
+        {
+          "path": "third_party/microexpression/MEGC2024-CODE/reference/spot_util_samm.py",
+          "finding": "The public interval suppression includes dataset-specific hard-coded thresholds and must be reimplemented and validated.",
+          "required_pattern_count": 2,
+          "missing_patterns": [],
+          "status": "pass"
+        }
+      ]
+    }
+  ],
+  "audited_file_count": 11,
+  "audited_files": [
+    {
+      "project": "causalnet",
+      "role": "license",
+      "path": "third_party/microexpression/CausalNet/LICENSE",
+      "sha256": "f1c5e181963e914a1a7d4c1191bfc859527c0e18de93c92b819b1e64c6e73a2a",
+      "size_bytes": 1069
+    },
+    {
+      "project": "causalnet",
+      "role": "audit_only_reference",
+      "path": "third_party/microexpression/CausalNet/reference/Models.py",
+      "sha256": "351d8c0823b40b7550b2d3c9f129cf38b50c9a64f130ca3504436dc2f21f4472",
+      "size_bytes": 17914
+    },
+    {
+      "project": "causalnet",
+      "role": "audit_only_reference",
+      "path": "third_party/microexpression/CausalNet/reference/main_train.py",
+      "sha256": "eee8f172eecd00b9a3328256106316846151fb4a87e9b9867c5da310dd1a2e8c",
+      "size_bytes": 15379
+    },
+    {
+      "project": "causalnet",
+      "role": "audit_only_reference",
+      "path": "third_party/microexpression/CausalNet/reference/requirements.txt",
+      "sha256": "43a9b7e1a8dee93d8f691cabc27aae13a46c2467f8e60220f8f88a341779195a",
+      "size_bytes": 149
+    },
+    {
+      "project": "causalnet",
+      "role": "audit_only_reference",
+      "path": "third_party/microexpression/CausalNet/reference/README.md",
+      "sha256": "fc9a5b455a14291eab895ad8c21fcff490bb80014fedcaeee59236dc88000bba",
+      "size_bytes": 5768
+    },
+    {
+      "project": "megc2024_code",
+      "role": "license",
+      "path": "third_party/microexpression/MEGC2024-CODE/LICENSE",
+      "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+      "size_bytes": 11357
+    },
+    {
+      "project": "megc2024_code",
+      "role": "audit_only_reference",
+      "path": "third_party/microexpression/MEGC2024-CODE/reference/README.md",
+      "sha256": "d860ffcc36d3e3838b0ab155615e89b1f08c08e399a561c97d9207a450bc2cec",
+      "size_bytes": 2040
+    },
+    {
+      "project": "megc2024_code",
+      "role": "audit_only_reference",
+      "path": "third_party/microexpression/MEGC2024-CODE/reference/main_spotandrecog.py",
+      "sha256": "4712384d503cd0600343f19df06e175607d3d027a28de792fc7869520a34b8c6",
+      "size_bytes": 8254
+    },
+    {
+      "project": "megc2024_code",
+      "role": "audit_only_reference",
+      "path": "third_party/microexpression/MEGC2024-CODE/reference/spot_util_casme.py",
+      "sha256": "9e000724eb7235f99dcfd20901ff35283bcd088d9c7533226297890f16f61c09",
+      "size_bytes": 17967
+    },
+    {
+      "project": "megc2024_code",
+      "role": "audit_only_reference",
+      "path": "third_party/microexpression/MEGC2024-CODE/reference/spot_util_samm.py",
+      "sha256": "fbbb2fc845ed26f78fab5326e5875d228fa44414912bda4eb9b95fe4d84603a4",
+      "size_bytes": 41922
+    },
+    {
+      "project": "megc2024_code",
+      "role": "audit_only_reference",
+      "path": "third_party/microexpression/MEGC2024-CODE/reference/util/sim_filter.py",
+      "sha256": "95c719e24df5ad437d4ff4088518d2ee2e95f48a948cfe0b84acb72b21752c7e",
+      "size_bytes": 2643
+    }
+  ],
+  "notice": {
+    "path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/THIRD_PARTY_NOTICES_MICROEXPRESSION.md",
+    "exists": true,
+    "sha256": "52a5e1c551fea037e808a17698962389a02f9966e0ca3df0ab5f3b19effff8c9",
+    "missing_tokens": []
+  },
+  "inputs": {
+    "lock_path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/configs/open_source/microexpression_open_source_lock_v1.json",
+    "lock_sha256": "ab4d0e8049c809ab07eaea56aa542a9ae880eb65a92a76432553d80a8c18af92",
+    "audit_script_path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/scripts/audit_microexpression_open_source.py",
+    "audit_script_sha256": "db5dad9f7c9c275837afa9165f50d50c2505eec4a8cabaf2f85aff6760dd98b1"
+  }
+}

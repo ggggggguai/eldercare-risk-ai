@@ -1,0 +1,151 @@
+{
+  "schema_version": "microexpression_au_prior_reconstructed_v2",
+  "source": "reconstructed_from_student_auxiliary_csv",
+  "paper_reproduction_claim": false,
+  "method": "class_balanced_pairwise_au_probability_sum_equation_3_12",
+  "region_names": [
+    "left_eyebrow",
+    "right_eyebrow",
+    "left_eye",
+    "right_eye",
+    "nose",
+    "outer_lip"
+  ],
+  "region_action_units": {
+    "left_eyebrow": [
+      1,
+      2,
+      4
+    ],
+    "right_eyebrow": [
+      1,
+      2,
+      4
+    ],
+    "left_eye": [
+      5,
+      6,
+      7
+    ],
+    "right_eye": [
+      5,
+      6,
+      7
+    ],
+    "nose": [
+      9
+    ],
+    "outer_lip": [
+      10,
+      12,
+      14,
+      15,
+      17,
+      18,
+      20,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28
+    ]
+  },
+  "source_files": [
+    {
+      "path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/微表情识别/MHSSA-Tranformer-GCN-main/casme_class2_for_optical_flow.csv",
+      "sha256": "6fad79ad063e61117ff03858012037e929ecb444c7d52ec22ae7179868696ec3",
+      "row_count": 145
+    },
+    {
+      "path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/微表情识别/MHSSA-Tranformer-GCN-main/samm_class2_for_optical_flow.csv",
+      "sha256": "eec1d4c6c3e74615a9779e1edba1ebae0ebc20ccc680d5ffc4be24def1a1a66c",
+      "row_count": 133
+    }
+  ],
+  "parsed_rows": 278,
+  "rows_without_mapped_au": 2,
+  "class_support": {
+    "0": 180,
+    "1": 58,
+    "2": 40
+  },
+  "observed_action_units": [
+    1,
+    2,
+    4,
+    5,
+    6,
+    7,
+    9,
+    10,
+    12,
+    14,
+    15,
+    16,
+    17,
+    20,
+    21,
+    23,
+    24,
+    25,
+    26,
+    31,
+    38,
+    39,
+    43,
+    56,
+    61
+  ],
+  "adjacency": [
+    [
+      1.0,
+      1.0,
+      0.13154932856559753,
+      0.13154932856559753,
+      0.0183557216078043,
+      0.12402419000864029
+    ],
+    [
+      1.0,
+      1.0,
+      0.13154932856559753,
+      0.13154932856559753,
+      0.0183557216078043,
+      0.12402419000864029
+    ],
+    [
+      0.13154932856559753,
+      0.13154932856559753,
+      0.37492087483406067,
+      0.37492087483406067,
+      0.014276672154664993,
+      0.09082917124032974
+    ],
+    [
+      0.13154932856559753,
+      0.13154932856559753,
+      0.37492087483406067,
+      0.37492087483406067,
+      0.014276672154664993,
+      0.09082917124032974
+    ],
+    [
+      0.0183557216078043,
+      0.0183557216078043,
+      0.014276672154664993,
+      0.014276672154664993,
+      0.028553344309329987,
+      0.01223714742809534
+    ],
+    [
+      0.12402419000864029,
+      0.12402419000864029,
+      0.09082917124032974,
+      0.09082917124032974,
+      0.01223714742809534,
+      0.9785498380661011
+    ]
+  ],
+  "content_sha256": "e37614fe3aa06719d8fb53e1ae1235a6b71509bcad10cc922261696be88ad04b"
+}

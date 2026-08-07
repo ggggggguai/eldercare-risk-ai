@@ -1,0 +1,70 @@
+{
+  "bootstrap": {
+    "confidence_level": 0.95,
+    "degenerate_repetitions": 0,
+    "intervals": {
+      "auprc": {
+        "lower": 0.46356685081698523,
+        "upper": 0.5146158294887794
+      },
+      "auroc": {
+        "lower": 0.6508719843507331,
+        "upper": 0.6821559167821162
+      },
+      "brier": {
+        "lower": 0.19929477723723607,
+        "upper": 0.20962259794304328
+      },
+      "ece": {
+        "lower": 0.011542986371871811,
+        "upper": 0.028650809435965856
+      },
+      "macro_f1": {
+        "lower": 0.6056458468556437,
+        "upper": 0.6322434153035827
+      },
+      "sensitivity": {
+        "lower": 0.4265300440406145,
+        "upper": 0.47407381936089255
+      },
+      "specificity": {
+        "lower": 0.7689985165707208,
+        "upper": 0.7965122312967696
+      }
+    },
+    "method": "participant_cluster_percentile",
+    "rng": "numpy_pcg64",
+    "seed": 20260728,
+    "valid_repetitions": 2000
+  },
+  "decision_authority": "shadow_only",
+  "execution_mode": "offline_only",
+  "model_family": "elasticnet_logistic",
+  "primary_metrics": {
+    "auprc": 0.48817669819990983,
+    "auprc_calibrated": 0.4751338773242753,
+    "auroc": 0.6667932142464249,
+    "auroc_calibrated": 0.6609974188538635,
+    "brier": 0.20437744399763016,
+    "ece": 0.01159993706048248,
+    "macro_f1": 0.6190257656596149,
+    "positive_rate": 0.32823081918545327,
+    "sensitivity": 0.4499010740531374,
+    "specificity": 0.7827648114901258
+  },
+  "product_visible": false,
+  "release_status": "experimental",
+  "task_id": "forecast_2m",
+  "window_unweighted_sensitivity_metrics": {
+    "auprc": 0.46828924184381904,
+    "auprc_calibrated": 0.45819179734288706,
+    "auroc": 0.6673245507560719,
+    "auroc_calibrated": 0.6621300177485788,
+    "brier": 0.19989400860941203,
+    "ece": 0.012800851586395521,
+    "macro_f1": 0.6188179555326856,
+    "positive_rate": 0.3135775862068966,
+    "sensitivity": 0.44639175257731956,
+    "specificity": 0.7863422291993724
+  }
+}

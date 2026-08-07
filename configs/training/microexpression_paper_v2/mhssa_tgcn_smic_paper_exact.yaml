@@ -1,0 +1,60 @@
+schema_version: microexpression_mhssa_tgcn_smic_paper_exact_v2
+task_id: MODEL-ME-005
+release_status: experimental
+execution_mode: offline_only
+frame_annotation_source: estimated_dc_rois
+evaluation_scope: implementation_smoke_only
+paper_reproduction_claim: false
+
+data:
+  source_dataset: smic_hs
+  artifact_manifest: data/manifests/microexpression/paper_v2/flow_artifact_manifest_smic_hs_classification_combined_v2.jsonl
+  preprocessing_variant: combined
+  patch_shape: [5, 5, 3]
+  patch_count: 43
+  patch_dim: 75
+  region_counts: [5, 5, 6, 6, 9, 12]
+
+graph_prior:
+  path: data/manifests/microexpression/paper_v2/au_prior_casme_samm_reconstructed_v2.json
+  source: reconstructed_from_student_auxiliary_csv
+  paper_reproduction_claim: false
+
+model:
+  num_regions: 6
+  max_patches_per_region: 12
+  patch_dim: 75
+  hidden_dim: 256
+  transformer_layers: 2
+  transformer_heads: 4
+  gcn_layers: 3
+  num_classes: 3
+  dropout: 0.1
+  attention_variant: paper_exact
+  spatial_epsilon: 0.000001
+  graph:
+    mode: fused
+    mds_dimensions: 2
+    rbf_sigma: 1.0
+    fusion_formula: paper_equation_3_17
+    eps: 0.000001
+
+training:
+  optimizer: adam
+  learning_rate: 0.00005
+  lr_step_epochs: 10
+  lr_gamma: 0.95
+  max_epochs: 200
+  min_epochs: 1
+  patience: 15
+  batch_size: 32
+  weight_decay: 0.0
+  gradient_clip_norm: 1.0
+  num_workers: 0
+  loss: cross_entropy
+
+selection:
+  protocol: strict_subject_level_outer_loso
+  validation_source: training_subjects_only
+  checkpoint_selection: validation_selection_score_then_loss
+  test_used_for_selection: false

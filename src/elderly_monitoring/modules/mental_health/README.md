@@ -29,7 +29,7 @@ mental_health/
 - `M-PHY-001` PhysiologyExpert：ElasticNet Logistic + Platt，只使用 RESILIENT 的真实生理字段；
 - `M-SOC-001` SocialContextExpert：CatBoost + Isotonic，只使用四来源严格同义档案字段。
 
-五者均绑定 `mood_social_feature_schema_v3_3_3` 和 DATA-007 参与者级嵌套五折 split，并由 EVAL-001 冻结为只读 active 基线。MODEL-006 已另行完成 PHQ-9 连续分值回归和五级等级多分类离线辅助 bundle；该 bundle 不 active、不进入融合或 HTTP 推理。TREND-001 已完成活动、睡眠、社会三分支 PersonalTrendExpert、严格 OOF、个人基线回放和 `personal_change_mask`；FUSION-001 已完成 22,191 行严格 OOF 证据表和来源/参与者/外折/标签/窗口对齐审计，公开汇总数据的 day mask 明确是窗口观测代理。社会分支仍仅为无直接 S10/PHQ-9 验证的工程代理。下一任务为 FUSION-002，完整模型包仍待 ART-001。
+五者均绑定 `mood_social_feature_schema_v3_3_3` 和 DATA-007 参与者级嵌套五折 split，并由 EVAL-001 冻结为只读基线。MODEL-006 已另行完成 PHQ-9 连续分值回归和五级等级多分类离线辅助 bundle；该 bundle 不 active、不进入融合或 HTTP 推理。TREND-001、FUSION-001/002、ART-001 和 API-001/002 已完成 PersonalTrend、严格 OOF、融合、版本化模型包和在线推理闭环。V3.3.4 `OPT-CALIB-001` 至 `REPORT-002` 也已完成；最终候选 `MH-20260804-021` 未通过冻结晋级门，ART-002/API-003 经审计继续加载 ART-001 `MH-20260802-013 / mood-fusion-v3.3.3`。社会分支仍是无直接 S10/PHQ-9 配对的工程代理，Physiology 全局可靠度仍为 0。
 
 ## V2 对应关系
 

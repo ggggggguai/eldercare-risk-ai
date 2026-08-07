@@ -1,0 +1,36 @@
+schema_version: mood-social-forecast-v3.4-opt-fusion-config-v1
+task_id: FORECAST-OPT-001D
+optimization_version: mood-social-forecast-v3.4-opt-fusion-v1
+upstream_run_id: MH-20260807-FOPT-002
+upstream_selection_manifest_sha256: b1c7ff8c3c855ae3ae84bbb21e2dca44b460a0a933a0d7a0948b08b0384c65ac
+upstream_config_sha256: fbf7f9a2dd2af33c4b392fbc35ce4d1bc6535a8565d9beecf18a5f486826e3f5
+forecast_tasks: [forecast_1m, forecast_2m]
+outer_folds: 5
+inner_folds: 5
+component_families: [elasticnet_logistic, lightgbm, catboost]
+component_selection_metric: participant_equal_auprc
+component_tie_breaker: participant_equal_brier_then_candidate_index
+weight_grid:
+  step: 0.1
+  constraints: nonnegative_and_sum_to_one
+  expected_count: 66
+  selection_metric: participant_equal_auprc
+  tie_breaker: participant_equal_brier_then_grid_order
+calibration:
+  methods: [none, platt, isotonic, beta]
+  comparison: inner_fold_cross_fit
+  fit_source: inner_oof_blended_probability_only
+  selection_metric: participant_equal_brier
+  tie_breaker: participant_equal_ece_then_method_order
+threshold:
+  fit_source: selected_cross_fitted_inner_oof_calibrated_probability_only
+  selection_metric: participant_equal_macro_f1
+  tie_breaker: sensitivity_then_lower_threshold
+outer_test_policy: untouched_until_model_weight_calibrator_threshold_frozen
+release_status: experimental
+execution_mode: offline_only
+decision_authority: shadow_only
+product_visible: false
+backend_change: false
+api_change: false
+v3_3_package_change: false

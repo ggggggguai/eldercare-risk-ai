@@ -1,0 +1,18 @@
+{
+  "active_package_directory": "C:\\Users\\Administrator\\Desktop\\揭榜挂帅专项赛\\algorithm\\eldercare-risk-ai-main\\models\\mental_health\\mood_social\\v3.3.3\\packages\\MH-20260802-013",
+  "active_package_run_id": "MH-20260802-013",
+  "algorithm_loader_uses_art002_decision": true,
+  "backend_algorithm_implementation": false,
+  "backend_version_idempotency_preserved": true,
+  "mode": "no_promotion_keep_art001",
+  "model_version": "mood-fusion-v3.3.3",
+  "new_package_connected": false,
+  "no_evidence_http_status": 200,
+  "promotion_passed": false,
+  "raw_probability_contract_preserved": true,
+  "report_core_sha256": "bf21bb2f0c87bfca85bc91d276e76a562d217f7e88951cbbf6178e96087ccdb9",
+  "run_id": "MH-20260804-024",
+  "task_id": "API-003",
+  "unavailable_package_http_status": 503,
+  "version": "mood-social-api003-audit-v1"
+}

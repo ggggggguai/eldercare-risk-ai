@@ -1,0 +1,47 @@
+{
+  "backend_forecast_hits": [],
+  "backend_hashes": {
+    "app/routers/mood_social.py": "96600923b427aa7f8e3ce4d56242840972ab6407d760d526691968f5bf696464",
+    "app/services/algorithm_client.py": "75af937239dff52cea1d94e56a12bad5b2f5fcf1543caf23c123f4d80afbdf16",
+    "app/services/mood_social.py": "1c8e9f48d97a7f7bd9b81c51389bd2fbfda1555e5d15e996da17cf8b9164ddab"
+  },
+  "created_at": "2026-08-07T08:41:37.893928+00:00",
+  "decision_authority": "shadow_only",
+  "execution_mode": "offline_only",
+  "final_delivery_report": "final_delivery_report.md",
+  "finalize_code_sha256": "048804180223aeb6af5db7a6037a285fa6ee92ba22dee6ed28f18fcaf3d4df09",
+  "isolation_report": "isolation_report.json",
+  "model_cards": [
+    {
+      "json": "forecast_1m_001d_candidate_model_card.json",
+      "markdown": "forecast_1m_001d_candidate_model_card.md"
+    },
+    {
+      "json": "forecast_2m_001d_candidate_model_card.json",
+      "markdown": "forecast_2m_001d_candidate_model_card.md"
+    }
+  ],
+  "product_integration_performed": false,
+  "product_visible": false,
+  "promotion_status": "retain_v3_4_baseline",
+  "recommended_fallback": "MH-20260805-FCAST-001",
+  "release_status": "experimental",
+  "rollback_decision": "rollback_decision.json",
+  "run_id": "MH-20260807-FOPT-002",
+  "schema_version": "mood-social-forecast-v3.4-opt-release-manifest-v1",
+  "status": "release_completed",
+  "task_id": "FORECAST-OPT-001G",
+  "upstream_evaluation_manifest_sha256": "b6a9809fd237a5aa83251f7ca82e506e92f4fafb2c911926e70a640bb5027a30",
+  "upstream_evaluation_validation_sha256": "0ea2e8348c2c459c6cb6ec4aed2e69d828029e0cd91c41ec3f6cb0dff5a3c7de",
+  "upstream_promotion_decision_sha256": "d42ce0d350537763e23e402fbb7f68c12a30bfd893730d8ff21ea927061acf2f",
+  "v3_3": {
+    "acceptance_sha256": "dee72f7ef28b03a07b012bdaa21016a25e5d73d5e14a8f4df5011bce71a103ef",
+    "active_run_id": "MH-20260802-013",
+    "model_version": "mood-fusion-v3.3.3",
+    "package_checksums_sha256": "e40ac1b96c3e4075a1f62523f446f7e1717cefa7d75a4a59128d11611e4f4ce3",
+    "package_manifest_sha256": "b06ba3fc042e07eb17738a21b3683f3029a3adeae6aadd16705b9eb51a0a08d8",
+    "package_selection_sha256": "10285feb90269f25347b256101d9cb8370954e18d8f68b7dbcc09d85c056532b",
+    "pipeline_sha256": "d667ae632c22c584133c25c0590146a691bea7cc8a7487763e1f1db53a122426",
+    "schemas_sha256": "86390e67bceacaee792f7cc5f43fd4e050a5290c5c011323251e27593edb4507"
+  }
+}

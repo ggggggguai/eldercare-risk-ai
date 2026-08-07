@@ -1,0 +1,36 @@
+{
+  "attempts": [
+    {
+      "detail": "HistoryPreprocessor reuses explicit masks; auxiliary OOF uses the full 432-feature history cache shared by all candidates.",
+      "event_index": 1,
+      "status": "started",
+      "timestamp": "2026-08-07T04:22:41.248365+00:00"
+    },
+    {
+      "detail": "Tool output buffering concealed fold-completion events. The process was stopped after four forecast_1m outer folds had completed; all four fold artifacts are retained and must pass strict resume validation before reuse.",
+      "event_index": 2,
+      "status": "terminated_with_four_completed_folds",
+      "timestamp": "2026-08-07T04:37:55Z"
+    },
+    {
+      "detail": "RuntimeError: candidate context hash mismatch: selection_attempts.json",
+      "event_index": 3,
+      "status": "failed",
+      "timestamp": "2026-08-07T04:39:52.208840+00:00"
+    },
+    {
+      "detail": "HistoryPreprocessor reuses explicit masks; auxiliary OOF uses the full 432-feature history cache shared by all candidates.",
+      "event_index": 4,
+      "status": "started",
+      "timestamp": "2026-08-07T04:40:36.011367+00:00"
+    },
+    {
+      "detail": "All ten task/outer-fold selections passed.",
+      "event_index": 5,
+      "status": "completed",
+      "timestamp": "2026-08-07T05:00:37.987071+00:00"
+    }
+  ],
+  "run_id": "MH-20260807-FOPT-002",
+  "schema_version": "mood-social-forecast-v3.4-opt-selection-attempts-v1"
+}

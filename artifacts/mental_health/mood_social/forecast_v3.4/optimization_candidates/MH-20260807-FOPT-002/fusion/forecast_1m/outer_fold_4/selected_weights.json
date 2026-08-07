@@ -1,0 +1,11 @@
+{
+  "selection_metric": "participant_equal_auprc",
+  "selection_source": "outer_train_inner_oof_only",
+  "sum": 0.9999999999999999,
+  "tie_breaker": "participant_equal_brier_then_grid_order",
+  "weights": {
+    "catboost": 0.1,
+    "elasticnet_logistic": 0.7,
+    "lightgbm": 0.2
+  }
+}

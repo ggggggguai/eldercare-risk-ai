@@ -3,7 +3,7 @@
 本工程只覆盖算法开发部分，面向两个模块：
 
 - `fall_risk`：跌倒风险前置预警算法，承接 `docs/modules/fall_risk/plans/跌倒风险算法研发计划.md`。
-- `mental_health`：心理健康风险预警算法，当前已具备行为/睡眠适配、日级聚合、个人基线、风险评分和离线 CLI；V3.3.3 情绪与社交关注主线已完成五套 canonical、参与者级嵌套五折 split、五个 standalone 监督专家、EVAL-001 只读审计、MODEL-006 PHQ-9 离线辅助模型、TREND-001 PersonalTrendExpert 和 FUSION-001 严格 OOF 证据表。
+- `mental_health`：心理健康风险预警算法，当前已具备行为/睡眠适配、日级聚合、个人基线、量表监督专家、PersonalTrend、融合推理、模型包校验和 HTTP 服务；V3.3.3 主线及 V3.3.4 `OPT-CALIB-001` 至 `REPORT-002` 优化与回退验收均已完成。
 
 系统开发不在本工程范围内。家属端、社区端、账号、消息推送、工单流转、可视化看板等只通过标准 JSON 接口对接。
 
@@ -43,7 +43,7 @@ conda run -n eldercare-ai python -m pytest -q
 4. 用真实或半真实数据校准模型、规则 fallback、心理健康日级偏离和置信度。
 5. 固定两个模块共享的身份、时间、风险等级和事件字段契约，同时保持独立评分与输出。
 
-情绪与社交关注模型主线当前已完成 MODEL-001 至 MODEL-006、EVAL-001、TREND-001 和 FUSION-001。五个 standalone 专家继续作为只读 active 基线；MODEL-006 保持 offline-only。FUSION-001 运行 `MH-20260802-009` 生成 22,191 行、15,361 人的严格 OOF 证据表，逐列保留专家原始/当前概率、来源级折外可靠度、字段覆盖置信度、PersonalTrend 证据和四层 mask；参与者、来源、外折、标签和窗口对齐独立验证通过。活动/睡眠属于 PSYCHE-D 名义月份代理迁移，社会分支没有直接 S10/PHQ-9 纵向验证；公开汇总数据 day mask 明确只是窗口观测代理。完整生产模型包仍待 FUSION-002 和 ART-001；下一任务为 FUSION-002。
+情绪与社交关注模型已完成 MODEL-001 至 MODEL-006、EVAL-001、TREND-001、FUSION-001/002、ART-001、API-001/002、运行时稳定策略以及 V3.3.4 `OPT-CALIB-001` 至 `REPORT-002`。当前活动包为 ART-001 `MH-20260802-013`，包内默认融合为 `MH-20260802-012 coverage_calibrated`，对外版本为 `mood-fusion-v3.3.3`；MODEL-006 保持 offline-only。V3.3.4 最终候选 `MH-20260804-021` 未通过冻结晋级门，因此 ART-002/API-003 没有创建或接入虚假新包，而是经版本化审计继续使用 ART-001。所有公开数据指标均为参与者级严格 OOF 离线结果；Physiology 新数据仍在申请，当前全局可靠度保持 0，真实摄像头、睡眠仪和 S10 联调仍需另行完成。
 
 ## 不做的内容
 

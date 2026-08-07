@@ -1,0 +1,16 @@
+{
+  "candidate_count": 1,
+  "inner_split_sha256": "64f9e4a8d548f9c5152275b9d1fc8933814bbc9730ca74af5557284657a4e4ef",
+  "model_family": "dummy",
+  "outer_fold_id": 1,
+  "records": [
+    {
+      "auprc": 0.32160060109305055,
+      "brier": 0.2202195873747667,
+      "candidate_index": 0,
+      "params": {}
+    }
+  ],
+  "schema_version": "mood-social-forecast-v3.4-search-record-v1",
+  "selected_params": {}
+}

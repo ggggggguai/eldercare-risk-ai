@@ -1,0 +1,70 @@
+schema_version: microexpression_paper_v2_nested_loso_config_v2
+task_id: EVAL-ME-002
+run_id: EVAL-ME-002-SMIC-NESTED-LOSO-20260806
+release_status: experimental
+execution_mode: offline_only
+paper_reproduction_claim: false
+
+inputs:
+  variants_summary: data/manifests/microexpression/paper_v2/evaluation_variants/evaluation_input_variants_summary_v2.json
+  variants_audit: data/manifests/microexpression/paper_v2/evaluation_variants/evaluation_input_variants_audit_v2.json
+  split_manifest: data/manifests/microexpression/smic_subject_loso_splits_v1.json
+  au_prior: data/manifests/microexpression/paper_v2/au_prior_casme_samm_reconstructed_v2.json
+
+model:
+  num_regions: 6
+  max_patches_per_region: 12
+  patch_dim: 75
+  hidden_dim: 256
+  transformer_layers: 2
+  transformer_heads: 4
+  gcn_layers: 3
+  num_classes: 3
+  dropout: 0.1
+  attention_variant: paper_exact
+  spatial_epsilon: 0.000001
+  graph:
+    mode: fused
+    mds_dimensions: 2
+    rbf_sigma: 1.0
+    fusion_formula: paper_equation_3_17
+    eps: 0.000001
+
+training:
+  optimizer: adam
+  learning_rate: 0.00005
+  lr_step_epochs: 10
+  lr_gamma: 0.95
+  max_epochs: 200
+  min_epochs: 1
+  patience: 15
+  batch_size: 32
+  weight_decay: 0.0
+  gradient_clip_norm: 1.0
+  num_workers: 0
+  loss: cross_entropy
+
+protocol:
+  outer: subject_level_loso
+  inner_validation: frozen_training_side_subjects
+  selection_seed: 20260806
+  final_seeds: [20260806, 20260817, 20260829]
+  test_evaluations_per_seed_subject: 1
+  bootstrap_iterations: 2000
+  quality_filtering: disabled_unfiltered_primary
+
+sequential_ablation:
+  preprocessing: [P0, P1, P2, P3]
+  flow_channel:
+    - [farneback, optical_strain]
+    - [farneback, magnitude]
+    - [tvl1, optical_strain]
+    - [tvl1, magnitude]
+  order: [paper, standard_index, random_fixed]
+  attention: [paper_exact, stable_variant]
+  graph:
+    - [au, paper_equation_3_17]
+    - [manifold, paper_equation_3_17]
+    - [fused, paper_equation_3_17]
+    - [cosine, direct_rbf_stable]
+  loss: [cross_entropy, weighted_cross_entropy, balanced_sampler, focal]

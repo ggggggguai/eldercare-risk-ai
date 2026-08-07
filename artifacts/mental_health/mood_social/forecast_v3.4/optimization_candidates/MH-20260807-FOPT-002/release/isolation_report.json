@@ -1,0 +1,26 @@
+{
+  "backend_hashes": {
+    "app/routers/mood_social.py": "96600923b427aa7f8e3ce4d56242840972ab6407d760d526691968f5bf696464",
+    "app/services/algorithm_client.py": "75af937239dff52cea1d94e56a12bad5b2f5fcf1543caf23c123f4d80afbdf16",
+    "app/services/mood_social.py": "1c8e9f48d97a7f7bd9b81c51389bd2fbfda1555e5d15e996da17cf8b9164ddab"
+  },
+  "decision_authority": "shadow_only",
+  "forecast_backend_hits": [],
+  "online_model_version": "mood-fusion-v3.3.3",
+  "online_package_run_id": "MH-20260802-013",
+  "product_integration_performed": false,
+  "product_visible": false,
+  "run_id": "MH-20260807-FOPT-002",
+  "status": "pass",
+  "task_id": "FORECAST-OPT-001G",
+  "v3_3": {
+    "acceptance_sha256": "dee72f7ef28b03a07b012bdaa21016a25e5d73d5e14a8f4df5011bce71a103ef",
+    "active_run_id": "MH-20260802-013",
+    "model_version": "mood-fusion-v3.3.3",
+    "package_checksums_sha256": "e40ac1b96c3e4075a1f62523f446f7e1717cefa7d75a4a59128d11611e4f4ce3",
+    "package_manifest_sha256": "b06ba3fc042e07eb17738a21b3683f3029a3adeae6aadd16705b9eb51a0a08d8",
+    "package_selection_sha256": "10285feb90269f25347b256101d9cb8370954e18d8f68b7dbcc09d85c056532b",
+    "pipeline_sha256": "d667ae632c22c584133c25c0590146a691bea7cc8a7487763e1f1db53a122426",
+    "schemas_sha256": "86390e67bceacaee792f7cc5f43fd4e050a5290c5c011323251e27593edb4507"
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "checks_passed": 179,
+  "conscious": {
+    "oof_row_count": 588,
+    "participant_count": 49,
+    "proxy_row_count": 18673,
+    "psyche_labels_read": false,
+    "semantic_feature_count": 19,
+    "window_count": 98
+  },
+  "decision_authority": "shadow_only",
+  "execution_mode": "offline_only",
+  "failed_experiment_count": 0,
+  "obf": {
+    "leave_year_mae_delta_vs_null": 0.18359097326180018,
+    "nested_loocv_mae_delta_vs_null": 0.5404502307959342,
+    "paired_madrs_count": 23,
+    "participant_count": 162,
+    "transfer_status": "stopped_before_psyche_transfer"
+  },
+  "product_visible": false,
+  "promotion_decision_performed": false,
+  "release_status": "experimental",
+  "run_id": "MH-20260807-FOPT-AUX-001",
+  "source_manifest": {
+    "conscious": {
+      "adapter_version": "conscious-wearable-v1",
+      "dataset_id": "conscious_wearable",
+      "files": {
+        "sensor_hrv_filtered.csv": {
+          "bytes": 17288962,
+          "sha256": "e383d3c0ea6c6e998674aa49493a568fa585ab238e5b6c881e1c6fd2916c5a74"
+        },
+        "sleep_diary.csv": {
+          "bytes": 138047,
+          "sha256": "6eb143e1bc59f6adfa579b9ac6d795c7f88d2215161b0d89fcee31e5f0d86813"
+        },
+        "survey.csv": {
+          "bytes": 3562,
+          "sha256": "a5fcbd42aa41d381f5775ae20fa42d4950a5897b4c04cb301439dbae3f3e67c5"
+        }
+      }
+    },
+    "obf": {
+      "adapter_version": "obf-psychiatric-v1",
+      "dataset_id": "obf_psychiatric",
+      "file_count": 167,
+      "total_bytes": 101472815,
+      "tree_sha256": "b786e7c11675482b35af228f256612df25126e153e726c4e224c2ed70eef40e0"
+    }
+  },
+  "status": "pass",
+  "task_id": "FORECAST-OPT-001E",
+  "upstream_run_id": "MH-20260807-FOPT-002",
+  "validation_code_sha256": "e0aaebdcc2a927148b979f934295160f796e4cfbc22b246fcf0fb3a5fc0e8ebd"
+}

@@ -1,0 +1,11 @@
+{
+  "coef": [
+    3.0597073764434928
+  ],
+  "fit_source": "complete_outer_train_inner_oof_blended_probability",
+  "intercept": [
+    -0.6990900836855117
+  ],
+  "method": "platt",
+  "selection_source": "inner_fold_cross_fitted_calibration_predictions"
+}

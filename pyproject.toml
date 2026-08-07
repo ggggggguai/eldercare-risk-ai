@@ -41,3 +41,6 @@ ml = [
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
+markers = [
+  "integration: runs against the frozen PSYCHE-D source and V3.3 split",
+]

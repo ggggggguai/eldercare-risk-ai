@@ -1,0 +1,19 @@
+{
+  "audit_path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/data/manifests/microexpression/causalnet_v1/causalnet_artifact_audit_smic_hs_source_compatible_roi_v1.json",
+  "audit_sha256": "0e32426648fd06b245fff130db449ec6f7eff171e372b73920dd722dbb377fef",
+  "completed": 164,
+  "failed": 0,
+  "failures_path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/data/manifests/microexpression/causalnet_v1/causalnet_preprocess_failures_smic_hs_source_compatible_roi_v1.json",
+  "failures_sha256": "e7707a5ff26c88982d8ef91708fd3c8ec02f3be54236d1a36be938016c426279",
+  "full_face_code_path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/src/elderly_monitoring/modules/mental_health/submodules/facial_affect_clue/causalnet_preprocess.py",
+  "full_face_generated": false,
+  "history_fingerprint_path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/data/manifests/microexpression/causalnet_v1/causalnet_history_fingerprint_smic_hs_source_compatible_roi_v1.json",
+  "history_fingerprint_sha256": "dd7a4b98e027e388ad6aa02eb8f7af9962e63eaa96a014528ae853e3569ab161",
+  "manifest_path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/data/manifests/microexpression/causalnet_v1/causalnet_artifact_manifest_smic_hs_source_compatible_roi_v1.jsonl",
+  "manifest_sha256": "111a137b1cebad78b8f61009017b4cf41e6fc89f0b36f48b9f638732490a7040",
+  "requested": 164,
+  "schema_version": "causalnet_preprocess_summary_v1",
+  "status": "pass",
+  "task_id": "FLOW-ME-004",
+  "variant": "source_compatible_roi"
+}

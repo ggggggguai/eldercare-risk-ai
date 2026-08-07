@@ -1,0 +1,70 @@
+{
+  "bootstrap": {
+    "confidence_level": 0.95,
+    "degenerate_repetitions": 0,
+    "intervals": {
+      "auprc": {
+        "lower": 0.30909648218611974,
+        "upper": 0.34208642435043884
+      },
+      "auroc": {
+        "lower": 0.47768621918174226,
+        "upper": 0.511505502111549
+      },
+      "brier": {
+        "lower": 0.21576896257906963,
+        "upper": 0.225316200793405
+      },
+      "ece": {
+        "lower": 0.005439325112416386,
+        "upper": 0.02233677902102851
+      },
+      "macro_f1": {
+        "lower": 0.4744769542667786,
+        "upper": 0.502849041088868
+      },
+      "sensitivity": {
+        "lower": 0.17665292255395423,
+        "upper": 0.21879702142139204
+      },
+      "specificity": {
+        "lower": 0.7857910712125853,
+        "upper": 0.8163413278255424
+      }
+    },
+    "method": "participant_cluster_percentile",
+    "rng": "numpy_pcg64",
+    "seed": 20260728,
+    "valid_repetitions": 2000
+  },
+  "decision_authority": "shadow_only",
+  "execution_mode": "offline_only",
+  "model_family": "dummy",
+  "primary_metrics": {
+    "auprc": 0.3249350053328427,
+    "auprc_calibrated": 0.3249350053328427,
+    "auroc": 0.4947582472190998,
+    "auroc_calibrated": 0.4947582472190998,
+    "brier": 0.2204232254166948,
+    "ece": 0.004302865569393296,
+    "macro_f1": 0.48846911258793213,
+    "positive_rate": 0.32799174690508937,
+    "sensitivity": 0.19752568672677712,
+    "specificity": 0.8012485927745369
+  },
+  "product_visible": false,
+  "release_status": "experimental",
+  "task_id": "forecast_1m",
+  "window_unweighted_sensitivity_metrics": {
+    "auprc": 0.3124160360055286,
+    "auprc_calibrated": 0.3124160360055286,
+    "auroc": 0.4977087725909565,
+    "auroc_calibrated": 0.4977087725909565,
+    "brier": 0.21555333837018456,
+    "ece": 0.014138630341374123,
+    "macro_f1": 0.4897171443164703,
+    "positive_rate": 0.31385073991270096,
+    "sensitivity": 0.19742198100407052,
+    "specificity": 0.799534522885958
+  }
+}

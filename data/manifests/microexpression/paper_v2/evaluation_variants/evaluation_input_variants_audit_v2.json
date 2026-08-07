@@ -1,0 +1,103 @@
+{
+  "schema_version": "microexpression_eval_input_variants_v2",
+  "task_id": "EVAL-ME-002",
+  "status": "pass",
+  "variant_count": 16,
+  "artifact_count": 2624,
+  "p3_reference_exact_count": 164,
+  "p3_reference_expected_count": 164,
+  "issue_count": 0,
+  "issues": [],
+  "variants": {
+    "p0_farneback_magnitude": {
+      "sample_count": 164,
+      "issue_count": 0,
+      "manifest_sha256_verified": true
+    },
+    "p0_farneback_optical_strain": {
+      "sample_count": 164,
+      "issue_count": 0,
+      "manifest_sha256_verified": true
+    },
+    "p0_tvl1_magnitude": {
+      "sample_count": 164,
+      "issue_count": 0,
+      "manifest_sha256_verified": true
+    },
+    "p0_tvl1_optical_strain": {
+      "sample_count": 164,
+      "issue_count": 0,
+      "manifest_sha256_verified": true
+    },
+    "p1_farneback_magnitude": {
+      "sample_count": 164,
+      "issue_count": 0,
+      "manifest_sha256_verified": true
+    },
+    "p1_farneback_optical_strain": {
+      "sample_count": 164,
+      "issue_count": 0,
+      "manifest_sha256_verified": true
+    },
+    "p1_tvl1_magnitude": {
+      "sample_count": 164,
+      "issue_count": 0,
+      "manifest_sha256_verified": true
+    },
+    "p1_tvl1_optical_strain": {
+      "sample_count": 164,
+      "issue_count": 0,
+      "manifest_sha256_verified": true
+    },
+    "p2_farneback_magnitude": {
+      "sample_count": 164,
+      "issue_count": 0,
+      "manifest_sha256_verified": true
+    },
+    "p2_farneback_optical_strain": {
+      "sample_count": 164,
+      "issue_count": 0,
+      "manifest_sha256_verified": true
+    },
+    "p2_tvl1_magnitude": {
+      "sample_count": 164,
+      "issue_count": 0,
+      "manifest_sha256_verified": true
+    },
+    "p2_tvl1_optical_strain": {
+      "sample_count": 164,
+      "issue_count": 0,
+      "manifest_sha256_verified": true
+    },
+    "p3_farneback_magnitude": {
+      "sample_count": 164,
+      "issue_count": 0,
+      "manifest_sha256_verified": true
+    },
+    "p3_farneback_optical_strain": {
+      "sample_count": 164,
+      "issue_count": 0,
+      "manifest_sha256_verified": true
+    },
+    "p3_tvl1_magnitude": {
+      "sample_count": 164,
+      "issue_count": 0,
+      "manifest_sha256_verified": true
+    },
+    "p3_tvl1_optical_strain": {
+      "sample_count": 164,
+      "issue_count": 0,
+      "manifest_sha256_verified": true
+    }
+  },
+  "inputs": {
+    "summary": {
+      "path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/data/manifests/microexpression/paper_v2/evaluation_variants/evaluation_input_variants_summary_v2.json",
+      "sha256": "6dfb0a8aa08766f7fc1713d4c7b0f1e41904973daddb8fc5331fd12039d02648"
+    },
+    "frozen_manifest": {
+      "path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/data/manifests/microexpression/paper_v2/flow_artifact_manifest_smic_hs_classification_combined_v2.jsonl",
+      "sha256": "7d8b0a6ad54814c5970ea767b5812eb0e5aa2d4371561be25de03ec6e80ce06d"
+    }
+  }
+}

@@ -1,0 +1,72 @@
+{
+  "artifacts": {
+    "calibration": {
+      "path": "calibration.json",
+      "sha256": "3636ce4267836f7008cc66b35367be65baf138a41d6b4273a39bc0d06c8416a1"
+    },
+    "candidate_config": {
+      "path": "candidate_config.json",
+      "sha256": "b5d6b6bfa67cb0d66a9c15d98bf4d64caaf27322d020edb8908bb88dfc7ea584"
+    },
+    "feature_stats": {
+      "path": "feature_stats.json",
+      "sha256": "a373ea300ae822c2a247b7a258354f2917f05eeeab14e3c7eb98a1aa3bfc1c8e"
+    },
+    "fusion": {
+      "path": "fusion.pt",
+      "sha256": "afa9efc375c4cc29403422b4f1135c332fde25ebfe563ac1c4f29777161e2d4a"
+    }
+  },
+  "candidate": {
+    "calibration_method": "platt",
+    "face_in_primary_score": false,
+    "feature_variant": "baseline",
+    "heads": "main_head",
+    "id": "V34-A2",
+    "primary_modalities": [
+      "audio",
+      "text"
+    ]
+  },
+  "feature_version": "cognitive_features_v3.3.0",
+  "model_structure": {
+    "dropout": 0.2,
+    "fusion_hidden_dims": [
+      128,
+      64
+    ],
+    "input_dims": {
+      "audio": 768,
+      "face": 512,
+      "text": 768
+    },
+    "projection_dim": 256
+  },
+  "model_version": "cognitive-mm-v3.4.0",
+  "network_access": "forbidden",
+  "official_test_evaluated": false,
+  "product_level_boundaries": {
+    "high_attention": 70.0,
+    "normal": 40.0
+  },
+  "schema_version": "cognitive_model_manifest_v2",
+  "source_checkpoint": "algorithm/eldercare-risk-ai-main/reports/cognitive_change_clue/v3.4.0/runs/COG-20260806-012/V34-A2-Final/final_checkpoint.pt",
+  "source_checkpoint_sha256": "afa9efc375c4cc29403422b4f1135c332fde25ebfe563ac1c4f29777161e2d4a",
+  "supported_api_modalities": [
+    "audio+text+face",
+    "audio+text",
+    "audio+face",
+    "audio"
+  ],
+  "text_quality_version": "cognitive_text_quality_v3.3.1",
+  "training": {
+    "calibration_subjects": 92,
+    "dataset": "CogPic",
+    "fixed_epochs": 7,
+    "official_test_subjects_used": 0,
+    "run_id": "COG-20260806-012",
+    "split_file": "cogpic_subject_split_v33.json",
+    "split_sha256": "05ee63247c721c10e355408c98218df86fae74a19be7eb735e8510d7d7b48e86",
+    "train_subjects": 367
+  }
+}

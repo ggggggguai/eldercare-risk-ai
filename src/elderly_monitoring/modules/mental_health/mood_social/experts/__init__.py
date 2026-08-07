@@ -94,6 +94,15 @@ from elderly_monitoring.modules.mental_health.mood_social.experts.social_context
     load_social_context_training_inputs,
     train_social_context_expert,
 )
+from elderly_monitoring.modules.mental_health.mood_social.experts.optimization import (
+    CANDIDATES as OPTIMIZATION_CANDIDATES,
+    EXPERTS as OPTIMIZATION_EXPERTS,
+    ExpertOptimizationConfig,
+    ExpertOptimizationError,
+    load_expert_optimization_config,
+    load_expert_optimization_inputs,
+    optimize_experts,
+)
 
 __all__ = [
     "ACTIVITY_DATASET_IDS",
@@ -180,4 +189,11 @@ __all__ = [
     "load_social_context_training_config",
     "load_social_context_training_inputs",
     "train_social_context_expert",
+    "OPTIMIZATION_CANDIDATES",
+    "OPTIMIZATION_EXPERTS",
+    "ExpertOptimizationConfig",
+    "ExpertOptimizationError",
+    "load_expert_optimization_config",
+    "load_expert_optimization_inputs",
+    "optimize_experts",
 ]

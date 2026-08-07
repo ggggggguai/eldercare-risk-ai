@@ -1,0 +1,8 @@
+{
+  "a": 0.3690602100110895,
+  "b": 0.4189044303368853,
+  "checkpoint_sha256": "b7077898ebb56218dd2a1b0a975efa7b9ca3422e1711ab62223598c5c06b73f8",
+  "input": "task_raw_logit",
+  "schema_version": "platt_calibration_v1",
+  "validation_complete_task_count": 210
+}

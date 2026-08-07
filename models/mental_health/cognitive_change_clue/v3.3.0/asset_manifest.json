@@ -1,0 +1,72 @@
+{
+  "schema_version": "cognitive_asset_manifest_v1",
+  "feature_version": "cognitive_features_v3.3.0",
+  "environment": {
+    "name": "eldercare-cognitive",
+    "python": "3.11.15",
+    "platform": "win-64",
+    "cuda_runtime": "cu128",
+    "torch": "2.11.0+cu128",
+    "torchaudio": "2.11.0+cu128",
+    "torchvision": "0.26.0+cu128",
+    "transformers": "5.14.1",
+    "mediapipe": "0.10.21",
+    "requirements_path": "requirements-cognitive-v3.3.lock",
+    "requirements_sha256": "2d11f260869ae09ae92c78bc68f5ba4b018138e395e9c927f70fa8cea72d01e0"
+  },
+  "assets": {
+    "audio": {
+      "name": "torchaudio.pipelines.WAVLM_BASE_PLUS",
+      "source": "https://download.pytorch.org/torchaudio/models/wavlm_base_plus.pth",
+      "revision": "torchaudio-2.11.0",
+      "path": "encoders/wavlm_base_plus.pth",
+      "bytes": 377604347,
+      "sha256": "136a3e720c04f2c77bf7a4dc6a3868b14d5a2c145a988114b733cb1a8428be98",
+      "output_dim": 768,
+      "pooling": "last_layer_valid_frame_mean_window_duration_mean",
+      "padding_runtime": "single_window_unpadded_equivalent_to_true_attention_mask"
+    },
+    "text": {
+      "name": "hfl/chinese-roberta-wwm-ext",
+      "source": "https://huggingface.co/hfl/chinese-roberta-wwm-ext",
+      "revision": "5c58d0b8ec1d9014354d691c538661bf00bfdb44",
+      "source_pytorch_model_sha256": "1ded5a5a1c7841dee6e47942f7b5bf2bcf6f73ff19197580f852f7f638f86b35",
+      "conversion": "transformers AutoModel BertModel save_pretrained safe_serialization",
+      "path": "encoders/roberta",
+      "model_path": "encoders/roberta/model.safetensors",
+      "model_sha256": "44700f899a006118a76882165fdc91b2485465b0b2e5467e44922dcc29487a4f",
+      "directory_sha256": "6e27791d13c5ce59c07c46d5006ca160a17d98ab592edc9e785954344114b977",
+      "output_dim": 768,
+      "max_length": 256,
+      "pooling": "cls",
+      "num_token_mode": "literal_text_no_new_token"
+    },
+    "face": {
+      "name": "torchvision.models.resnet18",
+      "weights": "IMAGENET1K_V1",
+      "source": "https://download.pytorch.org/models/resnet18-f37072fd.pth",
+      "revision": "torchvision-0.26.0",
+      "path": "encoders/resnet18_imagenet1k_v1.pth",
+      "bytes": 46830571,
+      "sha256": "f37072fd47e89c5e827621c5baffa7500819f7896bbacec160b1a16c560e07ec",
+      "output_dim": 512,
+      "pooling": "valid_face_mean"
+    },
+    "face_detector": {
+      "name": "MediaPipe Face Detection short range",
+      "source": "mediapipe==0.10.21 wheel resource mediapipe/modules/face_detection/face_detection_short_range.tflite",
+      "revision": "mediapipe-0.10.21",
+      "path": "detectors/mediapipe_face_detection_short_range.tflite",
+      "bytes": 229714,
+      "sha256": "bbff11cebd1eb27a1e004cae0b0e63ec8c551cbf34a4451148b4908b8db3eca8",
+      "min_detection_confidence": 0.6
+    },
+    "asr": {
+      "name": "funasr-paraformer-zh",
+      "version": "asr-paraformer-zh-v1.0",
+      "path": "models/asr/asr-paraformer-zh-v1.0",
+      "sha256sums_sha256": "5f3d9fc1bd67db333e60d993cec281744a5f0bfc3798c2e3dc70d925f8705b37",
+      "runtime_boundary": "independent_service; offline CogPic cache may call stable facade"
+    }
+  }
+}

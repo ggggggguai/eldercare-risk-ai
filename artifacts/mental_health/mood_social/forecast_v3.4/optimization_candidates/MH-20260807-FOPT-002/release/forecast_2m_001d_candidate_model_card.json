@@ -1,0 +1,99 @@
+{
+  "baseline": {
+    "auprc": 0.48691587935025843,
+    "auroc": 0.6691094692098981,
+    "brier": 0.2035847764387533,
+    "ece": 0.013784672426884796,
+    "macro_f1": 0.6202677703937138,
+    "sensitivity": 0.5026851328434143,
+    "specificity": 0.7400911476315426
+  },
+  "bootstrap_auprc": {
+    "confidence_level": 0.95,
+    "degenerate_repetitions": 0,
+    "intervals": {
+      "auprc": {
+        "lower": -0.003488218090694901,
+        "upper": 0.018418189740155425
+      },
+      "auroc": {
+        "lower": 0.004120274376314156,
+        "upper": 0.014712183401740122
+      },
+      "brier": {
+        "lower": -0.004105406765466274,
+        "upper": -0.001960179049804401
+      },
+      "ece": {
+        "lower": -0.010402885343001099,
+        "upper": 0.011239353142810491
+      },
+      "macro_f1": {
+        "lower": -0.0002227450990932855,
+        "upper": 0.014712170892689507
+      },
+      "sensitivity": {
+        "lower": -0.0030604957895618208,
+        "upper": 0.02262420929763008
+      },
+      "specificity": {
+        "lower": -0.003009399207093674,
+        "upper": 0.01298889892004348
+      }
+    },
+    "medians": {
+      "auprc": 0.00780184543377116,
+      "auroc": 0.00966846195468174,
+      "brier": -0.003068689877813835,
+      "ece": 0.0005062383050633487,
+      "macro_f1": 0.007246654766184302,
+      "sensitivity": 0.00969942709947802,
+      "specificity": 0.004662877692774681
+    },
+    "participant_count": 3593,
+    "scope": "full",
+    "seed": 20260728,
+    "valid_repetitions": 2000
+  },
+  "candidate": {
+    "auprc": 0.4945142758657367,
+    "auroc": 0.6786996975992998,
+    "brier": 0.20053130076324788,
+    "ece": 0.0136546895617807,
+    "macro_f1": 0.6275611173043725,
+    "sensitivity": 0.5124364047484454,
+    "specificity": 0.7450283110067669
+  },
+  "candidate_status": "audit_only_not_promoted",
+  "decision": {
+    "auprc_non_decreasing_fold_count": 5,
+    "bootstrap_auprc_median": 0.00780184543377116,
+    "criteria": {
+      "at_least_three_non_decreasing_folds": true,
+      "auprc_delta_at_least_0_005": true,
+      "auroc_delta_not_below_minus_0_005": true,
+      "brier_delta_at_most_0_002": true,
+      "ece_within_frozen_limit": true,
+      "no_fold_auprc_drop_over_0_02": true,
+      "paired_bootstrap_auprc_median_positive": true
+    },
+    "min_fold_auprc_delta": 0.012252916198612296,
+    "point_deltas": {
+      "auprc": 0.0075983965154782784,
+      "auroc": 0.009590228389401712,
+      "brier": -0.0030534756755054293,
+      "ece": -0.0001299828651040967,
+      "macro_f1": 0.007293346910658638,
+      "sensitivity": 0.009751271905031111,
+      "specificity": 0.004937163375224318
+    },
+    "status": "promote_candidate"
+  },
+  "decision_authority": "shadow_only",
+  "execution_mode": "offline_only",
+  "product_visible": false,
+  "recommended_fallback": "MH-20260805-FCAST-001",
+  "release_status": "experimental",
+  "run_id": "MH-20260807-FOPT-002",
+  "task_id": "forecast_2m"
+}

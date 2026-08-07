@@ -1,0 +1,68 @@
+{
+  "code_commit": "25ecc5e3b84da47ca3ce5cb46fb0b110e51502a8",
+  "code_file_sha256": {
+    "scripts/build_mood_forecast_context.py": "624525f1e027d0000ceb7b487d18c9d3d5b45c19f73b261df45276fb499b168f",
+    "src/elderly_monitoring/modules/mental_health/mood_social/forecast_experiment.py": "ee841b59973a8f2286b4856a3808339589df15c0fac357c0fb43d4d081395bbc"
+  },
+  "context_schema_version": "mood-social-forecast-context-v3.4-v1",
+  "dataset_id": "psyche_d",
+  "decision_authority": "shadow_only",
+  "execution_mode": "offline_only",
+  "experiment_version": "mood-social-forecast-v3.4",
+  "inner_split_manifest_sha256": "64f9e4a8d548f9c5152275b9d1fc8933814bbc9730ca74af5557284657a4e4ef",
+  "lightgbm_candidates_sha256": "6f9cc94f5b2dbf361d1622e62b65cc37d1edf3aaffa4e1af14310d20f9a81f1f",
+  "participant_counts": {
+    "forecast_1m": 3635,
+    "forecast_2m": 3593
+  },
+  "product_visible": false,
+  "raw_feature_count": 27,
+  "raw_feature_names": [
+    "steps_awake_mean",
+    "steps_mvpa_iqr",
+    "steps_lpa_iqr",
+    "steps_awake_sum_iqr",
+    "steps__active_day_count_",
+    "steps__sedentary_day_count_",
+    "steps_mvpa_sum_recent",
+    "steps_lpa_sum_recent",
+    "steps_rolling_6_median_recent",
+    "steps_rolling_6_max_recent",
+    "sleep_asleep_weekday_mean",
+    "sleep_asleep_weekend_mean",
+    "sleep_in_bed_weekday_mean",
+    "sleep_in_bed_weekend_mean",
+    "sleep_ratio_asleep_in_bed_weekday_mean",
+    "sleep_ratio_asleep_in_bed_weekend_mean",
+    "sleep_in_bed_iqr",
+    "sleep_asleep_iqr",
+    "sleep_ratio_asleep_in_bed_iqr",
+    "sleep_main_start_hour_adj_median",
+    "sleep_main_start_hour_adj_iqr",
+    "sleep_main_start_hour_adj_range",
+    "sleep__hypersomnia_count_",
+    "sleep__hyposomnia_count_",
+    "sleep_asleep_mean_recent",
+    "sleep_in_bed_mean_recent",
+    "sleep_ratio_asleep_in_bed_mean_recent"
+  ],
+  "raw_source_row_count": 35694,
+  "release_status": "experimental",
+  "schema_version": "mood-social-forecast-v3.4-context-manifest-v1",
+  "source_artifact_hashes": {
+    "Feature explanations - anonymized data - Sheet1.tsv": "e346b57eb81c8c7d22a6ff0bda71214e527d8bed72eef1c2218d7e5826612e3e",
+    "anon_processed_df_parquet": "4bf1d7622d947f5bb62067c91789e1ef5de0411f439a772b8a7941282cc1cd78",
+    "p0_feature_mapping_v1.yaml": "6aa7c562def0b9b4dabc0c1ad14fbbb3fdde7b47b6540d45810fa954e4a7caff"
+  },
+  "source_root_relative": "数据集/心理/PSYCHE-D",
+  "split_manifest_sha256": "e9915dbc590a6ea454c34d26558ac5866c57ee8a8e78f44cdcc79c859df77ee3",
+  "task_counts": {
+    "common": 8494,
+    "forecast_1m": 9393,
+    "forecast_2m": 9280
+  },
+  "timing_evidence_sha256": "b18ecb507aa8c7e4e6e87c684e912f1de990825cc93df58c7c5839d51c689443",
+  "v3_3_acceptance_path": "models/mental_health/mood_social/v3.3.3/acceptance.json",
+  "v3_3_acceptance_sha256": "dee72f7ef28b03a07b012bdaa21016a25e5d73d5e14a8f4df5011bce71a103ef",
+  "working_tree_dirty": true
+}

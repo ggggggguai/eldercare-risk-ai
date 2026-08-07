@@ -1,0 +1,6 @@
+{
+  "path": "algorithm/eldercare-risk-ai-main/models/asr/asr-paraformer-zh-v1.0",
+  "schema_version": "asr_package_ref_v1",
+  "sha256": "5f3d9fc1bd67db333e60d993cec281744a5f0bfc3798c2e3dc70d925f8705b37",
+  "version": "asr-paraformer-zh-v1.0"
+}

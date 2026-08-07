@@ -1,0 +1,36 @@
+{
+  "rows": [
+    {
+      "auprc": 0.3892848992638318,
+      "auroc": 0.567522389797003,
+      "brier": 0.30212697893483237,
+      "ece": 0.24591987419001915,
+      "eligible_for_promotion": false,
+      "macro_f1": 0.5226693477997355,
+      "mapping": "within-task percentile rank; no label fitting",
+      "proxy_participant_count": 3635,
+      "proxy_row_count": 9393,
+      "reason": "external proxy lacks project-domain calibrated probability and was not in 001D",
+      "scope": "full",
+      "sensitivity": 0.5312783951911653,
+      "specificity": 0.5445706683041653,
+      "task_id": "forecast_1m"
+    },
+    {
+      "auprc": 0.40111724251304237,
+      "auroc": 0.578706467079573,
+      "brier": 0.29666046856691974,
+      "ece": 0.24337725354376807,
+      "eligible_for_promotion": false,
+      "macro_f1": 0.534289926546077,
+      "mapping": "within-task percentile rank; no label fitting",
+      "proxy_participant_count": 3593,
+      "proxy_row_count": 9280,
+      "reason": "external proxy lacks project-domain calibrated probability and was not in 001D",
+      "scope": "full",
+      "sensitivity": 0.5478377614471454,
+      "specificity": 0.553169451733186,
+      "task_id": "forecast_2m"
+    }
+  ]
+}

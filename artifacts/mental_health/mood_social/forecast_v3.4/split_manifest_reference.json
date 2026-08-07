@@ -1,0 +1,10 @@
+{
+  "assignment_key": "global_participant_id=psyche_d::participant_id",
+  "outer_fold_field": "participant_assignments[].outer_fold",
+  "psyche_d_participant_count": 4036,
+  "random_seed": 20260728,
+  "schema_version": "mood-social-forecast-v3.4-split-reference-v1",
+  "source_manifest_path": "data/processed/mental_health/mood_social/v3.3.3/splits/split_manifest.json",
+  "source_manifest_sha256": "e9915dbc590a6ea454c34d26558ac5866c57ee8a8e78f44cdcc79c859df77ee3",
+  "source_manifest_version": "mood-social-nested-participant-split-manifest-v1"
+}

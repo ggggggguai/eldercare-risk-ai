@@ -1,0 +1,20 @@
+{
+  "cards": [
+    "forecast_1m",
+    "forecast_2m"
+  ],
+  "checks_passed": 748,
+  "decision_authority": "shadow_only",
+  "execution_mode": "offline_only",
+  "online_model_version": "mood-fusion-v3.3.3",
+  "online_package_run_id": "MH-20260802-013",
+  "product_integration_performed": false,
+  "product_visible": false,
+  "promotion_status": "retain_v3_4_baseline",
+  "recommended_fallback": "MH-20260805-FCAST-001",
+  "release_status": "experimental",
+  "run_id": "MH-20260807-FOPT-002",
+  "status": "pass",
+  "task_id": "FORECAST-OPT-001G",
+  "validation_code_sha256": "3d735b5e9534f1802c324af44fc6fbe0bde8771cf14e2c805d59683948e2c6d5"
+}

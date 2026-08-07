@@ -1,0 +1,82 @@
+schema_version: dstm_smic_paper_exact_config_v1
+task_id: MODEL-ME-006
+release_status: experimental
+execution_mode: offline_only
+paper_reproduction_claim: false
+
+inputs:
+  spatial_manifest: data/manifests/microexpression/paper_v2/flow_artifact_manifest_smic_hs_classification_combined_v2.jsonl
+  temporal_manifest: data/manifests/microexpression/paper_v2/dstm_temporal_flow_artifact_manifest_smic_hs_v2.jsonl
+  split_manifest: data/manifests/microexpression/smic_subject_loso_splits_v1.json
+  au_prior: data/manifests/microexpression/paper_v2/au_prior_casme_samm_reconstructed_v2.json
+
+temporal_artifact:
+  flow_width: 32
+  flow_height: 32
+  preprocess_variant: combined
+  flow_estimator: farneback
+  normalization_quantile: 0.995
+  pyr_scale: 0.5
+  levels: 3
+  winsize: 15
+  iterations: 3
+  poly_n: 5
+  poly_sigma: 1.2
+  flags: 0
+  sequence_start: onset
+  sequence_end: apex
+  pairing: adjacent_frame
+
+model:
+  num_regions: 6
+  max_patches_per_region: 12
+  patch_dim: 75
+  hidden_dim: 256
+  temporal_cnn_feature_dim: 512
+  temporal_reducer_dim: 64
+  transformer_layers: 3
+  transformer_heads: 4
+  gcn_layers: 2
+  temporal_neighbor_k: 10
+  temporal_neighbor_bias: 0.3
+  dropout: 0.1
+  num_classes: 3
+  alignment_temperature: 0.07
+  alignment_lambda: 0.1
+  attention_variant: paper_exact
+  spatial_epsilon: 0.000001
+  freeze_temporal_cnn: true
+  graph:
+    mode: fused
+    mds_dimensions: 2
+    rbf_sigma: 1.0
+    fusion_formula: paper_equation_3_17
+    eps: 0.000001
+
+reducer:
+  kind: umap
+  n_components: 64
+  n_neighbors: 10
+  min_dist: 0.1
+  metric: euclidean
+  random_state: 20260806
+  max_fit_frames: 4000
+
+training:
+  optimizer: adam
+  learning_rate: 0.0001
+  batch_size: 32
+  max_epochs: 200
+  min_epochs: 1
+  patience: 15
+  weight_decay: 0.0
+  gradient_clip_norm: 1.0
+  num_workers: 0
+  loss: cross_entropy_plus_infonce
+
+protocol:
+  outer: subject_level_loso
+  inner_validation: frozen_training_side_subjects
+  final_seeds: [20260806, 20260817, 20260829]
+  bootstrap_iterations: 2000
+  quality_filtering: disabled_unfiltered_primary

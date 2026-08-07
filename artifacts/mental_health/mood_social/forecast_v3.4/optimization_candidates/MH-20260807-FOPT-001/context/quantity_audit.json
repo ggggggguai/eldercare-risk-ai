@@ -1,0 +1,23 @@
+{
+  "raw_source_rows": 35694,
+  "tasks": {
+    "forecast_1m": {
+      "cutoff_month_max": 11,
+      "cutoff_month_min": 2,
+      "history_observed_month_count_max": 11,
+      "history_observed_month_count_min": 1,
+      "participant_count": 3635,
+      "positive_count": 2948,
+      "sample_count": 9393
+    },
+    "forecast_2m": {
+      "cutoff_month_max": 10,
+      "cutoff_month_min": 1,
+      "history_observed_month_count_max": 10,
+      "history_observed_month_count_min": 1,
+      "participant_count": 3593,
+      "positive_count": 2910,
+      "sample_count": 9280
+    }
+  }
+}

@@ -1,0 +1,27 @@
+name: eldercare-microexpression
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11.15
+  - pip=26.2
+  - pip:
+      - --extra-index-url https://download.pytorch.org/whl/cu128
+      - torch==2.11.0+cu128
+      - torchvision==0.26.0+cu128
+      - numpy==1.26.4
+      - pandas==3.0.3
+      - scipy==1.17.1
+      - scikit-learn==1.9.0
+      - opencv-contrib-python==4.11.0.86
+      - pillow==12.3.0
+      - einops==0.8.1
+      - networkx==3.6.1
+      # dlib-bin provides the importable dlib module without a local C++ build.
+      - dlib-bin==20.0.1
+      # Provides the versioned dlib 68-point predictor asset.
+      - face-recognition-models==0.3.0
+      - matplotlib==3.11.1
+      - pytest==9.1.1
+      - pyyaml==6.0.3
+      - tqdm==4.70.0

@@ -1,0 +1,29 @@
+{
+  "schema_version": "mood-social-v3.3-acceptance-v1",
+  "status": "passed",
+  "model_version": "mood-fusion-v3.3.3",
+  "package_run_id": "MH-20260802-013",
+  "package_path": "models/mental_health/mood_social/v3.3.3/packages/MH-20260802-013",
+  "default_fusion": "MH-20260802-012 coverage_calibrated",
+  "acceptance_time": "2026-08-05T00:00:00+08:00",
+  "code_commit": "c7636287733a1386433590f41eb3ca08b59f7dc5",
+  "working_tree_dirty": true,
+  "v3_3_config_path": "configs/modules/mood_social_v3_3_3.yaml",
+  "v3_3_config_sha256": "6028b98271d29c0bde856c43afd221d294984d65c8b80afbbef4eccccb7474c5",
+  "split_manifest_path": "data/processed/mental_health/mood_social/v3.3.3/splits/split_manifest.json",
+  "split_manifest_sha256": "e9915dbc590a6ea454c34d26558ac5866c57ee8a8e78f44cdcc79c859df77ee3",
+  "package_manifest_path": "models/mental_health/mood_social/v3.3.3/packages/MH-20260802-013/manifest.json",
+  "package_manifest_sha256": "b06ba3fc042e07eb17738a21b3683f3029a3adeae6aadd16705b9eb51a0a08d8",
+  "package_checksums_path": "models/mental_health/mood_social/v3.3.3/packages/MH-20260802-013/SHA256SUMS",
+  "package_checksums_sha256": "e40ac1b96c3e4075a1f62523f446f7e1717cefa7d75a4a59128d11611e4f4ce3",
+  "test_summary_path": "reports/mental_health/mood_social/v3.3.3/acceptance_test_summary.json",
+  "test_summary_sha256": "cd4c8c798d4f2a6da0a071ca720e2c94e7ec00153914df3bdbb577b9887d5c42",
+  "acceptance_scope": "V3.3 current state model package, algorithm API, backend contract, regression and release evidence",
+  "production_boundary": {
+    "model006_online": false,
+    "public_dataset_id_required_at_inference": false,
+    "production_threshold_selected": false,
+    "non_diagnostic": true,
+    "physiology_reliability": 0.0
+  }
+}

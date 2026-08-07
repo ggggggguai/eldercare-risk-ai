@@ -1,0 +1,70 @@
+{
+  "bootstrap": {
+    "confidence_level": 0.95,
+    "degenerate_repetitions": 0,
+    "intervals": {
+      "auprc": {
+        "lower": 0.45242230792228944,
+        "upper": 0.5011647713367642
+      },
+      "auroc": {
+        "lower": 0.6490280343115282,
+        "upper": 0.679981551154905
+      },
+      "brier": {
+        "lower": 0.19938611358253255,
+        "upper": 0.20958794216734117
+      },
+      "ece": {
+        "lower": 0.011862893410762044,
+        "upper": 0.028737553379706265
+      },
+      "macro_f1": {
+        "lower": 0.6001735559006393,
+        "upper": 0.6264303461170188
+      },
+      "sensitivity": {
+        "lower": 0.4784040682681337,
+        "upper": 0.5282265165434208
+      },
+      "specificity": {
+        "lower": 0.7131149786489144,
+        "upper": 0.7421584491061121
+      }
+    },
+    "method": "participant_cluster_percentile",
+    "rng": "numpy_pcg64",
+    "seed": 20260728,
+    "valid_repetitions": 2000
+  },
+  "decision_authority": "shadow_only",
+  "execution_mode": "offline_only",
+  "model_family": "lightgbm",
+  "primary_metrics": {
+    "auprc": 0.4760160376438875,
+    "auprc_calibrated": 0.4715095138982337,
+    "auroc": 0.6645825562507204,
+    "auroc_calibrated": 0.6633174610631072,
+    "brier": 0.2044623895116194,
+    "ece": 0.0137514049186634,
+    "macro_f1": 0.6133283346205061,
+    "positive_rate": 0.32799174690508937,
+    "sensitivity": 0.5030404697001469,
+    "specificity": 0.72752703578617
+  },
+  "product_visible": false,
+  "release_status": "experimental",
+  "task_id": "forecast_1m",
+  "window_unweighted_sensitivity_metrics": {
+    "auprc": 0.4625411191312237,
+    "auprc_calibrated": 0.45693071374184946,
+    "auroc": 0.6639117077704785,
+    "auroc_calibrated": 0.663021464368685,
+    "brier": 0.2002412969994275,
+    "ece": 0.01246528409169576,
+    "macro_f1": 0.6144291204980287,
+    "positive_rate": 0.31385073991270096,
+    "sensitivity": 0.49559023066485763,
+    "specificity": 0.7379363847944141
+  }
+}

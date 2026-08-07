@@ -1,0 +1,87 @@
+schema_version: mood-social-forecast-v3.4-config-v1
+experiment_version: mood-social-forecast-v3.4
+context_schema_version: mood-social-forecast-context-v3.4-v1
+task_ids:
+  - forecast_1m
+  - forecast_2m
+nominal_gap_months: [1, 2]
+dataset_id: psyche_d
+source_root_relative: 数据集/心理/PSYCHE-D
+source_root_policy: workspace_relative_authoritative; D-drive junction target is the resolved source
+source_frame: raw_35694_rows
+source_artifact_hashes:
+  anon_processed_df_parquet: 4bf1d7622d947f5bb62067c91789e1ef5de0411f439a772b8a7941282cc1cd78
+  Feature explanations - anonymized data - Sheet1.tsv: e346b57eb81c8c7d22a6ff0bda71214e527d8bed72eef1c2218d7e5826612e3e
+  p0_feature_mapping_v1.yaml: 6aa7c562def0b9b4dabc0c1ad14fbbb3fdde7b47b6540d45810fa954e4a7caff
+feature_mapping_path: 数据集/心理/PSYCHE-D/p0_feature_mapping_v1.yaml
+feature_mapping_sha256: 6aa7c562def0b9b4dabc0c1ad14fbbb3fdde7b47b6540d45810fa954e4a7caff
+raw_feature_count: 27
+raw_feature_order_source: p0_feature_mapping_v1.yaml
+phq9_input_policy: excluded
+exact_month_join: true
+target_months: [3, 6, 9, 12]
+target_join_rule: exact participant_id and label_month_slot minus nominal_gap_months
+target_window_id_format: psyche_d::{participant_id}::m{label_month_slot}
+feature_window_id_format: psyche_d::{participant_id}::m{feature_month_slot}
+timing_evidence: design_level
+natural_dates_available: false
+expected_counts:
+  raw_source_rows: 35694
+  forecast_1m: 9393
+  forecast_2m: 9280
+  paired_common_windows: 8494
+  forecast_1m_participants: 3635
+  forecast_2m_participants: 3593
+v3_3_acceptance_path: models/mental_health/mood_social/v3.3.3/acceptance.json
+v3_3_acceptance_sha256: dee72f7ef28b03a07b012bdaa21016a25e5d73d5e14a8f4df5011bce71a103ef
+outer_fold_manifest: data/processed/mental_health/mood_social/v3.3.3/splits/split_manifest.json
+outer_fold_manifest_schema_version: mood-social-nested-participant-split-manifest-v1
+outer_fold_manifest_sha256: e9915dbc590a6ea454c34d26558ac5866c57ee8a8e78f44cdcc79c859df77ee3
+outer_fold_assignment_field: participant_assignments[].outer_fold
+outer_fold_participant_key_field: participant_assignments[].global_participant_id
+outer_fold_global_key_format: dataset_id::participant_id
+random_seed: 20260728
+inner_fold_manifest: artifacts/mental_health/mood_social/forecast_v3.4/inner_split_manifest.json
+inner_fold_manifest_schema_version: mood-social-forecast-v3.4-inner-split-v1
+inner_fold_manifest_sha256: 64f9e4a8d548f9c5152275b9d1fc8933814bbc9730ca74af5557284657a4e4ef
+search_space_path: configs/experiments/mood_social_forecast_v3_4_search_space.json
+search_space_sha256: 7cb06881c6d0b91a01146b6198d8fdfe48f61d44d00cbd857cf95b427916884f
+lightgbm_candidates_path: configs/experiments/mood_social_forecast_v3_4_lightgbm_candidates.json
+lightgbm_candidates_sha256: 6f9cc94f5b2dbf361d1622e62b65cc37d1edf3aaffa4e1af14310d20f9a81f1f
+lightgbm_candidate_count: 64
+environment_lock_path: configs/experiments/mood_social_forecast_v3_4_environment.lock
+environment_lock_sha256: 8d0a0d37329dad9108e89022f326f2aee669b6c7568bc6b43617959dfc0d7606
+model_families:
+  - dummy
+  - elasticnet_logistic
+  - lightgbm
+train_on_all_horizon_eligible: true
+paired_comparison_common_cohort: true
+calibration: isotonic
+isotonic_out_of_bounds: clip
+threshold_metric: participant_equal_macro_f1
+threshold_operator: greater_than_or_equal
+bootstrap_repetitions: 2000
+bootstrap_method: participant_cluster_percentile
+bootstrap_rng: numpy_pcg64
+primary_target: phq9_score_end >= 10
+primary_prediction_for_discrimination: p_raw
+primary_prediction_for_calibration: p_calibrated
+release_status: experimental
+execution_mode: offline_only
+decision_authority: shadow_only
+product_visible: false
+backend_change: false
+api_change: false
+production_package_change: false
+context_manifest_path: artifacts/mental_health/mood_social/forecast_v3.4/manifest.json
+context_manifest_sha256: b00fa78907f9a4d009ff6c000fe5e2ce778b305ebbc499efbc04033dc56d2843
+context_sha256sums_path: artifacts/mental_health/mood_social/forecast_v3.4/SHA256SUMS
+context_sha256sums_sha256: 5cf854fe67872d8bf3d18ba2d34a4b09aa712cdfb62e9ef3245fe33b4ae0d2b8
+code_snapshot:
+  code_commit: 25ecc5e3b84da47ca3ce5cb46fb0b110e51502a8
+  working_tree_dirty: true
+  dirty_tree_policy: record code_file_sha256 and do not treat commit alone as reproducibility proof
+  code_file_sha256:
+    src/elderly_monitoring/modules/mental_health/mood_social/forecast_experiment.py: ee841b59973a8f2286b4856a3808339589df15c0fac357c0fb43d4d081395bbc
+    scripts/build_mood_forecast_context.py: 624525f1e027d0000ceb7b487d18c9d3d5b45c19f73b261df45276fb499b168f

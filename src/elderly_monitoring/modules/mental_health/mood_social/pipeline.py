@@ -28,6 +28,10 @@ from elderly_monitoring.modules.mental_health.mood_social.model_package import (
     MoodSocialModelPackage,
     load_mood_social_model_package,
 )
+from elderly_monitoring.modules.mental_health.mood_social.package_selection import (
+    PackageSelectionError,
+    load_active_package_selection,
+)
 from elderly_monitoring.modules.mental_health.mood_social.schemas import (
     MOOD_SOCIAL_MODEL_VERSION,
     MoodSocialInferRequest,
@@ -90,10 +94,14 @@ class MoodSocialPipeline:
         *,
         config: MoodSocialConfig | None = None,
     ) -> "MoodSocialPipeline":
-        configured_path = package_directory or os.environ.get(
-            PACKAGE_ENVIRONMENT_VARIABLE,
-            DEFAULT_PACKAGE_DIRECTORY,
-        )
+        configured_path = package_directory or os.environ.get(PACKAGE_ENVIRONMENT_VARIABLE)
+        if configured_path is None:
+            try:
+                configured_path = load_active_package_selection().package_directory
+            except PackageSelectionError as exc:
+                raise MoodSocialPipelineUnavailableError(
+                    "mood-social package selection is unavailable"
+                ) from exc
         try:
             package = load_mood_social_model_package(configured_path)
         except (ModelPackageError, OSError, ValueError) as exc:

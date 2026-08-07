@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
-import math
-import re
-import unicodedata
 from dataclasses import asdict, dataclass
 from typing import Any, Mapping
 
 from elderly_monitoring.modules.asr.schemas import ASRTranscript
+from elderly_monitoring.modules.mental_health.submodules.cognitive_change_clue.preprocess import (
+    normalize_cognitive_text,
+)
+from elderly_monitoring.modules.mental_health.submodules.cognitive_change_clue.quality import (
+    compute_text_quality,
+)
 
 
 @dataclass(frozen=True)
@@ -19,6 +22,7 @@ class CognitiveTextInput:
     text_available: bool
     char_count: int
     mean_confidence: float
+    confidence_available: bool
     quality_weight: float
     asr_status: str
     asr_model_version: str
@@ -39,23 +43,10 @@ def build_cognitive_text_input(
         else ASRTranscript.model_validate(transcript)
     )
     normalized_text, char_count = normalize_cognitive_text(parsed.text)
-    confidences = [
-        float(segment.confidence)
-        for segment in parsed.segments
-        if segment.text.strip()
-        and segment.confidence is not None
-        and math.isfinite(float(segment.confidence))
-    ]
-    mean_confidence = (
-        sum(confidences) / len(confidences)
-        if confidences
-        else 0.0
-    )
-    length_score = _clip(char_count / 80.0)
-    quality_weight = round(
-        0.70 * length_score + 0.30 * _clip(mean_confidence),
-        4,
-    )
+    quality = compute_text_quality(char_count=char_count, segments=parsed.segments)
+    mean_confidence = float(quality.metrics["mean_confidence"])
+    confidence_available = bool(quality.metrics["confidence_available"])
+    quality_weight = round(quality.score, 4)
     available = (
         parsed.status == "completed"
         and char_count >= 5
@@ -68,48 +59,12 @@ def build_cognitive_text_input(
         text_available=available,
         char_count=char_count,
         mean_confidence=round(mean_confidence, 4),
+        confidence_available=confidence_available,
         quality_weight=quality_weight,
         asr_status=parsed.status,
         asr_model_version=parsed.model.version,
         warnings=tuple(parsed.warnings),
     )
-
-
-def normalize_cognitive_text(text: str) -> tuple[str, int]:
-    """Apply the frozen V3.3 text normalization and character counting rules."""
-
-    normalized = unicodedata.normalize("NFKC", text)
-    normalized = normalized.translate(
-        str.maketrans({",": "，", "!": "！", "?": "？", ";": "；", ":": "："})
-    )
-    normalized = re.sub(r"\s+", " ", normalized).strip()
-    normalized = re.sub(r"[0-9]+", "<NUM>", normalized)
-    kept: list[str] = []
-    char_count = 0
-    index = 0
-    while index < len(normalized):
-        if normalized.startswith("<NUM>", index):
-            kept.append("<NUM>")
-            char_count += 1
-            index += len("<NUM>")
-            continue
-        character = normalized[index]
-        if _is_chinese(character) or character.isascii() and character.isalpha():
-            kept.append(character)
-            char_count += 1
-        elif character == " " or character in "，。！？；：":
-            kept.append(character)
-        index += 1
-    cleaned = re.sub(r" +", " ", "".join(kept)).strip()
-    return cleaned, char_count
-
-
-def _is_chinese(character: str) -> bool:
-    return "\u3400" <= character <= "\u4dbf" or "\u4e00" <= character <= "\u9fff"
-
-
-def _clip(value: float) -> float:
-    return max(0.0, min(1.0, float(value)))
 
 
 __all__ = [

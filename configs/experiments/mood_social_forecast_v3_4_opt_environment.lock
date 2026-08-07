@@ -1,0 +1,20 @@
+{
+  "schema_version": "mood-social-forecast-v3.4-opt-environment-v1",
+  "environment_name": "eldercare-ai",
+  "python": "3.11.15",
+  "packages": {
+    "numpy": "2.4.6",
+    "pandas": "3.0.3",
+    "pyarrow": "21.0.0",
+    "scikit-learn": "1.9.0",
+    "lightgbm": "4.6.0",
+    "catboost": "1.2.10",
+    "PyYAML": "6.0.3",
+    "pytest": "9.1.1"
+  },
+  "determinism": {
+    "random_seed": 20260728,
+    "threads_per_model": 1,
+    "candidate_workers": 4
+  }
+}

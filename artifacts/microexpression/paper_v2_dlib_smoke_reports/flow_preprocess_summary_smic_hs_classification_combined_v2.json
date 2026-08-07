@@ -1,0 +1,63 @@
+{
+  "schema_version": "microexpression_paper_v2_preprocess_summary_v1",
+  "task_id": "FLOW-ME-002",
+  "status": "pass",
+  "artifact_count": 1,
+  "sample_count": 1,
+  "subject_count": 1,
+  "label_distribution": {
+    "negative": 1
+  },
+  "quality_distribution": {
+    "pass": 1
+  },
+  "apex_index_range": [
+    24,
+    24
+  ],
+  "frame_count_total": 36,
+  "frame_annotation_source": "estimated_dc_rois",
+  "paper_method_compliance": "reimplemented_farneback_approximation",
+  "preprocess_config": {
+    "aligned_width": 256,
+    "aligned_height": 256,
+    "flow_width": 32,
+    "flow_height": 32,
+    "patch_size": 5,
+    "preprocess_variant": "combined",
+    "gamma": 0.8,
+    "gaussian_kernel": 5,
+    "median_kernel": 3,
+    "flow_estimator": "farneback",
+    "normalization_quantile": 0.995,
+    "pyr_scale": 0.5,
+    "levels": 3,
+    "winsize": 15,
+    "iterations": 3,
+    "poly_n": 5,
+    "poly_sigma": 1.2,
+    "flags": 0
+  },
+  "apex_config": {
+    "lbp_points": 8,
+    "lbp_radius": 1,
+    "histogram_bins": 256,
+    "roi_margin_ratio": 0.18,
+    "minimum_roi_size": 8,
+    "combine_method": "max"
+  },
+  "preprocess_config_sha256": "83b1a809ec4f10bdc466d16f35ce1434fba29aa4d11a1b07b039674e0a39af3b",
+  "landmark_mode": "dlib_68_v1",
+  "landmark_asset_sha256": "fbdc2cb80eb9aa7a758672cbfdda32ba6300efe9b6e6c7a299ff7e736b11b92f",
+  "input_manifest_path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/data/manifests/microexpression/sequence_manifest_v1.jsonl",
+  "input_manifest_sha256": "053bb0d199c311eb342103463ced288976f47cd1c6153d636bd7eb7d37848b69",
+  "artifact_manifest_path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/artifacts/microexpression/paper_v2_dlib_smoke_reports/flow_artifact_manifest_smic_hs_classification_combined_v2.jsonl",
+  "artifact_manifest_sha256": "1507a60e43093136fcfab167b8a07686f7f8589deda578e077c4681f156fa269",
+  "source_code_sha256": {
+    "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/src/elderly_monitoring/modules/mental_health/submodules/facial_affect_clue/apex_spotting.py": "3df7d65de6c92f73db1c58d082b30d896e3eb26c77e716b747e2426b7f2f1fb8",
+    "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/src/elderly_monitoring/modules/mental_health/submodules/facial_affect_clue/paper_preprocess.py": "ef01c99043dc9a381f0cab47128bb10b6441b1ea49bee5b6a82630621afeeff0",
+    "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/scripts/preprocess_microexpression_paper_v2.py": "f505e361d870642d2ffb416c38c060c8c9234f974d13a42494490505e6aa3930"
+  },
+  "config_path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/configs/preprocessing/microexpression_smic_paper_v2.yaml",
+  "config_file_sha256": "b10bbbdd9b5d53a96e19ef8dfac9fe0846d035baa0e6a09aa1aeb88c25dbb6f0"
+}

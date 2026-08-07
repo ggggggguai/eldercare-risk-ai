@@ -1,0 +1,53 @@
+schema_version: mood-social-forecast-v3.4-opt-config-v1
+optimization_version: mood-social-forecast-v3.4-opt-v1
+baseline_run_id: MH-20260805-FCAST-001
+dataset_id: psyche_d
+task_ids: [forecast_1m, forecast_2m]
+random_seed: 20260728
+source_root_relative: 数据集/心理/PSYCHE-D
+source_artifact_hashes:
+  anon_processed_df_parquet: 4bf1d7622d947f5bb62067c91789e1ef5de0411f439a772b8a7941282cc1cd78
+  Feature explanations - anonymized data - Sheet1.tsv: e346b57eb81c8c7d22a6ff0bda71214e527d8bed72eef1c2218d7e5826612e3e
+  p0_feature_mapping_v1.yaml: 6aa7c562def0b9b4dabc0c1ad14fbbb3fdde7b47b6540d45810fa954e4a7caff
+feature_mapping_path: 数据集/心理/PSYCHE-D/p0_feature_mapping_v1.yaml
+outer_fold_manifest: data/processed/mental_health/mood_social/v3.3.3/splits/split_manifest.json
+outer_fold_manifest_sha256: e9915dbc590a6ea454c34d26558ac5866c57ee8a8e78f44cdcc79c859df77ee3
+inner_fold_manifest: artifacts/mental_health/mood_social/forecast_v3.4/inner_split_manifest.json
+inner_fold_manifest_sha256: 64f9e4a8d548f9c5152275b9d1fc8933814bbc9730ca74af5557284657a4e4ef
+baseline_context_manifest: artifacts/mental_health/mood_social/forecast_v3.4/manifest.json
+baseline_context_manifest_sha256: b00fa78907f9a4d009ff6c000fe5e2ce778b305ebbc499efbc04033dc56d2843
+expected_counts:
+  forecast_1m: 9393
+  forecast_2m: 9280
+  common: 8494
+expected_participants:
+  forecast_1m: 3635
+  forecast_2m: 3593
+raw_feature_count: 27
+history_feature_groups:
+  anchor_only: 54
+  anchor_delta: 162
+  anchor_delta_rolling: 432
+feature_cutoff_rule: c=t-h; only nominal_month <= c
+missing_policy: preserve_null_and_explicit_masks; no_cross_cutoff_fill
+prohibited_inputs:
+  - PHQ-9 labels
+  - target-month activity or sleep
+  - future-month activity or sleep
+  - dynamic questionnaires
+  - 84 undefined-window derived fields
+model_families: [elasticnet_logistic, lightgbm, catboost]
+auxiliary_modes: [none, phq9_score, phq9_category]
+selection_scope: outer-train inner-OOF only
+outer_test_policy: untouched_until_FORECAST-OPT-001D
+search_space_path: configs/experiments/mood_social_forecast_v3_4_opt_search_space.json
+environment_lock_path: configs/experiments/mood_social_forecast_v3_4_opt_environment.lock
+candidate_root: artifacts/mental_health/mood_social/forecast_v3.4/optimization_candidates
+release_status: experimental
+execution_mode: offline_only
+decision_authority: shadow_only
+product_visible: false
+backend_change: false
+api_change: false
+v3_3_package_change: false
+

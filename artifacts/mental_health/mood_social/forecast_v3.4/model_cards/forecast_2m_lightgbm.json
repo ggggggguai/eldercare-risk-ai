@@ -1,0 +1,70 @@
+{
+  "bootstrap": {
+    "confidence_level": 0.95,
+    "degenerate_repetitions": 0,
+    "intervals": {
+      "auprc": {
+        "lower": 0.4627627706155335,
+        "upper": 0.5123474498703966
+      },
+      "auroc": {
+        "lower": 0.6531733553765059,
+        "upper": 0.6845269599511238
+      },
+      "brier": {
+        "lower": 0.1985391462896312,
+        "upper": 0.20894046095253233
+      },
+      "ece": {
+        "lower": 0.011554748217036385,
+        "upper": 0.028137853036403798
+      },
+      "macro_f1": {
+        "lower": 0.607152469925142,
+        "upper": 0.6338310686754374
+      },
+      "sensitivity": {
+        "lower": 0.4774375073311057,
+        "upper": 0.5264727728539945
+      },
+      "specificity": {
+        "lower": 0.7256276448818666,
+        "upper": 0.7547513586880118
+      }
+    },
+    "method": "participant_cluster_percentile",
+    "rng": "numpy_pcg64",
+    "seed": 20260728,
+    "valid_repetitions": 2000
+  },
+  "decision_authority": "shadow_only",
+  "execution_mode": "offline_only",
+  "model_family": "lightgbm",
+  "primary_metrics": {
+    "auprc": 0.48691587935025843,
+    "auprc_calibrated": 0.4781662736826768,
+    "auroc": 0.6691094692098981,
+    "auroc_calibrated": 0.6671867543276427,
+    "brier": 0.2035847764387533,
+    "ece": 0.013784672426884796,
+    "macro_f1": 0.6202677703937138,
+    "positive_rate": 0.32823081918545327,
+    "sensitivity": 0.5026851328434143,
+    "specificity": 0.7400911476315426
+  },
+  "product_visible": false,
+  "release_status": "experimental",
+  "task_id": "forecast_2m",
+  "window_unweighted_sensitivity_metrics": {
+    "auprc": 0.4696216511804933,
+    "auprc_calibrated": 0.46064898974168983,
+    "auroc": 0.6682994006484486,
+    "auroc_calibrated": 0.6661566783731785,
+    "brier": 0.19949120972885837,
+    "ece": 0.01425996028690012,
+    "macro_f1": 0.6165801843527519,
+    "positive_rate": 0.3135775862068966,
+    "sensitivity": 0.49106529209621996,
+    "specificity": 0.7453689167974882
+  }
+}

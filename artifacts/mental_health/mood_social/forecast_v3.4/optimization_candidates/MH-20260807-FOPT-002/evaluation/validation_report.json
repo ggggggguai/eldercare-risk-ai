@@ -1,0 +1,10 @@
+{
+  "bootstrap_repetitions": 2000,
+  "checks_passed": 68,
+  "common_window_count": 8494,
+  "promotion_status": "retain_v3_4_baseline",
+  "run_id": "MH-20260807-FOPT-002",
+  "status": "pass",
+  "task_id": "FORECAST-OPT-001F",
+  "validation_code_sha256": "e621cc12aef6b6178ec1150de9c4a9dc863a63384c5a3f01443f355bb443223e"
+}

@@ -1,0 +1,193 @@
+{
+  "candidate_count": 20,
+  "inner_split_sha256": "64f9e4a8d548f9c5152275b9d1fc8933814bbc9730ca74af5557284657a4e4ef",
+  "model_family": "elasticnet_logistic",
+  "outer_fold_id": 1,
+  "records": [
+    {
+      "auprc": 0.4808283951356514,
+      "brier": 0.24973887249052695,
+      "candidate_index": 0,
+      "params": {
+        "C": 0.01,
+        "l1_ratio": 0.0
+      }
+    },
+    {
+      "auprc": 0.326253486944527,
+      "brier": 0.25000126648581245,
+      "candidate_index": 1,
+      "params": {
+        "C": 0.01,
+        "l1_ratio": 0.25
+      }
+    },
+    {
+      "auprc": 0.326253486944527,
+      "brier": 0.2500014142615692,
+      "candidate_index": 2,
+      "params": {
+        "C": 0.01,
+        "l1_ratio": 0.5
+      }
+    },
+    {
+      "auprc": 0.326253486944527,
+      "brier": 0.2500016147226456,
+      "candidate_index": 3,
+      "params": {
+        "C": 0.01,
+        "l1_ratio": 0.75
+      }
+    },
+    {
+      "auprc": 0.326253486944527,
+      "brier": 0.25000188159605535,
+      "candidate_index": 4,
+      "params": {
+        "C": 0.01,
+        "l1_ratio": 1.0
+      }
+    },
+    {
+      "auprc": 0.4812004209371584,
+      "brier": 0.247664912487212,
+      "candidate_index": 5,
+      "params": {
+        "C": 0.1,
+        "l1_ratio": 0.0
+      }
+    },
+    {
+      "auprc": 0.326253486944527,
+      "brier": 0.25000179268397643,
+      "candidate_index": 6,
+      "params": {
+        "C": 0.1,
+        "l1_ratio": 0.25
+      }
+    },
+    {
+      "auprc": 0.326253486944527,
+      "brier": 0.2500018213707083,
+      "candidate_index": 7,
+      "params": {
+        "C": 0.1,
+        "l1_ratio": 0.5
+      }
+    },
+    {
+      "auprc": 0.326253486944527,
+      "brier": 0.2500018509922415,
+      "candidate_index": 8,
+      "params": {
+        "C": 0.1,
+        "l1_ratio": 0.75
+      }
+    },
+    {
+      "auprc": 0.326253486944527,
+      "brier": 0.2500018815960098,
+      "candidate_index": 9,
+      "params": {
+        "C": 0.1,
+        "l1_ratio": 1.0
+      }
+    },
+    {
+      "auprc": 0.48280502481930254,
+      "brier": 0.2391723905601762,
+      "candidate_index": 10,
+      "params": {
+        "C": 1.0,
+        "l1_ratio": 0.0
+      }
+    },
+    {
+      "auprc": 0.3260818628297304,
+      "brier": 0.2500015387587471,
+      "candidate_index": 11,
+      "params": {
+        "C": 1.0,
+        "l1_ratio": 0.25
+      }
+    },
+    {
+      "auprc": 0.326253486944527,
+      "brier": 0.25000179016732244,
+      "candidate_index": 12,
+      "params": {
+        "C": 1.0,
+        "l1_ratio": 0.5
+      }
+    },
+    {
+      "auprc": 0.326253486944527,
+      "brier": 0.250001793139586,
+      "candidate_index": 13,
+      "params": {
+        "C": 1.0,
+        "l1_ratio": 0.75
+      }
+    },
+    {
+      "auprc": 0.326253486944527,
+      "brier": 0.2500017961138117,
+      "candidate_index": 14,
+      "params": {
+        "C": 1.0,
+        "l1_ratio": 1.0
+      }
+    },
+    {
+      "auprc": 0.48532059333340016,
+      "brier": 0.2327186976238877,
+      "candidate_index": 15,
+      "params": {
+        "C": 10.0,
+        "l1_ratio": 0.0
+      }
+    },
+    {
+      "auprc": 0.4813486562513597,
+      "brier": 0.2371764488294698,
+      "candidate_index": 16,
+      "params": {
+        "C": 10.0,
+        "l1_ratio": 0.25
+      }
+    },
+    {
+      "auprc": 0.4597052943945965,
+      "brier": 0.243966647132149,
+      "candidate_index": 17,
+      "params": {
+        "C": 10.0,
+        "l1_ratio": 0.5
+      }
+    },
+    {
+      "auprc": 0.4209208835743691,
+      "brier": 0.24876135458728493,
+      "candidate_index": 18,
+      "params": {
+        "C": 10.0,
+        "l1_ratio": 0.75
+      }
+    },
+    {
+      "auprc": 0.3238920233806212,
+      "brier": 0.250001722376891,
+      "candidate_index": 19,
+      "params": {
+        "C": 10.0,
+        "l1_ratio": 1.0
+      }
+    }
+  ],
+  "schema_version": "mood-social-forecast-v3.4-search-record-v1",
+  "selected_params": {
+    "C": 10.0,
+    "l1_ratio": 0.0
+  }
+}

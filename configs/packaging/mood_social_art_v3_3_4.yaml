@@ -1,0 +1,28 @@
+task_id: ART-002
+run_id: MH-20260804-023
+decision_rule: create_v3_3_4_package_only_when_opt_fusion_003_promotion_passes
+
+input:
+  promotion_path: reports/mental_health/mood_social/MH-20260804-021/promotion.json
+  promotion_sha256: e9b2e41e587b602c90f28be4de9b57c037412cad3e94c7b976981562c0563984
+  candidate_model_path: models/mental_health/mood_social/v3.3.3/candidates/MH-20260804-021/mood_fusion_v3_3_4_candidate.joblib
+  candidate_model_sha256: 53b3e1dba0bfae7ec8e03b7d2e078c15fc6272588630be6a1b089417eecb39aa
+  candidate_manifest_path: models/mental_health/mood_social/v3.3.3/candidates/MH-20260804-021/mood_fusion_v3_3_4_candidate_manifest.json
+  candidate_manifest_sha256: dbcbadb4086c40444469bbc26564322fdc1077ed7785aa7358b5fccf1521933d
+  workpoint_manifest_path: models/mental_health/mood_social/v3.3.3/candidates/MH-20260804-022/competition_workpoint_manifest.json
+  workpoint_manifest_sha256: 995016996e55a09c6bb6264b6f04db8e7dd8e025ca51fc49f63e4828fbbd178a
+  fallback_package_directory: models/mental_health/mood_social/v3.3.3/packages/MH-20260802-013
+  fallback_manifest_sha256: b06ba3fc042e07eb17738a21b3683f3029a3adeae6aadd16705b9eb51a0a08d8
+  fallback_checksums_sha256: e40ac1b96c3e4075a1f62523f446f7e1717cefa7d75a4a59128d11611e4f4ce3
+  fallback_payload_sha256: 7ef764ee343982d599503d10a986ab63c1dc61c5541d45452afebae1de0bd44c
+
+output:
+  new_package_directory: models/mental_health/mood_social/v3.3.4/packages/MH-20260804-023
+  decision_manifest_path: models/mental_health/mood_social/v3.3.3/candidates/MH-20260804-023/art002_decision_manifest.json
+  report_directory: reports/mental_health/mood_social/MH-20260804-023
+
+boundaries:
+  model006_online: false
+  production_threshold_selected: false
+  overwrite_art001: false
+  create_fake_package_when_not_promoted: false

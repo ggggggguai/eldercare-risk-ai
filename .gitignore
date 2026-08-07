@@ -39,8 +39,14 @@ tmp/
 *.onnx
 *.engine
 *.ckpt
+*.safetensors
+models/mental_health/facial_affect/assets/*.dat
+models/mental_health/facial_affect/assets/*.bz2
+models/mental_health/facial_affect/assets/*.part
 models/asr/asr-paraformer-zh-v1.0/**
 !models/asr/asr-paraformer-zh-v1.0/sha256sums.txt
+models/mental_health/cognitive_change_clue/v3.3.0/encoders/**
+models/mental_health/cognitive_change_clue/v3.3.0/detectors/**
 
 # Local environment files.
 .env

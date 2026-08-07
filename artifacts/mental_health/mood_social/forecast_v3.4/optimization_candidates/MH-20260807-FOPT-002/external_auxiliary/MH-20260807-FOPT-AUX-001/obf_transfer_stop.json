@@ -1,0 +1,9 @@
+{
+  "batch_sensitivity_completed": true,
+  "diagnosis_group_used_as_product_target": false,
+  "entered_001d_fusion": false,
+  "madrs_used_as_phq9_equivalent": false,
+  "reason": "OBF minute activity units and rhythm features do not have strict same-semantic mappings to the frozen PSYCHE-D 27 fields",
+  "required_next_evidence": "project-compatible activity rhythm features with audited window semantics",
+  "status": "stopped_before_psyche_transfer"
+}

@@ -1,0 +1,134 @@
+{
+  "schema_version": "microexpression_eval_input_variants_v2",
+  "task_id": "EVAL-ME-002",
+  "status": "pass",
+  "variant_count": 16,
+  "sample_count_per_variant": [
+    164
+  ],
+  "source_hashes": {
+    "sequence_manifest": "053bb0d199c311eb342103463ced288976f47cd1c6153d636bd7eb7d37848b69",
+    "frozen_manifest": "7d8b0a6ad54814c5970ea767b5812eb0e5aa2d4371561be25de03ec6e80ce06d",
+    "config": "b10bbbdd9b5d53a96e19ef8dfac9fe0846d035baa0e6a09aa1aeb88c25dbb6f0",
+    "builder_source": "c68e5c392df08740dbfbb966fb488f6f9fc1a2366c3a54e41b7beada86d7ee5f"
+  },
+  "base_config": {
+    "aligned_width": 256,
+    "aligned_height": 256,
+    "flow_width": 32,
+    "flow_height": 32,
+    "patch_size": 5,
+    "preprocess_variant": "combined",
+    "gamma": 0.8,
+    "gaussian_kernel": 5,
+    "median_kernel": 3,
+    "flow_estimator": "farneback",
+    "normalization_quantile": 0.995,
+    "pyr_scale": 0.5,
+    "levels": 3,
+    "winsize": 15,
+    "iterations": 3,
+    "poly_n": 5,
+    "poly_sigma": 1.2,
+    "flags": 0
+  },
+  "frozen_apex_alignment_landmarks": true,
+  "variants": {
+    "p0_farneback_magnitude": {
+      "sample_count": 164,
+      "manifest_path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/data/manifests/microexpression/paper_v2/evaluation_variants/artifact_manifest_p0_farneback_magnitude_v2.jsonl",
+      "manifest_sha256": "d78bd06fd948c9924035e70bf4a46bf21b02f50cc7e9735a285b35cfa7dda089",
+      "artifact_bytes": 2614419
+    },
+    "p0_farneback_optical_strain": {
+      "sample_count": 164,
+      "manifest_path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/data/manifests/microexpression/paper_v2/evaluation_variants/artifact_manifest_p0_farneback_optical_strain_v2.jsonl",
+      "manifest_sha256": "f76bf74582daabf6556a265e8c415970690649b905c59d878a6e123d9bc157f2",
+      "artifact_bytes": 2677455
+    },
+    "p0_tvl1_magnitude": {
+      "sample_count": 164,
+      "manifest_path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/data/manifests/microexpression/paper_v2/evaluation_variants/artifact_manifest_p0_tvl1_magnitude_v2.jsonl",
+      "manifest_sha256": "ed63916e5387b29f9ed13eeb72cefdee7d6092b8d01f6ab459a30a25ff7a58d5",
+      "artifact_bytes": 3146110
+    },
+    "p0_tvl1_optical_strain": {
+      "sample_count": 164,
+      "manifest_path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/data/manifests/microexpression/paper_v2/evaluation_variants/artifact_manifest_p0_tvl1_optical_strain_v2.jsonl",
+      "manifest_sha256": "7ace625a05cbb931dc4e38525282f39a631539d46e532fe943bf7e4096563177",
+      "artifact_bytes": 3154264
+    },
+    "p1_farneback_magnitude": {
+      "sample_count": 164,
+      "manifest_path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/data/manifests/microexpression/paper_v2/evaluation_variants/artifact_manifest_p1_farneback_magnitude_v2.jsonl",
+      "manifest_sha256": "3983c02f2f58fcdcc8d8b0bb92ac9c57bdfbfe0870249bc55f8a5edec372f47f",
+      "artifact_bytes": 2655789
+    },
+    "p1_farneback_optical_strain": {
+      "sample_count": 164,
+      "manifest_path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/data/manifests/microexpression/paper_v2/evaluation_variants/artifact_manifest_p1_farneback_optical_strain_v2.jsonl",
+      "manifest_sha256": "e3180a6c2413a6d81255809ce399e1c15953c30215862d83f6ec84c6e8b1fccf",
+      "artifact_bytes": 2715978
+    },
+    "p1_tvl1_magnitude": {
+      "sample_count": 164,
+      "manifest_path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/data/manifests/microexpression/paper_v2/evaluation_variants/artifact_manifest_p1_tvl1_magnitude_v2.jsonl",
+      "manifest_sha256": "185c550b79a7bfecf5110bee9b71b963cecd2c8831b4e454adceccac039e3c8b",
+      "artifact_bytes": 3156314
+    },
+    "p1_tvl1_optical_strain": {
+      "sample_count": 164,
+      "manifest_path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/data/manifests/microexpression/paper_v2/evaluation_variants/artifact_manifest_p1_tvl1_optical_strain_v2.jsonl",
+      "manifest_sha256": "7b92b28d31c68272d20e2194a694dae78134d99140497febc1e8977498d541d5",
+      "artifact_bytes": 3162916
+    },
+    "p2_farneback_magnitude": {
+      "sample_count": 164,
+      "manifest_path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/data/manifests/microexpression/paper_v2/evaluation_variants/artifact_manifest_p2_farneback_magnitude_v2.jsonl",
+      "manifest_sha256": "27e9892189929db241d1d944b22d89e19989ef05b3ea03d5262d219bf740b5dc",
+      "artifact_bytes": 2611076
+    },
+    "p2_farneback_optical_strain": {
+      "sample_count": 164,
+      "manifest_path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/data/manifests/microexpression/paper_v2/evaluation_variants/artifact_manifest_p2_farneback_optical_strain_v2.jsonl",
+      "manifest_sha256": "1892b950cb3da436f42b862cc11e377c020084347e82942d4442319fdb517031",
+      "artifact_bytes": 2674241
+    },
+    "p2_tvl1_magnitude": {
+      "sample_count": 164,
+      "manifest_path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/data/manifests/microexpression/paper_v2/evaluation_variants/artifact_manifest_p2_tvl1_magnitude_v2.jsonl",
+      "manifest_sha256": "a274698638ccafe223910308ec7568965128a1f92375731b09e562bec5a4d404",
+      "artifact_bytes": 3144230
+    },
+    "p2_tvl1_optical_strain": {
+      "sample_count": 164,
+      "manifest_path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/data/manifests/microexpression/paper_v2/evaluation_variants/artifact_manifest_p2_tvl1_optical_strain_v2.jsonl",
+      "manifest_sha256": "22e1c73dae5c2657a6f3f343e958a177d74e2675e2511992d5bdd29b2ac906a2",
+      "artifact_bytes": 3154394
+    },
+    "p3_farneback_magnitude": {
+      "sample_count": 164,
+      "manifest_path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/data/manifests/microexpression/paper_v2/evaluation_variants/artifact_manifest_p3_farneback_magnitude_v2.jsonl",
+      "manifest_sha256": "efb18e07eac81609977ad119c44238dd3fc1c5468f3df2d7fcf9a5fd21006f35",
+      "artifact_bytes": 2653251
+    },
+    "p3_farneback_optical_strain": {
+      "sample_count": 164,
+      "manifest_path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/data/manifests/microexpression/paper_v2/evaluation_variants/artifact_manifest_p3_farneback_optical_strain_v2.jsonl",
+      "manifest_sha256": "6c6fbbfef3d6a1c5e4fc7c7cc9c497433e47aaf168fabe4df575b43057380715",
+      "artifact_bytes": 2714792
+    },
+    "p3_tvl1_magnitude": {
+      "sample_count": 164,
+      "manifest_path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/data/manifests/microexpression/paper_v2/evaluation_variants/artifact_manifest_p3_tvl1_magnitude_v2.jsonl",
+      "manifest_sha256": "cc6a83104b8bec7c30a7248712822309f1c6b331c2ee0bf277dfb68483f142bc",
+      "artifact_bytes": 3156194
+    },
+    "p3_tvl1_optical_strain": {
+      "sample_count": 164,
+      "manifest_path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/data/manifests/microexpression/paper_v2/evaluation_variants/artifact_manifest_p3_tvl1_optical_strain_v2.jsonl",
+      "manifest_sha256": "635a3a6c5e54c7bdd460a610ed9c8d501c246410dfa573fe619512d85c11a063",
+      "artifact_bytes": 3163566
+    }
+  }
+}

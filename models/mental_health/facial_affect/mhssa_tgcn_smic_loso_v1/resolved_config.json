@@ -1,0 +1,63 @@
+{
+  "schema_version": "microexpression_mhssa_tgcn_smic_loso_config_v1",
+  "run_id": "MHSSA-SMIC-LOSO-20260806-001",
+  "task_id": "MODEL-ME-002",
+  "release_status": "experimental",
+  "execution_mode": "offline_only",
+  "frame_annotation_source": "estimated",
+  "evaluation_scope": "engineering_only",
+  "paper_reproduction_claim": false,
+  "model": {
+    "num_regions": 6,
+    "max_patches_per_region": 12,
+    "patch_dim": 147,
+    "hidden_dim": 256,
+    "region_embedding_dim": 32,
+    "intra_depth": 2,
+    "intra_heads": 4,
+    "inter_depth": 1,
+    "inter_heads": 4,
+    "gcn_layers": 2,
+    "num_classes": 3,
+    "dropout": 0.15,
+    "spatial_temperature": 8.0
+  },
+  "training": {
+    "seed": 20260806,
+    "max_epochs": 40,
+    "min_epochs": 8,
+    "patience": 8,
+    "batch_size": 32,
+    "learning_rate": 0.0005,
+    "weight_decay": 0.0001,
+    "label_smoothing": 0.05,
+    "gradient_clip_norm": 1.0,
+    "num_workers": 0,
+    "use_class_weights": true
+  },
+  "split": {
+    "protocol": "subject_level_loso",
+    "validation_subject_count": 3,
+    "validation_policy": "subject_level_greedy_distribution_match",
+    "checkpoint_selection": "validation_macro_f1_then_validation_loss",
+    "test_used_for_selection": false
+  },
+  "labels": {
+    "0": "negative",
+    "1": "positive",
+    "2": "surprise"
+  },
+  "source_config": {
+    "path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/configs/training/microexpression_mhssa_tgcn_smic_loso_v1.yaml",
+    "sha256": "6ed5b543abcbc8f97eb47df764d7b6489a939eba3f3f01b8c9a94542476c86d1"
+  },
+  "artifact_manifest": {
+    "path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/data/manifests/microexpression/flow_artifact_manifest_smic_hs_classification_v1.jsonl",
+    "sha256": "baa574855209d47a398f09c7b8f27aba6f442b0d9a25054346e73f372573cc86"
+  },
+  "split_manifest": {
+    "path": "C:/Users/Administrator/Desktop/揭榜挂帅专项赛/algorithm/eldercare-risk-ai-main/data/manifests/microexpression/smic_subject_loso_splits_v1.json",
+    "sha256": "dec3acd9dafbaa4f0d746b275d0ed5413e43f0a1fce7d2f92303b41fc6dc1b40"
+  },
+  "device": "cuda"
+}

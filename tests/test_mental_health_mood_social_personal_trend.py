@@ -75,6 +75,42 @@ def test_exactly_three_history_days_use_frozen_reliability() -> None:
     assert result.reliability == pytest.approx((3 / 7) * 0.5)
 
 
+def test_recent_fourteen_valid_days_and_sixty_percent_golden_boundary() -> None:
+    long_history = compute_trend_components(
+        _observations([0.5] * 20 + [0.47]),
+        ACTIVITY_SPEC,
+    )
+    assert long_history.valid_history_days == 14
+    assert long_history.accepted_history_positions == tuple(range(6, 20))
+    assert long_history.details["feature_scores"]["observed_activity_intensity"] == (
+        pytest.approx(
+            {
+                "score": 0.6,
+                "standardized": 0.3,
+                "relative": 0.12,
+                "quantile": 0.6,
+                "current": 0.47,
+                "center": 0.5,
+                "scale": 0.05,
+            }
+        )
+    )
+    assert long_history.details["baseline_policy"] == {
+        "lookback_calendar_days": 28,
+        "initial_days": 3,
+        "stable_days": 7,
+        "max_valid_days": 14,
+        "abnormal_day_threshold": 0.6,
+        "domain_summary": "maximum",
+    }
+
+    improvement = compute_trend_components(
+        _observations([0.5, 0.5, 0.5, 0.53]),
+        ACTIVITY_SPEC,
+    )
+    assert improvement.values[0] == 0.0
+
+
 def test_abnormal_history_day_is_excluded_for_entire_domain() -> None:
     result = compute_trend_components(
         _observations([0.5, 0.5, 0.5, 0.0, 0.5, 0.5]),

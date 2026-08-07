@@ -1,0 +1,90 @@
+{
+  "calibration": {
+    "a": 0.4232446501223649,
+    "b": 0.2938122528596002,
+    "checkpoint_sha256": "afa9efc375c4cc29403422b4f1135c332fde25ebfe563ac1c4f29777161e2d4a",
+    "fit_scope": "fixed_v33_validation_92_task_raw_logits",
+    "fit_subject_count": 92,
+    "fit_task_count": 276,
+    "method": "platt",
+    "model_version": "cognitive-mm-v3.4.0",
+    "official_test_evaluated": false,
+    "schema_version": "cognitive_calibration_v2",
+    "subject_probability_aggregation": "calibrate_each_task_then_mean_probability"
+  },
+  "official_test_evaluated": false,
+  "schema_version": "cognitive_v34_final_calibration_report_v1",
+  "subject_workpoint": {
+    "balanced_accuracy": 0.680623973727422,
+    "brier": 0.174328032409897,
+    "confusion_matrix": {
+      "fn": 12,
+      "fp": 13,
+      "tn": 16,
+      "tp": 51
+    },
+    "count": 92,
+    "ece_10_equal_width": 0.08455967763714761,
+    "negative_count": 29,
+    "positive_count": 63,
+    "roc_auc": 0.7859879584017516,
+    "sensitivity": 0.8095238095238095,
+    "specificity": 0.5517241379310345,
+    "threshold": 0.622
+  },
+  "task_workpoint_supplemental": {
+    "balanced_accuracy": 0.6779784710819193,
+    "brier": 0.18269698888922672,
+    "confusion_matrix": {
+      "fn": 37,
+      "fp": 39,
+      "tn": 48,
+      "tp": 152
+    },
+    "count": 276,
+    "ece_10_equal_width": 0.03204511473357465,
+    "negative_count": 87,
+    "positive_count": 189,
+    "roc_auc": 0.7366660585051389,
+    "sensitivity": 0.8042328042328042,
+    "specificity": 0.5517241379310345,
+    "threshold": 0.606
+  },
+  "validation_role": "final_package_implementation_record_not_independent_test",
+  "validation_subject_metrics": {
+    "balanced_accuracy": 0.680623973727422,
+    "brier": 0.174328032409897,
+    "confusion_matrix": {
+      "fn": 12,
+      "fp": 13,
+      "tn": 16,
+      "tp": 51
+    },
+    "count": 92,
+    "ece_10_equal_width": 0.08455967763714761,
+    "negative_count": 29,
+    "positive_count": 63,
+    "roc_auc": 0.7859879584017516,
+    "sensitivity": 0.8095238095238095,
+    "specificity": 0.5517241379310345,
+    "threshold": 0.622
+  },
+  "validation_task_metrics": {
+    "balanced_accuracy": 0.6779784710819193,
+    "brier": 0.18269698888922672,
+    "confusion_matrix": {
+      "fn": 37,
+      "fp": 39,
+      "tn": 48,
+      "tp": 152
+    },
+    "count": 276,
+    "ece_10_equal_width": 0.03204511473357465,
+    "negative_count": 87,
+    "positive_count": 189,
+    "roc_auc": 0.7366660585051389,
+    "sensitivity": 0.8042328042328042,
+    "specificity": 0.5517241379310345,
+    "threshold": 0.606
+  }
+}

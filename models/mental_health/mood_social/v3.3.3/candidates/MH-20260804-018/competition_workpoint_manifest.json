@@ -1,0 +1,32 @@
+{
+  "model_version": "mood-social-workpoint-v3.3.4-v1",
+  "production_threshold_selected": false,
+  "report_core_sha256": "ca7268d13277e1fc45a7166915df2823aa3252151bf60615fca066742778caa7",
+  "run_id": "MH-20260804-018",
+  "scope": "competition_demo",
+  "selected_source": "current_online_baseline",
+  "selected_threshold": {
+    "alert_rate_per_100_person_days": 65.82837569857581,
+    "eligible_threshold_count": 48,
+    "f1": 0.373026491838373,
+    "false_alert_rate_per_100_negative_days": 61.4114528687393,
+    "precision": 0.23860057510612076,
+    "selection_rule": "maximum_f1_with_sensitivity_at_least_0.80_then_lower_alert_rate",
+    "sensitivity": 0.8543760725668056,
+    "source": "current_online_baseline",
+    "specificity": 0.385885471312607,
+    "threshold": 0.48
+  },
+  "task_id": "OPT-WORKPOINT-001",
+  "upstream_protection": {
+    "fallback_package": "MH-20260802-013",
+    "oof_sha256": "43f97cc2c0337e13611bc07e1c7f5d962aae9058940a447d24130a5700d1fbf2",
+    "promotion_passed": false,
+    "promotion_sha256": "220924c24df42c2a28d9113d959ee35f933f2b77ec35087ba8c31b5d7e5788a9",
+    "runtime_policy_config_sha256": "b98c55fe2771030473dce6142ee6c1f9d5887de2a134860de284b12bdae1a35a",
+    "runtime_policy_path": "configs/runtime/mood_social_runtime_policy_v3_3_3.yaml",
+    "split_sha256": "e9915dbc590a6ea454c34d26558ac5866c57ee8a8e78f44cdcc79c859df77ee3",
+    "synthetic_fixture": true
+  },
+  "version": "mood-social-workpoint-v3.3.4-manifest-v1"
+}

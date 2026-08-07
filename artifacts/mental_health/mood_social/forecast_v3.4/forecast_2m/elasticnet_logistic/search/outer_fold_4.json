@@ -1,0 +1,193 @@
+{
+  "candidate_count": 20,
+  "inner_split_sha256": "64f9e4a8d548f9c5152275b9d1fc8933814bbc9730ca74af5557284657a4e4ef",
+  "model_family": "elasticnet_logistic",
+  "outer_fold_id": 4,
+  "records": [
+    {
+      "auprc": 0.48782080248206533,
+      "brier": 0.24970346743940675,
+      "candidate_index": 0,
+      "params": {
+        "C": 0.01,
+        "l1_ratio": 0.0
+      }
+    },
+    {
+      "auprc": 0.32673924927739817,
+      "brier": 0.2500000597053197,
+      "candidate_index": 1,
+      "params": {
+        "C": 0.01,
+        "l1_ratio": 0.25
+      }
+    },
+    {
+      "auprc": 0.32673924927739817,
+      "brier": 0.25000004899939854,
+      "candidate_index": 2,
+      "params": {
+        "C": 0.01,
+        "l1_ratio": 0.5
+      }
+    },
+    {
+      "auprc": 0.32673924927739817,
+      "brier": 0.2500000336875976,
+      "candidate_index": 3,
+      "params": {
+        "C": 0.01,
+        "l1_ratio": 0.75
+      }
+    },
+    {
+      "auprc": 0.32673924927739817,
+      "brier": 0.2500000115574004,
+      "candidate_index": 4,
+      "params": {
+        "C": 0.01,
+        "l1_ratio": 1.0
+      }
+    },
+    {
+      "auprc": 0.48817714047470157,
+      "brier": 0.24739599028037856,
+      "candidate_index": 5,
+      "params": {
+        "C": 0.1,
+        "l1_ratio": 0.0
+      }
+    },
+    {
+      "auprc": 0.32673924927739817,
+      "brier": 0.2500000190910312,
+      "candidate_index": 6,
+      "params": {
+        "C": 0.1,
+        "l1_ratio": 0.25
+      }
+    },
+    {
+      "auprc": 0.32673924927739817,
+      "brier": 0.2500000166751456,
+      "candidate_index": 7,
+      "params": {
+        "C": 0.1,
+        "l1_ratio": 0.5
+      }
+    },
+    {
+      "auprc": 0.32673924927739817,
+      "brier": 0.25000001416526796,
+      "candidate_index": 8,
+      "params": {
+        "C": 0.1,
+        "l1_ratio": 0.75
+      }
+    },
+    {
+      "auprc": 0.32673924927739817,
+      "brier": 0.2500000115573513,
+      "candidate_index": 9,
+      "params": {
+        "C": 0.1,
+        "l1_ratio": 1.0
+      }
+    },
+    {
+      "auprc": 0.48964226794865084,
+      "brier": 0.23836311055536058,
+      "candidate_index": 10,
+      "params": {
+        "C": 1.0,
+        "l1_ratio": 0.0
+      }
+    },
+    {
+      "auprc": 0.32836761167115086,
+      "brier": 0.24999982794382078,
+      "candidate_index": 11,
+      "params": {
+        "C": 1.0,
+        "l1_ratio": 0.25
+      }
+    },
+    {
+      "auprc": 0.32836761167115086,
+      "brier": 0.24999967770146342,
+      "candidate_index": 12,
+      "params": {
+        "C": 1.0,
+        "l1_ratio": 0.5
+      }
+    },
+    {
+      "auprc": 0.32673924927739817,
+      "brier": 0.2499997539975005,
+      "candidate_index": 13,
+      "params": {
+        "C": 1.0,
+        "l1_ratio": 0.75
+      }
+    },
+    {
+      "auprc": 0.32673924927739817,
+      "brier": 0.24999973341017612,
+      "candidate_index": 14,
+      "params": {
+        "C": 1.0,
+        "l1_ratio": 1.0
+      }
+    },
+    {
+      "auprc": 0.49047914638337753,
+      "brier": 0.23194285285425725,
+      "candidate_index": 15,
+      "params": {
+        "C": 10.0,
+        "l1_ratio": 0.0
+      }
+    },
+    {
+      "auprc": 0.48447352482567707,
+      "brier": 0.23815460219676748,
+      "candidate_index": 16,
+      "params": {
+        "C": 10.0,
+        "l1_ratio": 0.25
+      }
+    },
+    {
+      "auprc": 0.45759958097097153,
+      "brier": 0.24456581004227698,
+      "candidate_index": 17,
+      "params": {
+        "C": 10.0,
+        "l1_ratio": 0.5
+      }
+    },
+    {
+      "auprc": 0.41508164817232907,
+      "brier": 0.24924954806093896,
+      "candidate_index": 18,
+      "params": {
+        "C": 10.0,
+        "l1_ratio": 0.75
+      }
+    },
+    {
+      "auprc": 0.32836761167115086,
+      "brier": 0.2499997230383208,
+      "candidate_index": 19,
+      "params": {
+        "C": 10.0,
+        "l1_ratio": 1.0
+      }
+    }
+  ],
+  "schema_version": "mood-social-forecast-v3.4-search-record-v1",
+  "selected_params": {
+    "C": 10.0,
+    "l1_ratio": 0.0
+  }
+}

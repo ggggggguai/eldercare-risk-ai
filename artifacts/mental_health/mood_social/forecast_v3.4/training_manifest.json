@@ -1,0 +1,516 @@
+{
+  "context_manifest_sha256": "b00fa78907f9a4d009ff6c000fe5e2ce778b305ebbc499efbc04033dc56d2843",
+  "decision_authority": "shadow_only",
+  "environment": {
+    "current_interpreter_note": "The default interpreter used for context tests may differ; formal model training must run in eldercare-ai with this lock.",
+    "determinism": {
+      "lightgbm_deterministic": true,
+      "lightgbm_force_col_wise": true,
+      "random_seed": 20260728,
+      "threads": 1
+    },
+    "environment_name": "eldercare-ai",
+    "packages": {
+      "PyYAML": "6.0.3",
+      "lightgbm": "4.6.0",
+      "numpy": "2.4.6",
+      "pandas": "3.0.3",
+      "pyarrow": "21.0.0",
+      "pytest": "9.1.1",
+      "scikit-learn": "1.9.0"
+    },
+    "python": "3.11.15",
+    "schema_version": "mood-social-forecast-v3.4-environment-lock-v1",
+    "verified_reference": "algorithm/eldercare-risk-ai-main/environment-reference.txt"
+  },
+  "environment_lock_sha256": "8d0a0d37329dad9108e89022f326f2aee669b6c7568bc6b43617959dfc0d7606",
+  "execution_mode": "offline_only",
+  "experiment_version": "mood-social-forecast-v3.4",
+  "inner_fold_count": 5,
+  "inner_split_manifest_sha256": "64f9e4a8d548f9c5152275b9d1fc8933814bbc9730ca74af5557284657a4e4ef",
+  "lightgbm_candidates_sha256": "6f9cc94f5b2dbf361d1622e62b65cc37d1edf3aaffa4e1af14310d20f9a81f1f",
+  "model_families": [
+    "dummy",
+    "elasticnet_logistic",
+    "lightgbm"
+  ],
+  "oof_row_count": 56019,
+  "outer_fold_count": 5,
+  "product_visible": false,
+  "random_seed": 20260728,
+  "release_status": "experimental",
+  "schema_version": "mood-social-forecast-v3.4-training-manifest-v1",
+  "search_space_sha256": "7cb06881c6d0b91a01146b6198d8fdfe48f61d44d00cbd857cf95b427916884f",
+  "tasks": {
+    "forecast_1m": {
+      "models": {
+        "dummy": {
+          "outer_folds": [
+            {
+              "inner_calibration_participant_count": 2914,
+              "outer_fold_id": 0,
+              "selected_params": {},
+              "test_participant_count": 721,
+              "test_sample_count": 1874,
+              "threshold": 0.32827202737382377,
+              "train_participant_count": 2914,
+              "train_sample_count": 7519
+            },
+            {
+              "inner_calibration_participant_count": 2912,
+              "outer_fold_id": 1,
+              "selected_params": {},
+              "test_participant_count": 723,
+              "test_sample_count": 1891,
+              "threshold": 0.3286021505376344,
+              "train_participant_count": 2912,
+              "train_sample_count": 7502
+            },
+            {
+              "inner_calibration_participant_count": 2906,
+              "outer_fold_id": 2,
+              "selected_params": {},
+              "test_participant_count": 729,
+              "test_sample_count": 1871,
+              "threshold": 0.3275602409638554,
+              "train_participant_count": 2906,
+              "train_sample_count": 7522
+            },
+            {
+              "inner_calibration_participant_count": 2902,
+              "outer_fold_id": 3,
+              "selected_params": {},
+              "test_participant_count": 733,
+              "test_sample_count": 1890,
+              "threshold": 0.32841871143636103,
+              "train_participant_count": 2902,
+              "train_sample_count": 7503
+            },
+            {
+              "inner_calibration_participant_count": 2906,
+              "outer_fold_id": 4,
+              "selected_params": {},
+              "test_participant_count": 729,
+              "test_sample_count": 1867,
+              "threshold": 0.3311130210571551,
+              "train_participant_count": 2906,
+              "train_sample_count": 7526
+            }
+          ]
+        },
+        "elasticnet_logistic": {
+          "outer_folds": [
+            {
+              "inner_calibration_participant_count": 2914,
+              "outer_fold_id": 0,
+              "selected_params": {
+                "C": 10.0,
+                "l1_ratio": 0.0
+              },
+              "test_participant_count": 721,
+              "test_sample_count": 1874,
+              "threshold": 0.37524818001323623,
+              "train_participant_count": 2914,
+              "train_sample_count": 7519
+            },
+            {
+              "inner_calibration_participant_count": 2912,
+              "outer_fold_id": 1,
+              "selected_params": {
+                "C": 10.0,
+                "l1_ratio": 0.0
+              },
+              "test_participant_count": 723,
+              "test_sample_count": 1891,
+              "threshold": 0.3698113207547169,
+              "train_participant_count": 2912,
+              "train_sample_count": 7502
+            },
+            {
+              "inner_calibration_participant_count": 2906,
+              "outer_fold_id": 2,
+              "selected_params": {
+                "C": 10.0,
+                "l1_ratio": 0.0
+              },
+              "test_participant_count": 729,
+              "test_sample_count": 1871,
+              "threshold": 0.37534754402224285,
+              "train_participant_count": 2906,
+              "train_sample_count": 7522
+            },
+            {
+              "inner_calibration_participant_count": 2902,
+              "outer_fold_id": 3,
+              "selected_params": {
+                "C": 10.0,
+                "l1_ratio": 0.0
+              },
+              "test_participant_count": 733,
+              "test_sample_count": 1890,
+              "threshold": 0.3965728274173804,
+              "train_participant_count": 2902,
+              "train_sample_count": 7503
+            },
+            {
+              "inner_calibration_participant_count": 2906,
+              "outer_fold_id": 4,
+              "selected_params": {
+                "C": 10.0,
+                "l1_ratio": 0.0
+              },
+              "test_participant_count": 729,
+              "test_sample_count": 1867,
+              "threshold": 0.44476327116212333,
+              "train_participant_count": 2906,
+              "train_sample_count": 7526
+            }
+          ]
+        },
+        "lightgbm": {
+          "outer_folds": [
+            {
+              "inner_calibration_participant_count": 2914,
+              "outer_fold_id": 0,
+              "selected_params": {
+                "colsample_bytree": 1.0,
+                "learning_rate": 0.05,
+                "max_depth": 3,
+                "min_child_samples": 50,
+                "n_estimators": 200,
+                "num_leaves": 7,
+                "reg_alpha": 0.0,
+                "reg_lambda": 0.1,
+                "subsample": 0.8
+              },
+              "test_participant_count": 721,
+              "test_sample_count": 1874,
+              "threshold": 0.3747841105354058,
+              "train_participant_count": 2914,
+              "train_sample_count": 7519
+            },
+            {
+              "inner_calibration_participant_count": 2912,
+              "outer_fold_id": 1,
+              "selected_params": {
+                "colsample_bytree": 1.0,
+                "learning_rate": 0.05,
+                "max_depth": 3,
+                "min_child_samples": 50,
+                "n_estimators": 200,
+                "num_leaves": 7,
+                "reg_alpha": 0.0,
+                "reg_lambda": 0.1,
+                "subsample": 0.8
+              },
+              "test_participant_count": 723,
+              "test_sample_count": 1891,
+              "threshold": 0.38276836158192096,
+              "train_participant_count": 2912,
+              "train_sample_count": 7502
+            },
+            {
+              "inner_calibration_participant_count": 2906,
+              "outer_fold_id": 2,
+              "selected_params": {
+                "colsample_bytree": 0.8,
+                "learning_rate": 0.03,
+                "max_depth": 3,
+                "min_child_samples": 50,
+                "n_estimators": 200,
+                "num_leaves": 31,
+                "reg_alpha": 0.0,
+                "reg_lambda": 0.1,
+                "subsample": 0.8
+              },
+              "test_participant_count": 729,
+              "test_sample_count": 1871,
+              "threshold": 0.37552649080026607,
+              "train_participant_count": 2906,
+              "train_sample_count": 7522
+            },
+            {
+              "inner_calibration_participant_count": 2902,
+              "outer_fold_id": 3,
+              "selected_params": {
+                "colsample_bytree": 0.8,
+                "learning_rate": 0.05,
+                "max_depth": 5,
+                "min_child_samples": 20,
+                "n_estimators": 200,
+                "num_leaves": 7,
+                "reg_alpha": 0.0,
+                "reg_lambda": 0.1,
+                "subsample": 1.0
+              },
+              "test_participant_count": 733,
+              "test_sample_count": 1890,
+              "threshold": 0.3755364806866954,
+              "train_participant_count": 2902,
+              "train_sample_count": 7503
+            },
+            {
+              "inner_calibration_participant_count": 2906,
+              "outer_fold_id": 4,
+              "selected_params": {
+                "colsample_bytree": 1.0,
+                "learning_rate": 0.03,
+                "max_depth": 3,
+                "min_child_samples": 50,
+                "n_estimators": 200,
+                "num_leaves": 7,
+                "reg_alpha": 0.0,
+                "reg_lambda": 0.1,
+                "subsample": 1.0
+              },
+              "test_participant_count": 729,
+              "test_sample_count": 1867,
+              "threshold": 0.4015957446808511,
+              "train_participant_count": 2906,
+              "train_sample_count": 7526
+            }
+          ]
+        }
+      },
+      "participant_count": 3635,
+      "positive_participant_count": 1579,
+      "positive_window_count": 2948,
+      "sample_count": 9393
+    },
+    "forecast_2m": {
+      "models": {
+        "dummy": {
+          "outer_folds": [
+            {
+              "inner_calibration_participant_count": 2876,
+              "outer_fold_id": 0,
+              "selected_params": {},
+              "test_participant_count": 717,
+              "test_sample_count": 1868,
+              "threshold": 0.32878196792371045,
+              "train_participant_count": 2876,
+              "train_sample_count": 7412
+            },
+            {
+              "inner_calibration_participant_count": 2871,
+              "outer_fold_id": 1,
+              "selected_params": {},
+              "test_participant_count": 722,
+              "test_sample_count": 1871,
+              "threshold": 0.3279593318809006,
+              "train_participant_count": 2871,
+              "train_sample_count": 7409
+            },
+            {
+              "inner_calibration_participant_count": 2860,
+              "outer_fold_id": 2,
+              "selected_params": {},
+              "test_participant_count": 733,
+              "test_sample_count": 1863,
+              "threshold": 0.3295140404481304,
+              "train_participant_count": 2860,
+              "train_sample_count": 7417
+            },
+            {
+              "inner_calibration_participant_count": 2872,
+              "outer_fold_id": 3,
+              "selected_params": {},
+              "test_participant_count": 721,
+              "test_sample_count": 1842,
+              "threshold": 0.326945412311266,
+              "train_participant_count": 2872,
+              "train_sample_count": 7438
+            },
+            {
+              "inner_calibration_participant_count": 2893,
+              "outer_fold_id": 4,
+              "selected_params": {},
+              "test_participant_count": 700,
+              "test_sample_count": 1836,
+              "threshold": 0.3330809173517958,
+              "train_participant_count": 2893,
+              "train_sample_count": 7444
+            }
+          ]
+        },
+        "elasticnet_logistic": {
+          "outer_folds": [
+            {
+              "inner_calibration_participant_count": 2876,
+              "outer_fold_id": 0,
+              "selected_params": {
+                "C": 10.0,
+                "l1_ratio": 0.0
+              },
+              "test_participant_count": 717,
+              "test_sample_count": 1868,
+              "threshold": 0.3881578947368421,
+              "train_participant_count": 2876,
+              "train_sample_count": 7412
+            },
+            {
+              "inner_calibration_participant_count": 2871,
+              "outer_fold_id": 1,
+              "selected_params": {
+                "C": 10.0,
+                "l1_ratio": 0.0
+              },
+              "test_participant_count": 722,
+              "test_sample_count": 1871,
+              "threshold": 0.375,
+              "train_participant_count": 2871,
+              "train_sample_count": 7409
+            },
+            {
+              "inner_calibration_participant_count": 2860,
+              "outer_fold_id": 2,
+              "selected_params": {
+                "C": 10.0,
+                "l1_ratio": 0.0
+              },
+              "test_participant_count": 733,
+              "test_sample_count": 1863,
+              "threshold": 0.38382687927107073,
+              "train_participant_count": 2860,
+              "train_sample_count": 7417
+            },
+            {
+              "inner_calibration_participant_count": 2872,
+              "outer_fold_id": 3,
+              "selected_params": {
+                "C": 10.0,
+                "l1_ratio": 0.0
+              },
+              "test_participant_count": 721,
+              "test_sample_count": 1842,
+              "threshold": 0.3627450980392157,
+              "train_participant_count": 2872,
+              "train_sample_count": 7438
+            },
+            {
+              "inner_calibration_participant_count": 2893,
+              "outer_fold_id": 4,
+              "selected_params": {
+                "C": 10.0,
+                "l1_ratio": 0.0
+              },
+              "test_participant_count": 700,
+              "test_sample_count": 1836,
+              "threshold": 0.3798449612403101,
+              "train_participant_count": 2893,
+              "train_sample_count": 7444
+            }
+          ]
+        },
+        "lightgbm": {
+          "outer_folds": [
+            {
+              "inner_calibration_participant_count": 2876,
+              "outer_fold_id": 0,
+              "selected_params": {
+                "colsample_bytree": 1.0,
+                "learning_rate": 0.05,
+                "max_depth": 3,
+                "min_child_samples": 50,
+                "n_estimators": 200,
+                "num_leaves": 7,
+                "reg_alpha": 0.0,
+                "reg_lambda": 0.1,
+                "subsample": 0.8
+              },
+              "test_participant_count": 717,
+              "test_sample_count": 1868,
+              "threshold": 0.41778440139095874,
+              "train_participant_count": 2876,
+              "train_sample_count": 7412
+            },
+            {
+              "inner_calibration_participant_count": 2871,
+              "outer_fold_id": 1,
+              "selected_params": {
+                "colsample_bytree": 1.0,
+                "learning_rate": 0.03,
+                "max_depth": 3,
+                "min_child_samples": 50,
+                "n_estimators": 200,
+                "num_leaves": 7,
+                "reg_alpha": 0.0,
+                "reg_lambda": 0.1,
+                "subsample": 1.0
+              },
+              "test_participant_count": 722,
+              "test_sample_count": 1871,
+              "threshold": 0.3890214797136036,
+              "train_participant_count": 2871,
+              "train_sample_count": 7409
+            },
+            {
+              "inner_calibration_participant_count": 2860,
+              "outer_fold_id": 2,
+              "selected_params": {
+                "colsample_bytree": 1.0,
+                "learning_rate": 0.05,
+                "max_depth": 3,
+                "min_child_samples": 50,
+                "n_estimators": 200,
+                "num_leaves": 7,
+                "reg_alpha": 0.0,
+                "reg_lambda": 0.1,
+                "subsample": 0.8
+              },
+              "test_participant_count": 733,
+              "test_sample_count": 1863,
+              "threshold": 0.3918699186991871,
+              "train_participant_count": 2860,
+              "train_sample_count": 7417
+            },
+            {
+              "inner_calibration_participant_count": 2872,
+              "outer_fold_id": 3,
+              "selected_params": {
+                "colsample_bytree": 1.0,
+                "learning_rate": 0.05,
+                "max_depth": 3,
+                "min_child_samples": 50,
+                "n_estimators": 200,
+                "num_leaves": 7,
+                "reg_alpha": 0.0,
+                "reg_lambda": 0.1,
+                "subsample": 0.8
+              },
+              "test_participant_count": 721,
+              "test_sample_count": 1842,
+              "threshold": 0.4102990033222592,
+              "train_participant_count": 2872,
+              "train_sample_count": 7438
+            },
+            {
+              "inner_calibration_participant_count": 2893,
+              "outer_fold_id": 4,
+              "selected_params": {
+                "colsample_bytree": 1.0,
+                "learning_rate": 0.05,
+                "max_depth": 3,
+                "min_child_samples": 50,
+                "n_estimators": 200,
+                "num_leaves": 7,
+                "reg_alpha": 0.0,
+                "reg_lambda": 0.1,
+                "subsample": 0.8
+              },
+              "test_participant_count": 700,
+              "test_sample_count": 1836,
+              "threshold": 0.4031324480762685,
+              "train_participant_count": 2893,
+              "train_sample_count": 7444
+            }
+          ]
+        }
+      },
+      "participant_count": 3593,
+      "positive_participant_count": 1562,
+      "positive_window_count": 2910,
+      "sample_count": 9280
+    }
+  }
+}

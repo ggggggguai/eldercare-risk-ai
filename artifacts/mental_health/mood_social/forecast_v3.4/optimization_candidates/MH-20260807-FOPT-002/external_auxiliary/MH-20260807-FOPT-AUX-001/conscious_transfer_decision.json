@@ -1,0 +1,34 @@
+{
+  "entered_001d_fusion": false,
+  "limitations": [
+    "49 young adults and 98 design-aligned windows",
+    "self-reported sleep versus Fitbit-derived PSYCHE-D sleep",
+    "fixed external proxy requires paired 001F evaluation before any use"
+  ],
+  "model_alpha": 100.0,
+  "promotion_decision_deferred_to": "FORECAST-OPT-001F",
+  "psyche_labels_read": false,
+  "semantic_feature_count": 19,
+  "semantic_features": [
+    "steps_awake_mean",
+    "steps_awake_sum_iqr",
+    "sleep_asleep_weekday_mean",
+    "sleep_asleep_weekend_mean",
+    "sleep_in_bed_weekday_mean",
+    "sleep_in_bed_weekend_mean",
+    "sleep_ratio_asleep_in_bed_weekday_mean",
+    "sleep_ratio_asleep_in_bed_weekend_mean",
+    "sleep_in_bed_iqr",
+    "sleep_asleep_iqr",
+    "sleep_ratio_asleep_in_bed_iqr",
+    "sleep_main_start_hour_adj_median",
+    "sleep_main_start_hour_adj_iqr",
+    "sleep_main_start_hour_adj_range",
+    "sleep__hypersomnia_count_",
+    "sleep__hyposomnia_count_",
+    "sleep_asleep_mean_recent",
+    "sleep_in_bed_mean_recent",
+    "sleep_ratio_asleep_in_bed_mean_recent"
+  ],
+  "status": "eligible_as_fixed_external_auxiliary_candidate_only"
+}
