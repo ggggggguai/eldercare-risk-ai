@@ -61,11 +61,11 @@ Conda channel：
 - `pyproject.toml` 定义 Python 包元数据和可选依赖组。
 - 标准环境显式安装发行包 `torch==2.13.0`；目标 Linux wheel 的运行时 `torch.__version__` 为 `2.13.0+cu130`，不再依赖 `ultralytics` 间接解析版本。
 - 本文件不是完整锁文件，因为传递依赖可能因平台而变化。
-- 徘徊步骤 10 的 Linux/x86_64 runtime 候选事实源路径为：
+- 徘徊步骤 10 的 Linux/x86_64 runtime 事实源为：
 
   configs/runtime/wandering_step10_runtime_v1.yml
 
-- 当前候选使用 27 个具体 Conda 工件 URL/MD5 锁定 Python、pip、OpenSSL、libgcc、libstdc++、packaging、setuptools、wheel 等完整 Conda 集合，并使用 30 个具体 wheel URL/SHA-256 锁定 PyTorch、NumPy、PyYAML 及 PyTorch 的 pip 传递依赖；原始字节为 11426 bytes，SHA-256 为：
+- 该文件使用 27 个具体 Conda 工件 URL/MD5 锁定 Python、pip、OpenSSL、libgcc、libstdc++、packaging、setuptools、wheel 等完整 Conda 集合，并使用 30 个具体 wheel URL/SHA-256 锁定 PyTorch、NumPy、PyYAML 及 PyTorch 的 pip 传递依赖；原始字节为 11426 bytes，SHA-256 为：
 
   034d603ae722e1723189e03fbab05a3e8c110809d0f49011ef3e9ece8e2f1cda
 
@@ -73,4 +73,4 @@ Conda channel：
 
   conda env create -n eldercare-ai-wandering-runtime-v1-rebuild -f configs/runtime/wandering_step10_runtime_v1.yml
 
-- 该专用候选只覆盖步骤 10 所需的 Linux/x86_64 Python/Torch/NumPy/PyYAML runtime，不替代完整开发环境的 `environment.yml`，也不绑定项目源码；步骤 10 另行校验源码与配置 SHA。候选已经完成工件级重建，但在 Git 检查点和新 checkout 复验前不得称为正式冻结事实源，也不得开始步骤 10 红测。
+- 该专用事实源只冻结步骤 10 所需的 Linux/x86_64 Python/Torch/NumPy/PyYAML runtime，不替代完整开发环境的 `environment.yml`，也不绑定项目源码；步骤 10 另行校验源码与配置 SHA。候选 commit `03079a5` 已由此前不存在的全新 checkout/环境复验，状态为 `wandering_step10_runtime_fact_source_verified`。
