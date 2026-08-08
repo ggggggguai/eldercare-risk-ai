@@ -32,7 +32,7 @@
 
 最终检查点 `model.py` 原始字节 SHA-256 为 `11fd7732f49d7392f0dab8edaa3023ebb1ba32355b24fc2157349b7fff80b331`；`a5ea…c554ab` 与 `b829…d13a` 均只作失效候选保留。fixture `6192 bytes / 584d2220…457c72`、output `1022 bytes / 01415e02…93ef61c`、state NPZ `838934 bytes / 6bd709…d40`、A/V/H/C 均保持不变；旧裸 forward SHA `572c02…` 继续为 `withdrawn_provenance_missing`。现场结果为窄测 `27 passed, 1 warning, 56 subtests passed`、全部徘徊 `217 passed, 1 warning, 160 subtests passed`；无并发完整测试 `697 passed, 2 failed, 1 warning, 239 subtests passed`，两项范围外失败仍是跌倒标签工作区 CRLF 原始字节 SHA 漂移和固定视频缺失。负责人已授权加入三条路径级 `eol=lf`，stage/新 checkout SHA 复核通过，并形成唯一 9+9a Git 检查点；当前恢复 `step9_forward_contract_verified` 与 `step9a_exact_config_fail_closed_verified`。完整证据见[步骤 9 复现记录](../../../reports/mental_health/wandering_step9/README.md)。
 
-版本控制现场：步骤 2–7 由提交 `94ca337` 纳入 `feat/wandering-data-pipeline`，步骤 8 已由独立提交 `a1451f2` 形成检查点；开始步骤 9 时 HEAD `06ca214` 与远端同名分支同步，A/V/H/C 再次复核一致。步骤 9+9a 已由独立检查点提交纳入版本库（commit SHA 见步骤 9 复现记录）。下一位协作者不得清理步骤 8 正式/归档证据、回改 warning、关闭 loader 校验或把合成兼容性写成目标摄像头效果。
+版本控制现场：步骤 2–7 由提交 `94ca337` 纳入 `feat/wandering-data-pipeline`，步骤 8 已由独立提交 `a1451f2` 形成检查点；开始步骤 9 时 HEAD `06ca214` 与远端同名分支同步，A/V/H/C 再次复核一致。步骤 9+9a 已由独立检查点提交 `0a7db4e` 纳入版本库。下一位协作者不得清理步骤 8 正式/归档证据、回改 warning、关闭 loader 校验或把合成兼容性写成目标摄像头效果。
 
 下一项不是继续修改步骤 9；须先形成可复建 runtime fact source（现场 Torch `2.13.0+cu130` 与标准环境 `2.12.1` 冲突），再按步骤 10 既定 exact schema 进入红测和源码。步骤 10 已冻结固定 v3 pair-aware 路线：1,257 个 clean train parent、1,491 条 pair、126 个 train-internal proxy、输入级 20-cell mask、只调用 `encode()` 的 wrapper exact graph、CLI、早停、20-file DAG、config/artifact schema 和 canonical bytes。runtime 与最终 Step 9 commit 写入步骤 10 exact config 前不进入训练执行；门禁关闭后仍须按“红测→源码/CLI→源码 SHA→production YAML”推进，不能被源码 SHA 绑定形成启动循环。
 

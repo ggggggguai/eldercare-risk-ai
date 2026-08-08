@@ -4,7 +4,7 @@
 
 日期：2026-08-07；第 9a.5 节修正、第 9a.6 节再次终审与第三轮重验：2026-08-08；LF/Git 检查点：2026-08-08
 
-唯一 Git 检查点 commit：`STEP9_CHECKPOINT_COMMIT`  
+唯一 Git 检查点 commit：`0a7db4e2945ae99bcb3574a49c35a452632ac04e`（短 `0a7db4e`）  
 最终 `model.py` SHA-256：`11fd7732f49d7392f0dab8edaa3023ebb1ba32355b24fc2157349b7fff80b331`
 
 ## 完成后独立复核（2026-08-07）
@@ -111,7 +111,7 @@ step9a_exact_config_fail_closed_verified
 step9_forward_contract_verified
 ```
 
-唯一检查点 commit 为 `STEP9_CHECKPOINT_COMMIT`。最终 `model.py` SHA 现可绑定步骤 10 exact config；仍不得把失效候选 `a5ea…c554ab` / `b829…d13a` 写入。
+唯一检查点 commit 为 `0a7db4e2945ae99bcb3574a49c35a452632ac04e`（短 `0a7db4e`）。最终 `model.py` SHA 现可绑定步骤 10 exact config；仍不得把失效候选 `a5ea…c554ab` / `b829…d13a` 写入。
 
 ## 本步骤实际完成的范围
 
