@@ -103,4 +103,4 @@ pip_check=No broken requirements found.
 
 本任务没有读取项目数据、创建步骤 10 红测/生产源码/production YAML、打开 optimizer、训练模型或生成 checkpoint。`2.13.0+cu130` 是 CPU 协议使用的 wheel runtime 标识，不表示 CUDA 可用或步骤 10 使用 GPU。
 
-步骤 9+9a 检查点、最终 Step 9 绑定和 runtime fact source 三项前置门禁现已闭合。下一项严格按技术方案第 10.9 节只新增失败测试，再实现 `pretraining.py` 与训练 CLI、计算两份源码 SHA，最后生成无占位 production YAML；production config 外部 SHA 形成前仍不得读取正式训练数据、打开 optimizer 或生成 checkpoint。
+步骤 9+9a 检查点、最终 Step 9 绑定和 runtime fact source 三项前置门禁现已闭合；runtime 候选本身继续 verified。后续 source-closure 审计又发现 22 个项目 source 中 12 个辅助源码在当前工作树为 CRLF、Git blob 为 LF，因此下一项不是红测，而是按技术方案第 10.0/10.9 节为这 12 个 exact path 形成 LF 属性、Git 检查点和 fresh-checkout SHA 证据；完成后在本报告追加独立 post-runtime source-closure 小节，再进入红测。production config 外部 SHA 形成前仍不得读取正式训练数据、创建正式数据路径的 production optimizer 或生成 checkpoint；未来合成单测中的 AdamW 不受此禁令。

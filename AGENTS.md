@@ -43,6 +43,8 @@ conda run -n eldercare-ai python -m pip show elderly-monitoring-algorithms
 conda run -n eldercare-ai python -m pip install -e ".[vision,service]"
 ```
 
+徘徊步骤 10 有一项冻结的正式运行例外：红测、绿测和仓库 pytest 仍统一使用 `eldercare-ai`；production config 外部 SHA 形成并取得负责人授权后的六文件 R2M 也只允许在该标准环境调用 byte-only public materializer，不建模或训练。正式流程只建立两个由 `configs/runtime/wandering_step10_runtime_v1.yml` 创建的全新 Linux/x86_64 环境 A/B。每个环境启动一个训练 CLI fresh process，由唯一 builder 在同一进程内部先完成 production preflight、再执行五 seed 构建；随后用一个 fresh process 执行 full verifier，并用五个 fresh process 分别执行显式 seed safe loader，最后跨 A/B 比较。每个环境创建后，只允许从规范化的 active checkout 根执行一次 `python -m pip install --no-deps --no-build-isolation -e .` 接入源码；现场来源集合必须恰为锁定的 27 个 Conda 工件、30 个 pip wheel 加这一项 `elderly-monitoring-algorithms==0.2.0` local editable。标准 `eldercare-ai`、临时 `PYTHONPATH`、额外依赖或任何 runtime gate 跳过方式都不得产出正式步骤 10 bundle。完整契约见心理健康徘徊技术方案第 10.0、10.1 和 10.9 节。
+
 ## 开发流程
 
 非平凡功能开发、缺陷修复、重构和发布准备需要遵循较完整的工程流程：
@@ -144,7 +146,7 @@ configs/modules/mental_health.yaml
 
 当前 v3 训练标签的 fall/near-fall 事件监督门禁通过，动作类型门禁仍未通过，且所有 split 尚未冻结。模型候选只有在来源完整的标注、无泄漏且冻结的 train/validation/test split、连续背景与老人域验证、冻结评估协议和延迟/稳定性证据具备后，才能替换主路径。个体行为基线和最终风险融合仍需对应的连续个人数据或 `risk_labels` 真值；在这些条件满足前，保留统计/规则 fallback。
 
-心理健康日级 baseline 已实现；徘徊专项步骤 2–8 已关闭。步骤 9/9a 已形成独立 Git 检查点：三条路径级 `eol=lf` 已生效，stage/新 checkout SHA 复核通过，最终 `model.py` SHA-256 为 `11fd7732f49d7392f0dab8edaa3023ebb1ba32355b24fc2157349b7fff80b331`，状态为 `step9_forward_contract_verified` 与 `step9a_exact_config_fail_closed_verified`；检查点 commit=`0a7db4e`。步骤 10 的 config/artifact 字段级 exact schema、wrapper 调用图和 canonical bytes 已冻结；Linux/x86_64 `2.13.0+cu130` runtime fact source=`configs/runtime/wandering_step10_runtime_v1.yml / 11426 bytes / 034d603a…e2f1cda` 已在候选 commit `03079a5` 的全新 checkout/环境中通过 27 个 Conda 工件与 30 个 pip wheel 的精确来源集合、`pip check` 及 runtime/thread/deterministic 探针，状态为 `wandering_step10_runtime_fact_source_verified`。下一项只能按第 10.9 节先建立失败测试，再实现生产源码；production config 外部 SHA 形成前不得读取正式训练数据、打开 optimizer 或生成 checkpoint。目标模型训练效果、片段状态机、日级接入和授权摄像头验证完成前，不把这些工程产物写成正式徘徊识别能力。
+心理健康日级 baseline 已实现；徘徊专项步骤 2–8 已关闭。步骤 9/9a 已形成独立 Git 检查点：三条路径级 `eol=lf` 已生效，stage/新 checkout SHA 复核通过，最终 `model.py` SHA-256 为 `11fd7732f49d7392f0dab8edaa3023ebb1ba32355b24fc2157349b7fff80b331`，状态为 `step9_forward_contract_verified` 与 `step9a_exact_config_fail_closed_verified`；检查点 commit=`0a7db4e`。步骤 10 的 config/artifact 字段级 exact schema、wrapper 调用图和 canonical bytes 已冻结；Linux/x86_64 `2.13.0+cu130` runtime fact source=`configs/runtime/wandering_step10_runtime_v1.yml / 11426 bytes / 034d603a…e2f1cda` 已在候选 commit `03079a5` 的全新 checkout/环境中通过 27 个 Conda 工件与 30 个 pip wheel 的精确来源集合、`pip check` 及 runtime/thread/deterministic 探针，状态为 `wandering_step10_runtime_fact_source_verified`。但 22-source closure 中 12 个 auxiliary source 尚无路径级 LF/新检查点，当前为 `i/lf,w/crlf,attr/`；下一项只能先按第 10.0/10.9 节关闭 G0，fresh checkout SHA 通过后才建立失败测试和生产源码。production config 外部 SHA 形成前不得读取正式训练数据、创建正式数据路径的 production optimizer 或生成 checkpoint，合成单测中的 AdamW 不受此禁令。目标模型训练效果、片段状态机、日级接入和授权摄像头验证完成前，不把这些工程产物写成正式徘徊识别能力。
 
 ## 文档维护规则
 
