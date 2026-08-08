@@ -2,7 +2,7 @@
 
 日期：2026-08-08
 
-状态：`wandering_step10_runtime_fact_source_verified`
+状态：runtime=`wandering_step10_runtime_fact_source_verified`；source G0=`verified`
 
 ## 冻结事实源
 
@@ -93,6 +93,31 @@ pip_check=No broken requirements found.
 
 上述门禁全部通过，且没有重算 expected、amend 候选提交或修改 `model.py`，因此 runtime 状态晋升为 `wandering_step10_runtime_fact_source_verified`。
 
+## Post-runtime source closure G0
+
+后续 22-source closure 审计发现，18 个 auxiliary source 中有 12 个在原 Windows 工作树为 `i/lf,w/crlf,attr/`。G0 严格按技术方案第 10.0/10.9 节执行，只向 `.gitattributes` 增加 12 条 exact `text eol=lf` rule，并把既有 G0 治理文档纳入检查点；没有 broad wildcard、没有执行 `git add --renormalize .`，也没有修改或暂存任一源码文件。
+
+```text
+g0_checkpoint_commit: 10d36ee7a3888485db3c600447f41eeb2b594d06
+subject: chore(mental-health): checkpoint wandering step10 source closure G0
+fresh_worktree: C:\Users\lenovo\AppData\Local\Temp\wandering-step10-g0-fresh-10d36ee-20260808
+source_blob_changes: 0
+```
+
+检查点前，12 个 tracked source 的 Git diff 均为空；HEAD LF blob 的 byte count/SHA 与技术方案第 10.8.1 节预计算值逐项一致，当前 CRLF payload 在内存中只执行 CRLF→LF 后与对应 blob 完全相同。检查点提交恰含 `.gitattributes` 的 12 行新增和九份既有治理文档，没有 `src/` 变更。
+
+fresh worktree 目标在创建前不存在，随后以 detached HEAD 指向上述检查点且 `git status --short` 为空。逐项验收结果为：
+
+```text
+git_check_attr: 12/12 text=set,eol=lf
+git_ls_files_eol: 12/12 i/lf,w/lf,attr/text_eol=lf
+raw_byte_count_sha256: 12/12 equal_to_step_10_8_1
+carriage_return_count: 0 for all 12
+source_blob_changes: 0
+```
+
+因此 source G0 已关闭。没有创建 `tests/test_wandering_pretraining.py`、步骤 10 新报告、生产源码、production config、数据读取、tensor/model/optimizer、训练或 checkpoint；首个后续工程动作只能在承载该检查点的 active fresh checkout 中进入 R0，只新增合成红测。
+
 ## 已撤回候选
 
 旧 descriptor `8506 bytes / 52a76abc3dff2a4e6f08e25c0a8ce8ad459bf7806085fc2d7fd56a89832a464d` 只精确锁定 Python、pip 两个 Conda 工件，其余 25 个 Conda 工件仍由求解器选择；旧报告还错误声称 31 个 wheel 均由 URL/SHA 安装，而现场 setuptools 实际来自 Conda。该候选已撤回，不得写入步骤 10 production config、artifact 或安全 loader。
@@ -103,4 +128,4 @@ pip_check=No broken requirements found.
 
 本任务没有读取项目数据、创建步骤 10 红测/生产源码/production YAML、打开 optimizer、训练模型或生成 checkpoint。`2.13.0+cu130` 是 CPU 协议使用的 wheel runtime 标识，不表示 CUDA 可用或步骤 10 使用 GPU。
 
-步骤 9+9a 检查点、最终 Step 9 绑定和 runtime fact source 三项前置门禁现已闭合；runtime 候选本身继续 verified。后续 source-closure 审计又发现 22 个项目 source 中 12 个辅助源码在当前工作树为 CRLF、Git blob 为 LF，因此下一项不是红测，而是按技术方案第 10.0/10.9 节为这 12 个 exact path 形成 LF 属性、Git 检查点和 fresh-checkout SHA 证据；完成后在本报告追加独立 post-runtime source-closure 小节，再进入红测。production config 外部 SHA 形成前仍不得读取正式训练数据、创建正式数据路径的 production optimizer 或生成 checkpoint；未来合成单测中的 AdamW 不受此禁令。
+步骤 9+9a 检查点、最终 Step 9 绑定、runtime fact source 和 source G0 均已闭合；runtime 候选本身继续 verified。下一项按技术方案第 10.0/10.9 节进入 R0，只新增 `tests/test_wandering_pretraining.py` 并使用内存/`tmp_path` 合成 fixture；在合法红测形成前仍不得创建步骤 10 新报告。production config 外部 SHA 形成前仍不得读取正式训练数据、创建正式数据路径的 production optimizer 或生成 checkpoint；未来合成单测中的 AdamW 不受此禁令。
