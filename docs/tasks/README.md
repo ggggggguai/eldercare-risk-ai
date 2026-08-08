@@ -15,7 +15,7 @@
 | 冻结四个跌倒任务 split | 当前 v2 根事件的 fall/near-fall split 仅为 provisional ready，v3 统一 split 也未冻结；四任务分别取得合格样本、稳定 `split_id`、无泄漏报告和冻结记录。没有真实参考终点的功能/纵向任务继续明确阻塞，不制造空壳正式 split |
 | 完成跌倒风险正式评估 | 预注册并冻结事件匹配与统计协议，指定测试集保管人与一次性发布流程；在真实冻结 split 上输出 Precision、Recall、F1、PR-AUC、合法分母下的误报指标、提前量、95% CI 和失败案例 bundle |
 | 解除 Workflow A 数据阻断 | 完成 CVAT 身份元数据处置、人员或保守源组说明、功能与纵向参考终点确认；解除证据写入 `reports/fall_risk/workflow_a_blockers.md` |
-| 闭合运行绑定并执行徘徊步骤 10 pair-aware 自监督预训练 | **当前徘徊专项最早未完成项。字段级 exact 契约已冻结，运行前置门禁未闭合。** 步骤 9+9a 已形成独立检查点：三条路径级 `eol=lf` 已生效，`model.py` SHA-256=`11fd7732f49d7392f0dab8edaa3023ebb1ba32355b24fc2157349b7fff80b331`，状态为 `step9_forward_contract_verified` 与 `step9a_exact_config_fail_closed_verified`。固定使用 1,257 clean、1,491 v3 pair、126 proxy 和 input-level 20-cell mask，不建立 v4；wrapper exact graph、CLI、标签 trust/semantic 边界、早停深复制、20-file DAG、config/artifact schema 与 canonical bytes 已补清。仍须先解决现场 Torch `2.13.0+cu130` 与标准环境 `2.12.1` 的可复建冲突，并完成最终 Step 9 commit 绑定写入步骤 10 exact config；随后按红测→源码/CLI→源码 SHA→production YAML 推进。不得打开 validation pressure、attempts、faults、步骤 5/6 评估目录或 SmartCare official；preprocessing 非 train 行只做完整性解析，membership 冻结后所有产物禁分类字段 |
+| 执行徘徊步骤 10 pair-aware 自监督预训练 | **当前徘徊专项最早未完成项；runtime Git 门禁未闭合，红测与训练均未开始。** 步骤 9+9a 独立检查点和最终 Step 9 绑定已形成；Linux/x86_64 `2.13.0+cu130` runtime 候选=`configs/runtime/wandering_step10_runtime_v1.yml / 11426 bytes / 034d603a…e2f1cda`，已通过 27 个 Conda 工件、30 个 pip wheel 的精确来源审计、`pip check` 和版本/平台/thread/deterministic 探针，但尚待 Git 检查点和新 checkout 复验。固定使用 1,257 clean、1,491 v3 pair、126 proxy 和 input-level 20-cell mask，不建立 v4；wrapper exact graph、CLI、标签 trust/semantic 边界、早停深复制、20-file DAG、config/artifact schema 与 canonical bytes 已补清。关闭 runtime Git 门禁后才按红测→源码/CLI→源码 SHA→production YAML 推进；production config 外部 SHA 前不得读取正式训练数据或打开 optimizer。不得打开 validation pressure、attempts、faults、步骤 5/6 评估目录或 SmartCare official；preprocessing 非 train 行只做完整性解析，membership 冻结后所有产物禁分类字段 |
 | 建立心理健康评估口径 | 固定日级验证样本、人工复核标签和分层一致性指标，不使用医学诊断表述 |
 | 完成真实萤石链路联调 | 使用真实设备或开放平台直播地址启动会话，后端收到并验收风险回调 |
 | 固定接口契约 | 后端确认字段、鉴权、时间格式、幂等规则和风险动作编码，并保存联调记录 |
@@ -33,7 +33,7 @@
 | 校准近跌倒误报 | 增加弯腰、快速坐下、转身、遮挡和多人场景负样本，报告阈值曲线与失败案例 |
 | 完善个体基线冷启动 | 明确无历史、初始基线和稳定基线阶段的分数上限、置信度和更新策略 |
 | 建立心理健康运行调度 | 明确日级任务由谁触发、输入从何处读取、结果如何交付和重跑 |
-| 接入摄像头徘徊证据 | 步骤 7 已完成 bbox-only 合成 camera contract，步骤 8 已完成通用合成压力兼容性报告；步骤 9+9a 独立检查点已形成，步骤 10 字段级 exact 契约已冻结但 runtime 绑定未闭合，步骤 11–12 未冻结。后续依次对齐可复建 runtime 与最终 Step 9 绑定、按已冻结契约完成 pair-aware 预训练，再制定监督/校准协议并做授权固定摄像头旁路验证，最后实现 episode、日级字段和摄像头域评估。只有冻结测试证明有效后才接入 `routine_irregularity_score` |
+| 接入摄像头徘徊证据 | 步骤 7 已完成 bbox-only 合成 camera contract，步骤 8 已完成通用合成压力兼容性报告；步骤 9+9a 独立检查点和最终 Step 9 绑定已形成，步骤 10 字段级 exact 契约已冻结，但 runtime 候选仍待 Git 检查点和新 checkout 复验，红测/源码/训练尚未开始，步骤 11–12 未冻结。关闭 runtime 门禁后按已冻结契约完成 pair-aware 预训练，再制定监督/校准协议并做授权固定摄像头旁路验证，最后实现 episode、日级字段和摄像头域评估。只有冻结测试证明有效后才接入 `routine_irregularity_score` |
 
 ## P2：数据和模型增强
 

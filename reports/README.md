@@ -43,3 +43,4 @@ Workflow A 当前入口：
 - [`mental_health/wandering_step7/README.md`](mental_health/wandering_step7/README.md)：徘徊步骤 7 bbox-only adapter、Camera QC、高度补偿、RF/TCN 最小离线推理、合成 camera contract 和双构建确定性。
 - [`mental_health/wandering_step8/visual_review/v3/README.md`](mental_health/wandering_step8/visual_review/v3/README.md)：徘徊步骤 8 v3 图审入口；正式结论为 `model_compatibility_warning`，详细兼容性 JSON/JSONL 按 `.gitignore` 本地保留。
 - [`mental_health/wandering_step9/README.md`](mental_health/wandering_step9/README.md)：徘徊步骤 9 TopoWander-MPT 主体与步骤 9a 多轮审计/修正记录；第 9a.6 节修正、三条路径级 LF 与唯一 Git 检查点已形成，训练未开始。
+- [`mental_health/wandering_step10_runtime/README.md`](mental_health/wandering_step10_runtime/README.md)：步骤 10 前置 runtime 治理；记录 Linux/x86_64 `2.13.0+cu130` 候选事实源的路径、字节数、SHA、27/30 工件来源审计与 deterministic/thread 探针；正式冻结仍待 Git 检查点和新 checkout 复验。

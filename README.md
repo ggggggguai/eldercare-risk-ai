@@ -45,14 +45,14 @@ conda run -n eldercare-ai python -m pip show elderly-monitoring-algorithms
 
 跌倒数据同时存在两个不同层级：v2 是根标签和发布候选契约，formal 校验仍有 blocker；v3 是由 v2 与哈希绑定项目裁决确定性生成的模型训练契约，当前 fall/near-fall 事件监督门禁通过，但 split 尚未冻结，动作类型门禁仍未通过。两者不能互相替代。
 
-心理健康模块的日级 baseline 已可离线运行；徘徊专项步骤 2–8 已关闭，步骤 9/9a 已恢复 `step9_forward_contract_verified` 与 `step9a_exact_config_fail_closed_verified`，最终 `model.py` SHA-256 为 `11fd7732f49d7392f0dab8edaa3023ebb1ba32355b24fc2157349b7fff80b331`，并已形成独立 Git 检查点。步骤 10 已冻结 pair-aware 数据/目标路线、wrapper 调用图、CLI、早停、20-file DAG、config/artifact 字段级 schema 和 canonical bytes；可复建 runtime 仍未闭合。TopoWander-MPT 的训练效果、校准/OOD、片段状态机、日级字段、现有评分主链接入及授权摄像头验证仍未完成。
+心理健康模块的日级 baseline 已可离线运行；徘徊专项步骤 2–8 已关闭，步骤 9/9a 已恢复 `step9_forward_contract_verified` 与 `step9a_exact_config_fail_closed_verified`，最终 `model.py` SHA-256 为 `11fd7732f49d7392f0dab8edaa3023ebb1ba32355b24fc2157349b7fff80b331`，并已形成独立 Git 检查点。步骤 10 已冻结 pair-aware 数据/目标路线、wrapper 调用图、CLI、早停、20-file DAG、config/artifact 字段级 schema 和 canonical bytes；Linux/x86_64 `2.13.0+cu130` runtime 候选已完成工件级重建，但尚待 Git 检查点和新 checkout 复验。TopoWander-MPT 的红测/源码、训练效果、校准/OOD、片段状态机、日级字段、现有评分主链接入及授权摄像头验证仍未完成。
 
 当前优先级：
 
 1. 处理跌倒 v2 formal blocker，复核并冻结 v3 事件标签、split 和一次性 test 发布协议。
 2. 为候选模型补充连续背景、老人域、跨来源和困难负样本证据，并完成与规则 baseline 的同协议对照、延迟和稳定性验收。
 3. 完成真实萤石直播、算法会话与业务后端风险回调联调，以及固定硬件长时资源验收。
-4. 步骤 9+9a 独立检查点已形成；下一项是形成 PyTorch `2.13.0+cu130` 优先路线的可复建 runtime fact source，再按步骤 10 的既定 exact schema 进入红测和源码实现。前向契约仍不得称为识别效果。
+4. 步骤 9+9a 独立检查点已形成；PyTorch `2.13.0+cu130` runtime 候选已完成工件级重建，但仍待 Git 检查点和新 checkout 复验，关闭该门禁后才可按步骤 10 的既定 exact schema 建立红测。前向契约和 runtime 重建仍不得称为识别效果。
 5. 继续保持两个模块独立评分、独立验证和独立输出，只共享 `AlgorithmEvent` 字段契约。
 
 详细实现状态以 `docs/architecture/算法工程骨架.md` 和两个模块 README 为准；尚未完成的工作只在 `docs/tasks/README.md` 维护，实验数值以 `reports/` 下对应报告为准。

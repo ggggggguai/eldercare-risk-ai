@@ -5,6 +5,7 @@ configs/modules/wandering_tcn_v1.yaml text eol=lf
 configs/modules/wandering_camera_v1.yaml text eol=lf
 configs/modules/wandering_topowander_mpt_v1.yaml text eol=lf
 configs/modules/wandering_topowander_pretrain_v1.yaml text eol=lf
+configs/runtime/wandering_step10_runtime_v1.yml text eol=lf
 reports/mental_health/wandering_step8/visual_review/v3/HUMAN_REVIEW.md text eol=lf
 data/splits/mental_health/wandering/v1/*.json text eol=lf
 data/splits/mental_health/wandering/v1/*.jsonl text eol=lf

@@ -71,6 +71,7 @@
 | 复现 | [徘徊步骤 7 bbox-only 离线链](../reports/mental_health/wandering_step7/README.md) | 已完成：严格 media/tracking 契约、Camera QC、高度补偿、步骤 4 共享核心、RF/TCN 四组独立预测、合成 camera contract 与双构建确定性；未做真实摄像头效果验证 |
 | 评估 | [徘徊步骤 8 合成污染兼容性](../reports/mental_health/wandering_step8/visual_review/v3/README.md) | 已完成：v3 图审与兼容性证据链关闭，正式结论为 `model_compatibility_warning`，不是“全部模型通过观察线”；详细 JSON/JSONL 按 `.gitignore` 本地保留 |
 | 复现 | [徘徊步骤 9/9a TopoWander-MPT 前向契约](../reports/mental_health/wandering_step9/README.md) | 第 9a.6 节修正、三条路径级 LF 与唯一 Git 检查点已形成；`step9_forward_contract_verified` 与 `step9a_exact_config_fail_closed_verified` 已恢复，训练未开始 |
+| 复现 | [徘徊步骤 10 runtime 前置治理](../reports/mental_health/wandering_step10_runtime/README.md) | Linux/x86_64 `2.13.0+cu130` 候选已按 27 个 Conda 工件和 30 个 pip wheel 精确重建；正式 runtime 门禁仍待 Git 检查点和新 checkout 复验，尚未创建步骤 10 红测、源码、production config 或训练制品 |
 | 任务 | [当前任务](tasks/README.md) | 项目待办和验证缺口 |
 
 ## 目录约定

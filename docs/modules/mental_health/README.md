@@ -34,7 +34,7 @@
 
 版本控制现场：步骤 2–7 由提交 `94ca337` 纳入 `feat/wandering-data-pipeline`，步骤 8 已由独立提交 `a1451f2` 形成检查点；开始步骤 9 时 HEAD `06ca214` 与远端同名分支同步，A/V/H/C 再次复核一致。步骤 9+9a 已由独立检查点提交 `0a7db4e` 纳入版本库。下一位协作者不得清理步骤 8 正式/归档证据、回改 warning、关闭 loader 校验或把合成兼容性写成目标摄像头效果。
 
-下一项不是继续修改步骤 9；须先形成可复建 runtime fact source（现场 Torch `2.13.0+cu130` 与标准环境 `2.12.1` 冲突），再按步骤 10 既定 exact schema 进入红测和源码。步骤 10 已冻结固定 v3 pair-aware 路线：1,257 个 clean train parent、1,491 条 pair、126 个 train-internal proxy、输入级 20-cell mask、只调用 `encode()` 的 wrapper exact graph、CLI、早停、20-file DAG、config/artifact schema 和 canonical bytes。runtime 与最终 Step 9 commit 写入步骤 10 exact config 前不进入训练执行；门禁关闭后仍须按“红测→源码/CLI→源码 SHA→production YAML”推进，不能被源码 SHA 绑定形成启动循环。
+下一项仍是关闭 runtime Git 门禁，不是继续修改步骤 9：步骤 9+9a 检查点和最终 Step 9 绑定已形成；Linux/x86_64 `2.13.0+cu130` runtime 候选=`configs/runtime/wandering_step10_runtime_v1.yml / 11426 bytes / 034d603a…e2f1cda`，已通过 27 个 Conda 工件、30 个 pip wheel 的精确来源审计、`pip check` 和版本/平台/thread/deterministic 探针，但尚未进入 Git 检查点和新 checkout 复验。步骤 10 已冻结固定 v3 pair-aware 路线：1,257 个 clean train parent、1,491 条 pair、126 个 train-internal proxy、输入级 20-cell mask、只调用 `encode()` 的 wrapper exact graph、CLI、早停、20-file DAG、config/artifact schema 和 canonical bytes。关闭 runtime Git 门禁后才能按“红测→源码/CLI→源码 SHA→production YAML”推进；production config 外部 SHA 前仍不得读取正式训练数据、打开 optimizer 或生成制品，不能被源码 SHA 绑定形成启动循环。完整证据见[步骤 10 runtime 前置治理](../../../reports/mental_health/wandering_step10_runtime/README.md)。
 
 ## 徘徊步骤 9/9a 复现命令（检查点已形成）
 
