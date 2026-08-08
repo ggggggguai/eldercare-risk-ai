@@ -1,11 +1,11 @@
 # 老年人多模态风险预警算法工程
 
-更新时间：2026-08-04
+更新时间：2026-08-08
 
 本工程只覆盖算法开发部分，面向两个模块：
 
 - `fall_risk`：跌倒风险前置预警算法。规则主路径、实时 HTTP 会话和回调链路可运行；v3 事件监督与步态、坐站、近跌倒/跌倒候选模型开发链已建立，但候选模型仍为 provisional/shadow，尚未替换规则主路径。
-- `mental_health`：心理健康风险预警算法。行为/睡眠适配、日级聚合、个人基线、风险评分和离线 CLI 已实现；徘徊专项完成了隔离数据转换与人工复核步骤，尚未进入正式 split、模型或现有评分主链。
+- `mental_health`：心理健康风险预警算法。行为/睡眠适配、日级聚合、个人基线、风险评分和离线 CLI 已实现；徘徊专项已完成固定 split、预处理、RF/纯 TCN 对照、bbox-only 合成摄像头链、合成污染兼容性审计，以及步骤 9/9a TopoWander-MPT 纯前向契约与独立 Git 检查点；目标模型尚未训练，也未接入现有评分主链。
 
 系统开发不在本工程范围内。家属端、社区端、账号、消息推送、工单流转、可视化看板等只通过标准 JSON 接口对接。
 
@@ -45,14 +45,14 @@ conda run -n eldercare-ai python -m pip show elderly-monitoring-algorithms
 
 跌倒数据同时存在两个不同层级：v2 是根标签和发布候选契约，formal 校验仍有 blocker；v3 是由 v2 与哈希绑定项目裁决确定性生成的模型训练契约，当前 fall/near-fall 事件监督门禁通过，但 split 尚未冻结，动作类型门禁仍未通过。两者不能互相替代。
 
-心理健康模块的日级 baseline 已可离线运行；徘徊专项当前只完成安全转换、严格契约和人工联系表复核，正式 split、预处理、分类模型、片段状态机、日级字段及摄像头域验证仍未完成。
+心理健康模块的日级 baseline 已可离线运行；徘徊专项步骤 2–8 已关闭，步骤 9/9a 已恢复 `step9_forward_contract_verified` 与 `step9a_exact_config_fail_closed_verified`，最终 `model.py` SHA-256 为 `11fd7732f49d7392f0dab8edaa3023ebb1ba32355b24fc2157349b7fff80b331`，并已形成独立 Git 检查点。步骤 10 已冻结 pair-aware 数据/目标路线、wrapper 调用图、CLI、早停、20-file DAG、config/artifact 字段级 schema 和 canonical bytes；可复建 runtime 仍未闭合。TopoWander-MPT 的训练效果、校准/OOD、片段状态机、日级字段、现有评分主链接入及授权摄像头验证仍未完成。
 
 当前优先级：
 
 1. 处理跌倒 v2 formal blocker，复核并冻结 v3 事件标签、split 和一次性 test 发布协议。
 2. 为候选模型补充连续背景、老人域、跨来源和困难负样本证据，并完成与规则 baseline 的同协议对照、延迟和稳定性验收。
 3. 完成真实萤石直播、算法会话与业务后端风险回调联调，以及固定硬件长时资源验收。
-4. 完成徘徊专项固定 split，再进入预处理和模型训练；不得提前把转换产物称为识别能力。
+4. 步骤 9+9a 独立检查点已形成；下一项是形成 PyTorch `2.13.0+cu130` 优先路线的可复建 runtime fact source，再按步骤 10 的既定 exact schema 进入红测和源码实现。前向契约仍不得称为识别效果。
 5. 继续保持两个模块独立评分、独立验证和独立输出，只共享 `AlgorithmEvent` 字段契约。
 
 详细实现状态以 `docs/architecture/算法工程骨架.md` 和两个模块 README 为准；尚未完成的工作只在 `docs/tasks/README.md` 维护，实验数值以 `reports/` 下对应报告为准。

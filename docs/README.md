@@ -1,6 +1,6 @@
 # 项目文档
 
-更新时间：2026-08-04
+更新时间：2026-08-08
 
 本页是文档唯一总入口。现行文档描述当前代码和接口；计划文档描述目标；归档文档只保留历史上下文，不能作为当前实现依据。
 
@@ -69,6 +69,8 @@
 | 评估 | [徘徊步骤 5 RF 对照基线](../reports/mental_health/wandering_step5/README.md) | 已完成并独立复建复核：strict bundle loader、固定 26 维特征、二/四分类五 seed RF、development/frozen WP test 信任链、确定性与分来源真实指标；仅为 `comparison_only` |
 | 评估 | [徘徊步骤 6 纯 TCN 对照基线](../reports/mental_health/wandering_step6/README.md) | 已完成：two-task 独立 CPU TCN、10 个安全 NPZ、validation 早停、固定 WP test、RF 同 seed 差值、development/test 字节级复建和 batch=1 基准；仅为 `comparison_only` |
 | 复现 | [徘徊步骤 7 bbox-only 离线链](../reports/mental_health/wandering_step7/README.md) | 已完成：严格 media/tracking 契约、Camera QC、高度补偿、步骤 4 共享核心、RF/TCN 四组独立预测、合成 camera contract 与双构建确定性；未做真实摄像头效果验证 |
+| 评估 | [徘徊步骤 8 合成污染兼容性](../reports/mental_health/wandering_step8/visual_review/v3/README.md) | 已完成：v3 图审与兼容性证据链关闭，正式结论为 `model_compatibility_warning`，不是“全部模型通过观察线”；详细 JSON/JSONL 按 `.gitignore` 本地保留 |
+| 复现 | [徘徊步骤 9/9a TopoWander-MPT 前向契约](../reports/mental_health/wandering_step9/README.md) | 第 9a.6 节修正、三条路径级 LF 与唯一 Git 检查点已形成；`step9_forward_contract_verified` 与 `step9a_exact_config_fail_closed_verified` 已恢复，训练未开始 |
 | 任务 | [当前任务](tasks/README.md) | 项目待办和验证缺口 |
 
 ## 目录约定

@@ -144,7 +144,7 @@ configs/modules/mental_health.yaml
 
 当前 v3 训练标签的 fall/near-fall 事件监督门禁通过，动作类型门禁仍未通过，且所有 split 尚未冻结。模型候选只有在来源完整的标注、无泄漏且冻结的 train/validation/test split、连续背景与老人域验证、冻结评估协议和延迟/稳定性证据具备后，才能替换主路径。个体行为基线和最终风险融合仍需对应的连续个人数据或 `risk_labels` 真值；在这些条件满足前，保留统计/规则 fallback。
 
-心理健康日级 baseline 已实现；徘徊专项当前完成步骤 2 的安全转换、严格数据契约和人工复核，下一步是固定 split。正式 split、模型、片段状态机、日级接入和摄像头域验证完成前，不把转换产物写成徘徊识别能力。
+心理健康日级 baseline 已实现；徘徊专项步骤 2–8 已关闭。步骤 9/9a 已形成独立 Git 检查点：三条路径级 `eol=lf` 已生效，stage/新 checkout SHA 复核通过，最终 `model.py` SHA-256 为 `11fd7732f49d7392f0dab8edaa3023ebb1ba32355b24fc2157349b7fff80b331`，状态为 `step9_forward_contract_verified` 与 `step9a_exact_config_fail_closed_verified`；检查点 commit 见步骤 9 复现记录。步骤 10 的 config/artifact 字段级 exact schema、wrapper 调用图和 canonical bytes 已冻结；可复建 runtime 未闭合前，仍不得开始固定 v3 pair-aware 自监督训练。目标模型训练效果、片段状态机、日级接入和授权摄像头验证完成前，不把这些工程产物写成正式徘徊识别能力。
 
 ## 文档维护规则
 
