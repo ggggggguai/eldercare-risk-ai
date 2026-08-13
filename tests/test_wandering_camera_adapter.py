@@ -17,6 +17,9 @@ from elderly_monitoring.modules.mental_health.wandering.camera_adapter import (
     validate_media_sidecar,
     weighted_bucket_observations,
 )
+from elderly_monitoring.modules.mental_health.wandering.camera_component import (
+    validate_camera_component,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -138,6 +141,48 @@ def test_media_sidecar_exact_fields_enums_paths_and_numeric_contract() -> None:
     for mutation in mutations:
         with pytest.raises(CameraAdapterError):
             validate_media_sidecar(mutation, config)
+
+
+@pytest.mark.parametrize(
+    ("component", "field", "bad"),
+    [
+        ("detector", "backend", "../backend"),
+        ("detector", "backend", "C:\\backend"),
+        ("detector", "backend", "https://backend.invalid"),
+        ("detector", "backend", "backend@host"),
+        ("detector", "backend", "token=secret"),
+        ("detector", "backend", "bad\nbackend"),
+        ("tracker", "backend", "."),
+        ("tracker", "backend", ".."),
+        ("tracker", "version", "../1.0"),
+        ("tracker", "version", "1.0?token=secret"),
+        ("tracker", "version", "1.0#fragment"),
+        ("tracker", "version", "user@1.0"),
+        ("tracker", "version", "password-secret"),
+        ("tracker", "version", "x" * 129),
+        ("tracker", "version", "bad\x00version"),
+    ],
+)
+def test_component_backend_and_version_are_portable_metadata(
+    component: str, field: str, bad: str
+) -> None:
+    value = dict(_sidecar("1" * 64)[component])
+    value[field] = bad
+    with pytest.raises(CameraAdapterError):
+        validate_camera_component(value, name=component)
+
+
+@pytest.mark.parametrize("version", ["8.3.0", "1.0+cpu", "test-version", "2026.08-rc1"])
+def test_component_versions_accept_normal_portable_release_tokens(version: str) -> None:
+    value = _sidecar("1" * 64)
+    detector = validate_camera_component(
+        {**value["detector"], "version": version}, name="detector"
+    )
+    tracker = validate_camera_component(
+        {**value["tracker"], "version": version}, name="tracker"
+    )
+    assert detector["version"] == version
+    assert tracker["version"] == version
 
 
 @pytest.mark.parametrize(

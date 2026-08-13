@@ -73,6 +73,19 @@ _PREDICTION_EVIDENCE_SCOPES = frozenset(
         "test_fixture_only",
     }
 )
+_INTERNAL_PREDICTION_SCOPE_PAIRS = frozenset(
+    {
+        ("synthetic_camera_contract", EVIDENCE_SCOPE),
+        ("authorized_camera_engineering_smoke", "authorized_development_smoke"),
+        ("authorized_camera_labeled_evaluation", "authorized_development_smoke"),
+        (
+            "authorized_camera_labeled_evaluation",
+            "authorized_labeled_development_evaluated",
+        ),
+        ("authorized_camera_engineering_smoke", "test_fixture_only"),
+        ("authorized_camera_labeled_evaluation", "test_fixture_only"),
+    }
+)
 FOUR_CLASS_ORDER = ("direct", "pacing", "lapping", "random")
 SUBTYPE_ORDER = ("pacing", "lapping", "random")
 BINARY_CLASS_ORDER = ("direct_or_non_wandering", "wandering_like")
@@ -169,11 +182,39 @@ def predict_primary_camera_window(
     validation_scope: str,
     evidence_scope: str = EVIDENCE_SCOPE,
 ) -> tuple[dict[str, Any], float | None]:
-    """Directly forward one ready camera window as a CPU float32 batch of one."""
+    """Predict one synthetic-contract camera window with the fixed public scope."""
 
-    _validate_window_envelope(prepared_window)
+    if (
+        validation_scope != "synthetic_camera_contract"
+        or evidence_scope != EVIDENCE_SCOPE
+    ):
+        raise PrimaryCameraInferenceError(
+            "public primary camera prediction is synthetic-contract-only"
+        )
+    return _predict_primary_camera_window_with_provenance(
+        prepared_window,
+        runtime,
+        validation_scope=validation_scope,
+        evidence_scope=evidence_scope,
+    )
+
+
+def _predict_primary_camera_window_with_provenance(
+    prepared_window: Mapping[str, Any],
+    runtime: CandidateRuntime,
+    *,
+    validation_scope: str,
+    evidence_scope: str,
+) -> tuple[dict[str, Any], float | None]:
+    """Internal forward used after the owning controller establishes provenance."""
+
     if evidence_scope not in _PREDICTION_EVIDENCE_SCOPES:
         raise PrimaryCameraInferenceError("primary camera prediction evidence_scope is invalid")
+    if (validation_scope, evidence_scope) not in _INTERNAL_PREDICTION_SCOPE_PAIRS:
+        raise PrimaryCameraInferenceError(
+            "primary camera prediction validation/evidence scope pairing is invalid"
+        )
+    _validate_window_envelope(prepared_window)
     if prepared_window["window_status"] != "ready":
         return _empty_prediction(
             prepared_window,

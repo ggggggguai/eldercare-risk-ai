@@ -46,10 +46,10 @@ from elderly_monitoring.modules.mental_health.wandering.camera_primary_inference
     _configure_cpu_runtime,
     _load_feature_stats,
     _preflight_active_source_identity,
+    _predict_primary_camera_window_with_provenance,
     _verify_preprocessing_roots,
     _verify_project_descriptor,
     load_primary_camera_runtime,
-    predict_primary_camera_window,
 )
 from elderly_monitoring.modules.mental_health.wandering.camera_qc import (
     CameraQCError,
@@ -548,12 +548,20 @@ def run_authorized_camera_development(
 ) -> dict[str, Any]:
     """Run the independent fail-closed development entry.
 
-    Private hooks are limited to zero-call failure assertions.  Successful
-    temporary fixture runs execute every production validator and may replace
+    Private injections are accepted only for explicit temporary test fixtures.
+    The production-path success fixture executes every validator and replaces
     only the manifest-bound candidate loader.  The production CLI exposes none
     of these controls.
     """
 
+    if type(_test_fixture) is not bool:
+        raise CameraDevelopmentError("_test_fixture must be a boolean")
+    if _test_fixture is not True and (
+        _test_hooks is not None or _candidate_loader is not None
+    ):
+        raise CameraDevelopmentError(
+            "non-fixture test injection is forbidden at the development entry"
+        )
     hooks = dict(_test_hooks or {})
     output = Path(output_dir)
     _preflight_fresh_output(output)
@@ -562,8 +570,6 @@ def run_authorized_camera_development(
     _bind_repository_path(root, config_path, "configs/modules/wandering_camera_development_v1.yaml")
     if mode not in {"engineering_smoke", "labeled_evaluation"}:
         raise CameraDevelopmentError("development mode is invalid")
-    if _candidate_loader is not None and not _test_fixture:
-        raise CameraDevelopmentError("candidate loader injection is test-fixture-only")
     if _test_fixture:
         try:
             output.resolve(strict=False).relative_to(root)
@@ -751,7 +757,7 @@ def run_authorized_camera_development(
         runtime_observation = _configure_cpu_runtime(config["runtime"])
         try:
             for row in prepared:
-                prediction, _ = predict_primary_camera_window(
+                prediction, _ = _predict_primary_camera_window_with_provenance(
                     row,
                     runtime,
                     validation_scope=validation_scope,

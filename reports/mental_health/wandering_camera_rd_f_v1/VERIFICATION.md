@@ -117,4 +117,41 @@ fixture 输出只写 pytest `tmp_path`，所有 window、episode、execution 和
 
 ## 完成后独立 API 审计
 
-本文件记录的 35 项聚焦测试、118 项 camera 回归、候选 SHA 和数据访问边界均继续成立。随后审计发现两个未被这些测试覆盖的库调用边界：非 fixture `_test_hooks` 尚未全面拒绝；公开逐窗预测 API 尚可由调用者指定 authorized `evidence_scope`。两项归入后续 `M0-CAM-RD-F2`，完成前禁止真实 C1 和 M0-CAM-D。本说明不改写既有机器验证记录。
+本文件记录的 35 项聚焦测试、118 项 camera 回归、候选 SHA 和数据访问边界均继续成立。随后审计发现两个未被这些测试覆盖的库调用边界：非 fixture `_test_hooks` 尚未全面拒绝；公开逐窗预测 API 尚可由调用者指定 authorized `evidence_scope`。两项归入后续 `M0-CAM-RD-F2`；原记录不改写，后续完成证据如下。
+
+## RD-F2 完成验证
+
+开始时分支仍为 `feat/wandering-data-pipeline`，HEAD 为 `d3c101bc459234418832a5100c0b5c29ac518dc3`，相对 origin ahead 12；既有用户脏改动保持不变。editable 安装再次确认指向当前项目根。
+
+先写回归、未改生产实现时，两个缺口稳定得到：
+
+```text
+17 failed
+```
+
+最小实现后，primary + development 聚焦测试为：
+
+```text
+63 passed in 14.05s
+```
+
+全部可运行 camera 回归为：
+
+```text
+139 passed in 69.78s
+```
+
+三个 RD CLI `--help` 均退出 0，且无 synthetic、fake runtime/loader、validation/evidence scope、test hook/fixture 或 bypass selector。直接 Python 安全回归另证明：
+
+```text
+non-fixture _test_hooks={}       -> zero preflight/read/loader/forward/output
+non-fixture nonempty hooks       -> zero preflight/read/loader/forward/output
+non-fixture candidate loader     -> zero preflight/read/loader/forward/output
+public non-synthetic scopes      -> zero model forward
+controller authorized scope      -> only after receipt/collection/sidecar/source/tracking/loader/QC gates
+fixture evidence scope           -> test_fixture_only
+```
+
+最终 primary+dataset+development 聚焦用例共 74 项，均包含在上述最终 139 项 camera 回归中；`git diff --check` 退出 0，仅显示既有 LF/CRLF 转换提示。
+
+RD-F2 没有读取授权 camera、WP raw、SmartCare official/raw 或 sealed 数据，没有修改 fixed candidate/model/threshold/labels/split，没有重训或启动 M0-CAM-D，也没有 stage、commit 或 push。

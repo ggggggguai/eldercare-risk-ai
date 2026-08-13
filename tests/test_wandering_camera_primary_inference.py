@@ -375,6 +375,52 @@ def test_unavailable_window_has_full_scope_null_probabilities_and_zero_forward()
     assert latency_ms is None
 
 
+@pytest.mark.parametrize("window_status", ("ready", "unavailable"))
+@pytest.mark.parametrize(
+    ("validation_scope", "evidence_scope"),
+    (
+        ("authorized_camera_engineering_smoke", "synthetic_contract_only"),
+        ("authorized_camera_labeled_evaluation", "synthetic_contract_only"),
+        ("other_validation_scope", "synthetic_contract_only"),
+        ("synthetic_camera_contract", "authorized_development_smoke"),
+        ("synthetic_camera_contract", "authorized_labeled_development_evaluated"),
+        ("synthetic_camera_contract", "test_fixture_only"),
+        ("synthetic_camera_contract", "other_evidence_scope"),
+    ),
+)
+def test_public_predictor_rejects_every_non_synthetic_scope_before_forward(
+    window_status: str,
+    validation_scope: str,
+    evidence_scope: str,
+) -> None:
+    prepared = _prepared()
+    if window_status == "unavailable":
+        prepared.update(
+            window_status="unavailable",
+            reason_codes=["insufficient_motion"],
+            model_features=None,
+            shape_normalized_points=None,
+            point_mask=None,
+        )
+    model = _FakeModel()
+
+    with pytest.raises(PrimaryCameraInferenceError, match="synthetic"):
+        predict_primary_camera_window(
+            prepared,
+            _runtime(model),
+            validation_scope=validation_scope,
+            evidence_scope=evidence_scope,
+        )
+
+    assert model.calls == 0
+
+
+def test_provenance_aware_forward_is_private_and_not_exported() -> None:
+    name = "_predict_primary_camera_window_with_provenance"
+    assert hasattr(primary_inference_module, name)
+    assert name not in primary_inference_module.__all__
+
+
 def test_fresh_actual_candidate_bundle_is_atomic_and_descriptor_complete(tmp_path: Path) -> None:
     torch.set_num_threads(1)
     tracking, sidecar = _write_pair(

@@ -14,9 +14,11 @@ import os
 import re
 import shutil
 import tempfile
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path, PurePosixPath, PureWindowsPath
-from typing import Any, Iterable, Mapping, Sequence
+from typing import Any, Callable, Iterable, Mapping, Sequence
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import yaml
 
@@ -26,6 +28,9 @@ from elderly_monitoring.modules.mental_health.wandering.camera_adapter import (
     canonical_jsonl_bytes,
     load_camera_inputs,
     validate_media_sidecar,
+)
+from elderly_monitoring.modules.mental_health.wandering.camera_component import (
+    validate_camera_components,
 )
 from elderly_monitoring.modules.mental_health.wandering.camera_inference import (
     CameraInferenceError,
@@ -128,6 +133,34 @@ _ANNOTATION_FIELDS = frozenset(
 
 class CameraDatasetError(ValueError):
     """Camera collection, receipt, or annotation contract failed closed."""
+
+
+@dataclass(frozen=True)
+class _VideoPreparationProvenance:
+    """Exact private carrier for controller-observed video preparation facts."""
+
+    controller: str
+    controller_schema_version: str
+    source_video_id: str
+    source_sha256: str
+    detector_backend: str
+    detector_model: str
+    detector_version: str
+    tracker_backend: str
+    tracker_config: str
+    tracker_version: str
+    confidence_threshold: float
+    iou_threshold: float
+    max_frames: None
+    person_class_id: int
+    person_id_prefix: str
+    scene_region: str
+    raw_observation_count: int
+    video_width: int
+    video_height: int
+    nominal_fps: float
+    duration_sec: float
+    frame_count: int
 
 
 def load_camera_collection_config(path: str | Path) -> dict[str, Any]:
@@ -632,42 +665,494 @@ def prepare_camera_input_pair(
     *,
     camera_config: str | Path,
 ) -> dict[str, Any]:
-    """Canonicalize a caller-supplied C1 pair; never opens the media itself."""
+    """Canonicalize only a synthetic/schema fixture pair; never open media."""
 
     output = Path(output_dir)
-    if output.exists():
-        raise CameraDatasetError(f"output already exists: {output}")
+    source_sidecar_path = Path(media_sidecar_path)
     try:
         loaded_config = load_camera_config(camera_config)
-        adapter = load_camera_inputs(tracking_jsonl_path, media_sidecar_path, loaded_config)
+        sidecar = validate_media_sidecar(
+            _read_json_object(source_sidecar_path, "media sidecar"), loaded_config
+        )
+        validate_camera_components(sidecar)
+        _validate_portable_media_metadata(sidecar)
+        source_sidecar_payload = source_sidecar_path.read_bytes()
     except (CameraInferenceError, CameraAdapterError, OSError, ValueError) as exc:
         raise CameraDatasetError("caller-supplied tracking/sidecar validation failed") from exc
-    tracking_payload = canonical_jsonl_bytes(adapter.normalized_rows)
-    sidecar_payload = canonical_json_bytes(dict(adapter.media_sidecar))
-    receipt = {
+    if sidecar["authorization_status"] != "synthetic_fixture":
+        raise CameraDatasetError("synthetic helper rejects authorized camera sidecars")
+    if os.path.lexists(output):
+        raise CameraDatasetError(f"output already exists: {output}")
+    try:
+        adapter = load_camera_inputs(tracking_jsonl_path, media_sidecar_path, loaded_config)
+    except (CameraAdapterError, OSError, ValueError) as exc:
+        raise CameraDatasetError("caller-supplied tracking/sidecar validation failed") from exc
+    tracking_payload, sidecar_payload, pair_facts = _canonical_pair_payloads(
+        adapter, source_sidecar_payload
+    )
+    summary = {
         "schema_version": "wandering-camera-input-preparation-v1",
-        "input_kind": "caller_supplied_tracking_and_sidecar",
+        "input_kind": "synthetic_tracking_and_sidecar",
         "media_opened": False,
         "detector_run": False,
         "tracker_run": False,
+        "camera_qc_run": False,
+        "model_inference_run": False,
+        "m0cam_d_started": False,
+        "authorization_status": "synthetic_fixture",
+        "evidence_scope": "synthetic_schema_contract_only",
+        "authorized_camera_data_consumed": False,
+        **pair_facts,
+    }
+    _commit_prepared_pair(
+        output=output,
+        tracking_payload=tracking_payload,
+        sidecar_payload=sidecar_payload,
+        summary=summary,
+        camera_config=loaded_config,
+    )
+    return summary
+
+
+def _canonical_pair_payloads(
+    adapter: Any, source_sidecar_payload: bytes
+) -> tuple[bytes, bytes, dict[str, Any]]:
+    tracking_payload = canonical_jsonl_bytes(adapter.normalized_rows)
+    normalized_tracking_sha256 = hashlib.sha256(tracking_payload).hexdigest()
+    output_sidecar = dict(adapter.media_sidecar)
+    output_sidecar["tracking_jsonl_sha256"] = normalized_tracking_sha256
+    sidecar_payload = canonical_json_bytes(output_sidecar)
+    output_sidecar_sha256 = hashlib.sha256(sidecar_payload).hexdigest()
+    return tracking_payload, sidecar_payload, {
         "source_tracking_sha256": adapter.source_tracking_sha256,
-        "normalized_tracking_sha256": hashlib.sha256(tracking_payload).hexdigest(),
-        "media_sidecar_sha256": hashlib.sha256(sidecar_payload).hexdigest(),
+        "normalized_tracking_sha256": normalized_tracking_sha256,
+        "normalized_tracking_bytes": len(tracking_payload),
+        "source_sidecar_sha256": hashlib.sha256(source_sidecar_payload).hexdigest(),
+        "source_sidecar_bytes": len(source_sidecar_payload),
+        "output_sidecar_sha256": output_sidecar_sha256,
+        "output_sidecar_bytes": len(sidecar_payload),
+        "media_sidecar_sha256": output_sidecar_sha256,
         "observation_count": len(adapter.observations),
     }
+
+
+def _commit_prepared_pair(
+    *,
+    output: Path,
+    tracking_payload: bytes,
+    sidecar_payload: bytes,
+    summary: Mapping[str, Any],
+    camera_config: Mapping[str, Any],
+    summary_validator: Callable[[Mapping[str, Any]], None] | None = None,
+) -> None:
+    if summary_validator is not None:
+        summary_validator(summary)
+    summary_payload = canonical_json_bytes(dict(summary))
+
+    def validate_staged_pair(staging: Path) -> None:
+        try:
+            load_camera_inputs(
+                staging / "tracking.jsonl",
+                staging / "media_sidecar.json",
+                camera_config,
+            )
+            persisted_summary = _read_json_object(
+                staging / "preparation_summary.json", "preparation summary"
+            )
+        except (CameraAdapterError, OSError, ValueError) as exc:
+            raise CameraDatasetError("canonical prepared artifact round-trip failed") from exc
+        if persisted_summary != dict(summary):
+            raise CameraDatasetError("canonical preparation summary round-trip mismatch")
+        if summary_validator is not None:
+            summary_validator(persisted_summary)
+        if (staging / "tracking.jsonl").read_bytes() != tracking_payload:
+            raise CameraDatasetError("staged tracking bytes mismatch")
+        if (staging / "media_sidecar.json").read_bytes() != sidecar_payload:
+            raise CameraDatasetError("staged sidecar bytes mismatch")
+        if (staging / "preparation_summary.json").read_bytes() != summary_payload:
+            raise CameraDatasetError("staged preparation summary bytes mismatch")
+
     _commit_new_directory(
         output,
         {
             "tracking.jsonl": tracking_payload,
             "media_sidecar.json": sidecar_payload,
-            "preparation_summary.json": canonical_json_bytes(receipt),
+            "preparation_summary.json": summary_payload,
         },
+        validate_staged_pair=validate_staged_pair,
     )
-    return receipt
+
+
+def _authorization_binding(summary: Mapping[str, Any]) -> dict[str, Any]:
+    return {
+        "receipt_id": summary["receipt_id"],
+        "receipt_sha256": summary["receipt_sha256"],
+        "approved": summary["approved"],
+        "active_at_validation": summary["active_at_validation"],
+        "purpose": summary["purpose"],
+        "dataset_role": summary["dataset_role"],
+        "operation": summary["operation"],
+        "valid_from": summary["valid_from"],
+        "expires_at": summary["expires_at"],
+        "scope_counts": {
+            "participants": summary["scope_counts"]["participant_ids"],
+            "sessions": summary["scope_counts"]["session_ids"],
+            "camera_setups": summary["scope_counts"]["camera_setup_ids"],
+            "source_groups": summary["scope_counts"]["source_group_ids"],
+        },
+    }
+
+
+def _selected_collection_source(
+    collection: Mapping[str, Any], source_video_id: str
+) -> Mapping[str, Any]:
+    matches = [
+        row
+        for row in collection["sources"]
+        if row["source_video_id"] == source_video_id
+    ]
+    if len(matches) != 1:
+        raise CameraDatasetError("source binding must select exactly one collection source")
+    return matches[0]
+
+
+def _selected_unique_collection_source(collection: Mapping[str, Any]) -> Mapping[str, Any]:
+    sources = collection.get("sources")
+    if not isinstance(sources, list) or len(sources) != 1:
+        raise CameraDatasetError(
+            "pair preparation requires exactly one legal collection source"
+        )
+    source = sources[0]
+    if not isinstance(source, Mapping):
+        raise CameraDatasetError("collection source must be an object")
+    return source
+
+
+def _source_binding(
+    source: Mapping[str, Any], source_sha256: str, *, basis: str
+) -> dict[str, Any]:
+    return {
+        "source_video_id": source["source_video_id"],
+        "session_id": source["session_id"],
+        "source_group_id": source["source_group_id"],
+        "camera_setup_id": source["camera_setup_id"],
+        "device_id": source["device_id"],
+        "setup_id": source["setup_id"],
+        "stream_epoch": source["stream_epoch"],
+        "source_sha256": source_sha256,
+        "source_sha256_basis": basis,
+    }
+
+
+def _validate_video_provenance(
+    provenance: _VideoPreparationProvenance,
+    sidecar: Mapping[str, Any],
+    adapter: Any,
+    source: Mapping[str, Any],
+) -> None:
+    if type(provenance) is not _VideoPreparationProvenance:
+        raise CameraDatasetError("video provenance must use the exact private schema")
+    if provenance.controller != "receipt_first_shared_yolov8_bytetrack_c1_preparation":
+        raise CameraDatasetError("video provenance controller mismatch")
+    if provenance.controller_schema_version != "wandering-camera-video-controller-v1":
+        raise CameraDatasetError("video provenance controller schema mismatch")
+    if provenance.source_video_id != source["source_video_id"]:
+        raise CameraDatasetError("video provenance source mismatch")
+    if (
+        not _SHA256.fullmatch(provenance.source_sha256)
+        or provenance.source_sha256 != sidecar["source_sha256"]
+    ):
+        raise CameraDatasetError("video provenance source SHA-256 mismatch")
+    expected_detector = {
+        "backend": provenance.detector_backend,
+        "model": provenance.detector_model,
+        "version": provenance.detector_version,
+    }
+    expected_tracker = {
+        "backend": provenance.tracker_backend,
+        "config": provenance.tracker_config,
+        "version": provenance.tracker_version,
+    }
+    if expected_detector != sidecar["detector"]:
+        raise CameraDatasetError("video provenance detector mismatch")
+    if expected_tracker != sidecar["tracker"]:
+        raise CameraDatasetError("video provenance tracker mismatch")
+    if expected_detector["backend"] != "ultralytics_yolo" or expected_detector["model"] != "yolov8n.pt":
+        raise CameraDatasetError("video provenance detector is not the fixed controller")
+    if expected_tracker["backend"] != "bytetrack" or expected_tracker["config"] != "bytetrack.yaml":
+        raise CameraDatasetError("video provenance tracker is not the fixed controller")
+    if provenance.detector_version != provenance.tracker_version:
+        raise CameraDatasetError("video provenance component version mismatch")
+    if (
+        provenance.confidence_threshold != 0.25
+        or provenance.iou_threshold != 0.5
+        or provenance.max_frames is not None
+        or provenance.person_class_id != 0
+        or provenance.person_id_prefix != "anonymous_track"
+        or provenance.scene_region != "camera_development"
+    ):
+        raise CameraDatasetError("video provenance tracking execution mismatch")
+    if (
+        isinstance(provenance.raw_observation_count, bool)
+        or not isinstance(provenance.raw_observation_count, int)
+        or provenance.raw_observation_count <= 0
+        or provenance.raw_observation_count != len(adapter.observations)
+    ):
+        raise CameraDatasetError("video provenance observation count mismatch")
+    if (
+        provenance.video_width != sidecar["video_width"]
+        or provenance.video_height != sidecar["video_height"]
+        or not math.isclose(provenance.nominal_fps, sidecar["nominal_fps"], rel_tol=0.0, abs_tol=1e-12)
+        or not math.isclose(provenance.duration_sec, sidecar["duration_sec"], rel_tol=0.0, abs_tol=1e-12)
+        or provenance.frame_count <= 0
+        or not math.isclose(
+            provenance.frame_count / provenance.nominal_fps,
+            provenance.duration_sec,
+            rel_tol=0.0,
+            abs_tol=1e-12,
+        )
+    ):
+        raise CameraDatasetError("video provenance metadata mismatch")
+
+
+def _video_summary(provenance: _VideoPreparationProvenance) -> dict[str, Any]:
+    return {
+        "controller": provenance.controller,
+        "controller_schema_version": provenance.controller_schema_version,
+        "detector": {
+            "backend": provenance.detector_backend,
+            "model": provenance.detector_model,
+            "version": provenance.detector_version,
+        },
+        "tracker": {
+            "backend": provenance.tracker_backend,
+            "config": provenance.tracker_config,
+            "version": provenance.tracker_version,
+        },
+        "tracking_execution": {
+            "confidence_threshold": provenance.confidence_threshold,
+            "iou_threshold": provenance.iou_threshold,
+            "max_frames": provenance.max_frames,
+            "person_class_id": provenance.person_class_id,
+            "person_id_prefix": provenance.person_id_prefix,
+            "scene_region": provenance.scene_region,
+        },
+        "raw_observation_count": provenance.raw_observation_count,
+        "video_metadata": {
+            "width": provenance.video_width,
+            "height": provenance.video_height,
+            "fps": provenance.nominal_fps,
+            "frame_count": provenance.frame_count,
+            "duration_sec": provenance.duration_sec,
+        },
+        "authorization_status": "authorized_camera_engineering_smoke",
+        "authorized_camera_data_consumed": True,
+    }
+
+
+def _validate_authorized_preparation_summary(
+    summary: Mapping[str, Any],
+    *,
+    source: Mapping[str, Any],
+    sidecar: Mapping[str, Any],
+    video_provenance: _VideoPreparationProvenance | None,
+) -> None:
+    video_direct = video_provenance is not None
+    expected_basis = (
+        "controller_observed_video_pre_and_post_tracking"
+        if video_direct
+        else "validated_sidecar_declaration"
+    )
+    expected_binding = {
+        "source_video_id": source["source_video_id"],
+        "session_id": source["session_id"],
+        "source_group_id": source["source_group_id"],
+        "camera_setup_id": source["camera_setup_id"],
+        "device_id": source["device_id"],
+        "setup_id": source["setup_id"],
+        "stream_epoch": source["stream_epoch"],
+        "source_sha256": sidecar["source_sha256"],
+        "source_sha256_basis": expected_basis,
+    }
+    if summary.get("source_binding") != expected_binding:
+        raise CameraDatasetError("preparation source binding is inconsistent")
+    expected_kind = (
+        "authorized_video_shared_tracking_and_sidecar"
+        if video_direct
+        else "authorized_tracking_and_sidecar"
+    )
+    if summary.get("input_kind") != expected_kind:
+        raise CameraDatasetError("preparation input kind is inconsistent")
+    for field in ("media_opened", "detector_run", "tracker_run"):
+        if summary.get(field) is not video_direct:
+            raise CameraDatasetError("preparation work flags are inconsistent")
+    if summary.get("authorized_camera_data_consumed") is not True:
+        raise CameraDatasetError("authorized preparation consumption flag is inconsistent")
+    if video_direct:
+        assert video_provenance is not None
+        if video_provenance.source_sha256 != sidecar["source_sha256"]:
+            raise CameraDatasetError("video source SHA-256 basis is inconsistent")
+
+
+def _validate_portable_media_metadata(sidecar: Mapping[str, Any]) -> None:
+    _validate_portable_media_ref(sidecar.get("media_ref"))
+    capture_started_at = sidecar.get("capture_started_at")
+    timezone = sidecar.get("timezone")
+    if (capture_started_at is None) != (timezone is None):
+        raise CameraDatasetError("capture_started_at and timezone must be both null or both provided")
+    if capture_started_at is None:
+        return
+    _parse_timestamp(capture_started_at, "capture_started_at")
+    _validate_timezone(timezone)
+
+
+def _validate_portable_media_ref(value: Any) -> str:
+    if (
+        not isinstance(value, str)
+        or not value
+        or len(value) > 256
+        or any(ord(char) < 32 or ord(char) == 127 for char in value)
+    ):
+        raise CameraDatasetError("media_ref must be a safe relative POSIX reference")
+    lowered = value.lower()
+    windows = PureWindowsPath(value)
+    parts = value.split("/")
+    if (
+        "\\" in value
+        or "://" in value
+        or "@" in value
+        or "?" in value
+        or "#" in value
+        or any(marker in lowered for marker in _SENSITIVE_MARKERS)
+        or PurePosixPath(value).is_absolute()
+        or windows.is_absolute()
+        or bool(windows.drive)
+        or any(part in ("", ".", "..") for part in parts)
+    ):
+        raise CameraDatasetError("media_ref must be a portable deidentified relative POSIX reference")
+    return value
+
+
+def _validate_timezone(value: Any) -> str:
+    if (
+        not isinstance(value, str)
+        or not value
+        or len(value) > 128
+        or any(ord(char) < 32 or ord(char) == 127 for char in value)
+    ):
+        raise CameraDatasetError("timezone must be UTC or an existing safe IANA timezone")
+    lowered = value.lower()
+    parts = value.split("/")
+    if (
+        "\\" in value
+        or value.startswith("/")
+        or "://" in value
+        or "@" in value
+        or "?" in value
+        or "#" in value
+        or PureWindowsPath(value).drive
+        or any(part in ("", ".", "..") for part in parts)
+        or any(marker in lowered for marker in _SENSITIVE_MARKERS)
+    ):
+        raise CameraDatasetError("timezone must be UTC or an existing safe IANA timezone")
+    try:
+        ZoneInfo(value)
+    except (ZoneInfoNotFoundError, ValueError) as exc:
+        raise CameraDatasetError("timezone must be UTC or an existing safe IANA timezone") from exc
+    return value
+
+
+def _active_checkout_root() -> Path:
+    try:
+        source_file = Path(__file__).resolve(strict=True)
+    except OSError as exc:
+        raise CameraDatasetError("cannot resolve active wandering source identity") from exc
+    candidates = [
+        parent
+        for parent in source_file.parents
+        if (parent / "pyproject.toml").is_file()
+        and (parent / "src/elderly_monitoring").is_dir()
+    ]
+    if len(candidates) != 1:
+        raise CameraDatasetError("active checkout root must be nearest and unique")
+    return candidates[0]
+
+
+def _require_active_checkout_identity(project_root: str | Path) -> Path:
+    active_root = _active_checkout_root()
+    try:
+        asserted = Path(project_root)
+        if not asserted.is_dir() or not os.path.samefile(asserted, active_root):
+            raise CameraDatasetError("project_root is not the active checkout identity")
+    except (OSError, TypeError) as exc:
+        raise CameraDatasetError("project_root is not the active checkout identity") from exc
+    return active_root
+
+
+def _require_fixed_config_identity(
+    path: str | Path, active_root: Path, relative_path: str, role: str
+) -> Path:
+    expected = active_root / relative_path
+    try:
+        asserted = Path(path)
+        if not asserted.is_file() or not os.path.samefile(asserted, expected):
+            raise CameraDatasetError(f"{role} is not the fixed active checkout config")
+    except (OSError, TypeError) as exc:
+        raise CameraDatasetError(f"{role} is not the fixed active checkout config") from exc
+    return expected
+
+
+def _require_external_file(path: str | Path, project_root: Path, role: str) -> Path:
+    try:
+        resolved = Path(path).resolve(strict=True)
+    except OSError as exc:
+        raise CameraDatasetError(f"cannot resolve {role}") from exc
+    _reject_project_path(resolved, project_root, role)
+    if not resolved.is_file():
+        raise CameraDatasetError(f"{role} must be a regular file")
+    return resolved
+
+
+def _require_external_destination(
+    path: str | Path, project_root: Path, role: str
+) -> Path:
+    try:
+        candidate = Path(path)
+        probe = candidate if candidate.is_absolute() else Path.cwd() / candidate
+        if os.path.lexists(probe) and not probe.exists():
+            raise CameraDatasetError(f"{role} path is a dangling filesystem entry")
+        existing = probe
+        while not existing.exists():
+            parent = existing.parent
+            if parent == existing:
+                raise CameraDatasetError(f"cannot find existing ancestor for {role}")
+            existing = parent
+        _reject_project_path(existing.resolve(strict=True), project_root, role)
+        resolved = Path(path).resolve(strict=False)
+    except OSError as exc:
+        raise CameraDatasetError(f"cannot resolve {role}") from exc
+    _reject_project_path(resolved, project_root, role)
+    return resolved
+
+
+def _reject_project_path(path: Path, project_root: Path, role: str) -> None:
+    try:
+        root = project_root.resolve(strict=True)
+        resolved = path.resolve(strict=False)
+        for candidate in (resolved, *resolved.parents):
+            if candidate.exists() and os.path.samefile(candidate, root):
+                raise CameraDatasetError(
+                    f"production {role} must resolve outside project root (active checkout)"
+                )
+    except CameraDatasetError:
+        raise
+    except OSError as exc:
+        raise CameraDatasetError(f"cannot verify production {role} boundary") from exc
 
 
 def prepare_authorized_camera_session(
     *,
+    project_root: str | Path,
     receipt_path: str | Path,
     collection_path: str | Path,
     tracking_jsonl_path: str | Path,
@@ -676,38 +1161,117 @@ def prepare_authorized_camera_session(
     collection_config_path: str | Path,
     camera_config_path: str | Path,
 ) -> dict[str, Any]:
-    """Receipt-gate a production C1 pair before reading protected tracking.
+    """Receipt-gate an existing authorized C1 pair with fixed false provenance.
 
     The external C0 receipt is validated before collection, sidecar, or tracking
     inputs.  Collection scope is then checked before the sidecar and tracking
-    pair is opened.  Synthetic authorization remains confined to the historical
-    schema-only helper ``prepare_camera_input_pair`` and is not accepted here.
+    pair is opened.  This public entry cannot claim media/detector/tracker work.
     """
 
-    config = load_camera_collection_config(collection_config_path)
-    receipt = _read_json_object(Path(receipt_path), "authorization receipt")
-    summary = validate_authorization_receipt(
+    return _prepare_authorized_camera_session(
+        project_root=project_root,
+        receipt_path=receipt_path,
+        collection_path=collection_path,
+        tracking_jsonl_path=tracking_jsonl_path,
+        media_sidecar_path=media_sidecar_path,
+        output_dir=output_dir,
+        collection_config_path=collection_config_path,
+        camera_config_path=camera_config_path,
+        video_provenance=None,
+    )
+
+
+def _prepare_authorized_camera_video_session(
+    *,
+    project_root: str | Path,
+    receipt_path: str | Path,
+    collection_path: str | Path,
+    tracking_jsonl_path: str | Path,
+    media_sidecar_path: str | Path,
+    output_dir: str | Path,
+    collection_config_path: str | Path,
+    camera_config_path: str | Path,
+    video_provenance: _VideoPreparationProvenance,
+) -> dict[str, Any]:
+    """Private video-controller entry with an exact, non-mapping provenance carrier."""
+
+    return _prepare_authorized_camera_session(
+        project_root=project_root,
+        receipt_path=receipt_path,
+        collection_path=collection_path,
+        tracking_jsonl_path=tracking_jsonl_path,
+        media_sidecar_path=media_sidecar_path,
+        output_dir=output_dir,
+        collection_config_path=collection_config_path,
+        camera_config_path=camera_config_path,
+        video_provenance=video_provenance,
+    )
+
+
+def _prepare_authorized_camera_session(
+    *,
+    project_root: str | Path,
+    receipt_path: str | Path,
+    collection_path: str | Path,
+    tracking_jsonl_path: str | Path,
+    media_sidecar_path: str | Path,
+    output_dir: str | Path,
+    collection_config_path: str | Path,
+    camera_config_path: str | Path,
+    video_provenance: _VideoPreparationProvenance | None,
+) -> dict[str, Any]:
+    root = _require_active_checkout_identity(project_root)
+    fixed_collection_config = _require_fixed_config_identity(
+        collection_config_path,
+        root,
+        "configs/data/wandering_camera_collection_v1.yaml",
+        "collection config",
+    )
+    fixed_camera_config = _require_fixed_config_identity(
+        camera_config_path,
+        root,
+        "configs/modules/wandering_camera_v1.yaml",
+        "camera config",
+    )
+    config = load_camera_collection_config(fixed_collection_config)
+    try:
+        camera_config = load_camera_config(fixed_camera_config)
+    except (CameraInferenceError, OSError, ValueError) as exc:
+        raise CameraDatasetError("fixed active camera config preflight failed") from exc
+
+    receipt_file = _require_external_file(receipt_path, root, "authorization receipt")
+    receipt = _read_json_object(receipt_file, "authorization receipt")
+    authorization_summary = validate_authorization_receipt(
         receipt,
         config,
         operation="prepare_session",
     )
+    collection_file = _require_external_file(collection_path, root, "collection")
     collection = validate_collection_manifest(
-        _read_json_object(Path(collection_path), "collection"), config
+        _read_json_object(collection_file, "collection"), config
     )
-    summary = validate_authorization_receipt(
+    authorization_summary = validate_authorization_receipt(
         receipt,
         config,
         operation="prepare_session",
         **_collection_scope(collection),
     )
-    _validate_collection_receipt_reference(collection, summary)
+    _validate_collection_receipt_reference(collection, authorization_summary)
+    source = _selected_unique_collection_source(collection)
 
+    output = _require_external_destination(output_dir, root, "output")
+    if os.path.lexists(output):
+        raise CameraDatasetError(f"output already exists: {output}")
+
+    sidecar_file = _require_external_file(media_sidecar_path, root, "media sidecar")
     try:
-        camera_config = load_camera_config(camera_config_path)
         sidecar = validate_media_sidecar(
-            _read_json_object(Path(media_sidecar_path), "media sidecar"), camera_config
+            _read_json_object(sidecar_file, "media sidecar"), camera_config
         )
-    except (CameraInferenceError, CameraAdapterError) as exc:
+        validate_camera_components(sidecar)
+        _validate_portable_media_metadata(sidecar)
+        source_sidecar_payload = sidecar_file.read_bytes()
+    except (CameraInferenceError, CameraAdapterError, OSError, ValueError) as exc:
         raise CameraDatasetError("authorized media sidecar validation failed") from exc
     _bind_sidecar_to_collection(sidecar, collection)
     if sidecar["authorization_status"] not in {
@@ -715,18 +1279,70 @@ def prepare_authorized_camera_session(
         "authorized_camera_labeled_evaluation",
     }:
         raise CameraDatasetError("prepare_session production entry rejects synthetic media")
+    if sidecar["source_video_id"] != source["source_video_id"]:
+        raise CameraDatasetError("media source does not match the unique collection source")
+    tracking_file = _require_external_file(tracking_jsonl_path, root, "tracking JSONL")
+    try:
+        adapter = load_camera_inputs(tracking_file, sidecar_file, camera_config)
+    except (CameraAdapterError, OSError, ValueError) as exc:
+        raise CameraDatasetError("authorized tracking/sidecar validation failed") from exc
 
-    result = prepare_camera_input_pair(
-        tracking_jsonl_path,
-        media_sidecar_path,
-        output_dir,
-        camera_config=camera_config_path,
+    if video_provenance is not None:
+        _validate_video_provenance(video_provenance, sidecar, adapter, source)
+    tracking_payload, sidecar_payload, pair_facts = _canonical_pair_payloads(
+        adapter, source_sidecar_payload
     )
-    return {
-        **result,
-        "authorization_summary": summary,
-        "test_fixture_only": False,
+    summary: dict[str, Any] = {
+        "schema_version": "wandering-camera-input-preparation-v1",
+        "input_kind": (
+            "authorized_video_shared_tracking_and_sidecar"
+            if video_provenance is not None
+            else "authorized_tracking_and_sidecar"
+        ),
+        "media_opened": video_provenance is not None,
+        "detector_run": video_provenance is not None,
+        "tracker_run": video_provenance is not None,
+        "camera_qc_run": False,
+        "model_inference_run": False,
+        "m0cam_d_started": False,
+        "authorization_status": sidecar["authorization_status"],
+        "authorized_camera_data_consumed": True,
+        **pair_facts,
+        "authorization_binding": _authorization_binding(authorization_summary),
+        "collection_binding": {
+            "collection_id": collection["collection_id"],
+            "collection_sha256": hashlib.sha256(
+                canonical_json_bytes(collection)
+            ).hexdigest(),
+            "dataset_role": collection["dataset_role"],
+            "authorization_receipt_id": collection["authorization_receipt_id"],
+        },
+        "source_binding": _source_binding(
+            source,
+            sidecar["source_sha256"],
+            basis=(
+                "controller_observed_video_pre_and_post_tracking"
+                if video_provenance is not None
+                else "validated_sidecar_declaration"
+            ),
+        ),
     }
+    if video_provenance is not None:
+        summary.update(_video_summary(video_provenance))
+    _commit_prepared_pair(
+        output=output,
+        tracking_payload=tracking_payload,
+        sidecar_payload=sidecar_payload,
+        summary=summary,
+        camera_config=camera_config,
+        summary_validator=lambda candidate: _validate_authorized_preparation_summary(
+            candidate,
+            source=source,
+            sidecar=sidecar,
+            video_provenance=video_provenance,
+        ),
+    )
+    return summary
 
 
 def write_authorized_camera_annotations(
@@ -1001,8 +1617,13 @@ def _nonnegative_int(value: Any, field: str) -> int:
     return value
 
 
-def _commit_new_directory(output: Path, files: Mapping[str, bytes]) -> None:
-    if output.exists():
+def _commit_new_directory(
+    output: Path,
+    files: Mapping[str, bytes],
+    *,
+    validate_staged_pair: Callable[[Path], None] | None = None,
+) -> None:
+    if os.path.lexists(output):
         raise CameraDatasetError(f"output already exists: {output}")
     output.parent.mkdir(parents=True, exist_ok=True)
     temporary = Path(tempfile.mkdtemp(prefix=f".{output.name}.tmp-", dir=output.parent))
@@ -1013,7 +1634,9 @@ def _commit_new_directory(output: Path, files: Mapping[str, bytes]) -> None:
                 handle.write(payload)
                 handle.flush()
                 os.fsync(handle.fileno())
-        if output.exists():
+        if validate_staged_pair is not None:
+            validate_staged_pair(temporary)
+        if os.path.lexists(output):
             raise CameraDatasetError(f"output already exists: {output}")
         temporary.replace(output)
     except Exception:

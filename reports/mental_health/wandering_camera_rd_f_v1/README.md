@@ -1,4 +1,4 @@
-# TopoWander-MPT M0-CAM-RD-F development entry and evaluator fixes
+# TopoWander-MPT M0-CAM-RD-F/RD-F2 development entry hardening
 
 ## 结论
 
@@ -22,7 +22,26 @@ sealed_camera_accessed=false
 1. `run_authorized_camera_development()` 的 `_test_hooks` 必须与 `_candidate_loader` 一样，仅在 `_test_fixture=True` 时可用；否则库调用者可能绕过真实 candidate，却生成 authorized 外观的 execution；
 2. exported `predict_primary_camera_window()` 不应接受普通调用者指定 authorized `evidence_scope`；authorized scope 必须只由 receipt-gated development controller 内部产生。
 
-这两项记为 `M0-CAM-RD-F2`。在其完成前，不把真实 C1 交给三个新 RD CLI，不启动 M0-CAM-D。此审计不表示本轮读取过真人数据，也不否定既有 `synthetic_schema_contract_only` 证据。
+这两项记为 `M0-CAM-RD-F2`，并已在后续小型收口中完成；完成记录见下文。此审计不表示本轮读取过真人数据，也不否定既有 `synthetic_schema_contract_only` 证据。
+
+## RD-F2 API provenance 收口
+
+RD-F2 已于 2026-08-13 完成，当前状态为：
+
+```text
+status=wandering_m0cam_development_entry_hardened_waiting_c0_c1
+evidence_scope=synthetic_schema_contract_only
+readiness_status=not_ready
+authorized_camera_data_consumed=false
+m0cam_d_started=false
+rd_f2_complete=true
+```
+
+- `run_authorized_camera_development()` 在非 `_test_fixture=True` 时，只要 `_test_hooks is not None`（包括空 mapping）或传入 candidate loader，就在 output/config/receipt、受保护输入、loader/forward 和 staging/final 之前拒绝；
+- 公开 `predict_primary_camera_window()` 只接受 `synthetic_camera_contract / synthetic_contract_only`，ready、unavailable 和 inference-error 的原 synthetic 行为保持兼容；
+- 实际 forward 抽到未进入 `__all__` 的私有 helper；只有 receipt-gated development controller 在既有前置通过后由内部逻辑传入 authorized scope，pytest fixture 仍只能产生 `test_fixture_only`；
+- 新的核心安全回归使用 `tmp_path`、结构化临时 metadata 和内存 fake runtime，不读取真人或受保护 camera 数据，也不生成新的正式 evidence artifact。
+- 最终 primary+dataset+development 聚焦回归共 `74` 项，均包含在最终全部 camera 回归 `139 passed` 中；三个 RD CLI `--help` 均退出 0，`git diff --check` 退出 0（仅既有 autocrlf 提示）。
 
 ## 已修复范围
 
@@ -50,17 +69,16 @@ sealed_camera_accessed=false
 
 ## 当前门禁与下一步
 
-当前仍是 `readiness_status=not_ready`。下一步 M0-CAM-D engineering smoke 的精确启动条件是：
+当前仍是 `readiness_status=not_ready`，RD-F2 软件门已通过。下一步 M0-CAM-D engineering smoke 的剩余启动条件是：
 
-1. RD-F2 API provenance 收口通过；
-2. 负责人或外部授权流程提供 approved、active、未过期、`camera_development` purpose 的真实 C0 receipt，并覆盖 `run_development`、participant/session/setup/source-group；
-3. C1 提供经授权成人、固定 setup 的 tracking JSONL + `wandering-media-v1` sidecar，且 collection、sidecar、实际 tracking scope 和 receipt 全部一致。
+1. 负责人或外部授权流程提供 approved、active、未过期、`camera_development` purpose 的真实 C0 receipt，并覆盖 `run_development`、participant/session/setup/source-group；
+2. C1 提供经授权成人、固定 setup 的 tracking JSONL + `wandering-media-v1` sidecar，且 collection、sidecar、实际 tracking scope 和 receipt 全部一致。
 
 有标签 development evaluation 还必须增加：
 
-4. C2 人工 episode annotation，accepted truth 具有可评分 shape，uncertain/excluded 保持真值遮罩；
-5. C3 为每个实际 tracklet 提供唯一 participant/session/setup/clock-domain 绑定、participant-present 区间和显式 clock alignment；
-6. development-only matching、uncertain 与 episode-merge policy 的非空 policy ID 和明确参数。
+3. C2 人工 episode annotation，accepted truth 具有可评分 shape，uncertain/excluded 保持真值遮罩；
+4. C3 为每个实际 tracklet 提供唯一 participant/session/setup/clock-domain 绑定、participant-present 区间和显式 clock alignment；
+5. development-only matching、uncertain 与 episode-merge policy 的非空 policy ID 和明确参数。
 
 在 C0+C1 前不得运行 M0-CAM-D；在 C2+C3 前不得输出 camera accuracy/F1/FAR。synthetic 与 pytest fixture 不是 camera、真人、老人、产品或临床性能证据。
 

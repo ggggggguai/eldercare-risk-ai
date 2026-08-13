@@ -2,10 +2,14 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 import torch
 
+from elderly_monitoring.modules.mental_health.wandering import (
+    camera_development as camera_development_module,
+)
 from elderly_monitoring.modules.mental_health.wandering.camera_development import (
     CameraDevelopmentError,
     build_coverage_counts,
@@ -560,15 +564,31 @@ def test_stage_timing_fields_are_explicit_and_nonnegative() -> None:
     ]
 
 
-def test_receipt_failure_happens_before_all_data_and_runtime_calls(tmp_path: Path) -> None:
+def test_receipt_failure_happens_before_all_data_and_runtime_calls(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     calls: list[str] = []
 
-    def called(name: str):
-        def _inner(*args, **kwargs):
-            calls.append(name)
-            return {}
+    original_read_json = camera_development_module._read_json
 
-        return _inner
+    def read_json(path: Path, role: str):
+        calls.append(f"read:{role}")
+        return original_read_json(path, role)
+
+    monkeypatch.setattr(camera_development_module, "_read_json", read_json)
+    for name in (
+        "_preflight_active_source_identity",
+        "load_camera_inputs",
+        "load_primary_camera_runtime",
+        "run_camera_qc",
+        "_predict_primary_camera_window_with_provenance",
+        "_commit_new_output",
+    ):
+        monkeypatch.setattr(
+            camera_development_module,
+            name,
+            lambda *args, _name=name, **kwargs: calls.append(_name),
+        )
 
     with pytest.raises(CameraDevelopmentError, match="receipt"):
         run_authorized_camera_development(
@@ -581,29 +601,41 @@ def test_receipt_failure_happens_before_all_data_and_runtime_calls(tmp_path: Pat
             candidate_manifest_path=tmp_path / "missing-manifest.json",
             expected_manifest_sha256="0" * 64,
             output_dir=tmp_path / "final",
-            _test_hooks={
-                "read_collection": called("collection"),
-                "read_tracking": called("tracking"),
-                "read_annotations": called("annotations"),
-                "load_candidate": called("loader"),
-                "forward": called("forward"),
-            },
         )
-    assert calls == []
+    assert calls == ["read:authorization receipt"]
     assert not (tmp_path / "final").exists()
     assert not list(tmp_path.glob("final.staging-*"))
 
 
-def test_expired_receipt_stops_before_collection_tracking_loader_and_output(tmp_path: Path) -> None:
+def test_expired_receipt_stops_before_collection_tracking_loader_and_output(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     receipt_path = tmp_path / "receipt.json"
     receipt_path.write_text(
         json.dumps(_receipt(expires_at="2026-02-01T00:00:00+08:00")), encoding="utf-8"
     )
     calls: list[str] = []
 
-    def called(*args, **kwargs):
-        calls.append("called")
-        return {}
+    original_read_json = camera_development_module._read_json
+
+    def read_json(path: Path, role: str):
+        calls.append(f"read:{role}")
+        return original_read_json(path, role)
+
+    monkeypatch.setattr(camera_development_module, "_read_json", read_json)
+    for name in (
+        "_preflight_active_source_identity",
+        "load_camera_inputs",
+        "load_primary_camera_runtime",
+        "run_camera_qc",
+        "_predict_primary_camera_window_with_provenance",
+        "_commit_new_output",
+    ):
+        monkeypatch.setattr(
+            camera_development_module,
+            name,
+            lambda *args, _name=name, **kwargs: calls.append(_name),
+        )
 
     with pytest.raises(CameraDevelopmentError, match="receipt"):
         run_authorized_camera_development(
@@ -616,19 +648,8 @@ def test_expired_receipt_stops_before_collection_tracking_loader_and_output(tmp_
             candidate_manifest_path=tmp_path / "manifest.json",
             expected_manifest_sha256=MANIFEST_SHA,
             output_dir=tmp_path / "final",
-            _test_hooks={
-                name: called
-                for name in (
-                    "read_collection",
-                    "read_sidecar",
-                    "source_preflight",
-                    "read_tracking",
-                    "load_candidate",
-                    "forward",
-                )
-            },
         )
-    assert calls == []
+    assert calls == ["read:authorization receipt"]
     assert not (tmp_path / "final").exists()
     assert not list(tmp_path.glob("final.staging-*"))
 
@@ -642,49 +663,68 @@ def test_expired_receipt_stops_before_collection_tracking_loader_and_output(tmp_
     ],
 )
 def test_collection_receipt_id_and_sealed_role_stop_before_sidecar_tracking_and_loader(
-    tmp_path: Path, collection: dict, message: str
+    tmp_path: Path,
+    collection: dict,
+    message: str,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     receipt_path = tmp_path / "receipt.json"
     receipt_path.write_text(json.dumps(_receipt()), encoding="utf-8")
+    collection_path = tmp_path / "collection.json"
+    collection_path.write_text(json.dumps(collection), encoding="utf-8")
     calls: list[str] = []
 
-    def collection_read():
-        calls.append("collection")
-        return collection
+    original_read_json = camera_development_module._read_json
 
-    def forbidden(*args, **kwargs):
-        calls.append("forbidden")
-        return {}
+    def read_json(path: Path, role: str):
+        calls.append(f"read:{role}")
+        return original_read_json(path, role)
+
+    monkeypatch.setattr(camera_development_module, "_read_json", read_json)
+    for name in (
+        "_preflight_active_source_identity",
+        "load_camera_inputs",
+        "load_primary_camera_runtime",
+        "run_camera_qc",
+        "_predict_primary_camera_window_with_provenance",
+        "_commit_new_output",
+    ):
+        monkeypatch.setattr(
+            camera_development_module,
+            name,
+            lambda *args, _name=name, **kwargs: calls.append(_name),
+        )
 
     with pytest.raises(CameraDevelopmentError, match=message):
         run_authorized_camera_development(
             project_root=ROOT,
             config_path=CONFIG,
             receipt_path=receipt_path,
-            collection_path=tmp_path / "collection.json",
+            collection_path=collection_path,
             tracking_path=tmp_path / "tracking.jsonl",
             media_sidecar_path=tmp_path / "sidecar.json",
             candidate_manifest_path=tmp_path / "manifest.json",
             expected_manifest_sha256=MANIFEST_SHA,
             output_dir=tmp_path / "final",
-            _test_hooks={
-                "read_collection": collection_read,
-                "read_sidecar": forbidden,
-                "source_preflight": forbidden,
-                "read_tracking": forbidden,
-                "load_candidate": forbidden,
-                "forward": forbidden,
-            },
         )
-    assert calls == ["collection"]
+    assert calls == ["read:authorization receipt", "read:collection"]
     assert not (tmp_path / "final").exists()
     assert not list(tmp_path.glob("final.staging-*"))
 
 
-def test_labeled_entry_requires_all_policies_after_receipt_before_collection(tmp_path: Path) -> None:
+def test_labeled_entry_requires_all_policies_after_receipt_before_collection(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     receipt_path = tmp_path / "receipt.json"
     receipt_path.write_text(json.dumps(_receipt()), encoding="utf-8")
     calls: list[str] = []
+    original_read_json = camera_development_module._read_json
+
+    def read_json(path: Path, role: str):
+        calls.append(f"read:{role}")
+        return original_read_json(path, role)
+
+    monkeypatch.setattr(camera_development_module, "_read_json", read_json)
     with pytest.raises(CameraDevelopmentError, match="matching/uncertain/episode merge"):
         run_authorized_camera_development(
             project_root=ROOT,
@@ -697,10 +737,303 @@ def test_labeled_entry_requires_all_policies_after_receipt_before_collection(tmp
             expected_manifest_sha256=MANIFEST_SHA,
             output_dir=tmp_path / "final",
             mode="labeled_evaluation",
-            _test_hooks={"read_collection": lambda: calls.append("collection")},
         )
-    assert calls == []
+    assert calls == ["read:authorization receipt"]
     assert not (tmp_path / "final").exists()
+
+
+def test_nonfixture_without_injection_reaches_normal_receipt_preflight(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    roles: list[str] = []
+    original_read_json = camera_development_module._read_json
+
+    def read_json(path: Path, role: str):
+        roles.append(role)
+        return original_read_json(path, role)
+
+    monkeypatch.setattr(camera_development_module, "_read_json", read_json)
+    with pytest.raises(CameraDevelopmentError, match="authorization receipt"):
+        run_authorized_camera_development(
+            project_root=ROOT,
+            config_path=CONFIG,
+            receipt_path=tmp_path / "missing-receipt.json",
+            collection_path=tmp_path / "missing-collection.json",
+            tracking_path=tmp_path / "missing-tracking.jsonl",
+            media_sidecar_path=tmp_path / "missing-sidecar.json",
+            candidate_manifest_path=tmp_path / "missing-manifest.json",
+            expected_manifest_sha256="0" * 64,
+            output_dir=tmp_path / "final",
+        )
+    assert roles == ["authorization receipt"]
+    assert not (tmp_path / "final").exists()
+
+
+@pytest.mark.parametrize("injection_kind", ("empty_hooks", "hook", "candidate_loader"))
+def test_nonfixture_injection_is_rejected_before_any_preflight_read_forward_or_output(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    injection_kind: str,
+) -> None:
+    boundary_calls: list[str] = []
+    injected_calls: list[str] = []
+
+    for name in (
+        "_preflight_fresh_output",
+        "load_camera_development_config",
+        "_read_json",
+        "_read_jsonl",
+        "_preflight_active_source_identity",
+        "load_camera_inputs",
+        "load_primary_camera_runtime",
+        "run_camera_qc",
+        "_predict_primary_camera_window_with_provenance",
+        "_commit_new_output",
+    ):
+        monkeypatch.setattr(
+            camera_development_module,
+            name,
+            lambda *args, _name=name, **kwargs: boundary_calls.append(_name),
+        )
+
+    kwargs: dict[str, object] = {}
+    if injection_kind == "empty_hooks":
+        kwargs["_test_hooks"] = {}
+    elif injection_kind == "hook":
+        kwargs["_test_hooks"] = {
+            "read_collection": lambda: injected_calls.append("hook")
+        }
+    else:
+        kwargs["_candidate_loader"] = (
+            lambda *args, **values: injected_calls.append("candidate_loader")
+        )
+
+    output = tmp_path / "final"
+    with pytest.raises(CameraDevelopmentError, match="test injection"):
+        run_authorized_camera_development(
+            project_root=ROOT,
+            config_path=CONFIG,
+            receipt_path=tmp_path / "receipt.json",
+            collection_path=tmp_path / "collection.json",
+            tracking_path=tmp_path / "tracking.jsonl",
+            media_sidecar_path=tmp_path / "sidecar.json",
+            candidate_manifest_path=tmp_path / "manifest.json",
+            expected_manifest_sha256=MANIFEST_SHA,
+            output_dir=output,
+            **kwargs,
+        )
+    assert boundary_calls == []
+    assert injected_calls == []
+    assert not output.exists()
+    assert not list(tmp_path.glob("final.staging-*"))
+
+
+@pytest.mark.parametrize(
+    ("mode", "authorization_status", "expected_evidence_scope"),
+    (
+        (
+            "engineering_smoke",
+            "authorized_camera_engineering_smoke",
+            "authorized_development_smoke",
+        ),
+        (
+            "labeled_evaluation",
+            "authorized_camera_labeled_evaluation",
+            "authorized_labeled_development_evaluated",
+        ),
+    ),
+)
+def test_receipt_gated_controller_selects_authorized_scope_only_on_private_forward(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    mode: str,
+    authorization_status: str,
+    expected_evidence_scope: str,
+) -> None:
+    receipt = _receipt(expires_at="2099-01-01T00:00:00+08:00")
+    collection = _collection()
+    sidecar = {
+        "schema_version": "wandering-media-v1",
+        "source_video_id": "video-0001",
+        "source_group_id": "group-0001",
+        "device_id": "device-0001",
+        "setup_id": "adapter-setup-0001",
+        "stream_epoch": "epoch-0001",
+        "media_ref": "deidentified/video-0001.mp4",
+        "source_sha256": "1" * 64,
+        "tracking_jsonl_sha256": "2" * 64,
+        "video_width": 640,
+        "video_height": 480,
+        "nominal_fps": 25.0,
+        "duration_sec": 40.0,
+        "capture_started_at": None,
+        "timezone": None,
+        "coordinate_system": "pixel_xyxy_top_left",
+        "detector": {
+            "backend": "ultralytics_yolo",
+            "model": "yolov8n.pt",
+            "version": "test-double",
+        },
+        "tracker": {
+            "backend": "bytetrack",
+            "config": "bytetrack.yaml",
+            "version": "test-double",
+        },
+        "fixed_camera_assumed": True,
+        "camera_motion_state": "stable",
+        "authorization_status": authorization_status,
+        "deidentification_status": "deidentified",
+    }
+    receipt_path = tmp_path / "receipt.json"
+    collection_path = tmp_path / "collection.json"
+    sidecar_path = tmp_path / "sidecar.json"
+    receipt_path.write_text(json.dumps(receipt), encoding="utf-8")
+    collection_path.write_text(json.dumps(collection), encoding="utf-8")
+    sidecar_path.write_text(json.dumps(sidecar), encoding="utf-8")
+    annotations_path = tmp_path / "annotations.jsonl"
+    annotations_path.write_text("{}\n", encoding="utf-8")
+
+    order: list[str] = []
+    captured: dict[str, str] = {}
+    original_read_json = camera_development_module._read_json
+
+    def read_json(path: Path, role: str):
+        order.append(f"read:{role}")
+        return original_read_json(path, role)
+
+    def source_preflight(**kwargs):
+        order.append("source_preflight")
+        return {"passed": True, "test_double": True}
+
+    def read_tracking(*args, **kwargs):
+        order.append("tracking")
+        return SimpleNamespace()
+
+    runtime = SimpleNamespace(model=_DeterministicCameraModel())
+
+    def load_runtime(**kwargs):
+        order.append("candidate_loader")
+        return runtime
+
+    def run_qc(*args, **kwargs):
+        order.append("qc")
+        return SimpleNamespace(
+            ready_inputs=(),
+            window_records=({"window_id": "window-0001", "window_status": "ready"},),
+        )
+
+    class ScopeCaptured(RuntimeError):
+        pass
+
+    def private_forward(
+        prepared_window,
+        observed_runtime,
+        *,
+        validation_scope: str,
+        evidence_scope: str,
+    ):
+        order.append("private_forward")
+        assert prepared_window["window_id"] == "window-0001"
+        assert observed_runtime is runtime
+        captured.update(
+            validation_scope=validation_scope,
+            evidence_scope=evidence_scope,
+        )
+        raise ScopeCaptured
+
+    monkeypatch.setattr(camera_development_module, "_read_json", read_json)
+    monkeypatch.setattr(
+        camera_development_module, "_preflight_active_source_identity", source_preflight
+    )
+    monkeypatch.setattr(
+        camera_development_module,
+        "_verify_preprocessing_roots",
+        lambda *args, **kwargs: {"preprocessing_config": tmp_path / "unused.yaml"},
+    )
+    monkeypatch.setattr(
+        camera_development_module, "load_preprocessing_config", lambda *args: {}
+    )
+    monkeypatch.setattr(camera_development_module, "_load_feature_stats", lambda *args: {})
+    monkeypatch.setattr(camera_development_module, "load_camera_inputs", read_tracking)
+    monkeypatch.setattr(
+        camera_development_module,
+        "validate_episode_annotations",
+        lambda *args, **kwargs: [],
+    )
+    monkeypatch.setattr(
+        camera_development_module, "_validate_labeled_c3", lambda *args, **kwargs: None
+    )
+    monkeypatch.setattr(
+        camera_development_module,
+        "_bind_actual_tracking_to_c3",
+        lambda *args, **kwargs: {},
+    )
+    monkeypatch.setattr(camera_development_module, "load_primary_camera_runtime", load_runtime)
+    monkeypatch.setattr(camera_development_module, "run_camera_qc", run_qc)
+    monkeypatch.setattr(
+        camera_development_module,
+        "_configure_cpu_runtime",
+        lambda *args: {"previous_intra_op": torch.get_num_threads()},
+    )
+    monkeypatch.setattr(
+        camera_development_module,
+        "_predict_primary_camera_window_with_provenance",
+        private_forward,
+    )
+
+    output = tmp_path / "final"
+    fixed_manifest = (
+        ROOT
+        / "reports/mental_health/wandering_performance/m0r_score_entry_hardening_v1"
+        / "artifacts/topowander_m0r_candidate_v3/candidate_manifest.json"
+    )
+    with pytest.raises(ScopeCaptured):
+        run_authorized_camera_development(
+            project_root=ROOT,
+            config_path=CONFIG,
+            receipt_path=receipt_path,
+            collection_path=collection_path,
+            tracking_path=tmp_path / "tracking.jsonl",
+            media_sidecar_path=sidecar_path,
+            candidate_manifest_path=fixed_manifest,
+            expected_manifest_sha256=MANIFEST_SHA,
+            output_dir=output,
+            mode=mode,
+            annotations_path=(annotations_path if mode == "labeled_evaluation" else None),
+            evaluation_policy=(
+                {
+                    "matching_policy": _matching_policy(),
+                    "uncertain_policy": {
+                        "policy_id": "uncertain-test-v1",
+                        "threshold": 0.5,
+                    },
+                    "episode_merge_policy": {
+                        "policy_id": "merge-test-v1",
+                        "merge_gap_seconds": 0.0,
+                    },
+                }
+                if mode == "labeled_evaluation"
+                else None
+            ),
+        )
+
+    assert order == [
+        "read:authorization receipt",
+        "read:collection",
+        "read:media sidecar",
+        "source_preflight",
+        "tracking",
+        "candidate_loader",
+        "qc",
+        "private_forward",
+    ]
+    assert captured == {
+        "validation_scope": authorization_status,
+        "evidence_scope": expected_evidence_scope,
+    }
+    assert not hasattr(camera_development_module, "predict_primary_camera_window")
+    assert not output.exists()
+    assert not list(tmp_path.glob("final.staging-*"))
 
 
 def test_production_rejects_synthetic_before_candidate_or_output(tmp_path: Path) -> None:
@@ -884,5 +1217,17 @@ def test_labeled_authorization_is_maximum_use_not_automatic_evidence_upgrade(
 
 def test_development_cli_has_no_synthetic_or_bypass_flags() -> None:
     text = (ROOT / "scripts/wandering/run_camera_development.py").read_text(encoding="utf-8")
-    for forbidden in ("allow-synthetic", "fake-runtime", "public-loader", "bypass"):
+    for forbidden in (
+        "allow-synthetic",
+        "fake-runtime",
+        "public-loader",
+        "bypass",
+        "evidence-scope",
+        "validation-scope",
+        "test-fixture",
+        "test-hooks",
+        "candidate-loader",
+        "os.environ",
+        "getenv(",
+    ):
         assert forbidden not in text

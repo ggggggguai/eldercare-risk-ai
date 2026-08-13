@@ -25,6 +25,7 @@ def main() -> None:
     args = parser.parse_args()
     root = args.project_root.resolve(strict=True)
     result = prepare_authorized_camera_session(
+        project_root=root,
         receipt_path=args.receipt,
         collection_path=args.collection,
         tracking_jsonl_path=args.tracking,
