@@ -77,6 +77,8 @@
 | 复现 | [TopoWander-MPT M0-RH score-entry hardening v3](../reports/mental_health/wandering_performance/m0r_score_entry_hardening_v1/README.md) | 唯一 `score-frozen-wp` 正式入口、固定 CPU runtime、source/archive/双身份 preflight、validation parity 与拒绝覆盖原子提交；作为 M0-RS 的冻结前置证据 |
 | 评估 | [TopoWander-MPT M0-RS fixed WP public-holdout score](../reports/mental_health/wandering_performance/m0rs_public_holdout_score_report_v1/README.md) | 固定 primary 候选的一次 public-shape 计分、六文件原子输出、独立复算与预注册门槛判定；`target_met`，不是首次盲测或 camera/老人域证据 |
 | 复现 | [TopoWander-MPT M0-CAM-E / M0-CAM-H primary camera 工程闭环](../reports/mental_health/wandering_m0cam_engineering_v1/README.md) | 固定 primary 接入 Step7 adapter/QC/prepared arrays，并完成 synthetic-only、二分类平票与 active-source 三项加固；仅为 `synthetic_contract_only`，当前数据工具与授权评估见任务表 |
+| 复现 | [TopoWander-MPT M0-CAM-RD camera development 数据工具](../reports/mental_health/wandering_camera_data_readiness_v1/README.md) | 初版 240 条 synthetic observation、schema/readiness 与历史工具骨架；制品保持不变，真实 readiness 仍为 `not_ready` |
+| 复现 | [TopoWander-MPT M0-CAM-RD-F development entry/evaluator 加固](../reports/mental_health/wandering_camera_rd_f_v1/README.md) | receipt-first、C3、session-aware person-hours、evaluator 和最大基数 matching 主体已完成；证据仍为 `synthetic_schema_contract_only`，authorized API provenance 尚待 RD-F2 收口 |
 | 历史 | [徘徊样行为识别旧方案](../文档/徘徊样行为识别技术方案（历史归档-2026-08-12）.md) | 截至 2026-08-12 的旧步骤、报告和精确协议，仅供追溯，不代表现行路线 |
 | 任务 | [当前任务](tasks/README.md) | 项目待办和验证缺口 |
 

@@ -42,6 +42,7 @@
 12. M0-RH v3 的受信 frozen-WP 正式计分入口、固定 CPU 运行时、accessor 前 source/archive/双身份 preflight、拒绝覆盖和原子提交协议；
 13. M0-RS 固定 primary 候选的一次 WP public-holdout 计分、正式六文件固化、独立指标复算和预注册门槛判定；
 14. M0-CAM-E 将同一固定 primary 通过独立 wrapper 接入 Step7 camera adapter/QC/prepared arrays，形成逐窗分层概率、最小 episode candidate、失败闭锁、原子 bundle 与 synthetic CPU 延迟证据；M0-CAM-H 已进一步完成 synthetic-only 入口、二分类平票规则和 active model/release 源码身份三项加固。
+15. M0-CAM-RD-F 已加固独立 authorized-development 入口：三个 CLI receipt-first、primary loader threshold/evidence envelope 兼容、实际 tracking↔C3 participant/session/setup/clock 唯一绑定、session-aware eligible negative person-hours、truth mask/abstention/unavailable/error/miss 分离，以及最大基数优先的确定性 episode matching。
 
 这些能力彼此隔离，不自动表示已经形成可部署的徘徊模型。
 
@@ -87,6 +88,8 @@ M0-RS 固定 primary 在 240 条 WP public holdout 上的 WP 四分类 macro-F1 
 - [TopoWander-MPT M0-RH score-entry hardening v3 报告](../../../reports/mental_health/wandering_performance/m0r_score_entry_hardening_v1/README.md)
 - [TopoWander-MPT M0-RS fixed WP public-holdout score 报告](../../../reports/mental_health/wandering_performance/m0rs_public_holdout_score_report_v1/README.md)
 - [TopoWander-MPT M0-CAM-E / M0-CAM-H primary camera 工程报告](../../../reports/mental_health/wandering_m0cam_engineering_v1/README.md)
+- [TopoWander-MPT M0-CAM-RD camera development 数据工具报告](../../../reports/mental_health/wandering_camera_data_readiness_v1/README.md)
+- [TopoWander-MPT M0-CAM-RD-F development entry/evaluator 加固报告](../../../reports/mental_health/wandering_camera_rd_f_v1/README.md)
 
 合成 Camera QC 与污染压力只用于工程兼容性和鲁棒性诊断：
 
@@ -106,6 +109,8 @@ M0-RH v3 已在保持相同 M0-S model/forward/performance bytes 的前提下补
 M0-RS 已在负责人明确授权后使用同一 primary 和唯一正式入口完成一次 WP public-holdout 计分。正式六文件通过同文件系统 staging 验证后原子提交，canonical records/order SHA 已形成；独立复算与 artifact descriptor 全部一致，结果为 `wandering_m0rs_public_holdout_scored`、`performance_status=target_met`。该结果不会用于回调模型、阈值、split、标签或协议；其后的 M0-CAM-E 仅复用该固定候选做 camera 工程接线。
 
 M0-CAM-E 已把固定 primary candidate 通过 manifest-bound loader 接入既有 Step7 adapter、Camera QC 和 prepared-array 路径，并以 CPU float32 `eval`/`inference_mode` 直接 forward ready window。逐窗输出保留完整 scope/tracklet/time/QC、binary/subtype/four-class 未校准概率和不可用零调用语义；最小 episode candidate 只在相同完整 scope、parent tracklet 与预测 shape 内合并，策略保持 `development_unfrozen`，不输出 alert、risk 或 `AlgorithmEvent`。M0-CAM-H 已完成 synthetic-only 入口、`p(wandering_like) >= 0.5` 平票规则和 active `model.py/release.py` 身份预检；fresh synthetic v4 仍为 2 ready、1 unavailable、2 个隔离 episode。状态保持 `wandering_m0cam_primary_camera_engineering_ready`，`hardening_complete=true`，证据仍严格限定为 `synthetic_contract_only`，不是 camera 性能。
+
+M0-CAM-RD 初版已实现匿名 collection/session manifest、C0 receipt validator、tracking+sidecar 规范化、episode annotation validator、C0-C3 readiness、authorized-development 控制流骨架和参数化 evaluator 原语；原 240 条 synthetic observation 与 `not_ready` 制品保持不变。M0-CAM-RD-F 随后完成主体软件加固：development config 满足固定 primary loader 的 binary threshold contract；三个 CLI receipt-first；labeled path 完成实际六字段 tracking scope 绑定；person-hours 按 participant+session+clock domain 计算；truth masking、模型 abstention、unavailable/error 与 miss 分离；episode matching 改为最大匹配数优先。production-path 自动化仅用 `tmp_path` test fixture 并在 candidate-loader 边界注入 deterministic fake model，所有 fixture 输出均为 `test_fixture_only`。独立 API 边界审计仍要求 RD-F2 禁止非 fixture `_test_hooks`，并把 authorized evidence scope 限定为 receipt-gated controller 内部能力；收口前不接真实 C1、不启动 M0-CAM-D。证据仍为 `synthetic_schema_contract_only`、`readiness_status=not_ready`，没有真人数据或 camera 性能。
 
 独立审计从 278 条 development predictions 复算出了相同 validation 指标，并确认 materialized train/validation 的 sample ID、parent ID 和精确特征无重合。边界口径需要准确理解：共享 preprocessing container 会为完整性解析其中的 WP test 行，M0-S 的训练、validation、fresh reload 与选点路径没有使用 test；SmartCare official/raw 与 sealed camera 没有进入本次模型流程。仓库契约测试会读取 frozen accessor，Step5/Step6 也已对 WP test 做过历史评分，因此 M0-RS 只能称为固定候选的 public-holdout 计分，而不是项目级首次盲测。WanderingPatterns 没有可靠 participant/session 分组，且近邻审计有 4,054 对 `<0.05` 跨分区形状近邻，所以当前高分只属于固定公开轨迹 benchmark。
 
@@ -129,7 +134,7 @@ Step10-A 的五 seed pair-aware 预训练仍只在外部活动工作树形成候
 以下能力尚未完成或未获得证据：
 
 - M0-CAM-E / M0-CAM-H 只有 synthetic contract 工程证据；没有目标机位真人 development 数据，不能报告 camera accuracy/F1/recall/FAR、校准、真实 episode 或产品延迟结论；
-- camera collection/session manifest、annotation validator、分组 readiness 与 authorized-development evaluator 尚未实现；当前应先完成 M0-CAM-RD，且现有 primary CLI 继续只接受 synthetic fixture，不得通过放宽它来接入真人数据；
+- M0-CAM-RD-F 主体已完成，但 authorized API provenance 仍待 RD-F2 收口；完成前不把真实 C1 交给新 RD CLI。随后还需合法 C0+C1 才可进入 M0-CAM-D engineering smoke，有标签评估还需 C2+C3；现有 primary CLI 继续只接受 synthetic fixture；
 - M0-CAM-D 尚未取得授权 development 数据上的目标机位轨迹、覆盖率、逐窗置信度、QC/fallback、episode 指标或延迟证据；
 - 目标摄像头授权、episode 真值和独立 sealed camera 评估；
 - 目的性行为与真正告警需求的上下文决策层；
