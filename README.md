@@ -5,7 +5,7 @@
 本工程只覆盖算法开发部分，面向两个模块：
 
 - `fall_risk`：跌倒风险前置预警算法。规则主路径、实时 HTTP 会话和回调链路可运行；v3 事件监督与步态、坐站、近跌倒/跌倒候选模型开发链已建立，但候选模型仍为 provisional/shadow，尚未替换规则主路径。
-- `mental_health`：心理健康风险预警算法。行为/睡眠适配、日级聚合、个人基线、风险评分和离线 CLI 已实现；徘徊专项已形成固定 TCN + Transformer primary bundle、完成 public-shape 候选级计分和 synthetic camera 工程闭环，当前先补齐 camera development 数据就绪工具与授权数据闭环，再进入目标机位评估。尚未形成目标摄像头、真实老人或临床效果证据，也未接入现有评分主链。
+- `mental_health`：心理健康风险预警算法。行为/睡眠适配、日级聚合、个人基线、风险评分和离线 CLI 已实现；徘徊专项已形成固定 TCN + Transformer primary bundle，完成 public-shape 候选级计分、synthetic camera 工程闭环、development 数据/授权入口、receipt-first C1 视频准备主体及 C01-F/F2 加固和本地 Git 集成。真实数据线等待负责人提供 C0、授权视频和匿名 collection；软件线当前唯一无视频任务是尚未启动的 `M0-CAM-PORTABLE`，两类前置均就绪后才进入目标机位 engineering smoke。尚未形成目标摄像头、真实老人或临床效果证据，也未接入现有评分主链。
 
 系统开发不在本工程范围内。家属端、社区端、账号、消息推送、工单流转、可视化看板等只通过标准 JSON 接口对接。
 
@@ -45,14 +45,14 @@ conda run -n eldercare-ai python -m pip show elderly-monitoring-algorithms
 
 跌倒数据同时存在两个不同层级：v2 是根标签和发布候选契约，formal 校验仍有 blocker；v3 是由 v2 与哈希绑定项目裁决确定性生成的模型训练契约，当前 fall/near-fall 事件监督门禁通过，但 split 尚未冻结，动作类型门禁仍未通过。两者不能互相替代。
 
-心理健康模块的日级 baseline 已可离线运行；徘徊专项采用性能优先的 TCN + Transformer 路线，固定 public-shape 候选计分和 synthetic camera 工程接入已经完成，当前并行推进 camera development 数据工具与目标摄像头授权/采集，合法 development 数据就绪后再做目标机位评估。详细技术路线见[徘徊识别技术文档2](docs/modules/mental_health/plans/徘徊识别技术文档2.md)，当前进度只在[任务表](docs/tasks/README.md)维护。
+心理健康模块的日级 baseline 已可离线运行；徘徊专项采用性能优先的 TCN + Transformer 路线，固定 public-shape 候选计分、synthetic camera 工程接入、authorized-development 入口、receipt-first C1 视频准备主体、C01-F/F2 加固和本地 Git 集成均已完成。真实数据线等待负责人/R5 提供 C0、授权视频和匿名 collection；软件线当前转入尚未启动的运行资产 portability，再做目标机位无标签 engineering smoke。详细技术路线见[徘徊识别技术文档2](docs/modules/mental_health/plans/徘徊识别技术文档2.md)，当前进度只在[任务表](docs/tasks/README.md)维护。
 
 当前优先级：
 
 1. 处理跌倒 v2 formal blocker，复核并冻结 v3 事件标签、split 和一次性 test 发布协议。
 2. 为候选模型补充连续背景、老人域、跨来源和困难负样本证据，并完成与规则 baseline 的同协议对照、延迟和稳定性验收。
 3. 完成真实萤石直播、算法会话与业务后端风险回调联调，以及固定硬件长时资源验收。
-4. 按[任务表](docs/tasks/README.md)推进徘徊 camera development 数据就绪工具、授权采集和随后目标机位评估；根 README 不重复维护具体阶段、分支或实验数值。
+4. 按[任务表](docs/tasks/README.md)执行当前唯一无视频软件任务 `M0-CAM-PORTABLE`，并行等待负责人提供 C0/C1 授权采集输入；两类前置均通过后推进无标签目标机位 smoke 和后续 C2/C3 有标签评估。根 README 不重复维护具体阶段、分支或实验数值。
 5. 继续保持两个模块独立评分、独立验证和独立输出，只共享 `AlgorithmEvent` 字段契约。
 
 详细实现状态以 `docs/architecture/算法工程骨架.md` 和两个模块 README 为准；尚未完成的工作只在 `docs/tasks/README.md` 维护，实验数值以 `reports/` 下对应报告为准。
