@@ -759,6 +759,25 @@ def create_topowander_model(config: dict[str, Any]) -> TopoWanderMPT:
     return TopoWanderMPT(config)
 
 
+def create_topowander_training_model(config: dict[str, Any], *, seed: int) -> TopoWanderMPT:
+    """Construct the exact forward module with a reproducible training initialization.
+
+    The forward contract keeps its historical canonical initialization seed so
+    that ordinary construction remains byte-stable.  M0-S needs the same
+    initialization *method* under three explicit seeds; this factory therefore
+    reapplies that unchanged method without mutating the trusted forward config
+    or the caller RNG.
+    """
+
+    if not isinstance(seed, int) or isinstance(seed, bool) or seed < 0:
+        raise TopoWanderContractError("training initialization seed must be a non-negative integer")
+    model = TopoWanderMPT(config)
+    with torch.random.fork_rng(devices=[], enabled=True):
+        torch.manual_seed(seed)
+        model._initialize_parameters()
+    return model
+
+
 def validate_topowander_inputs(
     model_features: torch.Tensor,
     shape_normalized_points: torch.Tensor,
@@ -1230,6 +1249,7 @@ __all__ = [
     "build_patch_geometry",
     "build_symmetric_relation_features",
     "create_topowander_model",
+    "create_topowander_training_model",
     "deterministic_npz_bytes",
     "hierarchical_four_class_probabilities",
     "load_topowander_config",
