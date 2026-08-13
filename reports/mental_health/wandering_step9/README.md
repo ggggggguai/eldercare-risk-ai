@@ -15,7 +15,7 @@
 
 继续复核确认，先前补写的裸 forward SHA `572c02e20a0b263ecabe1c466e13743ba0bf2c5b36b47f2a5e8a91f10d30c6ef` 在 HEAD、源码和测试中没有生成器，文档也未定义 fixture/mode/order/serialization；多组常见口径均无法命中。该值正式标记为 `withdrawn_provenance_missing`，不是 forward 漂移证据，步骤 9a 不得把它写成 expected。
 
-项目负责人授权在步骤 9a 中先增加测试私有的规范 `forward_signature_v1`，完整公式和参考实现以[技术方案第 9a.2–9a.3 节](../../../docs/modules/mental_health/plans/徘徊样行为识别技术方案.md)为唯一事实源。当前项目环境中，修改实现前的两个独立进程和修复后窄测均得到 fixture deterministic NPZ `6192 bytes / 584d22203c5df5860e19eca9f8d758d7d33eb40a46096eb2025c7ee58b457c72`，forward deterministic NPZ `1022 bytes / 01415e02b01c71ad1d96fc2d5bc7b1fd8a0e400c45cd480ea8a62092293ef61c`。其余回归锚点仍为 config SHA-256 `debd3adcf0c84d266ca594fd9ba2716a5a854e074e6e2092570b1ec656ed80f7`、204,466 参数、77 个 state key、state NPZ 838,934 bytes/SHA-256 `6bd7094845c749a2b73502e9480ec9e6fb3df24d313cb4674b41f3903e96cd40`。
+项目负责人授权在步骤 9a 中先增加测试私有的规范 `forward_signature_v1`，完整公式和参考实现以[历史归档方案第 9a.2–9a.3 节](../../../文档/徘徊样行为识别技术方案（历史归档-2026-08-12）.md)为当时事实源。当前项目环境中，修改实现前的两个独立进程和修复后窄测均得到 fixture deterministic NPZ `6192 bytes / 584d22203c5df5860e19eca9f8d758d7d33eb40a46096eb2025c7ee58b457c72`，forward deterministic NPZ `1022 bytes / 01415e02b01c71ad1d96fc2d5bc7b1fd8a0e400c45cd480ea8a62092293ef61c`。其余回归锚点仍为 config SHA-256 `debd3adcf0c84d266ca594fd9ba2716a5a854e074e6e2092570b1ec656ed80f7`、204,466 参数、77 个 state key、state NPZ 838,934 bytes/SHA-256 `6bd7094845c749a2b73502e9480ec9e6fb3df24d313cb4674b41f3903e96cd40`。
 
 ## 步骤 9a 首轮验收记录（2026-08-07，后被终审推翻）
 
@@ -36,7 +36,7 @@
 2. 构造器保存调用方原 config 引用，`model.config is caller_config`。构造后把 `relation.center_distance_scale` 从 `0.10` 改成 `0.20`，同一 fixture 的 binary/subtype/projection 输出最大绝对变化分别约 `0.011673/0.006150/0.019163`，但参数/state/NPZ 锚点不变。
 3. 生产 `forward()` 当前顺序正确，但规范 NPZ 按 ASCII 排序且测试只比较 key set；任意重排输出 mapping 都不会改变 `01415e…f61c`，因此还需独立锁定 `binary_logit → subtype_logits → projection_embedding`。
 
-这仍是原步骤 9a exact-config/forward 契约范围，不另立 9b。下一次实现必须先写 TOCTOU 与 config mutation 两个应失败红测，同时加入当前应通过的 forward 顺序契约断言；随后让 config 原始字节只读一次并由同一 payload 完成 SHA/严格 UTF-8/YAML/type-strict 解析，模型保存递归不可变且无调用方别名的私有 config 快照，只读视图同时拒绝嵌套原地修改和 `model.config = ...` 重绑定。拒绝必须早于构模、state 读取和赋值，稳定合法路径仍须成功。完整规则以[技术方案第 9a.5 节](../../../docs/modules/mental_health/plans/徘徊样行为识别技术方案.md)为准。
+这仍是原步骤 9a exact-config/forward 契约范围，不另立 9b。下一次实现必须先写 TOCTOU 与 config mutation 两个应失败红测，同时加入当前应通过的 forward 顺序契约断言；随后让 config 原始字节只读一次并由同一 payload 完成 SHA/严格 UTF-8/YAML/type-strict 解析，模型保存递归不可变且无调用方别名的私有 config 快照，只读视图同时拒绝嵌套原地修改和 `model.config = ...` 重绑定。拒绝必须早于构模、state 读取和赋值，稳定合法路径仍须成功。完整规则以[历史归档方案第 9a.5 节](../../../文档/徘徊样行为识别技术方案（历史归档-2026-08-12）.md)为准。
 
 修正后必须保持 config SHA、204,466 参数、77 state key、838,934-byte state NPZ/`6bd709…d40`、fixture `6192/584d2220…457c72`、output `1022/01415e02…93ef61c` 和 A/V/H/C 不变，重新记录最终 `model.py` SHA，并复跑窄测、全部徘徊和完整测试。满足前不得恢复 `step9a_exact_config_fail_closed_verified`/`step9_forward_contract_verified`，也不得形成步骤 9+9a 最终检查点或开始步骤 10。
 

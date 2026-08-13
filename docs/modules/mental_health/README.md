@@ -1,287 +1,151 @@
 # 心理健康风险算法模块
 
-本模块输出行为与睡眠变化的工程特征和独立心理健康风险事件，用于风险预警和人工复核，不输出医学诊断。当前已完成数据适配、日级聚合、个人基线、持续异常、风险评分和离线日级 CLI。
+更新时间：2026-08-13
 
-跌倒风险与心理健康风险共享上游感知、人员身份和姿态质量数据，但分别评分并分别输出各自的 `AlgorithmEvent`。心理健康管线只产生 `module=mental_health` 的独立事件。
+本模块输出行为与睡眠变化的工程特征和独立心理健康风险事件，用于风险预警和人工复核，不输出医学诊断。心理健康与跌倒模块共享上游感知和 `AlgorithmEvent` 字段契约，但分别评分、验证和输出；本模块只产生 `module=mental_health` 事件。
 
-专项目标设计见[徘徊样行为识别技术方案](plans/徘徊样行为识别技术方案.md)，跨团队分工、交付物和验收条件见[徘徊模块协作交接与职责边界](徘徊模块协作交接与职责边界.md)。当前已建立隔离的 `mental_health.wandering` 实验子包，提供版本化 `TrajectorySample` 契约、严格且原子化的安全 JSONL 读写，以及 `wandering-source-manifest-v1`、`wandering-conversion-report-v1`、`wandering-split-v1` 三项严格契约。manifest/report 会绑定相对来源路径、来源和输出 SHA-256、转换器版本、样本计数、稳定 sample ID 与结构化警告；split 会绑定来源 manifest 哈希，拒绝重复、未知、遗漏和跨分区 sample ID，并把 `sealed_external_test` 作为独立互斥分区。所有 JSON 采用固定排序和原子写入，原始来源只读。
+- 现行徘徊路线：[徘徊识别技术文档2](plans/徘徊识别技术文档2.md)
+- 当前任务：[任务表](../../tasks/README.md)
+- 跨角色接口：[徘徊模块协作交接与职责边界](徘徊模块协作交接与职责边界.md)
+- 旧完整方案：[历史归档](../../../文档/徘徊样行为识别技术方案（历史归档-2026-08-12）.md)
 
-方案步骤 2 已于 2026-08-03 完成。两个隔离转换器和真实产物通过自动验证：WanderingPatterns 写出 1,600 条，SmartCare 写出 210 条并拒绝 10 条；当前严格 reader 共读回 1,810 条，两次全新运行的 9 个 bundle 文件逐文件 SHA-256 一致。SmartCare 的 9 条极短轨迹、2 条越界轨迹及 1 条重叠关系均有结构化记录；WanderingPatterns 固定哈希 DataFrame 的实际列中没有人员、会话或其他受支持 group 字段。固定种子为 6 个类别各生成 20 条联系表，用户已确认 6 张均可通过，详见[步骤 2 转换与复核记录](../../../reports/mental_health/wandering_step2/README.md)和[人工复核记录](../../../reports/mental_health/wandering_step2/HUMAN_REVIEW.md)。
+本文只维护已经实现的能力和当前限制，不保存下一步路线、分支、逐次测试计数或制品哈希；精确实验事实以对应 `reports/mental_health/` 报告为准。
 
-方案步骤 3 已于 2026-08-03 完成。`configs/data/wandering_split_v1.yaml` 固定六个输入哈希、`seed=20260731`、`group_policy=source_specific_v1` 和 SmartCare validation 日期；来源专用 builder 在分配前校验全部输入，已有输出目录时拒绝覆盖。1,810 个 ID 全部且只分配一次：WP 四类各 `280/60/60`，SmartCare 开发池 train 152/validation 38，官方 20 条全部且只进入 `sealed_external_test`。五个机器产物位于 `data/splits/mental_health/wandering/v1/`，split 语义哈希为 `4ac4a3877a056809066562cb09e4d30aa1d38baafcb4600f1f8a8a672776adbf`；两个全新目录重建逐字节一致，正式记录见[步骤 3 固定 split 复现记录](../../../reports/mental_health/wandering_step3/README.md)。
+## 1. 已实现的通用心理健康能力
 
-方案步骤 4 的代码和机器产物已于 2026-08-03 完成。`configs/data/wandering_preprocessing_v1.yaml` 同时钉死两份公开来源、全部 split 相关文件和 canonical split 哈希；builder 只读取 WP samples、SmartCare train pool、split 和 assignments，未打开 official validation。正式 bundle 一对一保留 1,790 个非 sealed ID：1,775 ready，15 条 SmartCare train 为 `unavailable/too_few_valid_points`（normal 10、wandering-like 5）；ready 固定为 train 1,257、validation 278、WP test 240。每条 ready 记录含 `T=80` 来源/shape 视图、严格 `[80,14]` 的 `raw_features/model_features`、全 1 mask 和拓扑诊断；WP 不伪造 image 画布，当前时间两通道全 0。train-only 统计使用 100,560 个有效位置，四个机器文件在两个新目录逐字节一致。完整哈希、命令与边界见[步骤 4 复现记录](../../../reports/mental_health/wandering_step4/README.md)。
+当前代码已经支持：
 
-步骤 4 的人工门禁也已关闭。项目用户于 2026-08-03 完成 48 条固定 ready train 和全部 15 条 unavailable 短轨迹复核，未记录异常，[HUMAN_REVIEW.md](../../../reports/mental_health/wandering_step4/HUMAN_REVIEW.md) 状态为 `human_review_passed`。本轮复验中，步骤 4 窄测试为 `25 passed, 20 subtests passed`，全部徘徊回归为 `73 passed, 74 subtests passed`；另在全新目录重建四个机器文件并与正式 bundle 逐字节一致。因此步骤 4 已满足进入步骤 5 的技术和人工门禁。
+- 行为、睡眠和自评数据适配；
+- 日级聚合与缺失模态处理；
+- 个人基线与持续异常判断；
+- 独立心理健康风险评分；
+- 离线日级 CLI；
+- `AlgorithmEvent(module=mental_health)` 输出。
 
-方案步骤 5 已于 2026-08-03 完成，并于 2026-08-04 通过独立复核。strict loader 同时绑定步骤 4 四个机器文件、canonical split、assignments、近邻审计和 `human_review_passed` 原始字节；固定 26 维手工特征与两个 Random Forest 对照任务按五个预注册 seed 运行。development 只保存 1,535 条 train+validation ready 特征、只在 train 拟合；外部 manifest SHA 明确传入后，evaluator 才对 240 条 WP test 生成特征和指标。RF config SHA 为 `d29db531f42ae5d7cf4ed540a85681ddab78e483695633ccc8b382d98e745e35`，development manifest 为 `fff6340e868de32bee2021ec1000f166b8caabe5caeb1132abb8ab822bfaaaf2`，public benchmark manifest 为 `8b89b0b4f14e2c9e4054b8121c9ee8428eab8b6311c32a411b699f46cb02167c`。正式产物的文件哈希、样本/标签计数、逐条预测、10 个模型指纹和解释输出均独立复算一致；另在全新目录完整训练并重放 evaluator，两个 manifest 与正式结果逐字节一致。窄测试为 `22 passed, 21 subtests passed`，全部徘徊回归为 `95 passed, 95 subtests passed`；完整测试为 `473 passed, 1 failed, 162 subtests passed`，唯一失败是跌倒模块固定视频缺失。四分类 validation 五 seed macro-F1 为 `0.9726±0.0033`，二分类 WP/SmartCare 来源等权 macro-F1 为 `0.9507±0.0069`；完整分来源指标、安全加载、解释、失败案例、CPU 延迟与确定性证据见[步骤 5 RF 对照报告](../../../reports/mental_health/wandering_step5/README.md)。
+尚未建立在线日级调度、真实萤石会话接入或业务回调闭环。徘徊轨迹分类也尚未接入日级心理健康主链。
 
-方案步骤 6 已于 2026-08-04 完成。`configs/modules/wandering_tcn_v1.yaml` 同时绑定 RF config、RF development/public manifest、步骤 4 bundle/split/schema 和全部结构/训练参数；development 继续调用步骤 5 strict loader。WP 四分类与 WP+SmartCare 二分类分别从随机初始化训练五个互不共享任何参数或优化器的纯 TCN，共 10 个单线程 CPU checkpoint。输入只含 `[80,14] model_features + point_mask`，零基索引 10/11 时间通道保持 0、索引 12 与外部 mask 一致；15 条 unavailable 未进入 tensor/loss，SmartCare 未进入 four-class，official 20 条没有步骤 6 入口。checkpoint 使用固定 ZIP 元数据、排序 state key、仅含有限 float32 数组的 NPZ，加载不调用 `torch.load`；外部 manifest SHA、全部 artifact、配置/源码/环境、NPZ key/dtype/shape/finite 和 semantic fingerprint 全部通过后才允许 forward。
+## 2. 已实现的徘徊研发底座
 
-步骤 6 development manifest 为 `0f4c48d948f0f4355dd577c89330b050ecb1bb513ca83ef1b25234897e27a10e`，public benchmark manifest 为 `1b0c67f86b291dfba4d48314d470d5bc09f84089aac7e23c718e3cd77ad8c2c4`。两个独立 development 目录各 46 个文件、两个固定 test 目录各 14 个文件，逐文件长度和 SHA-256 差异均为 0。validation 五 seed 四分类 macro-F1 为 `0.9411±0.0105`，二分类来源等权 macro-F1 为 `0.9967±0.0011`；WP public shape benchmark 分别为 `0.9380±0.0106` 和 `0.9844±0.0075`。相对同 seed RF，四分类 validation/test 分别低 `0.0315/0.0328`，二分类分别高 `0.0460/0.0242`；没有为改善结果修改 split、seed、early stopping 或结构。完整指标、训练历史、安全加载、失败案例和 CPU 基准见[步骤 6 纯 TCN 对照报告](../../../reports/mental_health/wandering_step6/README.md)。
+徘徊专项目前具备以下隔离能力：
 
-方案步骤 7 已于 2026-08-04 完成，并在同日关闭工程评审发现的三个边界问题。`configs/modules/wandering_camera_v1.yaml` 以 exact fields 固定步骤 4/5/6 信任根、2 Hz bucket、40 秒/80 点窗口、20 秒 stride、Camera QC、高度补偿和 `primary_seed=20260731`。新 camera 子层严格校验 `wandering-media-v1` 与来源 tracking SHA，只消费 `frame_id/track_id/bbox/track_confidence/timestamp_sec`；上游临时 `person_id`、bbox 中心和像素速度不进入徘徊身份或轨迹。adapter 以完整 `source_group/video/device/setup/epoch/track` 隔离，并将授权状态冻结为三个 exact 枚举；QC 以过滤前合法观测范围保留候选窗，使低置信度边缘和全低置信度轨迹留下 `unavailable` 审计记录。ready 窗口再复用步骤 4 的弧长重采样、稳健各向同性归一化、14 通道、拓扑和冻结 feature stats。
+1. WanderingPatterns 和 SmartCare 的来源适配、结构校验与统一样本格式；
+2. 来源专用 train/validation/test 分配，SmartCare official 保持 sealed；
+3. 固定 80 点、14 通道、mask-aware 的轨迹预处理与质量状态；
+4. 26 维手工拓扑特征 Random Forest 对照；
+5. 纯 TCN 对照；
+6. bbox-bottom 轨迹的合成摄像头适配、Camera QC 和离线推理链；
+7. 合成跟踪污染与视觉人工复核证据；
+8. `TopoWanderMPT` 的 TCN + semantic patch + relation-aware Transformer 前向结构；
+9. Step10-A 五 seed pair-aware 预训练候选；
+10. `TopoWanderMPT` M0 的共享 trunk + binary/subtype 双头监督训练、joint evaluator、overfit smoke、best/last checkpoint、完整 checkpoint 加载、fresh reload 和 validation 报告；
+11. M0-S 固定三种子训练、显式 seed 绑定、崩溃窗口恢复、逐 seed fresh reload、RF/TCN 同种子 paired 对照、成本汇总和 development primary-seed 冻结；
+12. M0-RH v3 的受信 frozen-WP 正式计分入口、固定 CPU 运行时、accessor 前 source/archive/双身份 preflight、拒绝覆盖和原子提交协议；
+13. M0-RS 固定 primary 候选的一次 WP public-holdout 计分、正式六文件固化、独立指标复算和预注册门槛判定；
+14. M0-CAM-E 将同一固定 primary 通过独立 wrapper 接入 Step7 camera adapter/QC/prepared arrays，形成逐窗分层概率、最小 episode candidate、失败闭锁、原子 bundle 与 synthetic CPU 延迟证据；M0-CAM-H 已进一步完成 synthetic-only 入口、二分类平票规则和 active model/release 源码身份三项加固。
 
-步骤 7 的唯一 CLI 支持互斥的 `tracking JSONL + sidecar` 或本地有限 MP4；MP4 模式直接复用既有 YOLO/ByteTrack，不复制检测跟踪。RF 与 TCN 只经各自安全 loader 加载主 seed，并为每个 ready 窗口分别输出四分类/二分类四组未校准概率，固定 `comparison_only` 且不融合。只有明确的模型 forward/输出异常降级为单窗 `inference_error`，其他契约错误使整次运行失败。修复后固定 80 条合成 bbox 的 tracking+sidecar 两次全新构建得到相同 8 文件和 manifest SHA-256 `fe56b2b9d394ee5e3e34e96514485a45daeb5f9ad9207ed2dbe214c86c20d98f`；步骤 7 窄测试 `40 passed`，全部徘徊测试 `148 passed, 104 subtests passed`，完整测试 `526 passed, 1 failed, 171 subtests passed`，唯一失败仍为跌倒模块固定视频缺失。完整实现、故障覆盖、产物哈希和复现边界见[步骤 7 报告](../../../reports/mental_health/wandering_step7/README.md)。
+这些能力彼此隔离，不自动表示已经形成可部署的徘徊模型。
 
-证据边界没有扩大到现实效果：RF 与 TCN 仍是 `comparison_only` 且概率未经校准；步骤 7 只证明 `synthetic_camera_contract`，步骤 8 只增加 `synthetic_camera_corruption` 下的确定性增强、Camera QC 压力测试和冻结模型兼容性报告。步骤 9/9a 已形成独立 Git 检查点并恢复 `step9_forward_contract_verified` 与 `step9a_exact_config_fail_closed_verified`；它没有读取数据或训练，不能视为识别效果。没有授权 MP4/目标摄像头真值，不报告摄像头准确率、召回率或误报率。该子包仍未从本模块顶层重新导出，也未接入现有聚合、评分或运行时；TopoWander-MPT 训练、校准/OOD、episode、日级徘徊字段、共享心理风险主链和正式现实效果指标仍未实现。
+## 3. 当前数据边界
 
-方案步骤 8 已按 v3 关闭。诊断 v1 保持 `diagnostic_invalid_pacing_gate`；v2 因 train WP `direct/medium selected=34`、`pacing/medium selected=26` 低于每层 50 而固定为 `diagnostic_quota_blocked_precommit`，没有 v2 bundle。v3 config SHA-256 为 `b6f6b682b2c4b908a83c60db6da04f39cfbab4e92fe748b8e6acaf84752c89d8`；正式 A 为 `0e255e0f89493c1ad389ac6d183c82843cbe0efc2978d5be7fbae66ce8dc4b1a`，两次全新目录的六个文件逐字节一致，含 1,491 个 train pairs、834 个 frozen validation pressure views、240 个 gated faults 和 48 个 limitation controls。负责人实际复核固定 440 对并签署，V/H 分别为 `31dcff92d3114d237b304953f467f20dd070e46091f08c4dde595f1f5faa6205`、`d9390010ec5dbb873945467f30bd4a05715342f9b446510ab1de8309bbc2be3a`。正式 C 为 `e27aa0716bb1cd39f6c37ac98c31b3d201d08b7673f61aadaa2ba1355f58bdbf`，绑定 A/V/H/RF/TCN，生成 4,144 条预测、24 个分组和 12 条 `model_compatibility_warning`。WP RF 二分类 low/medium 标签一致率为 0.990/0.953；RF 四分类为 0.950/0.844；TCN 二分类为 0.861/0.797，TCN 四分类为 0.545/0.578。主预注册聚合包含所有 Camera-QC-ready pressure，包括 semantic accepted 与 rejected；因此准确结论是“TCN，尤其四分类 TCN，在冻结通用压力协议下明显敏感，RF 二分类在主聚合下相对最稳”，不能把全部 warning 简化成纯 label-preserving 视图排名。warning 保持原样，不通过调参消除。机器指标见[步骤 8 compatibility metrics](../../../reports/mental_health/wandering_step8/compatibility/v3/metrics.json)。
+现有 ready 数据口径：
 
-方案步骤 9/9a 的 `configs/modules/wandering_topowander_mpt_v1.yaml` SHA-256 仍为 `debd3adcf0c84d266ca594fd9ba2716a5a854e074e6e2092570b1ec656ed80f7`，三输入、mask-aware TCN、19 个语义 patch、对称 relation + 37 档 signed offset、两层显式 relation-bias Transformer、三个 head、204,466 参数、77 state key 和 deterministic NPZ 均未漂移。文件安全 loader 只读一次 config bytes 并以同一 payload 完成 SHA/解析；普通 dict/list 构造后无别名、公开嵌套只读、属性重绑定拒绝和输出顺序测试也成立。第 9a.6 节新增顶层/嵌套状态化 Mapping 红测，旧 `a5ea…c554ab` 候选因成功构造产生 `3 failed`；修正后构造器/工厂只接受 plain `dict[str, Any]`，单次递归捕获 built-in dict/list 与冻结标量为私有 snapshot，再对同一 snapshot 校验并冻结运行时视图，自定义/惰性 Mapping 在 `_build_modules()` 前失败。
+| 分区 | WanderingPatterns | SmartCare | 用途 |
+| --- | ---: | ---: | --- |
+| train | 1,120 | 137 | 模型拟合 |
+| validation | 240 | 38 | 开发评估和早停 |
+| WP public holdout（历史名称 frozen WP test，同一 240 条） | 240 | 0 | 固定候选级计分，不用于日常调参 |
+| SmartCare official | 0 | 20 | sealed external test，不用于训练、调参或误差分析 |
 
-最终检查点 `model.py` 原始字节 SHA-256 为 `11fd7732f49d7392f0dab8edaa3023ebb1ba32355b24fc2157349b7fff80b331`；`a5ea…c554ab` 与 `b829…d13a` 均只作失效候选保留。fixture `6192 bytes / 584d2220…457c72`、output `1022 bytes / 01415e02…93ef61c`、state NPZ `838934 bytes / 6bd709…d40`、A/V/H/C 均保持不变；旧裸 forward SHA `572c02…` 继续为 `withdrawn_provenance_missing`。现场结果为窄测 `27 passed, 1 warning, 56 subtests passed`、全部徘徊 `217 passed, 1 warning, 160 subtests passed`；无并发完整测试 `697 passed, 2 failed, 1 warning, 239 subtests passed`，两项范围外失败仍是跌倒标签工作区 CRLF 原始字节 SHA 漂移和固定视频缺失。负责人已授权加入三条路径级 `eol=lf`，stage/新 checkout SHA 复核通过，并形成唯一 9+9a Git 检查点；当前恢复 `step9_forward_contract_verified` 与 `step9a_exact_config_fail_closed_verified`。完整证据见[步骤 9 复现记录](../../../reports/mental_health/wandering_step9/README.md)。
+另外 15 条 SmartCare train 因有效点过少保持 `unavailable`，不进入模型 tensor、loss 或指标。WanderingPatterns 缺少可用 participant/session 分组字段，公开数据结果存在近邻和泛化边界，不能等同于真实摄像头或未见人员效果。
 
-版本控制现场：步骤 2–7 由提交 `94ca337` 纳入 `feat/wandering-data-pipeline`，步骤 8 已由独立提交 `a1451f2` 形成检查点；开始步骤 9 时 HEAD `06ca214` 与远端同名分支同步，A/V/H/C 再次复核一致。步骤 9+9a 已由独立检查点提交 `0a7db4e` 纳入版本库。下一位协作者不得清理步骤 8 正式/归档证据、回改 warning、关闭 loader 校验或把合成兼容性写成目标摄像头效果。
+详细来源、split 和预处理证据：
 
-下一项不是继续修改步骤 9、runtime 或 source G0：步骤 9+9a 检查点、最终 Step 9 绑定和 Linux/x86_64 `2.13.0+cu130` runtime fact source 均已形成；fact source=`configs/runtime/wandering_step10_runtime_v1.yml / 11426 bytes / 034d603a…e2f1cda`，候选 commit `03079a5` 的全新 checkout/环境重建、27/30 工件来源审计、`pip check` 和版本/平台/thread/deterministic 探针通过。22-source closure 的 12-path G0 也已由检查点 `10d36ee` 和 fresh worktree 关闭，12 项 raw bytes/SHA 与冻结目标一致且源码 blob 零变更。步骤 10 已冻结固定 v3 pair-aware 路线：1,257 个 clean train parent、1,491 条 pair、126 个 train-internal proxy、输入级 20-cell mask、只调用 `encode()` 的 wrapper exact graph、CLI、早停、20-file DAG、config/artifact schema 和 canonical bytes。现在按“R0 红测→源码/CLI→源码 SHA→production YAML”推进；production config 外部 SHA 前仍不得读取正式训练数据、创建正式数据路径的 production optimizer 或生成制品，合成测试可按契约创建 AdamW。完整证据见[步骤 10 runtime 前置治理](../../../reports/mental_health/wandering_step10_runtime/README.md)。
+- [步骤 2 转换与人工复核](../../../reports/mental_health/wandering_step2/README.md)
+- [步骤 3 固定 split](../../../reports/mental_health/wandering_step3/README.md)
+- [步骤 4 预处理与人工复核](../../../reports/mental_health/wandering_step4/README.md)
 
-G0 已由 `10d36ee` 关闭；首个步骤 10 新文件现在只能是 `tests/test_wandering_pretraining.py`。开发 pytest 使用标准 `eldercare-ai` 和合成 fixture；两份生产源码转绿后还须形成 LF/source checkpoint 与 fresh-checkout 证据，production config 外部 SHA 后再经负责人授权执行六文件 R2M。正式流程只使用 frozen runtime YAML 创建的两个全新环境 A/B，并以 `python -m pip install --no-deps --no-build-isolation -e .` 接入 active checkout。每个环境启动一个训练 CLI fresh process，由唯一 builder 在同一进程内部先 preflight 后构建自身 bundle，再用一个 fresh process 完成 full verifier、用五个 fresh process 分别执行显式 seed safe loader；不存在独立 preflight API。训练 builder 的 32-file 显式输入/源码闭包、verifier 的 45-file 集合、denylist 和唯一阶段顺序见技术方案第 10.0–10.2、10.8–10.9 节。
+## 4. 已有性能参照
 
-## 徘徊步骤 9/9a 复现命令（检查点已形成）
+固定 validation 上的已保存参照为：
+
+| 模型 | WP 四分类 macro-F1 | WP+SmartCare 二分类 source-equal macro-F1 | 定位 |
+| --- | ---: | ---: | --- |
+| 26 维特征 + Random Forest | 约 0.9726 | 约 0.9507 | 四分类强基线 |
+| 纯 TCN | 约 0.9411 | 约 0.9967 | 二分类强基线 |
+| TopoWander-MPT M0，seed 20260731 | 0.995833 | 1.000000 | 单 seed 监督候选，development validation |
+| TopoWander-MPT M0-S，3 seed | 0.987497 ± 0.000000 | 0.992774 ± 0.006312 | 固定三 seed，primary `20260731` 已冻结，development validation |
+
+这些指标来自不同任务口径，不能相互替代，也不能证明摄像头效果。详细指标、逐类结果和预测见：
+
+M0-RS 固定 primary 在 240 条 WP public holdout 上的 WP 四分类 macro-F1 为 `0.983331`，WP 二分类 macro-F1 为 `0.989010`，六个已报告 recall 均不低于 `0.966667`，预注册状态为 `target_met`。这里的 binary 是 WP-only，不是上表的 WP+SmartCare source-equal 口径。
+
+- [步骤 5 Random Forest 报告](../../../reports/mental_health/wandering_step5/README.md)
+- [步骤 6 纯 TCN 报告](../../../reports/mental_health/wandering_step6/README.md)
+- [TopoWander-MPT M0 监督训练报告](../../../reports/mental_health/wandering_performance/m0_seed20260731_v1/README.md)
+- [TopoWander-MPT M0-S 三种子稳定性报告](../../../reports/mental_health/wandering_performance/m0s_three_seed_stability_v1/README.md)
+- [TopoWander-MPT M0-R Release-Prep v2 报告](../../../reports/mental_health/wandering_performance/m0r_release_prep_v1/README.md)
+- [TopoWander-MPT M0-RH score-entry hardening v3 报告](../../../reports/mental_health/wandering_performance/m0r_score_entry_hardening_v1/README.md)
+- [TopoWander-MPT M0-RS fixed WP public-holdout score 报告](../../../reports/mental_health/wandering_performance/m0rs_public_holdout_score_report_v1/README.md)
+- [TopoWander-MPT M0-CAM-E / M0-CAM-H primary camera 工程报告](../../../reports/mental_health/wandering_m0cam_engineering_v1/README.md)
+
+合成 Camera QC 与污染压力只用于工程兼容性和鲁棒性诊断：
+
+- [步骤 7 bbox-only 合成摄像头链](../../../reports/mental_health/wandering_step7/README.md)
+- [步骤 8 合成污染兼容性](../../../reports/mental_health/wandering_step8/visual_review/v3/README.md)
+
+## 5. TopoWander-MPT 当前证据
+
+`TopoWanderMPT` 前向主体已经实现，包含 mask-aware TCN、semantic patch、relation-aware Transformer、binary/subtype 分类头和 projection 分支。历史 M0 使用同结构 scratch 初始化完成单 seed 端到端监督训练：1,257 条 train、278 条 validation，best epoch 13，last epoch 21；fresh reload 的 WP 四分类 / 来源等权二分类 macro-F1 为 `0.995833 / 1.000000`。该原始报告保持不变，作为 M0-S 的历史输入。
+
+M0-S 用同一最终源码按固定顺序运行 seeds `20260731/20260801/20260802`，三次 WP 四分类 macro-F1 均为 `0.987497`；来源等权二分类 macro-F1 为 `0.997238 / 0.983848 / 0.997238`，mean `0.992774`、population std `0.006312`，所有已报告类别 recall 的三 seed 最小值为 `0.941176`。三次均通过两项 macro-F1 `>=0.95` 和全类别 recall `>=0.90` 门禁，primary seed 按预注册规则冻结为 `20260731`，未执行 M1。四分类错误 intersection=union=3；二分类错误 intersection=1、union=2。RF/TCN 对照直接复用同种子已保存 validation predictions，没有重训。
+
+M0-R Release-Prep v2 已把 primary `seed=20260731 / best epoch=5` 导出为本机 local-only 的紧凑 inference bundle，并实现外部 manifest SHA 绑定、完整 model state 检查、CPU/`eval`/`inference_mode` loader 与 phase-aware WP-only evaluator。240 条 WP validation 的 sample ID/label、逐样本概率和 WP-only 指标相对 M0-S reference 均为零差异；精确 manifest 身份见 M0-R 报告。该 v2 只作为 Release-Prep 证据，没有执行 WP public-holdout 候选推理或计分，也没有重训、改权重、改阈值或执行 M1。
+
+M0-RH v3 已在保持相同 M0-S model/forward/performance bytes 的前提下补齐正式 score 入口。唯一 production test 命令为 `score-frozen-wp`：不接收外部 records/split/batch/threshold/thread 参数，先验证 final output 不存在、外部 manifest SHA、bundle descriptors、active execution source、v3 source archive、training/release 双身份、RF/upstream descriptors 和 CPU `8/1` + batch64 runtime，再内部调用受信 `BUNDLE_MODE_FROZEN_WP_TEST` accessor。`evaluate-records` 已限制为 validation-only。v3 development parity 的 240 条 ID/label、概率、WP-only 指标与冻结 reference 均为零差异。M0-RH 新增 controller/候选路径没有调用 accessor 做 public-holdout 推理或计分；完整 wandering 回归中的既有 accessor contract 测试仅解析 access/count/schema，其记录未进入候选推理、计分、制品或设计反馈。canonical test records/order SHA 在 M0-RH 结束时保持未生成；实时授权和下一项任务只看任务表。
+
+M0-RS 已在负责人明确授权后使用同一 primary 和唯一正式入口完成一次 WP public-holdout 计分。正式六文件通过同文件系统 staging 验证后原子提交，canonical records/order SHA 已形成；独立复算与 artifact descriptor 全部一致，结果为 `wandering_m0rs_public_holdout_scored`、`performance_status=target_met`。该结果不会用于回调模型、阈值、split、标签或协议；其后的 M0-CAM-E 仅复用该固定候选做 camera 工程接线。
+
+M0-CAM-E 已把固定 primary candidate 通过 manifest-bound loader 接入既有 Step7 adapter、Camera QC 和 prepared-array 路径，并以 CPU float32 `eval`/`inference_mode` 直接 forward ready window。逐窗输出保留完整 scope/tracklet/time/QC、binary/subtype/four-class 未校准概率和不可用零调用语义；最小 episode candidate 只在相同完整 scope、parent tracklet 与预测 shape 内合并，策略保持 `development_unfrozen`，不输出 alert、risk 或 `AlgorithmEvent`。M0-CAM-H 已完成 synthetic-only 入口、`p(wandering_like) >= 0.5` 平票规则和 active `model.py/release.py` 身份预检；fresh synthetic v4 仍为 2 ready、1 unavailable、2 个隔离 episode。状态保持 `wandering_m0cam_primary_camera_engineering_ready`，`hardening_complete=true`，证据仍严格限定为 `synthetic_contract_only`，不是 camera 性能。
+
+独立审计从 278 条 development predictions 复算出了相同 validation 指标，并确认 materialized train/validation 的 sample ID、parent ID 和精确特征无重合。边界口径需要准确理解：共享 preprocessing container 会为完整性解析其中的 WP test 行，M0-S 的训练、validation、fresh reload 与选点路径没有使用 test；SmartCare official/raw 与 sealed camera 没有进入本次模型流程。仓库契约测试会读取 frozen accessor，Step5/Step6 也已对 WP test 做过历史评分，因此 M0-RS 只能称为固定候选的 public-holdout 计分，而不是项目级首次盲测。WanderingPatterns 没有可靠 participant/session 分组，且近邻审计有 4,054 对 `<0.05` 跨分区形状近邻，所以当前高分只属于固定公开轨迹 benchmark。
+
+Step10-A 的五 seed pair-aware 预训练仍只在外部活动工作树形成候选，其 total proxy 相对初始值的平均改善约为 0.0437%，没有直接训练分类头，也没有参与本次 M0。
+
+因此目前只能表述为：
+
+- M0-S 已形成可训练、可加载、可重载和可报告的公开轨迹 development 冻结候选；每个 run 都保存 seed-bound model/AdamW/CPU RNG checkpoint、history、fresh predictions 和 metrics；
+- resume 已以“完整 epoch checkpoint 已提交但 history/latest/best 仍落后”的故障注入验证，恢复逻辑以连续且校验通过的 checkpoint 为事实源重建可变索引；正式配置固定 CPU，并明确不声称 CUDA resume；
+- 外部工作树中有一个未来可作为初始化对照的 encoder/trunk，但当前 checkout 没有稳定 bundle 路径或 trunk-only loader，尚未证明它能提高 accuracy、macro-F1 或 recall；
+- Step10-B 和旧双环境逐字节复现不再阻塞监督性能开发；
+- M0-S 使用同结构、同初始化方法的 seed-controlled scratch 初始化；A-init 仅在外部候选已登记并补齐 trunk-only loader 后作为可选对照。
+
+历史前向和 runtime 证据：
+
+- [步骤 9/9a 前向契约](../../../reports/mental_health/wandering_step9/README.md)
+- [步骤 10 runtime 历史记录](../../../reports/mental_health/wandering_step10_runtime/README.md)
+
+## 6. 当前能力限制
+
+以下能力尚未完成或未获得证据：
+
+- M0-CAM-E / M0-CAM-H 只有 synthetic contract 工程证据；没有目标机位真人 development 数据，不能报告 camera accuracy/F1/recall/FAR、校准、真实 episode 或产品延迟结论；
+- camera collection/session manifest、annotation validator、分组 readiness 与 authorized-development evaluator 尚未实现；当前应先完成 M0-CAM-RD，且现有 primary CLI 继续只接受 synthetic fixture，不得通过放宽它来接入真人数据；
+- M0-CAM-D 尚未取得授权 development 数据上的目标机位轨迹、覆盖率、逐窗置信度、QC/fallback、episode 指标或延迟证据；
+- 目标摄像头授权、episode 真值和独立 sealed camera 评估；
+- 目的性行为与真正告警需求的上下文决策层；
+- 由授权标注数据支持的概率校准、OOD/uncertain 策略和冻结 episode 合并策略；
+- 稳定业务 person identity、日级聚合与心理风险主链接入；
+- 真实老人、自然居家或临床有效性。
+
+公开轨迹、合成污染和授权成人 pilot 是不同证据等级。任何报告都必须说明自己证明了哪一层，不能把开发指标写成现实部署效果。
+
+## 7. 常用验证入口
+
+常规开发使用 `eldercare-ai`，并先确认 editable 安装指向当前源码根：
 
 ```bash
-conda run -n eldercare-ai python -m pytest tests/test_wandering_model.py -q
+conda run -n eldercare-ai python -m pip show elderly-monitoring-algorithms
 conda run -n eldercare-ai python -m pytest tests/test_wandering_*.py -q
-conda run -n eldercare-ai python -m pytest -q
 ```
 
-Windows 当前需从 WSL `Ubuntu-22.04` 调用 `/home/lenovo/miniconda3/bin/conda run -n eldercare-ai`。步骤 9 没有训练、评估或导出 CLI，也没有正式 checkpoint。
-
-## 徘徊步骤 7 复现命令（已完成）
-
-```bash
-conda run -n eldercare-ai python -m pytest \
-  tests/test_wandering_camera_adapter.py \
-  tests/test_wandering_camera_qc.py \
-  tests/test_wandering_camera_inference.py -q
-
-conda run -n eldercare-ai python scripts/wandering/run_camera_inference.py \
-  --config configs/modules/wandering_camera_v1.yaml \
-  --project-root . \
-  --tracking-jsonl "<tracking-jsonl>" \
-  --media-sidecar "<wandering-media-v1.json>" \
-  --rf-development-dir reports/mental_health/wandering_step5/development/v1 \
-  --expected-rf-development-manifest-sha256 fff6340e868de32bee2021ec1000f166b8caabe5caeb1132abb8ab822bfaaaf2 \
-  --tcn-development-dir reports/mental_health/wandering_step6/development/v1 \
-  --expected-tcn-development-manifest-sha256 0f4c48d948f0f4355dd577c89330b050ecb1bb513ca83ef1b25234897e27a10e \
-  --output "<new-step7-output-directory>"
-```
-
-输出目录必须事先不存在。tracking+sidecar 是确定性验收事实输入；MP4 模式只保证其下游 camera core 可回放，不承诺不同依赖、权重或硬件生成逐字节相同的原始 tracking。
-
-## 徘徊步骤 4 复现命令（已完成）
-
-```bash
-conda run -n eldercare-ai python -m pytest \
-  tests/test_wandering_anchorless_normalization.py \
-  tests/test_wandering_preprocessing.py \
-  tests/test_wandering_topology.py -q
-
-conda run -n eldercare-ai python scripts/wandering/build_preprocessing.py \
-  --config configs/data/wandering_preprocessing_v1.yaml \
-  --project-root . \
-  --output "<new-preprocessing-output-directory>"
-
-conda run -n eldercare-ai python scripts/wandering/visualize_preprocessing.py \
-  --config configs/data/wandering_preprocessing_v1.yaml \
-  --project-root . \
-  --bundle "<new-preprocessing-output-directory>" \
-  --output "<new-step4-review-directory>"
-```
-
-两个输出目录必须事先不存在。visualizer 只使用 builder 报告中的固定抽样 ID，不接受重新抽样参数。
-
-## 徘徊步骤 3 命令
-
-```bash
-conda run -n eldercare-ai python -m pytest \
-  tests/test_wandering_manifests.py \
-  tests/test_wandering_splits.py -q
-
-conda run -n eldercare-ai python scripts/wandering/build_split.py \
-  --config configs/data/wandering_split_v1.yaml \
-  --project-root . \
-  --output data/splits/mental_health/wandering/v1
-```
-
-构建输出必须是不存在的新目录。预处理和训练脚本后续必须显式读取冻结的 `split.json`，不得现场切分。
-
-## 徘徊步骤 2 命令
-
-所有命令必须在当前仓库的 `eldercare-ai` 环境中运行，并使用不存在的新输出目录；转换器不会覆盖现有目录。WanderingPatterns pickle 入口只支持 Linux/WSL 的 `unshare` 隔离。
-
-```bash
-conda run -n eldercare-ai python scripts/wandering/convert_smartcare.py \
-  --source-root "<SmartCare source root>" \
-  --output "<new SmartCare output>"
-
-conda run -n eldercare-ai python scripts/wandering/convert_wandering_patterns.py \
-  --source-root "<WanderingPatterns source root>" \
-  --output "<new WanderingPatterns output>"
-
-conda run -n eldercare-ai python scripts/wandering/visualize_converted.py \
-  --input "<strict JSONL>" \
-  --source-name "<source name>" \
-  --input-role "<role>" \
-  --output "<new visual-review output>" \
-  --samples-per-class 20 \
-  --seed 20260801
-```
-
-## 数据来源与身份前提
-
-行为输入复用现有 YOLOv8 Pose、ByteTrack、`PoseObservation` 和姿态质量控制结果，不创建第二套人体检测、姿态模型或实时循环。每条记录必须包含上游已经绑定的非空业务 `person_id`。`track_id` 只表示单路视频内关联，不能代替 `person_id`，也不能用于跨设备合并。
-
-单设备记录可以省略 `device_id`；进入日级时间线的同一人员记录只要出现具名设备，其他记录也必须提供 `device_id`。同一时刻的多设备记录先按有效性、姿态质量和稳定设备键保留一个来源；异步区间仍重叠时，再按同样原则选择唯一来源。重叠会产生 `overlapping_device_observations` 标记，且不会直接制造场景转移。
-
-## 绝对时间契约
-
-行为记录必须通过以下一种方式得到事件时间：
-
-- 带时区的 ISO-8601 `observed_at`；
-- 带时区的 ISO-8601 `session_start_time` 加有限、非负的 `timestamp_sec`。
-
-两者同时提供时以 `observed_at` 为准，并按配置容差核对推导时间。冲突记录保留在合理观测时长中，但不会进入有效观测时长。无时区、非法时间或只有相对秒的记录不会被猜测归入某个自然日；适配器会保留不可用标记，日级聚合跳过这些记录且不把标记归到其他日期。某人员完全没有有效绝对时间时快速失败。所有分桶先转换到 `aggregation.timezone`，默认 `Asia/Shanghai`；跨午夜区间在本地午夜拆分。
-
-事件时间取当前人员和评估日最后一条合法输入的 `observed_at`。当没有合法事件时间时，CLI 要求显式传入带时区的 `evaluation_time`；它只可作为 `insufficient_data` 事件的时间回退，不能替代可评分风险结论的事件时间，也不会读取系统当前时间。
-
-## 行为字段与计算
-
-输入沿用命名关键点列表，每个关键点包含 `name`、归一化 `x/y` 和 `score`。若已经经过姿态质量控制，聚合器优先使用有效的 `x_smooth/y_smooth`，并保留上游质量标记。像素坐标、非有限坐标、低质量端点和被质量控制拒绝的记录不能进入有效时长。
-
-聚合按 `person_id + date` 输出，计算规则如下：
-
-- `observation_seconds`：只累加同一人员、同一设备、相邻且 `0 < delta <= max_gap_seconds` 的区间；不使用首尾时间差。
-- `valid_observation_seconds`：区间两端质量合格、坐标有效、未被质量控制拒绝，且共同可见核心点数达标时才累加。
-- `normalized_motion_proxy`：共同可见核心点的归一化欧氏位移中位数除以区间秒数。它是图像运动代理量，不是真实米/秒。
-- `activity_volume`：有效区间的 `normalized_motion_proxy * delta_seconds` 之和。
-- `active_ratio`：有效活动秒数除以有效观测秒数；分母为零时为 `None`。
-- `nighttime_activity_ratio`：夜间有效活动秒数除以夜间有效观测秒数；默认夜间为本地时间 `[22:00, 06:00)`。
-- `observation_coverage`：有效观测秒数除以合理观测秒数，不等同于后续评分阶段的模态覆盖率。
-- `scene_region_distribution`：采用左端点场景的有效秒数分布；未知场景不产生转移。
-- `scene_transition_count`：只统计质量有效、时间连续、无设备重叠的相邻记录场景变化。
-
-当分母为零时，相应比例返回 `None` 并添加机器可读质量标记；缺失数据不填成正常值 `0`。
-
-## 睡眠适配
-
-睡眠适配只是标准字段校验，不代表已经接入萤石或其他真实设备协议。
-
-| 字段 | 规则 |
-|---|---|
-| `person_id` | 非空业务人员 ID |
-| `date` | 严格 `YYYY-MM-DD`；也可用带时区 `observed_at` / `timestamp` 转换 |
-| `sleep_onset_latency` | 分钟，有限数值，`0-720`，可缺失 |
-| `night_awakenings` | 整数，`0-100`，可缺失 |
-| `sleep_efficiency` | 比例，`0.0-1.0`，可缺失；不接受或转换百分数 |
-| `device_source` | 可选非空字符串 |
-| `quality_score` | 可选有限数值，`0.0-1.0` |
-| `quality_flags` | 可选非空字符串列表 |
-
-缺失的三个睡眠指标保持 `None` 并写入质量标记。非法单位、范围或类型会抛出包含记录号和字段名的 `MentalHealthDataError`，不会静默裁剪。
-
-## 可选自评输入
-
-自评记录使用 JSON 或 JSONL，每条记录包含稳定 `person_id`、严格 `YYYY-MM-DD` 日期，或带时区的 `observed_at` / `timestamp`。可选分数字段为 `social_withdrawal_score`、`negative_affect_score` 和 `self_report_risk_score`，均必须是 `0.0-1.0` 的有限数值；`manual_emergency_flag` 必须是显式布尔值。缺失字段保持不可用，不默认成 0。
-
-## 配置与调用
-
-默认配置位于 `configs/modules/mental_health.yaml`：
-
-```yaml
-aggregation:
-  timezone: Asia/Shanghai
-  max_gap_seconds: 5.0
-  timestamp_conflict_tolerance_seconds: 1.0
-  min_keypoint_quality: 0.45
-  min_common_core_keypoints: 4
-  active_motion_threshold: 0.02
-  night_start: "22:00"
-  night_end: "06:00"
-
-baseline:
-  initial_days: 3
-  stable_days: 7
-  max_window_days: 14
-  abnormal_score_threshold: 0.6
-
-scoring:
-  thresholds:
-    level_1: 0.25
-    level_2: 0.45
-    level_3: 0.65
-  min_persistent_days_for_level_3: 3
-  passive_max_level: 3
-```
-
-这些值是算法原型的工程默认值，未经临床校准。Python 调用入口如下：
-
-```python
-from elderly_monitoring.modules.mental_health import (
-    MentalHealthRiskPipeline,
-    adapt_sleep_records,
-    aggregate_daily_behavior,
-    score_daily_mental_health,
-)
-
-daily_features = aggregate_daily_behavior(behavior_records)
-sleep_records = adapt_sleep_records(raw_sleep_records)
-baseline_features = score_daily_mental_health(history_days, current_days)
-event = MentalHealthRiskPipeline().predict_from_features(baseline_features[0])
-```
-
-## 离线日级 CLI
-
-历史行为和当前行为必须使用 JSONL，每个非空行是一个行为对象。睡眠和自评可使用单对象 JSON、对象数组 JSON 或 JSONL。睡眠/自评中与当前 `person_id + date` 匹配的记录进入当前日，其余记录作为历史模态；提供 `evaluation_time` 时，该自然日的可选模态也可建立当前人员日。
-
-示例文件位于 `examples/features/mental_health_*`。以下命令只运行心理健康分支并输出 `module=mental_health` 事件：
-
-```bash
-PYTHONPATH=src conda run -n eldercare-ai python -m elderly_monitoring.inference.run_features \
-  --module mental_health \
-  --history-behavior examples/features/mental_health_history_behavior.jsonl \
-  --current-behavior examples/features/mental_health_current_behavior.jsonl \
-  --sleep examples/features/mental_health_sleep.json \
-  --self-report examples/features/mental_health_self_report.json \
-  --output /tmp/mental_health_daily.jsonl
-```
-
-省略 `--output` 时写到 stdout。当前行为没有合法事件时间时必须增加例如 `--evaluation-time 2026-07-04T18:30:00+08:00`。旧的单特征入口仍保留：
-
-```bash
-PYTHONPATH=src conda run -n eldercare-ai python -m elderly_monitoring.inference.run_features \
-  --module mental_health \
-  --input examples/features/mental_health_sample.json
-```
-
-日级输出按 `date + person_id` 排序，每个 `person_id + date` 一行：
-
-```json
-{"person_id":"p01","date":"2026-07-04","daily_features":{},"baseline_features":{},"event":{}}
-```
-
-`daily_features` 是行为、睡眠和自评的当日标准化结果；`baseline_features` 包含个人历史偏离、持续天数、覆盖率、质量与两个独立窗口；`event` 是统一 `AlgorithmEvent`，且 `module` 固定为 `mental_health`。输出不包含当前处理时间。相同输入、配置和代码产生字节级稳定 JSONL。所有文件会先完整解析、验证和计算；任一 JSONL 记录错误会报告文件、行号和字段，退出码非 0，输出路径采用临时文件原子替换，不留下部分结果。
-
-## 个人基线与偏离分
-
-基线按业务 `person_id` 和自然日独立建立，当前评估日不会进入自身基线。同一自然日重复输入只计为一个历史日；初始基线需要 3 个合格自然日，7 日后视为稳定，统计窗口最多保留最近 14 个合格自然日。
-
-每个标量特征同时计算风险方向上的标准化差异、相对变化和分位数越界，取三者最大值。活动量和活跃比例只对下降评分；入睡潜伏期和夜间觉醒只对上升评分；睡眠效率只对下降评分；夜间活动比例和场景转移次数使用双侧偏离。零方差历史使用相对与绝对缩放下限，避免真实突变被零标准差掩盖。
-
-`persistent_abnormal_days` 只累计达到异常阈值的连续、合格自然日。日历日期缺失或当日质量不合格会中断证据链，不会被当作正常日，也不会增加持续天数。`baseline_window` 记录历史参考范围，`evidence_window` 单独记录当前结论的连续异常范围。
-
-## 缺失模态与风险评分
-
-默认覆盖率分母只包含活动下降、睡眠扰动和规律性偏离三个预期特征，并按 YAML 中对应权重计算。可选的社交退缩、负面情感和自评分数仅在合法提供时参与风险评分；缺失值保持不可用，不以 0 分参与。风险总分只在当前可用特征之间重新归一化权重。
-
-普通风险等级先按 YAML 阈值得到 0-3 级候选值，再依次应用覆盖率、基线成熟度和持续天数上限。纯摄像头与睡眠数据最高为 3 级。4 级只允许由达到阈值的合法自评风险分或显式 `manual_emergency_flag: true` 触发，3-4 级建议动作均为 `manual_review`。强证据不会被被动数据上限降级，但覆盖不足、基线不足和持续证据不足仍会降低置信度并写入 metadata。
-
-没有任何可评分特征时，为兼容公共 schema 输出 `risk_score=0.0`，同时固定为 `risk_level=0`、`confidence=0.0` 和 `trigger_event=insufficient_data`；该兼容值不表示已经判断为正常。置信度表示特征覆盖、基线质量和持续性证据的支持程度，不表示医学结论正确率。
-
-## 当前边界
-
-- 不从摄像头推断负面情绪、社交退缩或医学状态。
-- 不实现跨镜 ReID、人脸识别或身份数据库。
-- 不实现真实睡眠设备协议、外部 API、数据库、推送或处置系统。
-- 尚未经过真实设备数据、临床标签或临床有效性验证。
+完整测试只在合并或发布候选时运行；单次性能实验按技术文档2使用窄测、overfit smoke 和固定 validation evaluator。

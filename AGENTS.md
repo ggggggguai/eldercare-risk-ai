@@ -43,7 +43,7 @@ conda run -n eldercare-ai python -m pip show elderly-monitoring-algorithms
 conda run -n eldercare-ai python -m pip install -e ".[vision,service]"
 ```
 
-徘徊步骤 10 有一项冻结的正式运行例外：红测、绿测和仓库 pytest 仍统一使用 `eldercare-ai`；production config 外部 SHA 形成并取得负责人授权后的六文件 R2M 也只允许在该标准环境调用 byte-only public materializer，不建模或训练。正式流程只建立两个由 `configs/runtime/wandering_step10_runtime_v1.yml` 创建的全新 Linux/x86_64 环境 A/B。每个环境启动一个训练 CLI fresh process，由唯一 builder 在同一进程内部先完成 production preflight、再执行五 seed 构建；随后用一个 fresh process 执行 full verifier，并用五个 fresh process 分别执行显式 seed safe loader，最后跨 A/B 比较。每个环境创建后，只允许从规范化的 active checkout 根执行一次 `python -m pip install --no-deps --no-build-isolation -e .` 接入源码；现场来源集合必须恰为锁定的 27 个 Conda 工件、30 个 pip wheel 加这一项 `elderly-monitoring-algorithms==0.2.0` local editable。标准 `eldercare-ai`、临时 `PYTHONPATH`、额外依赖或任何 runtime gate 跳过方式都不得产出正式步骤 10 bundle。完整契约见心理健康徘徊技术方案第 10.0、10.1 和 10.9 节。
+以下例外只适用于心理健康徘徊专项，不改变跌倒模块、其他目录或其他协作者的开发规则。徘徊的常规开发、监督性能实验和 pytest 继续使用 `eldercare-ai`；执行 AI 可以在徘徊范围内自主修复命令、路径、timeout、局部代码和测试问题，使用独立实验目录反复验证，并以最终 validation 性能和证据链为准，不为普通失败逐次请示。依赖兼容只限徘徊专用配置或独立可回滚环境；未经单独授权，不修改 `environment.yml`、共享依赖锁，也不升级或卸载共用环境中的包。M0-R 的 Release-Prep、candidate manifest、推理打包和 synthetic/validation 验证仍属普通徘徊开发，不等于进入受限发布。只有改变标签/split/人工裁决/科学目标、拟对固定 WP public holdout 计分但当前任务尚未取得明确授权、访问 sealed test/official、覆盖或删除既有证据、修改其他模块、push 或对外发布时才停止；已有明确计分授权时应按冻结候选连续完成，不为阶段切换再次请示。现行唯一路线见 `docs/modules/mental_health/plans/徘徊识别技术文档2.md`，当前任务只看 `docs/tasks/README.md`。
 
 ## 开发流程
 
@@ -136,7 +136,7 @@ docs/modules/fall_risk/README.md
 
 ```text
 docs/modules/mental_health/README.md
-docs/modules/mental_health/plans/徘徊样行为识别技术方案.md
+docs/modules/mental_health/plans/徘徊识别技术文档2.md
 configs/modules/mental_health.yaml
 ```
 
@@ -146,7 +146,7 @@ configs/modules/mental_health.yaml
 
 当前 v3 训练标签的 fall/near-fall 事件监督门禁通过，动作类型门禁仍未通过，且所有 split 尚未冻结。模型候选只有在来源完整的标注、无泄漏且冻结的 train/validation/test split、连续背景与老人域验证、冻结评估协议和延迟/稳定性证据具备后，才能替换主路径。个体行为基线和最终风险融合仍需对应的连续个人数据或 `risk_labels` 真值；在这些条件满足前，保留统计/规则 fallback。
 
-心理健康日级 baseline 已实现；徘徊专项步骤 2–8 已关闭。步骤 9/9a 已形成独立 Git 检查点：三条路径级 `eol=lf` 已生效，stage/新 checkout SHA 复核通过，最终 `model.py` SHA-256 为 `11fd7732f49d7392f0dab8edaa3023ebb1ba32355b24fc2157349b7fff80b331`，状态为 `step9_forward_contract_verified` 与 `step9a_exact_config_fail_closed_verified`；检查点 commit=`0a7db4e`。步骤 10 的 config/artifact 字段级 exact schema、wrapper 调用图和 canonical bytes 已冻结；Linux/x86_64 `2.13.0+cu130` runtime fact source=`configs/runtime/wandering_step10_runtime_v1.yml / 11426 bytes / 034d603a…e2f1cda` 已在候选 commit `03079a5` 的全新 checkout/环境中通过 27 个 Conda 工件与 30 个 pip wheel 的精确来源集合、`pip check` 及 runtime/thread/deterministic 探针，状态为 `wandering_step10_runtime_fact_source_verified`。22-source closure 的 12-path G0 已由检查点 `10d36ee` 和此前不存在的 fresh worktree 关闭：12 项均为 `i/lf,w/lf,attr/text eol=lf`，raw bytes/SHA 与第 10.8.1 节一致且源码 blob 零变更。下一项只能按第 10.0/10.9 节进入 R0，首先只新增合成失败测试。production config 外部 SHA 形成前不得读取正式训练数据、创建正式数据路径的 production optimizer 或生成 checkpoint，合成单测中的 AdamW 不受此禁令。目标模型训练效果、片段状态机、日级接入和授权摄像头验证完成前，不把这些工程产物写成正式徘徊识别能力。
+心理健康徘徊专项采用性能优先的 TCN + Transformer 路线。当前模型任务和摄像头数据任务以 `docs/tasks/README.md` 为唯一状态源，模型结构、95% 指标口径、Windows/WSL 执行方式和摄像头采集路线以 `docs/modules/mental_health/plans/徘徊识别技术文档2.md` 为准。旧 Step9/10 字节级协议只用于历史追溯，或在明确要求复放/发布 Step10-A 自监督预训练 bundle 时使用；它不适用于 M0-R 监督候选，也不阻塞常规模型开发。
 
 ## 文档维护规则
 

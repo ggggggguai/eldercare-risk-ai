@@ -1,6 +1,6 @@
 # 当前任务
 
-更新时间：2026-08-08
+更新时间：2026-08-13
 
 本文件只记录尚未完成的工作。已经落地的能力写入模块 README；阶段结论和旧待办移入 `docs/archive/`。当前跌倒风险模块处于模型化增强阶段：规则 baseline 仍作为对照和安全 fallback，新增时序模型必须经过数据、split、评估和部署门禁后才能替换主路径。
 
@@ -15,7 +15,9 @@
 | 冻结四个跌倒任务 split | 当前 v2 根事件的 fall/near-fall split 仅为 provisional ready，v3 统一 split 也未冻结；四任务分别取得合格样本、稳定 `split_id`、无泄漏报告和冻结记录。没有真实参考终点的功能/纵向任务继续明确阻塞，不制造空壳正式 split |
 | 完成跌倒风险正式评估 | 预注册并冻结事件匹配与统计协议，指定测试集保管人与一次性发布流程；在真实冻结 split 上输出 Precision、Recall、F1、PR-AUC、合法分母下的误报指标、提前量、95% CI 和失败案例 bundle |
 | 解除 Workflow A 数据阻断 | 完成 CVAT 身份元数据处置、人员或保守源组说明、功能与纵向参考终点确认；解除证据写入 `reports/fall_risk/workflow_a_blockers.md` |
-| 执行徘徊步骤 10 pair-aware 自监督预训练 | **当前徘徊专项最早未完成项；runtime 等三项门禁和 source G0 已闭合，红测/训练均未开始。** 22-source closure 的 12 个辅助源码已由检查点 `10d36ee` 增加 exact `text eol=lf`，源码 blob 零变更，并在此前不存在的 fresh worktree 逐项通过 `i/lf,w/lf,attr/text eol=lf` 与技术方案 LF bytes/SHA。下一项进入 R0，首个步骤 10 新文件只能是合成 `tests/test_wandering_pretraining.py`；随后实现两份生产源码并形成 LF/source checkpoint，唯一 writer 才生成 production YAML；config 外部 SHA 后还须经负责人授权，用 public materializer 完成六文件 R2M。开发 pytest/R2M 使用标准 `eldercare-ai`；正式流程只用两个 frozen-runtime 新环境 A/B，各自由一个训练 CLI fresh process 调用唯一 builder 在内部先 preflight 后 build，再用一个 fresh process full verify、五个 fresh process 分别 load 显式 seed；不存在独立 preflight API。两边还须核对 `27 Conda + 30 pip + 1 exact local editable`、builder 32-file/verifier 45-file 边界。固定使用 1,257 clean、1,491 v3 pair、126 proxy 和 input-level 20-cell mask；production config 外部 SHA 前不得读取正式训练数据或创建正式 optimizer。不得打开 validation pressure、attempts、faults、步骤 5/6 评估目录或 SmartCare official |
+| M0-CAM-RD：camera development 数据就绪工具（当前可执行） | **M0-CAM-E/H 已完成；本任务不依赖真人视频，应连续完成。** 仅用 synthetic fixture 建立匿名 collection/session manifest、C0 授权前置校验、既有 tracking+sidecar 核验包装、episode annotation schema/validator、participant/session/setup 分组与 development readiness report，并为未来 M0-CAM-D 准备独立的 authorized-development 入口和 evaluator 控制流。原 synthetic-only primary CLI 必须保持拒绝真人授权状态；不得读取真人、WP、SmartCare official/raw 或 sealed 数据，也不得产生 camera 性能指标。完成状态为 `wandering_m0cam_development_data_tooling_ready`，证据范围为 `synthetic_schema_contract_only`。 |
+| C0-C3：授权 camera development 数据闭环 | **这是需要负责人和采集人员配合的数据工作；C0+C1 是 M0-CAM-D 无标签 engineering smoke 的外部前置，C0-C3 全部就绪才是有标签评估的完整前置。** 负责人/R5 完成 C0 用途、同意、脱敏存储、访问、保留和退出删除；R5+R2 用授权成人和固定 setup 形成 C1 tracking+sidecar、C2 episode annotation、C3 participant/session/setup 分组 development manifest。原视频不进 Git，pilot 全属 development；若数据尚未提供，执行 AI 只完成 M0-CAM-RD，不虚构授权或真人数据。详细路线见[技术文档2第 10 节](../modules/mental_health/plans/徘徊识别技术文档2.md)。 |
+| M0-CAM-D：授权目标机位 development 基线与误差分析 | **工程 smoke 需 M0-CAM-RD + C0 + 合法 C1 tracking/sidecar；有标签评估还需 C2 annotation + C3 grouped development manifest。** 复用同一冻结 primary，通过独立 authorized-development 入口验证 tracking/QC coverage、逐窗与 shape-episode 指标、purposeful hard negatives、eligible negative person-hours、端到端延迟和域差异。无标签 smoke 只报告 decode/tracking/QC/coverage/forward/latency，不输出 accuracy/F1、不调阈值；只有有标签 development 才能形成 provisional uncertain/episode/matching policy。不得把 public-shape 或 synthetic 结果写成 camera 性能，真正独立泛化结论留给 C4 sealed camera。见 [M0-CAM-E / M0-CAM-H 报告](../../reports/mental_health/wandering_m0cam_engineering_v1/README.md)。 |
 | 建立心理健康评估口径 | 固定日级验证样本、人工复核标签和分层一致性指标，不使用医学诊断表述 |
 | 完成真实萤石链路联调 | 使用真实设备或开放平台直播地址启动会话，后端收到并验收风险回调 |
 | 固定接口契约 | 后端确认字段、鉴权、时间格式、幂等规则和风险动作编码，并保存联调记录 |
@@ -33,7 +35,7 @@
 | 校准近跌倒误报 | 增加弯腰、快速坐下、转身、遮挡和多人场景负样本，报告阈值曲线与失败案例 |
 | 完善个体基线冷启动 | 明确无历史、初始基线和稳定基线阶段的分数上限、置信度和更新策略 |
 | 建立心理健康运行调度 | 明确日级任务由谁触发、输入从何处读取、结果如何交付和重跑 |
-| 接入摄像头徘徊证据 | 步骤 7 已完成 bbox-only 合成 camera contract，步骤 8 已完成通用合成压力兼容性报告；步骤 9+9a 独立检查点、最终 Step 9 绑定、步骤 10 runtime fact source 和 12-source LF G0 已形成，步骤 10 字段级 exact 契约已冻结，但红测、源码和训练均未完成，步骤 11–12 未冻结。后续按契约完成 pair-aware 预训练、监督/校准协议与授权固定摄像头旁路验证，最后实现 episode、日级字段和摄像头域评估。只有冻结测试证明有效后才接入 `routine_irregularity_score` |
+| 接入摄像头徘徊证据 | 完成授权 development 数据、目标机位误差分析和独立 sealed session 评估；报告 episode 指标、eligible negative person-hours、延迟和覆盖率。只有证据等级和能力边界齐全后才接入 `routine_irregularity_score` |
 
 ## P2：数据和模型增强
 
