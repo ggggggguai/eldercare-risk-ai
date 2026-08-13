@@ -24,6 +24,12 @@ _SCOPE_FIELDS = (
     "stream_epoch",
     "track_id",
 )
+_DEVELOPMENT_SCOPE_FIELDS = (
+    "participant_id",
+    "session_id",
+    "camera_setup_id",
+    "clock_domain_id",
+)
 
 
 class CameraEpisodeError(ValueError):
@@ -79,6 +85,7 @@ def _validate_prediction(row: Mapping[str, Any]) -> dict[str, Any]:
     if not isinstance(row, Mapping):
         raise CameraEpisodeError("episode input must contain prediction objects")
     value = dict(row)
+    value.setdefault("evidence_scope", "synthetic_contract_only")
     required = {
         "schema_version",
         "window_id",
@@ -94,6 +101,7 @@ def _validate_prediction(row: Mapping[str, Any]) -> dict[str, Any]:
         "binary",
         "subtype",
         "four_class",
+        "evidence_scope",
     }
     if not required.issubset(value):
         raise CameraEpisodeError("episode input prediction fields are incomplete")
@@ -105,11 +113,17 @@ def _validate_prediction(row: Mapping[str, Any]) -> dict[str, Any]:
         raise CameraEpisodeError("episode input window_id is invalid")
     if not isinstance(value["parent_tracklet_id"], str) or not value["parent_tracklet_id"]:
         raise CameraEpisodeError("episode input parent_tracklet_id is invalid")
+    if not isinstance(value["evidence_scope"], str) or not value["evidence_scope"]:
+        raise CameraEpisodeError("episode input evidence_scope is invalid")
     for name in _SCOPE_FIELDS[:-1]:
         if not isinstance(value[name], str) or not value[name]:
             raise CameraEpisodeError(f"episode input {name} is invalid")
     if not isinstance(value["track_id"], int) or isinstance(value["track_id"], bool):
         raise CameraEpisodeError("episode input track_id is invalid")
+    development_values = [value.get(name) for name in _DEVELOPMENT_SCOPE_FIELDS]
+    if any(item is not None for item in development_values):
+        if any(not isinstance(item, str) or not item for item in development_values):
+            raise CameraEpisodeError("episode input development scope is incomplete")
     start = _finite_float(value["window_start_sec"], "window_start_sec")
     end = _finite_float(value["window_end_sec"], "window_end_sec")
     if end <= start:
@@ -166,7 +180,12 @@ def _validate_named_probability(value: Any, order: tuple[str, ...], role: str) -
 
 
 def _scope_key(row: Mapping[str, Any]) -> tuple[Any, ...]:
-    return tuple(row[name] for name in _SCOPE_FIELDS) + (row["parent_tracklet_id"],)
+    development_scope = tuple(row.get(name) for name in _DEVELOPMENT_SCOPE_FIELDS)
+    return (
+        tuple(row[name] for name in _SCOPE_FIELDS)
+        + development_scope
+        + (row["parent_tracklet_id"], row["evidence_scope"])
+    )
 
 
 def _prediction_sort_key(row: Mapping[str, Any]) -> tuple[Any, ...]:
@@ -190,6 +209,11 @@ def _new_episode(row: Mapping[str, Any], *, merge_gap_seconds: float) -> dict[st
         "schema_version": CAMERA_EPISODE_CANDIDATE_SCHEMA_VERSION,
         "episode_candidate_id": "",
         **{name: row[name] for name in _SCOPE_FIELDS},
+        **{
+            name: row[name]
+            for name in _DEVELOPMENT_SCOPE_FIELDS
+            if row.get(name) is not None
+        },
         "parent_tracklet_id": row["parent_tracklet_id"],
         "episode_start_sec": row["window_start_sec"],
         "episode_end_sec_exclusive": row["window_end_sec"],
@@ -198,6 +222,7 @@ def _new_episode(row: Mapping[str, Any], *, merge_gap_seconds: float) -> dict[st
         "binary_probability_summary": [row["binary"]["probabilities"]],
         "four_class_probability_summary": [row["four_class"]["probabilities"]],
         "prediction_status": PREDICTION_STATUS,
+        "evidence_scope": row["evidence_scope"],
         "policy_status": POLICY_STATUS,
         "merge_gap_seconds": merge_gap_seconds,
         "probability_calibrated": False,
@@ -228,6 +253,11 @@ def _finalize_episode(episode: dict[str, Any]) -> None:
     }
     identity = {
         **{name: episode[name] for name in _SCOPE_FIELDS},
+        **{
+            name: episode[name]
+            for name in _DEVELOPMENT_SCOPE_FIELDS
+            if episode.get(name) is not None
+        },
         "parent_tracklet_id": episode["parent_tracklet_id"],
         "contributing_window_ids": episode["contributing_window_ids"],
         "predicted_pattern": episode["predicted_pattern"],

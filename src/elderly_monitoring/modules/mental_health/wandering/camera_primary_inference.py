@@ -65,6 +65,14 @@ EXPECTED_CANDIDATE_MANIFEST_SHA256 = "3a1e56c37b9b43e340dcd67a3163454da1d37f24b0
 EXPECTED_MODEL_STATE_SHA256 = "94c3c22d4caa38ece347d6a10f440b9fb3f7067b6c791ac1f259ce7efe69c031"
 STATUS = "wandering_m0cam_primary_camera_engineering_ready"
 EVIDENCE_SCOPE = "synthetic_contract_only"
+_PREDICTION_EVIDENCE_SCOPES = frozenset(
+    {
+        EVIDENCE_SCOPE,
+        "authorized_development_smoke",
+        "authorized_labeled_development_evaluated",
+        "test_fixture_only",
+    }
+)
 FOUR_CLASS_ORDER = ("direct", "pacing", "lapping", "random")
 SUBTYPE_ORDER = ("pacing", "lapping", "random")
 BINARY_CLASS_ORDER = ("direct_or_non_wandering", "wandering_like")
@@ -159,15 +167,19 @@ def predict_primary_camera_window(
     runtime: CandidateRuntime,
     *,
     validation_scope: str,
+    evidence_scope: str = EVIDENCE_SCOPE,
 ) -> tuple[dict[str, Any], float | None]:
     """Directly forward one ready camera window as a CPU float32 batch of one."""
 
     _validate_window_envelope(prepared_window)
+    if evidence_scope not in _PREDICTION_EVIDENCE_SCOPES:
+        raise PrimaryCameraInferenceError("primary camera prediction evidence_scope is invalid")
     if prepared_window["window_status"] != "ready":
         return _empty_prediction(
             prepared_window,
             runtime,
             validation_scope=validation_scope,
+            evidence_scope=evidence_scope,
             status="unavailable",
             reason_codes=list(prepared_window["reason_codes"]),
             model_invocation_skipped=True,
@@ -190,6 +202,7 @@ def predict_primary_camera_window(
             prepared_window,
             runtime,
             validation_scope=validation_scope,
+            evidence_scope=evidence_scope,
             status="inference_error",
             reason_codes=[error.reason_code],
             model_invocation_skipped=False,
@@ -216,6 +229,7 @@ def predict_primary_camera_window(
             prepared_window,
             runtime,
             validation_scope=validation_scope,
+            evidence_scope=evidence_scope,
             status="inference_error",
             reason_codes=[error.reason_code],
             model_invocation_skipped=False,
@@ -225,7 +239,12 @@ def predict_primary_camera_window(
     subtype_index = int(np.argmax(subtype_probabilities))
     four_index = int(np.argmax(four_probabilities))
     return {
-        **_prediction_envelope(prepared_window, runtime, validation_scope=validation_scope),
+        **_prediction_envelope(
+            prepared_window,
+            runtime,
+            validation_scope=validation_scope,
+            evidence_scope=evidence_scope,
+        ),
         "window_status": "ready",
         "reason_codes": [],
         "binary": _named_probabilities(binary_probabilities, BINARY_CLASS_ORDER, binary_index),
@@ -542,7 +561,11 @@ def _validate_probability_vector(value: np.ndarray, width: int, role: str) -> No
 
 
 def _prediction_envelope(
-    record: Mapping[str, Any], runtime: CandidateRuntime, *, validation_scope: str
+    record: Mapping[str, Any],
+    runtime: CandidateRuntime,
+    *,
+    validation_scope: str,
+    evidence_scope: str,
 ) -> dict[str, Any]:
     training = runtime.manifest["training_candidate_identity"]["identity"]["candidate"]
     return {
@@ -555,7 +578,7 @@ def _prediction_envelope(
         "quality_flags": list(record["quality_flags"]),
         "model_purpose": "primary_candidate_camera_engineering",
         "validation_scope": validation_scope,
-        "evidence_scope": EVIDENCE_SCOPE,
+        "evidence_scope": evidence_scope,
         "candidate_id": runtime.manifest["candidate_id"],
         "candidate_manifest_sha256": runtime.manifest_sha256,
         "model_state_sha256": runtime.manifest["artifacts"]["model_state"]["sha256"],
@@ -572,12 +595,18 @@ def _empty_prediction(
     runtime: CandidateRuntime,
     *,
     validation_scope: str,
+    evidence_scope: str,
     status: str,
     reason_codes: Sequence[str],
     model_invocation_skipped: bool,
 ) -> dict[str, Any]:
     return {
-        **_prediction_envelope(record, runtime, validation_scope=validation_scope),
+        **_prediction_envelope(
+            record,
+            runtime,
+            validation_scope=validation_scope,
+            evidence_scope=evidence_scope,
+        ),
         "window_status": status,
         "reason_codes": list(reason_codes),
         "binary": None,

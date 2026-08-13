@@ -4,6 +4,7 @@ configs/modules/wandering_rf_v1.yaml text eol=lf
 configs/modules/wandering_tcn_v1.yaml text eol=lf
 configs/modules/wandering_camera_v1.yaml text eol=lf
 configs/modules/wandering_camera_primary_v1.yaml text eol=lf
+configs/modules/wandering_camera_development_v1.yaml text eol=lf
 configs/modules/wandering_performance_v1.yaml text eol=lf
 configs/modules/wandering_topowander_mpt_v1.yaml text eol=lf
 configs/modules/wandering_topowander_pretrain_v1.yaml text eol=lf

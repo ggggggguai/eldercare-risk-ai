@@ -1,0 +1,33 @@
+schema_version: wandering-camera-collection-config-v1
+purpose: m0cam_development_data_readiness
+dataset_roles:
+  - development
+  - sealed
+authorization:
+  receipt_schema_version: wandering-camera-authorization-receipt-v1
+  required_approval_status: approved
+  required_active: true
+  required_purpose: camera_development
+  required_dataset_role: development
+  allowed_operations:
+    - prepare_session
+    - validate_annotations
+    - run_development
+collection_schema_version: wandering-camera-collection-v1
+annotation_schema_version: wandering-camera-episode-annotation-v1
+media_schema_version: wandering-media-v1
+tracking_schema: caller_supplied_track_observation_jsonl
+readiness_milestones:
+  - C0
+  - C1
+  - C2
+  - C3
+privacy:
+  anonymous_ids_only: true
+  repository_receipt_summary_only: true
+  forbid_direct_identity: true
+  forbid_faces: true
+  forbid_credentials: true
+  forbid_live_urls: true
+  forbid_local_absolute_media_paths: true
+  audio_policy: not_collected
