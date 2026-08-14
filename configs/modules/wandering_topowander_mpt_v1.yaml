@@ -1,0 +1,157 @@
+schema_version: wandering-topowander-mpt-forward-config-v1
+purpose: architecture_forward_contract_only
+
+input:
+  sequence_length: 80
+  model_feature_channels: 14
+  shape_point_channels: 2
+  dtype: float32
+  mask_dtype: float32
+  mask_channel_index: 12
+  time_channel_indices: [10, 11]
+  quality_channel_index: 13
+  temporal_features_enabled: false
+  minimum_sample_valid_points: 8
+  require_same_device: true
+  require_finite: true
+  masked_non_mask_values_invariant: true
+
+tcn:
+  input_projection: {in_channels: 14, out_channels: 64, kernel_size: 1, bias: true}
+  convolution: noncausal_same_padding
+  layer_norm: {eps: 1.0e-5, elementwise_affine: true}
+  activation: gelu
+  blocks:
+    - {in_channels: 64, out_channels: 64, kernel_size: 3, dilation: 1}
+    - {in_channels: 64, out_channels: 96, kernel_size: 3, dilation: 2}
+    - {in_channels: 96, out_channels: 96, kernel_size: 3, dilation: 4}
+  depthwise_bias: true
+  pointwise_bias: true
+  channel_change_residual_bias: false
+  dropout: 0.10
+  post_input_projection_mask: true
+  post_block_mask: true
+
+patch:
+  length: 8
+  stride: 4
+  count: 19
+  minimum_valid_points: 6
+  minimum_valid_adjacent_displacements: 2
+  step_epsilon: 1.0e-8
+  reversal:
+    direction_span: 2
+    angle_deg: 120.0
+    merge_gap: 2
+    require_all_span_positions_valid: true
+  revisit_radius: 0.10
+  semantic_fields:
+    - path_length
+    - net_displacement
+    - path_efficiency
+    - mean_abs_turn
+    - max_abs_turn
+    - cumulative_abs_curvature
+    - reversal_count
+    - nearest_prior_patch_revisit_distance
+    - bbox_coverage_area
+    - valid_ratio
+    - mean_quality
+  semantic_projection:
+    input_channels: 11
+    hidden_channels: 64
+    output_channels: 96
+    layer_norm: {eps: 1.0e-5, elementwise_affine: true}
+    linear_bias: true
+    activation: gelu
+    dropout: 0.0
+  forbidden_semantics: [dwell_ratio, speed, duration]
+
+relation:
+  symmetric_fields:
+    - absolute_patch_distance
+    - is_adjacent
+    - center_distance
+    - is_revisit
+    - is_reverse_heading
+    - bbox_iou
+    - minimum_pair_quality
+  center_distance_scale: 0.10
+  center_distance_max: 4.0
+  revisit_minimum_patch_gap: 2
+  revisit_radius: 0.10
+  reverse_heading_cosine_max: -0.5
+  mlp: {input_channels: 7, hidden_channels: 32, output_heads: 4, bias: true, activation: gelu, dropout: 0.0}
+  signed_offset: {minimum: -18, maximum: 18, bucket_count: 37, output_heads: 4}
+  cls_explicit_bias: 0.0
+  shared_across_transformer_layers: true
+  absolute_position_embedding: none
+
+transformer:
+  layers: 2
+  d_model: 96
+  heads: 4
+  head_dim: 24
+  norm_position: pre
+  input_token_dropout: 0.0
+  layer_norm: {eps: 1.0e-5, elementwise_affine: true}
+  q_bias: true
+  k_bias: true
+  v_bias: true
+  output_projection_bias: true
+  attention_weight_dropout: 0.10
+  attention_output_dropout: 0.10
+  ffn:
+    hidden_channels: 192
+    activation: gelu
+    hidden_dropout: 0.10
+    output_dropout: 0.10
+    linear_bias: true
+  final_layer_norm: {eps: 1.0e-5, elementwise_affine: true}
+  invalid_patch_as_key_value: false
+  zero_invalid_patch_after_each_layer: true
+
+heads:
+  binary: {input_channels: 96, hidden_channels: 64, output_channels: 1, activation: gelu, dropout: 0.10, bias: true}
+  subtype: {input_channels: 96, hidden_channels: 64, output_channels: 3, activation: gelu, dropout: 0.10, bias: true}
+  projection: {input_channels: 96, output_channels: 64, bias: true, normalization: none}
+  forward_outputs: [binary_logit, subtype_logits, projection_embedding]
+  probability_helper: hierarchical_four_class_only
+
+initialization:
+  seed: 20260731
+  preserve_caller_rng_state: true
+  linear_and_conv_weight: {name: xavier_uniform, gain: 1.0}
+  linear_and_conv_bias: zeros
+  layer_norm_weight: ones
+  layer_norm_bias: zeros
+  cls_and_signed_offset: {name: normal, mean: 0.0, std: 0.02}
+
+state:
+  format: deterministic_npz_v1
+  allow_pickle: false
+  state_key_order: sorted
+  member_name: state_key_plus_dot_npy
+  zip_compression: stored
+  zip_timestamp: [1980, 1, 1, 0, 0, 0]
+  zip_create_system: 3
+  zip_unix_mode: "0600"
+  array_dtype: little_endian_float32
+  config_trust: external_expected_sha256
+  parameter_count: 204466
+
+verification:
+  device: cpu
+  amp: false
+  deterministic_algorithms: true
+  intra_op_threads: 1
+  inter_op_threads: 1
+
+forbidden:
+  data_access: true
+  training_or_optimizer: true
+  loss_or_decoder: true
+  performance_metrics: true
+  model_artifact_publication: true
+  pickle_joblib_torch_load: true
+  top_level_runtime_export: true

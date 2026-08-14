@@ -43,6 +43,8 @@ conda run -n eldercare-ai python -m pip show elderly-monitoring-algorithms
 conda run -n eldercare-ai python -m pip install -e ".[vision,service]"
 ```
 
+以下例外只适用于心理健康徘徊专项，不改变跌倒模块、其他目录或其他协作者的开发规则。徘徊的常规开发、监督性能实验和 pytest 继续使用 `eldercare-ai`；执行 AI 可以在徘徊范围内自主修复命令、路径、timeout、局部代码和测试问题，使用独立实验目录反复验证，并以最终 validation 性能和证据链为准，不为普通失败逐次请示。依赖兼容只限徘徊专用配置或独立可回滚环境；未经单独授权，不修改 `environment.yml`、共享依赖锁，也不升级或卸载共用环境中的包。M0-R 的 Release-Prep、candidate manifest、推理打包和 synthetic/validation 验证仍属普通徘徊开发，不等于进入受限发布。只有改变标签/split/人工裁决/科学目标、拟对固定 WP public holdout 计分但当前任务尚未取得明确授权、访问 sealed test/official、覆盖或删除既有证据、修改其他模块、push 或对外发布时才停止；已有明确计分授权时应按冻结候选连续完成，不为阶段切换再次请示。现行唯一路线见 `docs/modules/mental_health/plans/徘徊识别技术文档2.md`，当前任务只看 `docs/tasks/README.md`。
+
 ## 开发流程
 
 非平凡功能开发、缺陷修复、重构和发布准备需要遵循较完整的工程流程：
@@ -134,7 +136,7 @@ docs/modules/fall_risk/README.md
 
 ```text
 docs/modules/mental_health/README.md
-docs/modules/mental_health/plans/徘徊样行为识别技术方案.md
+docs/modules/mental_health/plans/徘徊识别技术文档2.md
 configs/modules/mental_health.yaml
 ```
 
@@ -144,7 +146,7 @@ configs/modules/mental_health.yaml
 
 当前 v3 训练标签的 fall/near-fall 事件监督门禁通过，动作类型门禁仍未通过，且所有 split 尚未冻结。模型候选只有在来源完整的标注、无泄漏且冻结的 train/validation/test split、连续背景与老人域验证、冻结评估协议和延迟/稳定性证据具备后，才能替换主路径。个体行为基线和最终风险融合仍需对应的连续个人数据或 `risk_labels` 真值；在这些条件满足前，保留统计/规则 fallback。
 
-心理健康日级 baseline 已实现；徘徊专项当前完成步骤 2 的安全转换、严格数据契约和人工复核，下一步是固定 split。正式 split、模型、片段状态机、日级接入和摄像头域验证完成前，不把转换产物写成徘徊识别能力。
+心理健康徘徊专项采用性能优先的 TCN + Transformer 路线。当前模型任务和摄像头数据任务以 `docs/tasks/README.md` 为唯一状态源，模型结构、95% 指标口径、Windows/WSL 执行方式和摄像头采集路线以 `docs/modules/mental_health/plans/徘徊识别技术文档2.md` 为准。旧 Step9/10 字节级协议只用于历史追溯，或在明确要求复放/发布 Step10-A 自监督预训练 bundle 时使用；它不适用于 M0-R 监督候选，也不阻塞常规模型开发。
 
 ## 文档维护规则
 

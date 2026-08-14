@@ -1,0 +1,70 @@
+schema_version: wandering-preprocessing-config-v1
+
+inputs:
+  wandering_patterns_samples:
+    path: data/processed/wandering/wandering_patterns/samples.jsonl
+    sha256: 498a0c39af27240bd38ab82367fdc1a13373ba3a22e8fede915419fea54e6ee7
+  smartcare_train_pool:
+    path: data/processed/wandering/smartcare/train_pool.jsonl
+    sha256: 01c5e3b8ecabd594837e5154ab64e52a1d364bcc15096a8193e8b627aa6fb780
+  split_json:
+    path: data/splits/mental_health/wandering/v1/split.json
+    sha256: 7fa934c8041f538ff033260d722c21f5a4dc0e6cd8d23fa42836aa2e24ed808f
+  split_sha256_file:
+    path: data/splits/mental_health/wandering/v1/split.sha256
+    sha256: 426175e2c5a7f822706f91445b2bd80c37704fb4b9943891a5fcfcd1b1efb96f
+  assignments:
+    path: data/splits/mental_health/wandering/v1/assignments.jsonl
+    sha256: 993307c13cb30484dba9fa1359c9c4fce714bb45b7d776e9a36ac6dcbee6eac6
+  split_config:
+    path: configs/data/wandering_split_v1.yaml
+    sha256: 579ad16e13b72f2914c5a2d14dfa73ef4a10a9a50f7ecc13bc20a67380a2e8ca
+
+split_sha256: 4ac4a3877a056809066562cb09e4d30aa1d38baafcb4600f1f8a8a672776adbf
+target_points: 80
+min_valid_points: 8
+max_index_gap: 2
+interpolated_quality: 0.5
+quantile_method: linear
+scale_quantiles:
+  - 0.05
+  - 0.95
+scale_epsilon: 1.0e-8
+step_epsilon: 1.0e-8
+iqr_epsilon: 1.0e-8
+numeric_tolerance: 1.0e-6
+temporal_features_enabled: false
+
+feature_channels:
+  - x
+  - y
+  - dx
+  - dy
+  - step_length
+  - sin_heading
+  - cos_heading
+  - sin_turn
+  - cos_turn
+  - abs_curvature
+  - normalized_dt
+  - time_available
+  - point_mask
+  - quality_score
+
+topology:
+  reversal_direction_span: 2
+  reversal_angle_deg: 120.0
+  reversal_merge_gap: 2
+  revisit_index_gap: 8
+  revisit_radius: 0.10
+  max_revisit_links: 5
+
+diagnostics:
+  seed: 20260803
+  samples_per_class: 8
+
+output_schemas:
+  samples: wandering-preprocessed-sample-v1
+  feature_stats: wandering-feature-stats-v1
+  preprocessing_report: wandering-preprocessing-report-v1
+  manifest: wandering-preprocessing-manifest-v1

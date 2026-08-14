@@ -36,3 +36,11 @@ Workflow A 当前入口：
 
 - [`mental_health/wandering_step2/README.md`](mental_health/wandering_step2/README.md)：WanderingPatterns/SmartCare 步骤 2 的来源哈希、转换计数、异常、确定性验证和人工联系表入口；不是正式 split、模型效果或现有心理健康评分能力。
 - [`mental_health/wandering_step2/HUMAN_REVIEW.md`](mental_health/wandering_step2/HUMAN_REVIEW.md)：六类固定抽样联系表的人工复核记录与后续限制。
+- [`mental_health/wandering_step3/README.md`](mental_health/wandering_step3/README.md)：徘徊步骤 3 的固定 split、official 封存、重复/近邻审计、确定性产物和完整哈希。
+- [`mental_health/wandering_step4/README.md`](mental_health/wandering_step4/README.md)：徘徊步骤 4 的固定预处理、train-only 统计、ready/unavailable 留痕、确定性 bundle 和人工诊断图审。
+- [`mental_health/wandering_step5/README.md`](mental_health/wandering_step5/README.md)：徘徊步骤 5 固定 26 维手工特征、两项五 seed RF 对照、两阶段封存评估、安全加载、确定性与真实指标。
+- [`mental_health/wandering_step6/README.md`](mental_health/wandering_step6/README.md)：徘徊步骤 6 两项独立纯 TCN、10 个安全 NPZ、validation 早停、固定 WP 评估、RF 同 seed 差值、双构建确定性和 CPU 基准。
+- [`mental_health/wandering_step7/README.md`](mental_health/wandering_step7/README.md)：徘徊步骤 7 bbox-only adapter、Camera QC、高度补偿、RF/TCN 最小离线推理、合成 camera contract 和双构建确定性。
+- [`mental_health/wandering_step8/visual_review/v3/README.md`](mental_health/wandering_step8/visual_review/v3/README.md)：徘徊步骤 8 v3 图审入口；正式结论为 `model_compatibility_warning`，详细兼容性 JSON/JSONL 按 `.gitignore` 本地保留。
+- [`mental_health/wandering_step9/README.md`](mental_health/wandering_step9/README.md)：徘徊步骤 9 TopoWander-MPT 主体与步骤 9a 多轮审计/修正记录；第 9a.6 节修正、三条路径级 LF 与唯一 Git 检查点已形成，训练未开始。
+- [`mental_health/wandering_step10_runtime/README.md`](mental_health/wandering_step10_runtime/README.md)：步骤 10 前置 runtime 治理；冻结 Linux/x86_64 `2.13.0+cu130` fact source 的路径、字节数和 SHA，并记录候选检查点、全新 checkout/环境、27/30 工件来源审计与 deterministic/thread 探针。

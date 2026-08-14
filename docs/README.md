@@ -1,6 +1,6 @@
 # 项目文档
 
-更新时间：2026-08-04
+更新时间：2026-08-13
 
 本页是文档唯一总入口。现行文档描述当前代码和接口；计划文档描述目标；归档文档只保留历史上下文，不能作为当前实现依据。
 
@@ -61,9 +61,28 @@
 | 评估 | [近跌倒恢复确认 TCN pilot](../reports/fall_risk/near_fall_event_v1/README.md) | 当前 v3 split 的三 seed validation、窗口来源限制和 test 隔离状态；不是 onset-time 预警指标 |
 | 复现 | [实时链路工程回归](../reports/fall_risk/runtime/README.md) | 阶段 0/1 的固定输入 hash、离线服务烟测与时钟/队列诊断；不是效果指标 |
 | 心理健康 | [模块 README](modules/mental_health/README.md) | 日级聚合、基线、评分、离线 CLI，以及隔离徘徊数据管线的当前边界 |
-| 心理健康 | [徘徊样行为识别技术方案](modules/mental_health/plans/徘徊样行为识别技术方案.md) | 徘徊轨迹分类、摄像头接入、日级基线、评估门槛和个人工作范围；属于目标设计，不等于已实现 |
+| 心理健康 | [徘徊识别技术文档2](modules/mental_health/plans/徘徊识别技术文档2.md) | 现行唯一技术路线：TCN + Transformer 模型闭环、95% 指标口径、轻量治理和目标摄像头采集/标注路线 |
 | 心理健康 | [徘徊模块协作交接与职责边界](modules/mental_health/徘徊模块协作交接与职责边界.md) | 按角色分配徘徊模块上下游交付、验收标准和阻塞条件 |
 | 复现 | [徘徊步骤 2 转换与复核](../reports/mental_health/wandering_step2/README.md) | WanderingPatterns/SmartCare 来源哈希、转换统计、异常、确定性证据和人工联系表入口 |
+| 复现 | [徘徊步骤 3 固定 split](../reports/mental_health/wandering_step3/README.md) | 1,810 条来源专用固定分配、official 封存、重复/近邻审计、五产物和完整哈希 |
+| 复现 | [徘徊步骤 4 预处理与可视化](../reports/mental_health/wandering_step4/README.md) | 已完成：1,790 条非 sealed 留痕、1,775 ready/15 unavailable、14 通道、train-only 统计、确定性 bundle 和 `human_review_passed` 诊断图审 |
+| 评估 | [徘徊步骤 5 RF 对照基线](../reports/mental_health/wandering_step5/README.md) | 已完成并独立复建复核：strict bundle loader、固定 26 维特征、二/四分类五 seed RF、development/frozen WP test 信任链、确定性与分来源真实指标；仅为 `comparison_only` |
+| 评估 | [徘徊步骤 6 纯 TCN 对照基线](../reports/mental_health/wandering_step6/README.md) | 已完成：two-task 独立 CPU TCN、10 个安全 NPZ、validation 早停、固定 WP test、RF 同 seed 差值、development/test 字节级复建和 batch=1 基准；仅为 `comparison_only` |
+| 复现 | [徘徊步骤 7 bbox-only 离线链](../reports/mental_health/wandering_step7/README.md) | 已完成：严格 media/tracking 契约、Camera QC、高度补偿、步骤 4 共享核心、RF/TCN 四组独立预测、合成 camera contract 与双构建确定性；未做真实摄像头效果验证 |
+| 评估 | [徘徊步骤 8 合成污染兼容性](../reports/mental_health/wandering_step8/visual_review/v3/README.md) | 已完成：v3 图审与兼容性证据链关闭，正式结论为 `model_compatibility_warning`，不是“全部模型通过观察线”；详细 JSON/JSONL 按 `.gitignore` 本地保留 |
+| 复现 | [徘徊步骤 9/9a TopoWander-MPT 前向契约](../reports/mental_health/wandering_step9/README.md) | 第 9a.6 节修正、三条路径级 LF 与唯一 Git 检查点已形成；步骤 9 本身是纯前向契约 |
+| 复现 | [徘徊步骤 10 runtime 前置治理](../reports/mental_health/wandering_step10_runtime/README.md) | Step10-A 的历史 runtime/source 治理记录；不再作为常规模型性能开发门禁 |
+| 评估 | [TopoWander-MPT M0-S 三种子稳定性](../reports/mental_health/wandering_performance/m0s_three_seed_stability_v1/README.md) | 固定三 seed development validation、异常中断恢复、fresh reload、同种子 RF/TCN paired 对照、成本与 primary-seed 冻结；后续固定候选计分见 M0-RS 报告 |
+| 复现 | [TopoWander-MPT M0-R Release-Prep v2](../reports/mental_health/wandering_performance/m0r_release_prep_v1/README.md) | M0-S primary 的 local-only inference bundle、外部 manifest SHA、phase-aware evaluator 与 validation parity；没有执行当前候选 WP public-holdout 计分 |
+| 复现 | [TopoWander-MPT M0-RH score-entry hardening v3](../reports/mental_health/wandering_performance/m0r_score_entry_hardening_v1/README.md) | 唯一 `score-frozen-wp` 正式入口、固定 CPU runtime、source/archive/双身份 preflight、validation parity 与拒绝覆盖原子提交；作为 M0-RS 的冻结前置证据 |
+| 评估 | [TopoWander-MPT M0-RS fixed WP public-holdout score](../reports/mental_health/wandering_performance/m0rs_public_holdout_score_report_v1/README.md) | 固定 primary 候选的一次 public-shape 计分、六文件原子输出、独立复算与预注册门槛判定；`target_met`，不是首次盲测或 camera/老人域证据 |
+| 复现 | [TopoWander-MPT M0-CAM-E / M0-CAM-H primary camera 工程闭环](../reports/mental_health/wandering_m0cam_engineering_v1/README.md) | 固定 primary 接入 Step7 adapter/QC/prepared arrays，并完成 synthetic-only、二分类平票与 active-source 三项加固；仅为 `synthetic_contract_only`，当前数据工具与授权评估见任务表 |
+| 复现 | [TopoWander-MPT M0-CAM-RD camera development 数据工具](../reports/mental_health/wandering_camera_data_readiness_v1/README.md) | 初版 240 条 synthetic observation、schema/readiness 与历史工具骨架；制品保持不变，真实 readiness 仍为 `not_ready` |
+| 复现 | [TopoWander-MPT M0-CAM-RD-F / RD-F2 development entry hardening](../reports/mental_health/wandering_camera_rd_f_v1/README.md) | receipt-first、C3、session-aware person-hours、evaluator、最大基数 matching 和 authorized API provenance 已收口；证据仍为 `synthetic_schema_contract_only`、`readiness_status=not_ready`，当前工作见任务表 |
+| 复现 | [TopoWander-MPT M0-CAM-C01-PREP receipt-first C1 handoff](../reports/mental_health/wandering_camera_c01_prep_v1/README.md) | canonical tracking/sidecar round-trip、receipt-first 视频→共享 tracker→C1 pair 主体及 owner 清单；原定初版缺口由 C01-F 处理，后续完整关闭见任务表中的 F2 |
+| 复现 | [TopoWander-MPT M0-CAM-C01-F provenance and final-binding hardening](../reports/mental_health/wandering_camera_c01_f_v1/README.md) | C01-F 原定公共 context、原子 safe binding、portable metadata 与视频 SHA 范围已完成；后续 active-root/resolver/source/component 审计已由 F2 收口，仅为 `synthetic_schema_contract_only`，实时状态见任务表 |
+| 复现 | [TopoWander-MPT M0-CAM-C01-F2 handoff integrity hardening](../reports/mental_health/wandering_camera_c01_f2_v1/README.md) | active checkout/config samefile、receipt-first resolver、统一 source SHA basis 与 portable component metadata 已收口并完成本地 Git 集成；仅为 `synthetic_schema_contract_only`，真实数据线等待 owner C0+C1，当前唯一无视频软件任务是尚未启动的 `M0-CAM-PORTABLE` |
+| 历史 | [徘徊样行为识别旧方案](../文档/徘徊样行为识别技术方案（历史归档-2026-08-12）.md) | 截至 2026-08-12 的旧步骤、报告和精确协议，仅供追溯，不代表现行路线 |
 | 任务 | [当前任务](tasks/README.md) | 项目待办和验证缺口 |
 
 ## 目录约定
@@ -78,6 +97,7 @@ docs/
   archive/               历史评审、汇报和已结束计划
 
 reports/                 新实验指标、复现记录和失败案例
+文档/                    中文参考资料和按项目要求保留的历史原文；不直接作为现行事实源
 ```
 
 ## 维护规则
@@ -88,3 +108,4 @@ reports/                 新实验指标、复现记录和失败案例
 - 新增、删除或移动现行文档时同步更新本页。
 - 状态发生变化时更新 `tasks/README.md`，不要在多个计划或汇报中维护重复待办。
 - 阶段汇报、旧评审和已执行计划移入 `archive/`，不继续在原文上滚动维护。
+- 根目录 `文档/` 中的历史原文只有在本页明确标为“现行”时才可作为路线；本次旧徘徊方案仅供追溯。

@@ -28,6 +28,18 @@ reports/**/*.jsonl
 reports/**/*.xlsx
 reports/**/*.png
 reports/**/*.mp4
+reports/mental_health/wandering_performance/**/*.sha256
+reports/mental_health/wandering_performance/**/*.zip
+reports/mental_health/wandering_performance/**/artifacts/**/*
+reports/mental_health/wandering_performance/**/identity/**/*
+reports/mental_health/wandering_performance/**/diagnostics/**/*
+reports/mental_health/wandering_performance/**/performance_config.yaml
+reports/mental_health/wandering_performance/m0_smoke_*/**/*
+reports/mental_health/wandering_m0cam_engineering_v1/**/*.sha256
+reports/mental_health/wandering_m0cam_engineering_v1/**/*.zip
+reports/mental_health/wandering_m0cam_engineering_v1/artifacts/**/*
+reports/mental_health/wandering_m0cam_engineering_v1/identity/**/*
+reports/mental_health/wandering_m0cam_engineering_v1/diagnostics/**/*
 tmp/
 
 # Local model weights.
@@ -37,6 +49,7 @@ tmp/
 *.engine
 *.ckpt
 *.joblib
+*.npz
 
 # Local environment files.
 .env

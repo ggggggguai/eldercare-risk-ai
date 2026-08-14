@@ -1,0 +1,86 @@
+schema_version: wandering-split-config-v1
+split_version: wandering-split-v1
+seed: 20260731
+group_policy: source_specific_v1
+
+inputs:
+  wandering_patterns_manifest:
+    path: data/processed/wandering/wandering_patterns/manifest.json
+    sha256: 04bb88849eddd15ef12de7883612f3b03a20004dfbcd9684e1ef059f06875b9e
+  wandering_patterns_samples:
+    path: data/processed/wandering/wandering_patterns/samples.jsonl
+    sha256: 498a0c39af27240bd38ab82367fdc1a13373ba3a22e8fede915419fea54e6ee7
+  smartcare_manifest:
+    path: data/processed/wandering/smartcare/manifest.json
+    sha256: c74bb729cf2c353311fef2013ae6abf72a59f70dab5a1969ffb48a37262736bc
+  smartcare_train_pool:
+    path: data/processed/wandering/smartcare/train_pool.jsonl
+    sha256: 01c5e3b8ecabd594837e5154ab64e52a1d364bcc15096a8193e8b627aa6fb780
+  smartcare_official_validation:
+    path: data/processed/wandering/smartcare/official_validation.jsonl
+    sha256: 78ac0568089ca1aa5aedd4e38f77d37bc5d0d40c3c1ba14d51ceaa4a0ead7b40
+  step2_human_review:
+    path: reports/mental_health/wandering_step2/HUMAN_REVIEW.md
+    sha256: 9577803dde1a4a9cb6b97ad09bb4fbc573817ba9d1e8954d44ad22d312cb0cd0
+
+wandering_patterns:
+  source_name: wandering_patterns
+  input_role: samples
+  labels:
+    - direct
+    - pacing
+    - lapping
+    - random
+  per_class_counts:
+    train: 280
+    validation: 60
+    test: 60
+  evaluation_scope: public_shape_benchmark
+
+smartcare:
+  source_name: smartcare
+  development_input_role: train_pool
+  sealed_input_role: official_validation
+  validation_dates:
+    - "2020-09-20"
+    - "2020-10-07"
+  expected_counts:
+    train: 152
+    validation: 38
+    sealed_external_test: 20
+  expected_development_binary_label_counts:
+    train:
+      0: 73
+      1: 79
+    validation:
+      0: 17
+      1: 21
+  declared_sealed_binary_label_counts:
+    0: 10
+    1: 10
+
+near_neighbor_audit:
+  resample_points: 32
+  thresholds:
+    - 0.02
+    - 0.05
+  allow_time_reversal: true
+  allow_rotation: true
+  allow_reflection: true
+  expected_lt_0_05_total_pairs: 9061
+  expected_lt_0_05_same_label_pairs: 9055
+
+development_loader:
+  require_split_manifest: true
+  allow_runtime_random_split: false
+  default_partition: train
+  explicit_evaluation_partitions:
+    - validation
+    - test
+  forbidden_partitions:
+    - sealed_external_test
+
+output_schemas:
+  assignments: wandering-split-assignments-v1
+  near_neighbor_audit: wandering-near-neighbor-audit-v1
+  split_report: wandering-split-report-v1

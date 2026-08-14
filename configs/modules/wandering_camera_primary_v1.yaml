@@ -1,0 +1,58 @@
+schema_version: wandering-camera-primary-config-v1
+purpose: topowander_m0cam_primary_camera_engineering
+evidence_scope: synthetic_contract_only
+
+camera_chain:
+  path: configs/modules/wandering_camera_v1.yaml
+  sha256: 08bbec6ef263dd45fef3262c407ce675107f87ea584584f7ab61142cd734ae8e
+  size_bytes: 2500
+
+candidate:
+  candidate_id: topowander-m0s-seed20260731-epoch0005
+  manifest_path: reports/mental_health/wandering_performance/m0r_score_entry_hardening_v1/artifacts/topowander_m0r_candidate_v3/candidate_manifest.json
+  manifest_sha256: 3a1e56c37b9b43e340dcd67a3163454da1d37f24b01d8677935f63a069d97ac7
+  manifest_size_bytes: 12642
+  model_state_sha256: 94c3c22d4caa38ece347d6a10f440b9fb3f7067b6c791ac1f259ce7efe69c031
+  primary_seed: 20260731
+  best_epoch: 5
+  retrained: false
+  ensemble: false
+
+runtime:
+  device: cpu
+  intra_op_threads: 8
+  inter_op_threads: 1
+  maximum_batch_size: 64
+
+inference:
+  direct_model_forward: true
+  use_candidate_runtime_predict_logits: false
+  wp_prefix_padding: false
+  autograd_mode: torch.inference_mode
+  model_mode: eval
+  input_dtype: float32
+  probability_calibrated: false
+  binary_decision_threshold: 0.5
+
+class_order:
+  binary: [direct_or_non_wandering, wandering_like]
+  subtype: [pacing, lapping, random]
+  four_class: [direct, pacing, lapping, random]
+
+episode_policy:
+  policy_status: development_unfrozen
+  merge_gap_must_be_explicit: true
+  alert_decision: null
+
+output_schemas:
+  prediction: wandering-camera-primary-prediction-v1
+  episode_candidate: wandering-camera-episode-candidate-v1
+  run_manifest: wandering-camera-primary-run-manifest-v1
+
+data_access:
+  synthetic_fixture: true
+  real_human_media: false
+  wp_raw: false
+  wp_public_holdout: false
+  smartcare_official_or_raw: false
+  sealed_camera: false
