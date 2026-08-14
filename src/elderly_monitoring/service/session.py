@@ -43,6 +43,7 @@ class MonitoringSession:
     epoch_history: list[dict[str, Any]] = field(default_factory=list)
     runtime_diagnostics: dict[str, Any] = field(default_factory=dict)
     next_epoch_reason: str = field(default="session_started", repr=False)
+    stream_url_revision: int = field(default=0, repr=False)
 
 
 class SessionManager:
@@ -56,6 +57,8 @@ class SessionManager:
         reconnect_delay_sec: float = 1.0,
         frame_queue_capacity: int = 2,
         stop_budget_sec: float = 5.0,
+        reconnect_stable_after_sec: float = 30.0,
+        reconnect_stable_after_frames: int = 120,
         **runtime_kwargs: Any,
     ) -> None:
         self.reader_factory = reader_factory
@@ -65,6 +68,8 @@ class SessionManager:
         self.reconnect_delay_sec = reconnect_delay_sec
         self.frame_queue_capacity = frame_queue_capacity
         self.stop_budget_sec = float(stop_budget_sec)
+        self.reconnect_stable_after_sec = float(reconnect_stable_after_sec)
+        self.reconnect_stable_after_frames = int(reconnect_stable_after_frames)
         self.runtime_kwargs = runtime_kwargs
         self.sessions: dict[str, MonitoringSession] = {}
         self._lock = threading.RLock()
@@ -94,6 +99,7 @@ class SessionManager:
             return None
         with self._lock:
             session.stream_url = stream_url
+            session.stream_url_revision += 1
             session.next_epoch_reason = "stream_url_updated"
             if session.reader is not None:
                 session.reader.release()
@@ -128,19 +134,43 @@ class SessionManager:
             session.engine = self.engine_factory(session=session, model_path=self.model_path, **self.runtime_kwargs)
             attempts = 0
             while not session.stop_event.is_set():
+                with self._lock:
+                    stream_url = session.stream_url
+                    url_revision = session.stream_url_revision
                 reader_kwargs = {
                     key: value for key, value in self.runtime_kwargs.items()
                     if key in {"open_timeout_ms", "read_timeout_ms"}
                 }
-                reader = self.reader_factory(session.stream_url, **reader_kwargs)
-                session.reader = reader
+                reader = self.reader_factory(stream_url, **reader_kwargs)
+                with self._lock:
+                    if (
+                        session.stop_event.is_set()
+                        or session.stream_url_revision != url_revision
+                    ):
+                        reader.release()
+                        attempts = 0
+                        continue
+                    session.reader = reader
                 try:
                     reader.open()
-                    session.stream_epoch += 1
-                    epoch = session.stream_epoch
+                    with self._lock:
+                        stopped = session.stop_event.is_set()
+                        stale_url = session.stream_url_revision != url_revision
+                        if (stopped or stale_url) and session.reader is reader:
+                            session.reader = None
+                        if not stopped and not stale_url:
+                            session.stream_epoch += 1
+                            epoch = session.stream_epoch
+                            epoch_reason = session.next_epoch_reason
+                            session.next_epoch_reason = "stream_reconnected"
+                    if stopped:
+                        reader.release()
+                        break
+                    if stale_url:
+                        reader.release()
+                        attempts = 0
+                        continue
                     epoch_started = time.monotonic()
-                    epoch_reason = session.next_epoch_reason
-                    session.next_epoch_reason = "stream_reconnected"
                     if hasattr(session.engine, "begin_stream_epoch"):
                         session.engine.begin_stream_epoch(
                             epoch,
@@ -148,7 +178,6 @@ class SessionManager:
                             started_monotonic_sec=epoch_started,
                         )
                     session.status = SessionStatus.RUNNING
-                    attempts = 0
                     buffer = LatestFrameBuffer(capacity=self.frame_queue_capacity)
                     producer = threading.Thread(
                         target=self._capture_frames,
@@ -180,10 +209,20 @@ class SessionManager:
                     diagnostics = buffer.snapshot()
                     self._record_epoch_diagnostics(session, epoch, diagnostics)
                     reader.release()
-                    session.reader = None
+                    with self._lock:
+                        if session.reader is reader:
+                            session.reader = None
                     if session.stop_event.is_set():
                         break
                     session.status = SessionStatus.RECONNECTING
+                    epoch_duration_sec = time.monotonic() - epoch_started
+                    stable_epoch = (
+                        epoch_duration_sec >= self.reconnect_stable_after_sec
+                        or int(diagnostics.get("put_count", 0))
+                        >= self.reconnect_stable_after_frames
+                    )
+                    if stable_epoch or session.stream_url_revision != url_revision:
+                        attempts = 0
                     attempts += 1
                     if attempts > self.reconnect_attempts:
                         raise RuntimeError("stream reconnect attempts exhausted")
@@ -191,9 +230,15 @@ class SessionManager:
                         break
                 except Exception:
                     reader.release()
-                    session.reader = None
+                    with self._lock:
+                        if session.reader is reader:
+                            session.reader = None
+                        stale_url = session.stream_url_revision != url_revision
                     if session.stop_event.is_set():
                         break
+                    if stale_url:
+                        attempts = 0
+                        continue
                     attempts += 1
                     if attempts > self.reconnect_attempts:
                         raise

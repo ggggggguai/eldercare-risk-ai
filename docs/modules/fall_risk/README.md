@@ -1,6 +1,6 @@
 # 跌倒风险算法模块
 
-更新时间：2026-08-04
+更新时间：2026-08-12
 
 本模块承接 `docs/modules/fall_risk/plans/跌倒风险算法研发计划.md`。
 
@@ -40,7 +40,7 @@
 
 ## 实时链路阶段 0-3
 
-实时链路质量冲刺的阶段 0-3 已完成核心工程实现和自动化单元/集成回归；真实萤石设备、长时资源和正式运行性能仍未验收：
+实时链路质量冲刺的阶段 0-3 已完成核心工程实现和自动化单元/集成回归；2026-08-12 真实萤石算法端 120 秒严格烟测已通过，业务回调、地址刷新、弱网和长时资源仍未验收：
 
 - `configs/modules/fall_risk_runtime_acceptance.yaml` 冻结了离线回放输入、时钟域、latest-frame 容量、采样门禁和外部验收阻塞项；`scripts/evaluate/build_fall_runtime_fingerprint.py` 输出配置和输入 hash。
 - 会话使用有界 latest-frame 缓冲；队列满时丢弃最旧帧并记录计数与源 PTS。`stream_epoch` 在每次成功打开流时递增，取帧队列、推理限频与窗口状态不会跨 epoch 复用。
@@ -59,16 +59,19 @@
 
 ## 工作流 A：数据、标注与评估底座
 
-截至 2026-08-04，工作流 A 的自动化底座、v2 根标签发布和模型训练标签 v3 结构已实现。现有标签经项目负责人裁决后，fall/near-fall 事件监督已通过 v3 数据与 split 门禁；动作类型、v2 formal、连续背景分母、老人域泛化和正式评估仍未通过。当前事实以实际产物和审计结果为准，不以[工作流 A 执行任务书](plans/工作流A-Codex执行任务书.md)中的计划项作为完成证据。
+截至 2026-08-09，工作流 A 的自动化底座、v2 根标签发布、模型训练标签 v3 结构和跌倒事件 P0 fail-closed 审计已实现。现有标签经项目负责人裁决后，fall/near-fall 事件监督已通过 v3 数据与 split 门禁；动作类型、v2 formal、连续背景分母、老人域泛化和正式评估仍未通过。当前事实以实际产物和审计结果为准，不以[工作流 A 执行任务书](plans/工作流A-Codex执行任务书.md)中的计划项作为完成证据。
 
 | 能力 | 当前状态 | 证据与限制 |
 |---|---|---|
 | 统一数据 manifest | 已实现并对本地数据运行 | `data/manifests/fall_risk_video_manifest.jsonl` 当前有 7,534 条资产，其中 6,520 条是视频；包含 3,914 条已接受的 NTU RGB+D 视频，其中 A043 包含 938 个有人工 CVAT 标签的 `video_id`。NTU 外部 manifest 已按 `data/external/ntu` 重建，当前全量媒体存在性扫描为 0 缺失 |
-| 通用全视频姿态缓存 | 底座已实现；当前 eligible RGB 视频批次全部完成 | `scripts/prepare/prepare_fall_pose_cache.py` 按 dataset 仅选择 eligible video，分别原子发布 raw/cleaned JSONL 和可恢复 state，并用 cache/batch 契约 hash 阻止参数或输入漂移；`scripts/prepare/validate_fall_pose_cache.py` 逐文件复核 batch/state、文件大小、raw/cleaned 记录数和 cleaned 17 点结构。当前 manifest 的 6,512 个 eligible RGB 视频均有 state，剩余 0；表格、时序和已有骨架资产不送入 RGB 姿态模型。批次实测见下表。该缓存不等于已生成训练窗口或已训练模型 |
-| 跌倒动作候选 TCN | 当前 v3 split 三 seed provisional pilot 已完成；正式事件模型阻塞 | `fall_action_presence_proxy_v1` 使用当前 v3 primary 动作标签：`D01/D02/D03/D05` 为明确跌倒动作，`A03/A05/A06/A09` 为明确非跌倒动作 proxy；开发分区生成 2,533 个 `[32,14,7]` 窗口（train 1,834、validation 699），另有 684 个 test 标签只计数不读姿态。三 seed validation F1 为 `0.958/0.961/0.963`，balanced accuracy 为 `0.958/0.960/0.962`，独立 evaluator 复算一致；方向头保持 `not_trained`。validation 保护组只有 9 个且以 NTU 为主，结果只证明预裁剪动作片段分类，不证明连续事件定位、正式误报率或真实跌倒确认。见[跌倒 candidate-clip TCN v3 split provisional pilot](../../../reports/fall_risk/fall_event_proxy_v2_v3split/README.md)，默认不接入实时主路径 |
-| 步态窗口与训练协议 | 六 seed functional proxy 集成完成；候选未过门槛 | 新训练默认只把 `quality` 用作 mask/池化，并以 A01/B01-B04 监督 walking gate，最终分数为 `P(walking) * P(abnormal|walking)`；同时加入物理一致 train-only 增强。B01-B04 proxy 六 seed 单模型 F1 为 `0.145-0.253`，动作段概率集成 validation F1 为 `0.308`、balanced accuracy 为 `0.733`、正常误报约 `40.8/小时`；验证集只有 12 个正动作段，test 未读取，集成仍是离线开发候选，默认 checkpoint 继续为 `null`。见[步态 TCN v5 六 seed 集成实验](../../../reports/fall_risk/gait_window_v5_effect_first/development-20260803/README.md) |
-| 坐站训练准备与候选 TCN | provisional E2 闭环和候选双头 TCN smoke/pilot 已完成；正式定位仍阻塞 | 新增标签/媒体/姿态审计、最大保护组泄漏校验、train/validation-only 专用派生 split、4 FPS x 4 秒 x 14 点 x 7 通道数据集、事件总权重归一化、E0、Logistic 和 candidate clip TCN 训练/恢复/独立 validation 入口。TCN pilot 的 presence balanced accuracy/F1 为 0.981/0.986，方向 balanced accuracy/macro-F1 为 0.994/0.994；1,308/1,409 validation 事件来自 NTU；test 姿态和指标未读取。该 TCN 只验证预裁剪候选 clip，不定位 onset/offset，不能进入主路径。见[坐站首轮 provisional 训练](../../../reports/fall_risk/sit_stand_event_v1/README.md) |
-| 近跌倒最小训练链 | 三 seed provisional pilot 已完成；正式事件模型仍阻塞 | 项目负责人已确认全部 962 条 C03 为 near-fall，迁移器生成双向关联的 `stumble_recovery` 正例，并从明确动作/跌倒事件生成八类 hard negative；primary 正/负为 948/1,906，统一 split 三分区均有正负监督，`training_ready.near_fall_event=true`。本轮生成 876 个 train/validation 窗口并完成 seed 42/43/44 训练，validation F1 为 `0.990-0.997`；窗口全部来自 NTU，实际负例窗口只有 `fast_but_controlled_sit`/`controlled_squat`，test 未读取，不能代表连续视频或老人域效果。见[近跌倒恢复确认 TCN provisional pilot](../../../reports/fall_risk/near_fall_event_v1/README.md)，规则主路径保持不变 |
+| 通用全视频姿态缓存 | 当前 manifest 全覆盖并通过严格校验 | `scripts/prepare/prepare_fall_pose_cache.py` 按 dataset 仅选择 eligible video，分别原子发布 raw/cleaned JSONL 和可恢复 state，并用 cache/batch 契约 hash 阻止参数或输入漂移；`scripts/prepare/validate_fall_pose_cache.py` 逐文件复核 batch/state、文件大小、raw/cleaned 记录数和 cleaned 17 点结构。当前 8 个批次覆盖全部 6,512 个 eligible RGB 视频、674,889 源帧和 708,177 条 raw/cleaned 姿态记录，所有批次均为 `errors=0`、`status=passed`，且无残留 `.part` 文件；表格、时序和已有骨架资产不送入 RGB 姿态模型。批次实测见下表。该缓存不等于已生成训练窗口或已训练模型 |
+| 跌倒动作候选 TCN | 历史 pilot，已退休 | 旧 candidate-clip 仅作报告追溯；当前不训练、不评估、不接入实时主路径。连续因果输入基础设施另行保留 |
+| 跌倒连续因果输入契约 | 合成基础设施已实现；真实 dataset/模型阻塞 | `fall_event_continuous.py` 固定 COCO 17 点与 20 通道 joint/motion/acceleration/bone/timing/quality mask，保留 image height、bbox scale、插值、跳变、gap、实际 source `delta_t`、相对时间、有效 FPS 和目标连续性；因果重采样只取 slot 及以前观测并拒绝多目标混入。当前只通过合成测试，不读取真实 test、不训练 checkpoint、不输出 `fall_event_score`，也不接入运行主路径 |
+| 跌倒事件训练 P0 审计 | 已实现；当前 `infrastructure_only` | `scripts/audit/audit_fall_event_training.py` 不解析 test 标签内容，只绑定当前 manifest、v3 标签、split、formal/v3 报告和配置 hash。当前 hash/无泄漏/fall 监督门禁通过；formal、独立事件规模、连续背景、老人域、冻结 split/协议和 test 保管门禁未通过。旧 candidate 报告绑定 `splitv3_f898...`，不能作为当前 `splitv3_e71a...` 结果。见[P0 审计](../../../reports/fall_risk/fall_event_training_audit.md)和[阻塞清单](../../../reports/fall_risk/fall_event_blockers.md) |
+| 步态窗口与训练协议 | P0-P3 基础设施与真实上下文 provisional 消融完成；正式训练被门禁阻塞 | v2 先在标注内锁定目标轨迹，再用同轨真实帧扩展 4 秒窗口；标注外上下文不作负样本，`label_span_mask` 限制监督池化。train 正类二分类监督段由旧协议 61 增至 92，另保留 9 段但不施加 binary loss；validation 主口径仍只有 B02/B03/B04=2/4/3 段、1 个 source group。双构建逐字节一致，seed 42、3 epoch 仅作链路 smoke，test 未读取，默认 checkpoint 继续为 `null`。见[真实上下文 v2 报告](../../../reports/fall_risk/gait_observable_context_v2/splitv3-e71a045/README.md)、[原始 v1 报告](../../../reports/fall_risk/gait_observable_v1/splitv3-e71a045/README.md)和[步态训练审计](../../../reports/fall_risk/gait_training_audit.md) |
+| 坐站训练准备与因果 TCN | seed 42 完整流 pilot 完成；三 seed No-Go | 现有人工边界发布为 1,866 个事件、2,220 个显式背景和 192 个 ignore，优化后 3,759 个 `[64,14,9]` 窗口双构建一致。加权 boundary head、流式解码和统一 S0 评估已完成；667 个 validation 完整姿态流上，TCN event F1/Recall/FP-hour 为 0.351/0.403/331.9，规则为 0.135/0.374/1890.2。TCN 有相对增益但未达到 event F1 0.75、Recall 0.85 和困难负例 `<10%` 门禁，且来源退化明显，故不运行 seed 43/44。默认 checkpoint 仍为 `null`，规则主路径不变，test 未读取。见[坐站训练记录](../../../reports/fall_risk/sit_stand_training_audit.md)和[阻塞清单](../../../reports/fall_risk/sit_stand_training_blockers.md) |
+| 近跌倒最小训练链 | 当前 v3 split 三 seed 开发训练完成；正式事件模型仍阻塞 | 项目负责人已确认全部 962 条 C03 为 near-fall，迁移器生成双向关联的 `stumble_recovery` 正例，并从明确动作/跌倒事件生成八类 hard negative。修复标注 track 与姿态 track 命名空间误配后，当前 split 确定性生成 1,105 个 train/validation 窗口、822 个事件；train 覆盖 5 个来源和 7 类困难负例，validation 负类仍只有 `fast_but_controlled_sit`。seed 42/43/44 的 validation 事件 F1 为 `0.9967/0.9967/0.9933`，test 未读取，不能代表连续视频或老人域效果。见[近跌倒恢复确认 TCN 开发训练报告](../../../reports/fall_risk/near_fall_event_v1/README.md)，规则主路径保持不变 |
+| SCF_MVP_V1 自采增强 | G0-G2 已执行；E1-E3 No-Go | 项目自采和复核决定已记录；P01/P02/P04 train、P05 challenge、P03 excluded。E1-E3 共 9 次训练均通过原 validation 回归门槛；E2 将 P05 六类负例总体触发率从 E0 的 `94.1%` 降至 `79.4%/88.2%/79.4%`，但 C03-C05 代理检出同步降至 `75.0%/87.5%/75.0%`，未通过升级门槛。规则和原 checkpoint 保持主路径。见[执行报告](../../../reports/fall_risk/self_collected_scf_mvp_v1/README.md) |
 | 标注导入与严格校验 | v2 根标签已发布；formal 阻塞 | 根标签为 9,314 条动作、6,338 条事件；Fall Detection 2017 新增 2,977/2,977，NTU 贡献 4,404 条动作和 1,428 条 A043 映射事件，UR Fall 贡献 268/268。发布报告记录 71 条重叠 CVAT 跌倒事件按官方 LE2I 窗口排除，并隔离目录名与 `batch_id` 不一致的 S001-S017 候选批次。结构错误为 0；formal 为 `errors=0`、`blockers=285`、`formal_ready=false` |
 | CaucaFall 人工标注 | 已进入主标签链 | 官方 DOI 为 `10.17632/7w7fccy7ky.4`；100 个视频、10 名受试者、311 条人工 CVAT 动作和 311 条映射事件已接入。manifest 标为 `label_source=cvat_manual`，10 个脱敏任务 ZIP 位于 `cvat_exports/raw/caucafall_manual/`；原始 ZIP 不入库，别名和脱敏记录见 `generated/v2/caucafall_manual/import_report.json` |
 | NTU RGB+D 人工标注 | 已进入主标签链 | 外部 NTU manifest 共 3,924 个 RGB 视频且均可访问；2,976 条 A008/A009/A042/A080 片段按 2026-07-25 人工决定进入 v2/v3/split。S001-S017 的 938 个已标 A043 视频按 2026-07-30 接受决定接入，生成 1,428 条动作和 1,428 条映射事件；未标注 A043 不按文件名导入。S016/C003/P008/R001 job revision 以严格 ZIP 文件名绑定并叠加到完整 S016 project，规范化 project ZIP 保留源名和两层 SHA-256。2026-08-04 裁决将当前 v3 的 446 条全片跌倒设为首帧 onset、尾帧 offset，并确认全部 NTU C03 为近跌倒。该批次仍缺 S002 的 10 个 C001 任务；306 个完整三视角组中有 51 个方向不一致、36 个原 CVAT 边界差超过 5 帧 |
@@ -80,20 +83,20 @@
 
 ### 全视频姿态缓存批次
 
-以下批次统一使用 YOLOv8n-Pose、ByteTrack、MPS 和相同质量控制契约；每批报告位于 `data/processed/fall_risk/pose_quality_y8n_v1/batches/<batch_id>/`。
+以下批次统一使用仓库内 `models/yolov8n-pose.pt`、ByteTrack、CPU 和相同质量控制契约；每批报告位于 `data/processed/fall_risk/pose_quality_y8n_v1/batches/<batch_id>/`。
 
-| batch_id | 视频 | 源帧 | raw/cleaned 姿态 | MPS 用时（秒） | 检测帧覆盖率 | 有效关键点率 | 下肢有效率 | 步态可用率 | 验收 |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|---|
-| `le2i_imvia` | 184 | 74,375 | 72,231 | 3,375.792 | 89.3163% | 83.4954% | 89.4570% | 87.7573% | `passed` |
-| `caucafall` | 100 | 19,877 | 17,847 | 645.253 | 89.1030% | 90.9802% | 98.4386% | 98.1341% | `passed` |
-| `ntu_rgbd` | 3,914 | 296,511 | 307,137 | 9,364.428 | 99.8664% | 94.0833% | 97.7042% | 96.9444% | `passed` |
-| `fall_detection_2017` | 2,012 | 113,651 | 112,624 | 4,140.957 | 96.1523% | 90.6755% | 96.1518% | 94.4745% | `passed` |
-| `fall_tiktok` | 66 | 10,945 | 13,895 | 472.471 | 88.4605% | 81.2912% | 91.0004% | 88.7370% | `passed` |
-| `pre_vfallp` | 108 | 84,089 | 82,994 | 3,894.140 | 98.6847% | 98.0639% | 99.9733% | 100.0000% | `passed` |
-| `toaga` | 28 | 60,510 | 79,950 | 2,394.374 | 90.7420% | 84.0798% | 99.6100% | 99.4296% | `passed` |
-| `ur_fall` | 100 | 14,931 | 21,211 | 560.856 | 81.9034% | 88.9250% | 94.9272% | 93.5364% | `passed` |
+| batch_id | 视频 | 源帧 | raw/cleaned 姿态 | 检测帧覆盖率 | 有效关键点率 | 下肢有效率 | 步态可用率 | 验收 |
+|---|---:|---:|---:|---:|---:|---:|---:|---|
+| `le2i_imvia` | 184 | 74,375 | 72,231 | 89.3163% | 83.4954% | 89.4570% | 87.7573% | `passed` |
+| `caucafall` | 100 | 19,877 | 17,847 | 89.1030% | 90.9802% | 98.4386% | 98.1341% | `passed` |
+| `ntu_rgbd` | 3,914 | 296,511 | 307,137 | 99.8664% | 94.0833% | 97.7042% | 96.9444% | `passed` |
+| `fall_detection_2017` | 2,012 | 113,651 | 112,624 | 96.1523% | 90.6755% | 96.1518% | 94.4745% | `passed` |
+| `fall_tiktok` | 66 | 10,945 | 13,895 | 88.4605% | 81.2912% | 91.0004% | 88.7370% | `passed` |
+| `pre_vfallp` | 108 | 84,089 | 82,994 | 98.6847% | 98.0639% | 99.9733% | 100.0000% | `passed` |
+| `toaga` | 28 | 60,510 | 79,950 | 90.7420% | 84.0798% | 99.6100% | 99.4296% | `passed` |
+| `ur_fall` | 100 | 14,931 | 21,499 | 82.8880% | 89.0288% | 94.9951% | 93.6230% | `passed` |
 
-`fall_detection_2017` 有 2 个 `completed_no_pose` 视频，经全片抽帧确认均为空场景。UR Fall 的 `adl-07-cam0.mp4` 源文件和本地归档副本 SHA-256 一致，但均为截断文件：manifest/容器声明 180 帧，实际只能解码 35 帧；当前缓存只包含可解码部分，不能将该样本视为完整视频。`pre_vfallp` 完成姿态提取不解除其 `dataset_quarantined` 数据治理状态。
+`fall_detection_2017` 有 2 个 `completed_no_pose` 视频，经全片抽帧确认均为空场景。UR Fall 的 `adl-07-cam0.mp4` 已按当前 SHA-256 `0b346e78321c0cdfd281a19f3f4fd9cb6d61ed27f4caa1a955ac182c5b66a954` 重提完整 180 帧并重新通过批次严格校验；该视频仍按既有人工决定不标注，不进入 v3 监督。Pre_VFallp 当前 108 个资产已依据 `configs/data/fall_risk_internal_authorizations.yaml` 取消数据集级隔离，全部为 `eligibility=true`，可用于项目内部研发；这不等于公开来源或公开再分发权已经验证，未知人员仍共用 `pre_vfallp_unresolved` 保守源组。manifest 中另有 8 个 `duplicate_content` 视频为 `eligibility=false`，不属于本缓存的输入范围。
 
 当前数据阻断包括：129 条 `U01/uncertain`、技术排除资产关联、Fall Detection 2017 项目来源治理、人员或保守源组治理、功能与纵向参考终点、测试集保管职责隔离，以及评估协议预注册。责任角色和解除条件见[工作流 A 阻塞清单](../../../reports/fall_risk/workflow_a_blockers.md)。
 
@@ -117,8 +120,8 @@ conda run -n eldercare-ai python scripts/annotation/build_fall_risk_manifest.py 
 conda run -n eldercare-ai python scripts/prepare/prepare_fall_pose_cache.py \
   --dataset ntu_rgbd \
   --batch-id ntu_rgbd \
-  --model yolov8n-pose.pt \
-  --device mps \
+  --model models/yolov8n-pose.pt \
+  --device cpu \
   --continue-on-error
 
 conda run -n eldercare-ai python scripts/prepare/validate_fall_pose_cache.py \
@@ -140,6 +143,14 @@ conda run -n eldercare-ai python scripts/annotation/validate_fall_risk_labels.py
   --mode audit \
   --report-output /tmp/fall_risk_label_validation_audit.json
 ```
+
+生成绑定当前输入 hash 的跌倒事件训练 P0 审计；输出存在时默认拒绝覆盖：
+
+```bash
+conda run -n eldercare-ai python scripts/audit/audit_fall_event_training.py
+```
+
+当前结果为 `infrastructure_only`，不授权正式训练、frozen 协议生成或 test 评估。
 
 生成并校验不覆盖 v2 的模型训练标签：
 
@@ -210,8 +221,14 @@ src/elderly_monitoring/modules/fall_risk/near_fall.py
 src/elderly_monitoring/modules/fall_risk/fall_event_training.py
   跌倒动作 proxy 数据审计与 train/validation 窗口准备
 
+src/elderly_monitoring/modules/fall_risk/fall_event_continuous.py
+  跌倒连续因果 17 点输入张量和 cutoff-only 重采样；当前只作合成基础设施
+
 src/elderly_monitoring/modules/fall_risk/fall_event_tcn.py
   provisional 跌倒候选片段 TCN 训练、复评和 shadow 推理
+
+src/elderly_monitoring/modules/fall_risk/fall_event_training_audit.py
+  跌倒事件训练 P0 hash、数据、协议和 test 治理门禁审计
 
 src/elderly_monitoring/modules/fall_risk/baseline.py
   个体化行为基线建模，输出 baseline_deviation_score
@@ -252,7 +269,7 @@ conda run -n eldercare-ai python scripts/collect/run_fall_pose.py \
   --input "data/external/le2i_imvia/raw/FallDataset/Home_01/Videos/video (1).avi" \
   --output data/processed/fall_risk/poses/home_01_video_1_poses.jsonl \
   --backend yolov8-pose \
-  --model yolov8n-pose.pt \
+  --model models/yolov8n-pose.pt \
   --scene-region home
 ```
 
@@ -327,7 +344,7 @@ conda run -n eldercare-ai python scripts/collect/run_fall_pose_quality.py \
 
 旧开发 profile 的正类包含 B01-B04；当前推荐的 `observable_instability_b02_b04` profile 只将 B02-B04 作为异常步态正类，负类仍为 A01-A12 正常活动/hard negative。B01 `slow_walk` 单列为可观察功能风险 proxy，不能把慢速直接解释为步态不稳或临床异常。当前训练/运行输入契约固定为 4 FPS、4 秒、16 帧、最多 0.5 秒 gap、最少 10 个观测帧。
 
-为了使用其他动作资源，训练侧新增五类语义动作共享编码器预训练：正常移动、正常转换/活动、功能受损、平衡丢失、跌倒/跌倒后。它只迁移 TCN 编码器，不把坐站、近跌倒或跌倒标签错误改成步态正负类。当前 6,405 条合法非 test 标签全部经过构建，2,296 个动作段满足窗口质量要求；Pre_VFallp 的 246 条 assignment 全部属于 test，禁止进入训练。完整结果见[全动作共享预训练与步态迁移实验](../../../reports/fall_risk/gait-action-pretraining-20260803.md)。
+为了使用其他动作资源，训练侧新增五类语义动作共享编码器预训练：正常移动、正常转换/活动、功能受损、平衡丢失、跌倒/跌倒后。它只迁移 TCN 编码器，不把坐站、近跌倒或跌倒标签错误改成步态正负类。2026-08-03 的历史实验中有 6,405 条合法非 test 标签进入构建，2,296 个动作段满足窗口质量要求，当时选中的 246 条 Pre_VFallp assignment 位于 test；该结论只绑定旧 split。当前 `splitv3_e71a045eb58489f43dc5fd11` 中全部 403 条 Pre_VFallp action/event assignment 位于 train，并由单一 `pre_vfallp_unresolved` 保护组隔离；旧数据集、checkpoint 和报告必须按当前 split 重建后才能继续使用。历史结果见[全动作共享预训练与步态迁移实验](../../../reports/fall_risk/gait-action-pretraining-20260803.md)。
 
 输入来自 cleaned pose JSONL，优先使用：
 
@@ -345,7 +362,7 @@ conda run -n eldercare-ai python scripts/collect/run_fall_gait.py \
   --tcn-window-frames 16
 ```
 
-省略 `--tcn-checkpoint` 时命令仍可运行，但 `score_source=rule_fallback`、`fallback_reason=model_unavailable`。运行时拒绝把 KINECAL 的回顾性跌倒史 checkpoint 当作步态稳定性 checkpoint。
+省略 `--tcn-checkpoint` 时命令仍可运行，但 `score_source=rule_fallback`、`fallback_reason=model_unavailable`。当前步态候选仅接受 observable-context v2 任务契约，其他历史 checkpoint 不进入运行链路。
 
 输出每条记录表示一个步态分析窗口，核心字段包括：
 
@@ -369,30 +386,9 @@ conda run -n eldercare-ai python scripts/collect/run_fall_gait.py \
 - 相机视角、遮挡、下肢出画和跟踪 ID 切换会显著影响特征。
 - 当前输出可用于工程链路、规则 baseline 和误差分析，不能解释为临床结论。
 
-### KINECAL 轻量步态 TCN 实验
+### 步态 TCN 实验收敛状态
 
-当前已实现独立的 KINECAL 数据准备和轻量 TCN 训练入口，但它的任务是 `NF` 对 `FHs/FHm` 的回顾性跌倒史 proxy，不是 `gait_instability_vs_normal_activity`，运行时任务校验会阻止它接入实时 `gait_risk_score`。
-
-数据准备：
-
-```bash
-conda run -n eldercare-ai python scripts/prepare/prepare_kinecal_gait_tcn.py \
-  --input-dir data/external/kinecal/raw \
-  --output-dir data/processed/fall_risk/kinecal_gait_tcn
-```
-
-训练：
-
-```bash
-conda run -n eldercare-ai python scripts/train/train_gait_tcn.py \
-  --data data/processed/fall_risk/kinecal_gait_tcn/dataset.npz \
-  --output-dir reports/fall_risk/kinecal_gait_tcn \
-  --epochs 80 \
-  --patience 15 \
-  --device cpu
-```
-
-当前固定划分包含 50 名独立参与者和 219 个窗口，模型为 14,114 参数。首次实测在 7 人测试集上的参与者级 balanced accuracy 为 `0.333`、ROC-AUC 为 `0.583`，未达到进入主链或替代规则 baseline 的条件。下一步必须做重复参与者级交叉验证，并用真实 RGB 视频提取的同一 14 点骨架做微调和外部测试。完整记录见 `reports/fall_risk/kinecal_gait_tcn/README.md`。
+旧 KINECAL 数据下载、准备和 baseline 入口已移除。当前只保留 observable-context v2 TCN 作为步态实验候选；validation-only，样本和协议门禁仍未满足，不接入规则主路径。
 
 ## 坐站转换能力分析
 
@@ -404,7 +400,7 @@ conda run -n eldercare-ai python scripts/train/train_gait_tcn.py \
   -> 近跌倒事件检测
 ```
 
-当前运行主路径仍是可解释规则/统计 baseline，不直接输出最终 `risk_level` 或 `recommended_action`。训练侧已完成 provisional `sit_stand_event_presence_proxy_v1` 的审计、数据构建、E0、结构化 Logistic smoke/pilot，以及 `sit_stand_candidate_clip_tcn_v1` 双头 TCN smoke/pilot 和独立 validation 评估。TCN 只区分预裁剪候选 clip 是否为坐站及 A03/A04 方向，不定位 onset/offset，也未读取 test，不能替换本节规则主路径。正式事件定位 E4 继续受显式连续背景和真实边界门禁阻塞。
+当前运行主路径仍是可解释规则/统计 baseline，不直接输出最终 `risk_level` 或 `recommended_action`。连续因果多头 TCN 是唯一保留的坐站实验候选；seed 42 event F1 仅 0.351、Recall 0.403，边界和困难负例仍未达线，checkpoint 不接入运行配置，test 未读取。旧 Logistic 和预裁剪候选 TCN 训练/评估入口已移除。
 
 规则主路径从 cleaned pose JSONL 中读取肩、髋、膝、踝关键点，优先使用：
 
@@ -433,16 +429,9 @@ conda run -n eldercare-ai python scripts/prepare/prepare_sit_stand_event_dataset
   --output-dir data/processed/fall_risk/sit_stand_event_v1/provisional-20260803-seed42-v3 \
   --allow-provisional
 
-conda run -n eldercare-ai python scripts/train/train_sit_stand_logistic.py \
+conda run -n eldercare-ai python scripts/train/train_sit_stand_continuous_tcn.py \
   --data data/processed/fall_risk/sit_stand_event_v1/provisional-20260803-seed42-v3/dataset.npz \
-  --profile pilot \
-  --output-dir reports/fall_risk/sit_stand_event_v1/pilot-logreg-provisional-20260803-seed42-v2 \
-  --allow-provisional
-
-conda run -n eldercare-ai python scripts/train/train_sit_stand_candidate_tcn.py \
-  --data data/processed/fall_risk/sit_stand_event_v1/provisional-20260803-seed42-v3/dataset.npz \
-  --profile pilot \
-  --output-dir reports/fall_risk/sit_stand_event_v1/pilot-candidate-tcn-provisional-20260803-seed42-v1 \
+  --output-dir reports/fall_risk/sit_stand_continuous_tcn_v1 \
   --allow-provisional
 ```
 
@@ -500,7 +489,7 @@ conda run -n eldercare-ai python scripts/train/train_sit_stand_candidate_tcn.py 
 - `core_keypoint_quality`
 - `window_quality.usable_for_near_fall`
 
-训练侧另有隔离的“恢复后近跌倒确认”候选链：`publish_near_fall_labels_v3.py` 发布人工 v3 候选，`prepare_near_fall_event_dataset.py` 构建因果 `[T,10,8]` train/validation 数据，`train_near_fall_tcn.py` 训练 binary TCN。它尚未接入这里的规则主路径。现行真实 v3 事件监督门禁已经通过，三 seed provisional pilot 已完成；窗口全部来自 NTU 且实际负例类别不完整，不能替代连续背景和老人域验证。人工决策格式和门禁顺序见 `scripts/annotation/README.md`。
+训练侧另有隔离的“恢复后近跌倒确认”候选链：`publish_near_fall_labels_v3.py` 发布人工 v3 候选，`prepare_near_fall_event_dataset.py` 构建因果 `[T,10,8]` train/validation 数据，`train_near_fall_tcn.py` 训练 binary TCN。它尚未接入这里的规则主路径。现行真实 v3 事件监督门禁已经通过，当前 split 的三 seed开发训练已完成；train 已覆盖 5 个来源，但 validation 的困难负例仍只有快速可控坐下一类，不能替代连续背景和老人域验证。人工决策格式和门禁顺序见 `scripts/annotation/README.md`。
 
 腕部关键点只用于“疑似支撑接触”的弱 proxy；腕部缺失不会阻断横向失衡、快速下沉恢复、急停恢复等基础近跌倒线索识别。
 
@@ -552,7 +541,7 @@ conda run -n eldercare-ai python scripts/collect/run_fall_near_fall.py \
   -> 轻量风险融合模型 + 规则校准
 ```
 
-当前实现是滚动均值、标准差和分位数偏离的规则/统计 baseline，不训练深度模型，也不直接输出最终 `risk_level`、`risk_score` 或 `recommended_action`。它从步态、坐站、近跌倒、活动节律和场景聚合 JSONL 中读取结构化结果，按 `person_id` 建立个人历史统计；`track_id` 只作为辅助维度记录，不会把同一老人不同轨迹误建成不同老人。
+当前实现是 `fall-personal-baseline-robust-v1` 规则/统计候选，不训练深度模型，也不直接输出最终 `risk_level`、`risk_score` 或 `recommended_action`。它只消费上游已经形成的完整日/小时周期记录，以 `person_id + camera_profile_id` 隔离 reference，并为每个当前周期按 `period_end < current.period_start` 重新选择历史；均值/标准差保留为诊断对照，主评分使用 median/MAD、分位数、相对变化和近期变化。10 秒 cleaned pose 窗口不是周期记录，实时链路在没有上游周期聚合结果时将该分支标为 `unavailable`，不会产生伪零分或增加融合覆盖率。
 
 运行命令：
 
@@ -561,26 +550,24 @@ conda run -n eldercare-ai python scripts/collect/run_fall_baseline.py \
   --baseline-input data/processed/fall_risk/features/history_features.jsonl \
   --current-input data/processed/fall_risk/features/current_features.jsonl \
   --output data/processed/fall_risk/features/current_baseline.jsonl \
-  --min-history-days 3 \
-  --stable-history-days 7 \
-  --min-history-records 10
+  --config configs/modules/fall_risk_baseline.yaml
 ```
 
-输入来源包括：
-
-- 步态窗口：`gait_risk_score`、`gait_stability_features.mean_center_speed_norm_per_sec`、`center_speed_cv`、`hip_lateral_sway`。
-- 坐站事件：`sit_stand_risk_score`、`duration`、`failed_attempts`、`stabilization_time`。
-- 近跌倒事件：`near_fall_event_score`、`event_type`。
-- 活动节律和场景聚合：`nighttime_activity_count`、`activity_volume`、`scene_region`。
-- 通用元数据：`person_id`、`track_id`、`timestamp` / `timestamp_sec` / `start_time` / `end_time`、`quality_coverage`。
+每条输入必须声明 `record_type=fall_baseline_period_features`、`schema_version=fall-baseline-period-features-v1`、`completed=true`，并包含 `person_id`、`device_id`、`camera_profile_id`、`period_id`、带时区的 `period_start/period_end`、`timezone`、`valid_monitoring_hours` 和逐指标 `metric_quality`。次数类近跌倒与夜间活动先按有效监测小时归一化；空/`unknown` 身份、未完成周期、无时区时间或缺少相机域的记录失败关闭。同一身份/相机/周期的逐字相同记录去重，内容冲突则拒绝。
 
 输出每条记录表示一个按天或按小时聚合的当前观测窗口，核心字段包括：
 
 | 字段 | 含义 |
 |---|---|
-| `baseline_deviation_score` | 0-1 个体基线偏离分，越高表示相对个人历史偏离越明显 |
+| `baseline_deviation_score` | 0-1 个体基线偏离分；无可用历史/指标时为 `null` |
+| `baseline_state` | `none/cold/initial/stable/drift_suspected/recovery` |
+| `baseline_confidence` | 由历史量、历史/当前质量形成的工程置信状态 |
+| `available_metric_mask` | 逐指标可用性，不可用指标不参与归一化 |
+| `metric_deviation_scores` | 逐指标偏离分；不可用项为 `null` |
+| `legacy_mean_std_metric_scores` | 旧 mean/std 规则的逐指标对照分，不作为主评分 |
+| `baseline_fusion_weight` | `none/cold=0`、`initial=0.25`、`stable=1.0` 的 provisional 内部融合权重 |
 | `baseline_features` | 当前窗口聚合后的平均步速、坐站耗时、近跌倒频率、夜间活动、活动量和场景分布 |
-| `baseline_reference` | 个人历史均值、标准差、p10/p25/p50/p75/p90、样本数、场景分布等摘要 |
+| `baseline_reference` | median、MAD、winsorized mean、均值/标准差对照、分位数、曝光和质量摘要 |
 | `deviation_factors` | 机器可读偏离因子，如 `gait_speed_drop_from_baseline` |
 | `baseline_quality` | 历史天数、历史记录数、当前质量、基线置信和低样本/低质量标记 |
 
@@ -595,11 +582,51 @@ conda run -n eldercare-ai python scripts/collect/run_fall_baseline.py \
 - `insufficient_baseline_history`
 - `reduced_baseline_quality`
 
-低样本量和低质量数据不会被当成高风险：历史样本不足时输出 `insufficient_baseline_history` 并限制偏离分上限；历史或当前质量不足时输出 `reduced_baseline_quality` 并降低 `baseline_quality.baseline_confidence`。这些记录可供后续融合层降权或人工处理，但不应单独解释为跌倒风险等级。
+低样本量和低质量数据不会被当成高风险：`none/cold` 阶段输出 `baseline_deviation_score=null`；`initial` 阶段按版本化配置限制分数；低质量历史/当前周期降置信并限制分数。`PersonalBaselineTracker` 另外提供快 EWMA、单向 CUSUM、连续异常冻结和三周期恢复候选规则；这些阈值均为 provisional，只由合成序列验证，不能解释为真实效果结论。
+
+Phase 2 算法侧基础设施已经实现，但真实效果仍未验收：
+
+- `configs/data/fall_risk_longitudinal_observation_schema_v1.json` 定义完成周期到未来 outcome 的连接契约；`configs/data/fall_risk_longitudinal_review_schema_v1.json` 固定人工复核证据。
+- `scripts/split/build_fall_baseline_longitudinal_split.py` 按家庭/保守来源组做外层隔离，在每个 `person_id + camera_profile_id` 内严格先 reference、后 scoring。assignment 不保存 outcome ID 或风险真值，且绑定协议哈希。
+- `scripts/evaluate/evaluate_fall_baseline_longitudinal.py` 强制无个人基线、mean/std、median/MAD、完整鲁棒候选四组使用完全相同的评分样本，并输出整体、人员/设备/相机/场景/质量/曝光分层、人员级 bootstrap 95% CI 和失败案例。
+- validation 可以使用 provisional 协议；`data_status=formal` 要求 frozen 协议和 frozen split，test 还要求绑定 split、协议、预测、标签、commit、授权角色和 run ID 的保管人 release acknowledgement。代码只校验绑定关系，run ID 的单次消费由保管人流程负责。
+
+真实门禁审计命令如下。当前预期退出码为 3，输出 `blocked`，因为 observation 0 条、`risk_labels` 0 条、subject profiles 0 人：
+
+```bash
+conda run -n eldercare-ai python scripts/split/build_fall_baseline_longitudinal_split.py \
+  --output-dir /tmp/fall_baseline_longitudinal_gate
+```
+
+合成评估只能验证基础设施：
+
+```bash
+conda run -n eldercare-ai python scripts/evaluate/build_synthetic_fall_baseline_longitudinal_fixture.py \
+  --output-dir /tmp/fall_baseline_longitudinal_synthetic
+
+conda run -n eldercare-ai python scripts/evaluate/generate_fall_baseline_longitudinal_predictions.py \
+  --observations /tmp/fall_baseline_longitudinal_synthetic/observations.validation.jsonl \
+  --assignments /tmp/fall_baseline_longitudinal_synthetic/assignments.jsonl \
+  --split /tmp/fall_baseline_longitudinal_synthetic/split.json \
+  --partition validation \
+  --output /tmp/fall_baseline_longitudinal_synthetic/replay-predictions.validation.jsonl
+
+conda run -n eldercare-ai python scripts/evaluate/evaluate_fall_baseline_longitudinal.py \
+  --observations /tmp/fall_baseline_longitudinal_synthetic/observations.validation.jsonl \
+  --risk-labels /tmp/fall_baseline_longitudinal_synthetic/risk_labels.validation.jsonl \
+  --assignments /tmp/fall_baseline_longitudinal_synthetic/assignments.jsonl \
+  --split /tmp/fall_baseline_longitudinal_synthetic/split.json \
+  --predictions /tmp/fall_baseline_longitudinal_synthetic/replay-predictions.validation.jsonl \
+  --partition validation \
+  --data-status synthetic \
+  --output-dir /tmp/fall_baseline_longitudinal_bundle
+```
 
 局限：
 
 - 当前基线特征是工程 proxy，尚未经过真实老人长期数据标定。
+- 当前仓库没有生成上述周期记录的在线聚合调度，因此实时 pose 链路中的个人基线仍保持 unavailable；离线 CLI 可用于契约和合成验证。
+- Phase 2 真实数据、冻结 split 和真实四组消融仍未完成；新基础设施不改变规则主路径，也不证明个人基线优于固定群体阈值。
 - 平均步速、转身稳定性和活动量受相机角度、遮挡、采样策略和上游聚合方式影响。
 - 场景模式变化只表示相对个人历史区域分布异常，不等同于危险场景判断。
 - 本模块只输出 `baseline_deviation_score` 和解释性偏离因子，不能解释为医疗诊断结论。
@@ -659,11 +686,13 @@ payload = event.to_dict()
 
 ## 跌倒事件候选模型
 
-当前新增的是 candidate-clip TCN 实现；现行 checkpoint 的任务契约为 `fall_action_presence_proxy_v1`，用于判断一个已经由标注或上游候选生成器截取的 4 秒姿态窗口是否包含跌倒动作。当前 v3 split 的三 seed pilot 已完成，但它仍不是连续视频事件定位器，也不改变 `AlgorithmEvent` 的 `fall_risk` 模块边界。
+当前只保留连续因果输入张量和审计基础设施；旧 candidate-clip TCN 训练/评估入口已退休。连续 dataset、冻结协议、老人域验证和 test 治理完成前，不训练或接入跌倒 TCN，规则主路径保持不变。
 
 数据准备只消费明确标注的动作片段：`D01/D02/D03/D05` 为正类，`A03/A05/A06/A09` 为明确非跌倒动作 proxy；未标注时间段不会被推断成负类。模型和运行报告均标记为 `provisional_shadow`，不替换实时 `fall_state` 规则和安全覆盖 fallback。
 
-现行 v3 的 `training_ready.fall_event=true`，当前 pilot 已按哈希绑定 split 重建并完成三 seed validation，但仍不能升级为正式模型结果：validation 保护组只有 9 个、来源以 NTU 为主，且未读取 test。pilot 分数不能写成“已确认跌倒概率”、连续视频召回率、误报率或临床有效性。该 profile 的 `subtype_loss_weight=0.0`，方向头没有训练；报告显式返回 `subtype.status=not_trained`，不能从 checkpoint 推断跌倒方向。
+现行 v3 的 `training_ready.fall_event=true`，但这只解除事件监督结构门禁。旧 pilot 的 validation 保护组只有 9 个、来源以 NTU 为主，且未读取 test；其分数不能写成当前 split 结果、“已确认跌倒概率”、连续视频召回率、误报率或临床有效性。该 profile 的 `subtype_loss_weight=0.0`，方向头没有训练；报告显式返回 `subtype.status=not_trained`，不能从 checkpoint 推断跌倒方向。
+
+新增的 `fall_event_continuous.py` 只建立 `[T,17,20]` 因果输入：平滑 joint、未平滑 motion/acceleration、bone、image y/bbox height、quality/valid/interpolated/jump/frame mask、实际 source `delta_t`、相对时间、有效 FPS、gap 和 track continuity。时刻 `t` 的 slot 只可使用 `<=t` 的观测；重复采样、缺帧、长 gap 或跳变不会伪造速度。该模块当前没有真实连续 dataset builder、训练器、checkpoint 或 predictor，不应称为连续跌倒模型。
 
 ```bash
 conda run -n eldercare-ai python scripts/prepare/prepare_fall_event_dataset.py \
@@ -690,19 +719,21 @@ conda run -n eldercare-ai python scripts/collect/run_fall_event_model.py \
 
 | 场景 | 策略 |
 |---|---|
-| 轨迹和姿态关键点 | 同一次 YOLOv8-pose + ByteTrack 推理生成内存对象，默认最多 8 FPS |
+| 轨迹和姿态关键点 | 同一次 YOLOv8-pose + ByteTrack 推理生成内存对象，默认最多 10 FPS；目标硬件仍需实测有效采样率不低于关键分支 6 FPS 门槛 |
 | 动作识别 | 使用 1-2 秒滑窗滚动判断 |
 | 风险融合 | 默认每 2 秒更新一次内部风险状态 |
 | 普通状态 | 0 级不回调；已有 episode 的 `recovered/unresolved` 终止版本例外 |
 | 风险等级升高或触发事件变化 | 立即输出事件 JSON |
 | 近跌倒、疑似跌倒、长时间静止 | 不等待节流周期，立即输出 |
 
-HTTP 入口为 `elderly_monitoring.service.app:app`，支持创建、查询、更新地址和幂等停止单路直播会话。真实视频全生命周期烟测：
+HTTP 入口为 `elderly_monitoring.service.app:app`，支持创建、查询、更新地址和幂等停止单路直播会话。流读取默认使用 FFmpeg，以兼容萤石 HEVC-over-FLV；系统 `ffprobe` 探测分辨率，系统 `ffmpeg` 解码为 BGR 并按 `ffmpeg_scale_width` 缩放。FFmpeg 与运行时都使用同一 `max_inference_fps` 上限：解码层只选择原始帧，不会为低帧率直播补造重复帧；运行时继续按接收时钟防止过密推理。该上限必须显著高于关键分支的 6 FPS 门槛，并在目标硬件上以最终有效采样率验收。超时或进程退出会主动清理子进程并进入现有重连流程。只有达到 `reconnect_stable_after_sec` 或 `reconnect_stable_after_frames` 的连接才会清零连续失败预算，防止可打开但立即 EOF 的短流永久重连；显式更新临时直播地址会重新开始预算。rawvideo 管道不提供源 PTS，因此该后端的 `source_pts_sec` 为 `null`。环境变量 `STREAM_READER_BACKEND`、`FFMPEG_SCALE_WIDTH`、`POSE_INFERENCE_SIZE`、`RECONNECT_STABLE_AFTER_SEC` 和 `RECONNECT_STABLE_AFTER_FRAMES` 可覆盖配置，非法后端会在启动时失败关闭；选择 FFmpeg 后端时 readiness 同时检查 `ffmpeg` 与 `ffprobe`。`pose_inference_size` 当前保持模型默认 640，变更后必须重新验证关键点覆盖率与四个关键分支的采样门禁。解码错误会脱敏当前直播地址后再写入会话状态。
+
+真实视频全生命周期烟测：
 
 ```bash
 conda run -n eldercare-ai python scripts/collect/run_fall_service_smoke.py \
   --input "data/external/le2i_imvia/raw/FallDataset/Home_01/Videos/video (1).avi" \
-  --model yolov8n-pose.pt \
+  --model models/yolov8n-pose.pt \
   --max-frames 30
 ```
 
@@ -711,13 +742,13 @@ conda run -n eldercare-ai python scripts/collect/run_fall_service_smoke.py \
 ```bash
 EZVIZ_STREAM_URL='rtmp://example.invalid/live?temporary-signature' \
 conda run -n eldercare-ai python scripts/collect/run_fall_live_smoke.py \
-  --model yolov8n-pose.pt \
+  --model models/yolov8n-pose.pt \
   --duration-sec 120 \
   --scene-region living_room \
   --report /tmp/ezviz_live_smoke.json
 ```
 
-该命令分别报告持续出帧/重连状态与姿态、特征分支状态；没有风险事件不算失败。它不替代业务回调联调，也不构成算法准确率证据。2026-07-30 首次真实 RTMP 烟测确认地址可解码，但每次连接只返回约 14 帧后结束，未形成稳定直播或算法窗口，详见[萤石真实直播算法端烟测](../../../reports/fall_risk/runtime/ezviz-live-smoke-20260730.md)。当前仍未完成真实萤石平台的稳定直播和业务后端闭环验收。服务只接受可直接解码的 `rtsp`、`rtmp`、`http` 或 `https` 地址，不转换 `ezopen` 地址。
+该命令分别报告持续出帧/重连状态与姿态、特征分支状态；四个关键分支必须在测试周期内达到 `valid`，没有风险事件本身不算失败。它不替代业务回调联调，也不构成算法准确率证据。2026-07-30 首次 RTMP 地址只返回约 14 帧后结束；2026-08-12 新授权 HTTPS-FLV 地址在修复后的默认 FFmpeg 链上通过 120 秒严格算法端烟测，单一 epoch、末端有效采样率 6.8514 FPS、四个关键分支有效且停止受控，详见[2026-07-30 失败记录](../../../reports/fall_risk/runtime/ezviz-live-smoke-20260730.md)和[2026-08-12 通过记录](../../../reports/fall_risk/runtime/ezviz-live-smoke-20260812.md)。业务后端回调、地址刷新、弱网和一小时固定硬件验收仍未完成。服务只接受可直接解码的 `rtsp`、`rtmp`、`http` 或 `https` 地址，不转换 `ezopen` 地址。
 
 ## 运行方式
 

@@ -16,6 +16,9 @@ reports/
 Workflow A 当前入口：
 
 - [`fall_risk/data_audit.md`](fall_risk/data_audit.md)：真实本地数据与标签审计。
+- [`fall_risk/self-collected-data-audit-20260810.md`](fall_risk/self-collected-data-audit-20260810.md)：2026-08-10 自采 P01/P02、P03 与未归属来源的完整性、重复、媒体、授权和治理状态审查；全部暂不进入训练或正式评测。
+- [`fall_risk/self-collected-data-audit-20260811.md`](fall_risk/self-collected-data-audit-20260811.md)：新交付 P01–P05 的哈希对账、CVAT 脱敏与一一对应校验、P04/P05 增量整理和当前入链门禁。
+- [`fall_risk/self_collected_scf_mvp_v1/README.md`](fall_risk/self_collected_scf_mvp_v1/README.md)：SCF_MVP_V1 隔离 candidate、262 段四分支冻结基线回放和 G2 E0/E1-E3 门禁；全部样本未进入 loss，规则主路径不变。
 - [`fall_risk/workflow_a_blockers.md`](fall_risk/workflow_a_blockers.md)：来源、隐私、真值与数据门槛。
 - [`fall_risk/fall-risk-data-v2-release-candidate.md`](fall_risk/fall-risk-data-v2-release-candidate.md)：发布候选验收结论。
 - [`fall_risk/training-labels-v3-migration.json`](fall_risk/training-labels-v3-migration.json)：v2 到模型训练标签 v3 的确定性迁移计数与 hash。
@@ -28,9 +31,14 @@ Workflow A 当前入口：
 - [`fall_risk/kinecal_gait_tcn/README.md`](fall_risk/kinecal_gait_tcn/README.md)：KINECAL 14 点轻量步态 TCN 的固定划分 baseline、失败结论和复现命令。
 - [`fall_risk/gait_window_v4_hierarchical_masked/development-20260803/README.md`](fall_risk/gait_window_v4_hierarchical_masked/development-20260803/README.md)：不增加数据条件下的质量捷径隔离、walking gate、三个 seed 结果和不替换主路径的结论。
 - [`fall_risk/gait_window_v5_effect_first/development-20260803/README.md`](fall_risk/gait_window_v5_effect_first/development-20260803/README.md)：B01-B04 functional proxy 的六 seed 训练与概率集成结果；F1 `0.308`，test 未读取，未替换规则主路径。
+- [`fall_risk/gait_observable_v1/splitv3-e71a045/README.md`](fall_risk/gait_observable_v1/splitv3-e71a045/README.md)：当前 split 的 train/validation-only 双构建、rule/结构化 baseline 与单 seed TCN smoke；validation 正类规模门禁未通过，test 未读取。
+- [`fall_risk/gait_observable_context_v2/splitv3-e71a045/README.md`](fall_risk/gait_observable_context_v2/splitv3-e71a045/README.md)：同轨真实上下文、label-span 掩码和证据分层的受限消融；train 正类监督段增至 92，正式 validation 门禁仍未通过。
 - [`fall_risk/sit_stand_event_v1/README.md`](fall_risk/sit_stand_event_v1/README.md)：坐站 candidate-clip Logistic/TCN provisional validation；不提供连续事件定位或 test 结论。
-- [`fall_risk/near_fall_event_v1/README.md`](fall_risk/near_fall_event_v1/README.md)：近跌倒恢复确认 TCN 三 seed provisional pilot；validation F1 `0.990-0.997`，窗口全部来自 NTU，test 未读取，未替换规则主路径。
+- [`fall_risk/sit_stand_training_audit.md`](fall_risk/sit_stand_training_audit.md)与[`fall_risk/sit_stand_training_blockers.md`](fall_risk/sit_stand_training_blockers.md)：连续坐站 P0 hash/test 隔离审计和真实标签、背景、冻结协议阻塞；当前为 `infrastructure_only`。
+- [`fall_risk/near_fall_event_v1/README.md`](fall_risk/near_fall_event_v1/README.md)：当前 v3 split 的近跌倒恢复确认 TCN 三 seed 开发训练；validation 事件 F1 `0.9933-0.9967`，test 未读取，困难负例/连续背景/老人域门禁仍阻塞，未替换规则主路径。
 - [`fall_risk/fall_event_proxy_v2_v3split/README.md`](fall_risk/fall_event_proxy_v2_v3split/README.md)：当前 v3 split 的跌倒 candidate-clip TCN 三 seed provisional pilot；validation F1 `0.958-0.963`，test 未读取，未替换规则主路径。
+- [`fall_risk/runtime/ezviz-live-smoke-20260812.md`](fall_risk/runtime/ezviz-live-smoke-20260812.md)：真实萤石 HTTPS-FLV 的 120 秒算法端严格烟测；业务回调、地址刷新、弱网和一小时资源验收仍未完成。
+- [`fall_risk/baseline_longitudinal_phase2.md`](fall_risk/baseline_longitudinal_phase2.md)：个体基线 Phase 2 的 longitudinal schema、outcome-blind 前向 split、四组消融评估基础设施、合成验收和真实空数据 blocker；不是老人域效果报告。
 
 心理健康实验入口：
 

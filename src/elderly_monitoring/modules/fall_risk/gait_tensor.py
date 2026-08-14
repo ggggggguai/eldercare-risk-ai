@@ -4,7 +4,7 @@ from typing import Any, Mapping, Sequence
 
 import numpy as np
 
-from elderly_monitoring.modules.fall_risk.kinecal_gait import (
+from elderly_monitoring.modules.fall_risk.gait_contract import (
     CANONICAL_GAIT_JOINTS,
     GAIT_TCN_CHANNELS,
 )

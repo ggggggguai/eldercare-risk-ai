@@ -1,0 +1,33 @@
+config_version: fall-personal-baseline-config-v1
+aggregation_period: day
+min_history_days: 3
+stable_history_days: 7
+max_history_days: 14
+min_history_records: 10
+min_metric_observations: 3
+min_quality_score: 0.60
+min_metric_quality: 0.30
+initial_score_cap: 0.35
+initial_fusion_weight: 0.25
+reduced_quality_score_cap: 0.25
+relative_scale_floor: 0.05
+absolute_scale_floor: 0.05
+robust_z_start: 1.0
+robust_z_full: 3.0
+relative_change_start: 0.15
+relative_change_full: 0.35
+short_change_start: 0.10
+short_change_full: 0.30
+scene_shift_probability_threshold: 0.20
+fast_ewma_alpha: 0.50
+drift_metric_score_threshold: 0.75
+drift_consecutive_periods: 2
+cusum_allowance: 0.35
+cusum_threshold: 1.00
+recovery_consecutive_periods: 3
+metric_weights:
+  mean_gait_speed: 0.22
+  mean_sit_stand_duration: 0.28
+  near_fall_rate_per_hour: 0.22
+  nighttime_activity_rate_per_hour: 0.10
+  activity_volume: 0.12

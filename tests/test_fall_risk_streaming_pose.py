@@ -29,6 +29,24 @@ def _result(track_ids=(7,), bboxes=((10, 20, 50, 100),)):
 
 
 class StreamingPoseTest(unittest.TestCase):
+    def test_configured_inference_size_is_passed_to_yolo(self) -> None:
+        calls = []
+        model = SimpleNamespace(
+            track=lambda **kwargs: calls.append(kwargs) or [_result()]
+        )
+        tracker = StreamingPoseTracker(
+            model=model,
+            person_id="elder-1",
+            scene_region="home",
+            inference_size=512,
+        )
+
+        tracker.process_frame(
+            object(), frame_id=1, timestamp_sec=0.0, frame_size=(640, 360)
+        )
+
+        self.assertEqual(calls[0]["imgsz"], 512)
+
     def test_one_result_produces_matching_track_and_pose_ids(self) -> None:
         tracks, poses = adapt_yolo_pose_result(
             _result(), frame_id=3, timestamp_sec=0.25, frame_size=(100, 200), scene_region="home"

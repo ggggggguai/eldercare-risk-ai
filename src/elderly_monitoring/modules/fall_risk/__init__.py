@@ -1,7 +1,9 @@
 from elderly_monitoring.modules.fall_risk.pipeline import FallRiskPipeline
 from elderly_monitoring.modules.fall_risk.baseline import (
     BaselineModelConfig,
+    PersonalBaselineTracker,
     build_personal_baselines,
+    load_baseline_config,
     run_baseline_jsonl,
     score_baseline_deviation,
 )
@@ -27,6 +29,7 @@ from elderly_monitoring.modules.fall_risk.tracking import TrackObservation, run_
 __all__ = [
     "FallRiskPipeline",
     "BaselineModelConfig",
+    "PersonalBaselineTracker",
     "GaitAnalysisConfig",
     "NearFallDetectionConfig",
     "PoseObservation",
@@ -34,6 +37,7 @@ __all__ = [
     "SitStandAnalysisConfig",
     "TrackObservation",
     "build_personal_baselines",
+    "load_baseline_config",
     "extract_gait_windows",
     "extract_near_fall_events",
     "extract_sit_stand_events",

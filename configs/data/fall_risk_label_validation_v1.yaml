@@ -1,0 +1,23 @@
+schema_version: fall-risk-label-validation-v1
+time_tolerance_sec: 0.001
+formal_review_statuses:
+  - reviewed
+  - final
+ineligible_review_statuses:
+  - pending
+  - uncertain
+  - missing
+  - license_unknown
+unknown_license_values:
+  - ""
+  - unknown
+  - license_unknown
+  - missing
+  - none
+review_approval_decisions:
+  - approve
+  - adjudicate
+minimum_independent_reviewers: 2
+high_risk_action_prefixes:
+  - C
+  - D

@@ -1,5 +1,6 @@
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from pydantic import ValidationError
 from fastapi.testclient import TestClient
@@ -124,6 +125,22 @@ class ServiceApiTest(unittest.TestCase):
     def test_ready_requires_model(self):
         self.assertEqual(self.client.get("/health/ready").status_code, 503)
 
+    def test_ready_requires_ffmpeg_tools_for_ffmpeg_backend(self):
+        from elderly_monitoring.service.settings import ServiceSettings
+
+        settings = ServiceSettings(
+            api_token="api",
+            model_path=Path(__file__),
+            stream_reader_backend="ffmpeg",
+        )
+        client = TestClient(create_app(settings=settings, session_manager=self.manager))
+        with patch("elderly_monitoring.service.app.shutil.which", return_value=None):
+            response = client.get("/health/ready")
+        client.close()
+
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.json()["detail"], "ffmpeg backend is not available")
+
 
 class ServiceSettingsTest(unittest.TestCase):
     def test_loads_gait_model_runtime_overrides(self) -> None:
@@ -136,6 +153,7 @@ class ServiceSettingsTest(unittest.TestCase):
                 "GAIT_MODEL_DEVICE": "cpu",
                 "GAIT_MODEL_WINDOW_FRAMES": "96",
                 "FRAME_QUEUE_CAPACITY": "4",
+                "POSE_INFERENCE_SIZE": "512",
             },
         )
 
@@ -143,6 +161,7 @@ class ServiceSettingsTest(unittest.TestCase):
         self.assertEqual(settings.gait_model_device, "cpu")
         self.assertEqual(settings.gait_model_window_frames, 96)
         self.assertEqual(settings.frame_queue_capacity, 4)
+        self.assertEqual(settings.pose_inference_size, 512)
 
     def test_repository_config_freezes_stage_two_runtime_gates(self) -> None:
         from elderly_monitoring.runtime.realtime_fall_risk import (
@@ -162,6 +181,10 @@ class ServiceSettingsTest(unittest.TestCase):
         )
 
         self.assertEqual(settings.primary_lost_timeout_sec, 2.0)
+        self.assertEqual(settings.model_path, Path("models/yolov8n-pose.pt"))
+        self.assertEqual(settings.ffmpeg_scale_width, 640)
+        self.assertEqual(settings.max_inference_fps, 10.0)
+        self.assertEqual(settings.pose_inference_size, 640)
         self.assertEqual(settings.fall_state["static_duration_sec"], 10.0)
         self.assertEqual(settings.fall_state["recovery_confirmation_sec"], 3.0)
         self.assertEqual(settings.fall_state["episode_ttl_sec"], 30.0)

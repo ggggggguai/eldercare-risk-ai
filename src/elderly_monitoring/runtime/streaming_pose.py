@@ -129,6 +129,7 @@ class StreamingPoseTracker:
         confidence_threshold: float = 0.25,
         iou_threshold: float = 0.5,
         tracker_config: str = "bytetrack.yaml",
+        inference_size: int = 640,
     ) -> None:
         if model is None:
             from ultralytics import YOLO
@@ -141,6 +142,9 @@ class StreamingPoseTracker:
         self.confidence_threshold = confidence_threshold
         self.iou_threshold = iou_threshold
         self.tracker_config = tracker_config
+        if inference_size < 32:
+            raise ValueError("pose inference_size must be at least 32")
+        self.inference_size = int(inference_size)
         self.primary_track_id: int | None = None
         self.primary_missing_since: float | None = None
         self.target_state = "unbound"
@@ -160,6 +164,7 @@ class StreamingPoseTracker:
             conf=self.confidence_threshold,
             iou=self.iou_threshold,
             tracker=self.tracker_config,
+            imgsz=self.inference_size,
             verbose=False,
         )
         backend_ms = _elapsed_ms(backend_started)

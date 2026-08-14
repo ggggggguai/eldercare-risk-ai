@@ -15,6 +15,7 @@ from torch.utils.data import DataLoader
 from elderly_monitoring.modules.fall_risk.gait_training import (
     GaitWindowPreparationConfig,
     _select_labeled_track,
+    build_context_gait_window,
     build_gait_tensor,
     enrich_gait_training_labels,
     prepare_gait_window_dataset,
@@ -179,6 +180,63 @@ def make_assignment(
 
 
 class GaitTensorTest(unittest.TestCase):
+    def test_tcn_supervision_pooling_rejects_mask_without_observed_frames(self) -> None:
+        model = LightweightGaitTCN(
+            hidden_channels=8,
+            dilations=(1,),
+            dropout=0.0,
+            use_quality_as_feature=False,
+        )
+        features = torch.zeros(1, 8, 14, 5)
+        features[..., -1] = 1.0
+
+        with self.assertRaisesRegex(ValueError, "no observed labeled frame"):
+            model.forward_heads(features, torch.zeros(1, 8))
+
+    def test_context_window_keeps_only_same_track_and_marks_label_span(self) -> None:
+        label = make_v3_label(1, positive=True)
+        label.update(
+            {
+                "start_frame": 25,
+                "end_frame": 56,
+                "end_frame_exclusive": 57,
+                "start_time": 1.0,
+                "end_time_exclusive": 2.25,
+                "bbox_start": [100.0, 20.0, 220.0, 230.0],
+                "bbox_end": [100.0, 20.0, 220.0, 230.0],
+            }
+        )
+        target_track = [make_pose_record(frame_id) for frame_id in range(100)]
+        other_track = [
+            {
+                **make_pose_record(frame_id),
+                "track_id": 2,
+                "bbox": [300.0, 20.0, 420.0, 230.0],
+            }
+            for frame_id in range(100)
+        ]
+
+        window = build_context_gait_window(
+            label,
+            other_track + target_track,
+            window_frames=16,
+            target_fps=4.0,
+            max_gap_sec=0.13,
+        )
+
+        observed = [record for record in window["records"] if record is not None]
+        self.assertEqual({record["track_id"] for record in observed}, {1})
+        self.assertEqual(sum(window["valid_mask"]), 16)
+        self.assertEqual(sum(window["label_span_mask"]), 5)
+        self.assertTrue(
+            all(
+                not is_labeled or is_valid
+                for is_labeled, is_valid in zip(
+                    window["label_span_mask"], window["valid_mask"], strict=True
+                )
+            )
+        )
+
     def test_hierarchical_validation_loss_is_batch_size_invariant(self) -> None:
         generator = np.random.default_rng(42)
         features = generator.normal(size=(6, 8, 14, 5)).astype(np.float32)
@@ -498,6 +556,110 @@ class GaitTensorTest(unittest.TestCase):
 
 
 class GaitDatasetPreparationTest(unittest.TestCase):
+    def test_context_protocol_retains_short_train_span_as_weak_supervision(self) -> None:
+        with tempfile.TemporaryDirectory() as tempdir:
+            root = Path(tempdir)
+            labels_path = root / "labels_v3.jsonl"
+            manifest_path = root / "manifest.jsonl"
+            assignments_path = root / "assignments.jsonl"
+            split_report_path = root / "split.json"
+            pose_dir = root / "poses"
+            output_dir = root / "prepared"
+            pose_dir.mkdir()
+            labels = [
+                make_v3_label(index, positive=index % 2 == 1)
+                for index in range(1, 5)
+            ]
+            for label in labels:
+                label.update(
+                    {
+                        "start_frame": 25,
+                        "end_frame_exclusive": 57,
+                        "start_time": 1.0,
+                        "end_time_exclusive": 2.25,
+                    }
+                )
+            assignments = [
+                make_assignment(label, "train" if index < 2 else "validation")
+                for index, label in enumerate(labels)
+            ]
+            labels_path.write_text(
+                "\n".join(json.dumps(row) for row in labels) + "\n",
+                encoding="utf-8",
+            )
+            manifest_path.write_text(
+                "\n".join(json.dumps(make_manifest(index)) for index in range(1, 5))
+                + "\n",
+                encoding="utf-8",
+            )
+            assignments_path.write_text(
+                "\n".join(json.dumps(row) for row in assignments) + "\n",
+                encoding="utf-8",
+            )
+            split_report_path.write_text(
+                json.dumps(
+                    {
+                        "schema_version": "fall-risk-training-split-v3",
+                        "split_id": "context_test_split",
+                        "assignments_sha256": hashlib.sha256(
+                            assignments_path.read_bytes()
+                        ).hexdigest(),
+                        "input_sha256": {
+                            "action_labels": hashlib.sha256(
+                                labels_path.read_bytes()
+                            ).hexdigest(),
+                            "manifest": hashlib.sha256(
+                                manifest_path.read_bytes()
+                            ).hexdigest(),
+                        },
+                        "leakage_issues": [],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            for index in range(1, 5):
+                records = [
+                    make_pose_record(frame_id, unstable=index % 2 == 1)
+                    for frame_id in range(100)
+                ]
+                (pose_dir / f"video_{index}.jsonl").write_text(
+                    "\n".join(json.dumps(row) for row in records) + "\n",
+                    encoding="utf-8",
+                )
+
+            prepare_gait_window_dataset(
+                labels_path,
+                pose_dir,
+                output_dir,
+                manifest_path=manifest_path,
+                assignments_path=assignments_path,
+                split_report_path=split_report_path,
+                config=GaitWindowPreparationConfig(
+                    window_frames=16,
+                    stride_frames=8,
+                    min_observed_frames=10,
+                    target_fps=4.0,
+                    max_gap_sec=0.13,
+                    context_expansion=True,
+                    weak_min_labeled_observations=5,
+                ),
+            )
+            with np.load(output_dir / "dataset.npz", allow_pickle=False) as dataset:
+                label_span_masks = dataset["label_span_masks"]
+                valid_masks = dataset["valid_masks"]
+                evidence_tiers = dataset["evidence_tiers"].astype(str)
+                sample_weights = dataset["sample_weights"]
+                partitions = dataset["partitions"].astype(str)
+            metadata = json.loads(
+                (output_dir / "metadata.json").read_text(encoding="utf-8")
+            )
+
+        self.assertEqual(label_span_masks.shape, (4, 16))
+        self.assertTrue(np.all(label_span_masks <= valid_masks))
+        self.assertEqual(set(evidence_tiers), {"weak_context"})
+        self.assertTrue(np.allclose(sample_weights[partitions == "train"], 0.35))
+        self.assertEqual(metadata["context_protocol"]["validation_policy"], "primary_only")
+
     def test_formal_dataset_uses_frozen_assignments_and_tier_weights(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
             root = Path(tempdir)
@@ -569,6 +731,8 @@ class GaitDatasetPreparationTest(unittest.TestCase):
                 encoding="utf-8",
             )
             for index in range(1, 9):
+                if index in (5, 6):
+                    continue
                 records = [
                     make_pose_record(frame_id, unstable=index % 2 == 0)
                     for frame_id in range(80 if index == 1 else 40)
@@ -613,18 +777,11 @@ class GaitDatasetPreparationTest(unittest.TestCase):
                 (output_dir / "metadata.json").read_text(encoding="utf-8")
             )
 
-        self.assertEqual(
-            set(output_partitions[label_ids == str(auxiliary["label_id"])]),
-            {"excluded"},
-        )
-        self.assertEqual(
-            set(tiers[np.isin(output_partitions, ["validation", "test"])]),
-            {"primary"},
-        )
-        self.assertEqual(
-            set(output_partitions[label_ids == str(labels[4]["label_id"])]),
-            {"test"},
-        )
+        self.assertNotIn(str(auxiliary["label_id"]), set(label_ids))
+        self.assertEqual(set(tiers[output_partitions == "validation"]), {"primary"})
+        self.assertNotIn("test", set(output_partitions))
+        self.assertNotIn(str(labels[4]["label_id"]), set(label_ids))
+        self.assertNotIn(str(labels[5]["label_id"]), set(label_ids))
         self.assertNotIn(excluded_label_id, set(label_ids))
         self.assertEqual(
             set(walking_targets[np.isin(action_ids, ["A01", "B02", "B03", "B04"])]),
@@ -643,6 +800,15 @@ class GaitDatasetPreparationTest(unittest.TestCase):
                 "profile": "observable_instability_b02_b04",
             },
         )
+        self.assertTrue(metadata["split_is_provisional"])
+        self.assertEqual(metadata["protocol_status"], "development_provisional")
+        self.assertFalse(metadata["test_pose_read"])
+        self.assertFalse(metadata["test_tensor_generated"])
+        self.assertFalse(metadata["test_evaluated"])
+        self.assertEqual(metadata["source_split_id"], "test_split")
+        self.assertEqual(metadata["test_label_audit"]["label_count"], 2)
+        self.assertNotIn("video_5", metadata["pose_inputs"])
+        self.assertNotIn("video_6", metadata["pose_inputs"])
         self.assertEqual(
             [
                 row["start_frame"]
@@ -940,21 +1106,14 @@ class GaitDatasetPreparationTest(unittest.TestCase):
             )
             self.assertEqual(completed.returncode, 0, completed.stderr)
             metrics = json.loads((output / "metrics.json").read_text(encoding="utf-8"))
-            predictions = [
-                json.loads(line)
-                for line in (
-                    output / "lightgbm_test_window_predictions.jsonl"
-                ).read_text(encoding="utf-8").splitlines()
-            ]
+            test_predictions_path = output / "lightgbm_test_window_predictions.jsonl"
 
         self.assertEqual(
             set(metrics["models"]), {"rule", "logistic", "lightgbm", "ebm"}
         )
         self.assertTrue(metrics["models"]["logistic"]["feature_importance"])
-        self.assertTrue(predictions)
-        self.assertTrue(
-            all(0.0 <= row["gait_risk_score"] <= 1.0 for row in predictions)
-        )
+        self.assertFalse(metrics["test_evaluated"])
+        self.assertFalse(test_predictions_path.exists())
 
 
 if __name__ == "__main__":

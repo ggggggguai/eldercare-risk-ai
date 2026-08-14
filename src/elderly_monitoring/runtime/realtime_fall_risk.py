@@ -72,6 +72,7 @@ class FallRiskSessionEngine:
             person_id=session.person_id,
             scene_region=session.scene_region,
             lost_timeout_sec=float(kwargs.get("primary_lost_timeout_sec", 2.0)),
+            inference_size=int(kwargs.get("pose_inference_size", 640)),
         )
         history = _load_jsonl(Path(baseline_history_path)) if baseline_history_path else []
         gait_predictor = None

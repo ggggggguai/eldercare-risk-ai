@@ -58,11 +58,6 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--logistic-max-iter", type=int, default=2000)
     parser.add_argument("--ebm-max-rounds", type=int, default=500)
     parser.add_argument("--ebm-outer-bags", type=int, default=8)
-    parser.add_argument(
-        "--evaluate-test",
-        action="store_true",
-        help="Evaluate the locked test partition after the candidate is frozen.",
-    )
     parser.add_argument("--overwrite", action="store_true")
     return parser
 
@@ -85,7 +80,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 logistic_max_iter=args.logistic_max_iter,
                 ebm_max_rounds=args.ebm_max_rounds,
                 ebm_outer_bags=args.ebm_outer_bags,
-                evaluate_test=True if args.evaluate_test else None,
+                evaluate_test=False,
             ),
             overwrite=args.overwrite,
         )

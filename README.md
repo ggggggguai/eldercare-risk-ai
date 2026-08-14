@@ -1,6 +1,6 @@
 # 老年人多模态风险预警算法工程
 
-更新时间：2026-08-04
+更新时间：2026-08-12
 
 本工程只覆盖算法开发部分，面向两个模块：
 
@@ -41,7 +41,9 @@ conda run -n eldercare-ai python -m pip show elderly-monitoring-algorithms
 
 ## 当前研发阶段与优先级
 
-当前跌倒风险模块处于模型化增强阶段。YOLOv8-Pose + ByteTrack、姿态质量控制、规则步态/坐站/近跌倒、个体基线和风险融合仍是运行主路径；步态、坐站、近跌倒和跌倒事件已经具备训练、validation 复评或 shadow 推理的候选实现。现有实验仍受动作类型门禁、连续背景、老人域、跨来源、冻结 test、延迟和稳定性证据限制，不能描述为正式模型效果或已部署能力。
+当前跌倒风险模块处于模型化增强阶段。YOLOv8-Pose + ByteTrack、姿态质量控制和规则步态/坐站/近跌倒、跌倒状态与风险融合仍是运行主路径；个体行为基线已完成 Phase 0-1 算法和 Phase 2 纵向 schema/前向 split/消融评估基础设施的合成验收，但真实纵向 observation、`risk_labels` 和 subject profiles 为空，实时链路也尚无完整周期聚合来源，因此该分支失败关闭，不能写成在线已启用或已证明有效。步态、坐站、近跌倒和跌倒事件已经具备训练、validation 复评、shadow 推理或连续输入基础设施；现有实验仍受动作类型门禁、连续背景、老人域、跨来源、冻结 test、延迟和稳定性证据限制，不能描述为正式模型效果或已部署能力。
+
+SCF_MVP_V1 自采批次已完成隔离 candidate、262 段四分支回放和近跌倒 E1-E3 九次开发训练。冻结分区为 P01/P02/P04 auxiliary train、P05 challenge、P03 excluded。E2 的负例触发率改善方向最稳定，但同时明显损失正例代理检出，E1-E3 均为 No-Go；规则和原 checkpoint 保持主路径。详见[执行报告](reports/fall_risk/self_collected_scf_mvp_v1/README.md)。
 
 跌倒数据同时存在两个不同层级：v2 是根标签和发布候选契约，formal 校验仍有 blocker；v3 是由 v2 与哈希绑定项目裁决确定性生成的模型训练契约，当前 fall/near-fall 事件监督门禁通过，但 split 尚未冻结，动作类型门禁仍未通过。两者不能互相替代。
 
@@ -51,7 +53,7 @@ conda run -n eldercare-ai python -m pip show elderly-monitoring-algorithms
 
 1. 处理跌倒 v2 formal blocker，复核并冻结 v3 事件标签、split 和一次性 test 发布协议。
 2. 为候选模型补充连续背景、老人域、跨来源和困难负样本证据，并完成与规则 baseline 的同协议对照、延迟和稳定性验收。
-3. 完成真实萤石直播、算法会话与业务后端风险回调联调，以及固定硬件长时资源验收。
+3. 在已通过真实萤石算法端 120 秒烟测的基础上，完成业务后端风险回调、直播地址刷新、弱网和固定硬件长时资源验收。
 4. 完成徘徊专项固定 split，再进入预处理和模型训练；不得提前把转换产物称为识别能力。
 5. 继续保持两个模块独立评分、独立验证和独立输出，只共享 `AlgorithmEvent` 字段契约。
 
@@ -71,7 +73,7 @@ conda run -n eldercare-ai python -m pip show elderly-monitoring-algorithms
 conda run -n eldercare-ai python -m pip install -e ".[vision,service]"
 ```
 
-必需环境变量为 `ALGORITHM_API_TOKEN` 和 `CALLBACK_TOKEN`；姿态模型路径由 `MODEL_PATH` 指定，默认是仓库根目录的 `yolov8n-pose.pt`。可选的 `BASELINE_HISTORY_PATH` 指向个体历史 JSONL。`GAIT_MODEL_PATH` 默认保持为空，只有通过步态稳定性替换门禁的 checkpoint 才能配置；当前 provisional 模型不应作为服务默认主分支。启动单 worker 服务：
+必需环境变量为 `ALGORITHM_API_TOKEN` 和 `CALLBACK_TOKEN`；姿态模型路径由 `MODEL_PATH` 指定，默认是仓库内的 `models/yolov8n-pose.pt`。可选的 `BASELINE_HISTORY_PATH` 指向个体历史 JSONL。`GAIT_MODEL_PATH` 默认保持为空，只有通过步态稳定性替换门禁的 checkpoint 才能配置；当前 provisional 模型不应作为服务默认主分支。启动单 worker 服务：
 
 ```bash
 ALGORITHM_API_TOKEN=replace-me CALLBACK_TOKEN=replace-me \
@@ -85,8 +87,8 @@ Docker 镜像不包含模型，运行时只读挂载固定路径：
 docker run --rm -p 8080:8080 \
   -e ALGORITHM_API_TOKEN=replace-me \
   -e CALLBACK_TOKEN=replace-me \
-  -v "$PWD/yolov8n-pose.pt:/models/yolov8n-pose.pt:ro" \
+  -v "$PWD/models/yolov8n-pose.pt:/models/yolov8n-pose.pt:ro" \
   elderly-monitoring-algorithm:0.2.0
 ```
 
-服务支持单路会话的创建、查询、直播地址更新和停止。输入必须是容器可解码的 `rtsp`、`rtmp`、`http` 或 `https` 地址，不负责转换 `ezopen` 地址。
+服务支持单路会话的创建、查询、直播地址更新和停止。输入必须是容器可解码的 `rtsp`、`rtmp`、`http` 或 `https` 地址，不负责转换 `ezopen` 地址。为兼容萤石 HEVC-over-FLV，服务默认使用 FFmpeg 后端；镜像内置并在 readiness 中检查 `ffmpeg`/`ffprobe`。直播地址属于临时凭据，服务状态和解码错误不得回显其路径、签名或 Token。

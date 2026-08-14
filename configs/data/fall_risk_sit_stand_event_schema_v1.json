@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://elderly-monitoring.local/schemas/fall-risk-sit-stand-event-label-v1.json",
+  "title": "Reviewed continuous sit-stand event label v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "label_id",
+    "event_id",
+    "asset_id",
+    "video_id",
+    "subject_id",
+    "source_group_id",
+    "sample_group_id",
+    "split_group_id",
+    "interval_type",
+    "transition_type",
+    "onset_time",
+    "offset_time",
+    "boundary_precision",
+    "outcome",
+    "attempt_count",
+    "attempt_intervals",
+    "seat_off_proxy",
+    "seat_contact_proxy",
+    "support_contact_proxy",
+    "stabilization_time_proxy",
+    "scene_region",
+    "visibility",
+    "quality_flags",
+    "review_status",
+    "reviewed_by",
+    "eligibility",
+    "hard_negative_type",
+    "source_action_label_ids"
+  ],
+  "properties": {
+    "schema_version": {"const": "fall-risk-sit-stand-event-label-v1"},
+    "label_id": {"type": "string", "pattern": "^sitstand_[0-9a-f]{24}$"},
+    "event_id": {"type": "string", "minLength": 1},
+    "asset_id": {"type": "string", "minLength": 1},
+    "video_id": {"type": "string", "minLength": 1},
+    "subject_id": {"type": "string", "minLength": 1},
+    "source_group_id": {"type": "string", "minLength": 1},
+    "sample_group_id": {"type": "string", "minLength": 1},
+    "split_group_id": {"type": "string", "minLength": 1},
+    "interval_type": {"enum": ["event", "explicit_background", "ignore"]},
+    "transition_type": {
+      "type": ["string", "null"],
+      "enum": ["sit_to_stand", "stand_to_sit", null]
+    },
+    "onset_time": {"type": "number", "minimum": 0},
+    "offset_time": {"type": "number", "exclusiveMinimum": 0},
+    "boundary_precision": {"enum": ["exact", "approximate", "unknown"]},
+    "outcome": {
+      "type": ["string", "null"],
+      "enum": ["completed", "interrupted", "failed", "uncertain", null]
+    },
+    "attempt_count": {"type": "integer", "minimum": 0},
+    "attempt_intervals": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["onset_time", "offset_time"],
+        "properties": {
+          "onset_time": {"type": "number", "minimum": 0},
+          "offset_time": {"type": "number", "exclusiveMinimum": 0}
+        }
+      }
+    },
+    "seat_off_proxy": {"type": ["number", "null"], "minimum": 0},
+    "seat_contact_proxy": {"type": ["number", "null"], "minimum": 0},
+    "support_contact_proxy": {"type": ["boolean", "null"]},
+    "stabilization_time_proxy": {"type": ["number", "null"], "minimum": 0},
+    "scene_region": {"type": "string", "minLength": 1},
+    "visibility": {"enum": ["full", "partial", "not_visible", "uncertain"]},
+    "quality_flags": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "review_status": {
+      "enum": ["single_annotated", "single_reviewed", "double_reviewed", "adjudicated"]
+    },
+    "reviewed_by": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "eligibility": {"enum": ["eligible", "auxiliary", "ignore"]},
+    "hard_negative_type": {"type": ["string", "null"]},
+    "source_action_label_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    }
+  }
+}

@@ -1,0 +1,79 @@
+{
+  "schema_version": "self-collected-scf-mvp-v1-import-decision-v1",
+  "batch_id": "SCF_MVP_V1",
+  "decision_id": "scf-mvp-v1-candidate-import-20260812",
+  "decision_status": "approved_for_internal_development_training",
+  "inventory_sha256": "6f95ed01982c10ac485db9a0d7e52899e42bd235f4c250759e6689d11f35b8cb",
+  "annotation_exports": {
+    "P01": {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/self_collected_scf_mvp_v1/P01_cvat_redacted.zip",
+      "sha256": "16cd194c4f4695879ace33c5e573ed8688fc9b4fc63d03869feb394b62633f06"
+    },
+    "P02": {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/self_collected_scf_mvp_v1/P02_cvat_redacted.zip",
+      "sha256": "ee40285d7d62f98b2ebe338d8be22d0a9c02e89e473873e4e7b04517c5863279"
+    },
+    "P03": {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/self_collected_scf_mvp_v1/P03_cvat_redacted.zip",
+      "sha256": "1d650f86955760c81d37b01f57217da73705dfd2ab11cd5a5a967ec73acb6aa3"
+    },
+    "P04": {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/self_collected_scf_mvp_v1/P04_cvat_redacted.zip",
+      "sha256": "783b087c02a0ae4df2815e1e7f2a4db731af2fb69e958672f5ba2588b72fb871"
+    },
+    "P05": {
+      "path": "data/annotations/fall_risk/cvat_exports/raw/self_collected_scf_mvp_v1/P05_cvat_redacted.zip",
+      "sha256": "14206b6de578ea78a68126daadf54643c69c63cf7dba37ae5cffb21a20afbf89"
+    }
+  },
+  "frame_mappings": {},
+  "frame_mapping_policies": {
+    "P03": {
+      "strategy": "unresolved_ignore",
+      "allowed_frame_deltas": [3, 6, 7],
+      "inventory_bound_files_only": true,
+      "note": "The location of the extra media frames is not adjudicated; no offset is applied and every affected label remains loss-ineligible."
+    }
+  },
+  "authorization_evidence": {
+    "P01": {"basis": "project_self_collected_internal_training_confirmed", "confirmed_at": "2026-08-12"},
+    "P02": {"basis": "project_self_collected_internal_training_confirmed", "confirmed_at": "2026-08-12"},
+    "P03": {"basis": "project_self_collected_internal_training_confirmed", "confirmed_at": "2026-08-12"},
+    "P04": {"basis": "project_self_collected_internal_training_confirmed", "confirmed_at": "2026-08-12"},
+    "P05": {"basis": "project_self_collected_internal_training_confirmed", "confirmed_at": "2026-08-12"}
+  },
+  "subject_profiles": {
+    "P01": {"subject_id": "scf_subject_p01"},
+    "P02": {"subject_id": "scf_subject_p02"},
+    "P03": {"subject_id": "scf_subject_p03"},
+    "P04": {"subject_id": "scf_subject_p04"},
+    "P05": {"subject_id": "scf_subject_p05"}
+  },
+  "double_reviewed_files": [],
+  "review_scope": {
+    "status": "double_reviewed",
+    "scope": "all_inventory_bound_files",
+    "inventory_sha256": "6f95ed01982c10ac485db9a0d7e52899e42bd235f4c250759e6689d11f35b8cb"
+  },
+  "canonical_event_reviews": {
+    "C03": {"status": "double_reviewed", "recovery_anchor": "reviewed_action_interval_end_proxy"},
+    "C04": {"status": "double_reviewed", "recovery_anchor": "reviewed_action_interval_end_proxy"},
+    "C05": {"status": "double_reviewed", "recovery_anchor": "reviewed_action_interval_end_proxy"}
+  },
+  "frozen_split_id": "scf-mvp-v1-dev-p010204-train-p05-challenge-p03-excluded-v1",
+  "development_split": {
+    "auxiliary_train_subjects": ["P01", "P02", "P04"],
+    "challenge_validation_subjects": ["P05"],
+    "excluded_subjects": ["P03"],
+    "duplicate_group_key": "content_sha256",
+    "existing_validation_immutable": true,
+    "test_locked": true
+  },
+  "publication_policy": {
+    "candidate_output_only": true,
+    "root_manifest_immutable": true,
+    "root_v2_labels_immutable": true,
+    "root_v3_labels_immutable": true,
+    "existing_splits_immutable": true
+  }
+}

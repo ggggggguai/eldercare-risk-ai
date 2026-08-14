@@ -13,6 +13,7 @@ import torch
 from elderly_monitoring.modules.fall_risk.near_fall_tcn import (
     NearFallTCNConfig,
     NearFallTCNPredictor,
+    _validate_dataset,
     train_near_fall_tcn,
 )
 from elderly_monitoring.modules.fall_risk.near_fall_training import (
@@ -516,8 +517,73 @@ class NearFallDatasetPreparationTest(unittest.TestCase):
             self.assertAlmostEqual(float(weights[event_ids == event_id].sum()), 1.0)
         self.assertTrue(any(np.sum(event_ids == event_id) > 1 for event_id in event_ids))
 
+    def test_annotation_track_ids_do_not_share_the_pose_tracker_namespace(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            paths = _fixture(root)
+            labels = [
+                json.loads(line)
+                for line in paths["labels"].read_text(encoding="utf-8").splitlines()
+            ]
+            labels[0]["track_id"] = "cvat-track-99"
+            _write_jsonl(paths["labels"], labels)
+            _refresh_contract_hashes(paths)
+
+            result = prepare_near_fall_event_dataset(
+                **paths,
+                output_dir=root / "prepared",
+                config=NearFallDatasetConfig(
+                    target_fps=4.0,
+                    window_sec=4.0,
+                    stride_sec=1.0,
+                    min_observed_frames=8,
+                ),
+            )
+            samples = [
+                json.loads(line)
+                for line in Path(result["samples_path"]).read_text().splitlines()
+            ]
+            metadata = json.loads(Path(result["metadata_path"]).read_text())
+
+        mapped = next(sample for sample in samples if sample["label_id"] == labels[0]["label_id"])
+        self.assertEqual(mapped["annotation_track_id"], "cvat-track-99")
+        self.assertEqual(mapped["pose_track_id"], "1")
+        self.assertEqual(
+            mapped["track_match_method"],
+            "dominant_pose_track_in_label_interval",
+        )
+        self.assertEqual(metadata["track_mapping"]["namespace_mismatch_count"], 1)
+        self.assertIn("hard_negative_window_counts", metadata)
+        self.assertIn("missing_hard_negative_windows", metadata)
+        self.assertEqual(metadata["status"], "development_provisional")
+        self.assertFalse(metadata["formal_training_ready"])
+
 
 class NearFallTCNTrainingTest(unittest.TestCase):
+    def test_placeholder_subject_ids_are_not_treated_as_cross_partition_leakage(self) -> None:
+        arrays = {
+            "features": np.zeros((4, 3, 10, 8), dtype=np.float32),
+            "labels": np.asarray([0, 1, 0, 1], dtype=np.int64),
+            "partitions": np.asarray(["train", "train", "validation", "validation"]),
+            "sample_ids": np.asarray(["s1", "s2", "s3", "s4"]),
+            "event_ids": np.asarray(["e1", "e2", "e3", "e4"]),
+            "subject_ids": np.asarray(["unknown", "unknown", "unknown", "unknown"]),
+            "source_group_ids": np.asarray(["g1", "g2", "g3", "g4"]),
+            "sample_group_ids": np.asarray(["sg1", "sg2", "sg3", "sg4"]),
+            "split_group_ids": np.asarray(["sp1", "sp2", "sp3", "sp4"]),
+            "sample_weights": np.ones(4, dtype=np.float32),
+            "loss_eligible": np.ones(4, dtype=np.bool_),
+            "normalization_mean": np.zeros(7, dtype=np.float32),
+            "normalization_std": np.ones(7, dtype=np.float32),
+        }
+        arrays["features"][..., 7] = 1.0
+
+        _validate_dataset(arrays)
+
+        arrays["source_group_ids"] = np.asarray(["leaked", "g2", "leaked", "g4"])
+        with self.assertRaisesRegex(ValueError, "source_group_ids"):
+            _validate_dataset(arrays)
+
     def test_fixed_seed_checkpoint_contract_rejection_and_synthetic_overfit(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -558,6 +624,12 @@ class NearFallTCNTrainingTest(unittest.TestCase):
                     normalized[0], already_normalized=True
                 )
             second_metrics = json.loads(Path(second["metrics_path"]).read_text())
+            validation_predictions = [
+                json.loads(line)
+                for line in Path(first["validation_predictions_path"])
+                .read_text()
+                .splitlines()
+            ]
 
         self.assertEqual(checkpoint["schema_version"], "near-fall-tcn-checkpoint-v1")
         self.assertEqual(checkpoint["task"], "near_fall_recovery_confirmation_v1")
@@ -568,6 +640,12 @@ class NearFallTCNTrainingTest(unittest.TestCase):
         self.assertFalse(metrics["test_evaluated"])
         self.assertIsNone(metrics["test"])
         self.assertGreaterEqual(metrics["train"]["accuracy"], 0.95)
+        self.assertGreaterEqual(metrics["validation"]["event"]["f1"], 0.95)
+        self.assertIsNotNone(metrics["validation"]["event"]["pr_auc"])
+        self.assertTrue(validation_predictions)
+        self.assertTrue(
+            all(row["partition"] == "validation" for row in validation_predictions)
+        )
         self.assertEqual(metrics["history"], second_metrics["history"])
         self.assertEqual(first_prediction["status"], "valid")
 

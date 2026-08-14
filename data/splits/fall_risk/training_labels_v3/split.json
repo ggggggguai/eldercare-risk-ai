@@ -7,7 +7,7 @@
   "input_sha256": {
     "action_labels": "894c6d052159be5f6aad19778b3484aa49e663e29b5030465134fc906b554e5f",
     "event_labels": "7b263e8c1b2d2eae5d8e88cdc23316beb8d41a0e6479a76c620f127a372b8f82",
-    "manifest": "38f15531110ca5401e10575ade5aaf6b7baf497dc04c143a1005d9f013bc61db"
+    "manifest": "539274222b8a3b91249398a0415f304b73edf3dc5066150304102a7ca773503a"
   },
   "leakage_issues": [],
   "partition_action_type_counts": {
@@ -149,5 +149,5 @@
   },
   "schema_version": "fall-risk-training-split-v3",
   "seed": "fall-risk-training-labels-v3-20260721",
-  "split_id": "splitv3_f89832f6cad5b9c5f630d00b"
+  "split_id": "splitv3_e71a045eb58489f43dc5fd11"
 }

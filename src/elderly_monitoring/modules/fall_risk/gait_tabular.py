@@ -53,6 +53,10 @@ class GaitTabularTrainingConfig:
     feature_profile: str = "all"
 
     def __post_init__(self) -> None:
+        if self.evaluate_test is True:
+            raise ValueError(
+                "gait training cannot evaluate test; use the release-gated evaluator"
+            )
         if not self.models:
             raise ValueError("at least one gait baseline model is required")
         unknown = sorted(set(self.models) - set(SUPPORTED_GAIT_BASELINES))
@@ -110,10 +114,11 @@ def train_gait_tabular_baselines(
         arrays = {name: archive[name] for name in archive.files}
     _validate_arrays(arrays, metadata)
     dependencies = _load_dependencies(training.models)
+    _validate_dataset_protocol(metadata)
     evaluate_test = (
         training.evaluate_test
         if training.evaluate_test is not None
-        else metadata.get("split_protocol") != "frozen_training_labels_v3"
+        else metadata.get("source_split_id") is None
     )
 
     destination = Path(output_dir)
@@ -333,6 +338,10 @@ def train_gait_tabular_baselines(
         "feature_profile": training.feature_profile,
         "models": model_reports,
         "test_evaluated": evaluate_test,
+        "test_pose_read": bool(metadata.get("test_pose_read", False)),
+        "protocol_status": metadata.get("protocol_status", "development_provisional"),
+        "source_split_id": metadata.get("source_split_id"),
+        "input_sha256": dict(metadata.get("input_sha256", {})),
         "partition_scheme": training.partition_scheme,
         "source_balance_factors": source_balance_factors,
         "class_weights": class_weights.tolist(),
@@ -355,8 +364,34 @@ def train_gait_tabular_baselines(
     }
 
 
+def _validate_dataset_protocol(metadata: Mapping[str, Any]) -> None:
+    if metadata.get("test_pose_read") is True or metadata.get("test_tensor_generated") is True:
+        raise ValueError("prepared gait training dataset contains test-derived inputs")
+    source_split_id = metadata.get("source_split_id")
+    source_split_path = metadata.get("source_split_report_path")
+    if source_split_id is None:
+        return
+    if not isinstance(source_split_path, str) or not source_split_path:
+        raise ValueError("prepared gait metadata is missing source split report path")
+    candidate = Path(source_split_path)
+    if not candidate.is_absolute():
+        candidate = Path.cwd() / candidate
+    if not candidate.is_file():
+        raise FileNotFoundError(f"prepared gait source split report not found: {candidate}")
+    split_report = json.loads(candidate.read_text(encoding="utf-8"))
+    if split_report.get("split_id") != source_split_id:
+        raise ValueError("prepared gait dataset source_split_id is stale")
+    expected_hash = metadata.get("source_split_report_sha256")
+    if expected_hash != _sha256_file(candidate):
+        raise ValueError("prepared gait source split report SHA-256 is stale")
+
+
 def _validate_arrays(arrays: Mapping[str, np.ndarray], metadata: Mapping[str, Any]) -> None:
     length = len(arrays["labels"])
+    if metadata.get("source_split_id") is not None and "test" in {
+        str(value) for value in np.unique(arrays["partitions"])
+    }:
+        raise ValueError("current provisional gait dataset must not contain test tensors")
     for name in ("partitions", "sample_ids", "tabular_features", "rule_scores"):
         if len(arrays[name]) != length:
             raise ValueError("prepared gait tabular arrays have inconsistent lengths")

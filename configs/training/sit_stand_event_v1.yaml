@@ -14,6 +14,76 @@ dataset:
   max_windows_per_event: 4
   seed: 42
 
+continuous_dataset:
+  target_fps: 8.0
+  context_sec: 8.0
+  window_frames: 64
+  max_gap_sec: 0.5
+  min_observed_frames: 16
+  min_partial_observed_frames: 6
+  min_valid_joint_ratio: 0.5
+  target_track_min_coverage: 0.60
+  target_track_min_dominance: 1.35
+  partial_context_policy: annotated_interval_adaptive_with_frame_mask
+  multi_person_policy: dominant_track_or_reject_ambiguous
+  joints: 14
+  base_channels: [x_body, y_body, motion_x_per_sec, motion_y_per_sec, quality, image_y, valid_mask]
+  timing_channels: [delta_t_sec, frame_mask]
+  negative_policy: explicit_background_only
+  test_pose_allowed: false
+
+continuous_candidate:
+  model: causal_multitask_tcn
+  checkpoint: null
+  runtime_mode: rule_baseline
+  development_seeds: [42, 43, 44]
+  smoke_max_epochs: 2
+  default_candidate: S4
+
+continuous_tcn_profiles:
+  smoke:
+    epochs: 2
+    batch_size: 64
+    hidden_channels: 16
+    kernel_size: 3
+    dilations: [1, 2]
+    dropout: 0.10
+    learning_rate: 0.001
+    weight_decay: 0.0001
+    frame_loss_weight: 1.0
+    boundary_loss_weight: 0.5
+    boundary_positive_weight: 12.0
+    boundary_tolerance_frames: 1
+    presence_loss_weight: 0.5
+    direction_loss_weight: 0.5
+    patience: 2
+    seed: 42
+    device: cpu
+  pilot:
+    epochs: 40
+    batch_size: 64
+    hidden_channels: 32
+    kernel_size: 3
+    dilations: [1, 2, 4, 8]
+    dropout: 0.20
+    learning_rate: 0.001
+    weight_decay: 0.0001
+    frame_loss_weight: 1.0
+    boundary_loss_weight: 0.5
+    boundary_positive_weight: 12.0
+    boundary_tolerance_frames: 1
+    presence_loss_weight: 0.5
+    direction_loss_weight: 0.5
+    patience: 8
+    seed: 42
+    device: cpu
+
+compatibility_ablation:
+  target_fps: 4.0
+  context_sec: 4.0
+  window_frames: 16
+  low_rate_policy: explicit_degrade_or_separate_candidate
+
 training_profiles:
   smoke:
     seed: 42

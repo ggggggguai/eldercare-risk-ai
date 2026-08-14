@@ -66,7 +66,9 @@ def build_parser() -> argparse.ArgumentParser:
         )
     )
     parser.add_argument("--stream-url-env", default="EZVIZ_STREAM_URL")
-    parser.add_argument("--model", type=Path, default=Path("yolov8n-pose.pt"))
+    parser.add_argument(
+        "--model", type=Path, default=Path("models/yolov8n-pose.pt")
+    )
     parser.add_argument("--duration-sec", type=float, default=120.0)
     parser.add_argument("--poll-interval-sec", type=float, default=0.5)
     parser.add_argument("--device-id", default="ezviz-smoke-camera")
@@ -253,16 +255,18 @@ def _assess_samples(
         default=0,
     )
     branch_statuses: dict[str, str] = {}
+    branch_seen_statuses: dict[str, set[str]] = {}
     for runtime in runtime_samples:
         last_frame = runtime.get("last_frame", {})
         window = last_frame.get("window", {}) if isinstance(last_frame, dict) else {}
         branches = window.get("branches", {}) if isinstance(window, dict) else {}
         if isinstance(branches, dict) and branches:
-            branch_statuses = {
-                str(name): str(diagnostic.get("status", "unknown"))
-                for name, diagnostic in branches.items()
-                if isinstance(diagnostic, dict)
-            }
+            for name, diagnostic in branches.items():
+                if isinstance(diagnostic, dict):
+                    branch_name = str(name)
+                    branch_status = str(diagnostic.get("status", "unknown"))
+                    branch_seen_statuses.setdefault(branch_name, set()).add(branch_status)
+                    branch_statuses[branch_name] = branch_status
 
     transport_reasons: list[str] = []
     if not completed_full_duration:
@@ -285,8 +289,14 @@ def _assess_samples(
         pipeline_reasons.append("no_feature_analysis")
     if not branch_statuses:
         pipeline_reasons.append("missing_branch_diagnostics")
-    if any(status == "inference_error" for status in branch_statuses.values()):
+    if any(
+        "inference_error" in statuses_seen
+        for statuses_seen in branch_seen_statuses.values()
+    ):
         pipeline_reasons.append("branch_inference_error")
+    for branch in ("gait", "sit_stand", "near_fall", "fall_state"):
+        if branch_statuses and "valid" not in branch_seen_statuses.get(branch, set()):
+            pipeline_reasons.append(f"critical_branch_unavailable:{branch}")
 
     transport_status = "passed" if not transport_reasons else "failed"
     pipeline_status = "passed" if not pipeline_reasons else "failed"
@@ -310,6 +320,10 @@ def _assess_samples(
             "max_primary_pose_count": max_primary,
             "max_analysis_count": max_analyses,
             "branch_statuses": branch_statuses,
+            "branch_seen_statuses": {
+                name: sorted(statuses_seen)
+                for name, statuses_seen in branch_seen_statuses.items()
+            },
         },
     }
 

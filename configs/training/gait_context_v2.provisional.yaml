@@ -1,0 +1,61 @@
+schema_version: gait-context-training-config-v2
+task: observable_instability_b02_b04
+current_status: development_provisional
+
+dataset:
+  target_fps: 4.0
+  window_sec: 4.0
+  window_frames: 16
+  stride_frames: 8
+  max_gap_sec: 0.5
+  min_observed_frames: 10
+  max_windows_per_segment: 4
+  context_expansion: same_track_real_frames_only
+  label_span_semantics: half_open_annotation_interval
+
+evidence_tiers:
+  primary:
+    min_labeled_observations: 10
+    binary_loss_weight: 1.0
+    validation_role: primary
+  weak_context:
+    min_labeled_observations: 5
+    max_labeled_observations: 9
+    binary_loss_weight: 0.35
+    validation_role: sensitivity_only
+  representation_only:
+    min_labeled_observations: 2
+    max_labeled_observations: 4
+    binary_loss_weight: 0.0
+    validation_role: none
+  audit_only:
+    max_labeled_observations: 1
+    binary_loss_weight: 0.0
+    validation_role: none
+
+supervision:
+  pooling_mask: label_span_mask
+  context_outside_label: unlabeled
+  context_must_not_be_treated_as_negative: true
+  weak_context_train_only_for_model_selection: true
+
+model:
+  use_quality_as_feature: false
+  hierarchical_walking_gate: true
+  hidden_channels: 48
+  kernel_size: 5
+  dilations: [1, 2, 4, 8]
+  dropout: 0.20
+
+pilot:
+  seed: 42
+  epochs: 3
+  patience: 2
+  test_metrics_allowed: false
+  runtime_integration_allowed: false
+
+gates:
+  main_validation_uses_primary_only: true
+  weak_validation_reported_separately: true
+  formal_training_requires_original_data_gates: true
+  default_checkpoint_must_remain_null: true

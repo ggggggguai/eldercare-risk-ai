@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from functools import partial
+import shutil
 from typing import Any
 
 from fastapi import Depends, FastAPI, HTTPException, Request, status
@@ -9,17 +11,31 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from elderly_monitoring.service.schemas import SessionAccepted, SessionStatusResponse, StartSessionRequest, StreamUrlUpdate
 from elderly_monitoring.service.session import SessionManager, SessionStatus
 from elderly_monitoring.service.settings import ServiceSettings
+from elderly_monitoring.service.stream_reader import FFmpegStreamReader, StreamReader
+
+
+def reader_factory_for(settings: ServiceSettings) -> Any:
+    if settings.stream_reader_backend == "opencv":
+        return StreamReader
+    return partial(
+        FFmpegStreamReader,
+        scale_width=settings.ffmpeg_scale_width,
+        max_fps=settings.max_inference_fps,
+    )
 
 
 def create_app(*, settings: ServiceSettings | None = None, session_manager: SessionManager | None = None) -> FastAPI:
     service_settings = settings or ServiceSettings.load()
     manager = session_manager or SessionManager(
+        reader_factory=reader_factory_for(service_settings),
         model_path=str(service_settings.model_path),
         gait_model_path=service_settings.gait_model_path,
         gait_model_device=service_settings.gait_model_device,
         gait_model_window_frames=service_settings.gait_model_window_frames,
         reconnect_attempts=service_settings.reconnect_attempts,
         reconnect_delay_sec=service_settings.reconnect_delay_sec,
+        reconnect_stable_after_sec=service_settings.reconnect_stable_after_sec,
+        reconnect_stable_after_frames=service_settings.reconnect_stable_after_frames,
         callback_token=service_settings.callback_token,
         scene_risk_scores=service_settings.scene_risk_scores,
         branch_quality=service_settings.branch_quality,
@@ -38,6 +54,7 @@ def create_app(*, settings: ServiceSettings | None = None, session_manager: Sess
         open_timeout_ms=service_settings.stream_open_timeout_ms,
         read_timeout_ms=service_settings.stream_read_timeout_ms,
         max_inference_fps=service_settings.max_inference_fps,
+        pose_inference_size=service_settings.pose_inference_size,
         fall_state=service_settings.fall_state,
     )
     app = FastAPI(title="Elderly Monitoring Fall Risk Service", version="0.2.0")
@@ -64,6 +81,12 @@ def create_app(*, settings: ServiceSettings | None = None, session_manager: Sess
             and not service_settings.gait_model_path.exists()
         ):
             raise HTTPException(status_code=503, detail="gait model is not available")
+        if service_settings.stream_reader_backend == "ffmpeg" and (
+            shutil.which("ffmpeg") is None or shutil.which("ffprobe") is None
+        ):
+            raise HTTPException(
+                status_code=503, detail="ffmpeg backend is not available"
+            )
         return {"status": "ready"}
 
     @app.post("/v1/monitoring/sessions", response_model=SessionAccepted, status_code=202, dependencies=[Depends(require_token)])

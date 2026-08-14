@@ -1,6 +1,6 @@
 # 评估脚本目录
 
-当前已实现跌倒/近跌倒事件评估器，以及跌倒 candidate-clip TCN、坐站规则/Logistic/候选 TCN 的 validation-only 复评入口。功能 proxy 与纵向任务只有 schema 和 split 门禁；在真实参考终点存在前，不生成正式指标。
+当前已实现跌倒/近跌倒事件评估器，以及坐站连续因果 TCN 与规则对照的 validation-only 评估入口。功能 proxy 与纵向任务只有 schema 和 split 门禁；在真实参考终点存在前，不生成正式指标。
 
 ## 事件评估契约
 
@@ -58,7 +58,7 @@ conda run -n eldercare-ai python scripts/evaluate/evaluate_fall_events.py \
 
 ## 候选模型复评
 
-跌倒 candidate-clip TCN 使用当前 v3 split 生成的数据集，并只在 metadata 记录的 validation 分区复算固定 checkpoint：
+跌倒连续因果链当前只保留输入契约和审计入口，尚无可晋级 checkpoint；旧 candidate-clip pilot 仅保留在历史报告中：
 
 ```bash
 conda run -n eldercare-ai python scripts/evaluate/evaluate_fall_event_tcn.py \
@@ -68,38 +68,52 @@ conda run -n eldercare-ai python scripts/evaluate/evaluate_fall_event_tcn.py \
   --output /tmp/fall_event_validation.json
 ```
 
-坐站 provisional 数据集分别提供规则 E0、Logistic 和候选双头 TCN 的 validation 复评：
+坐站只保留连续因果 TCN 及同协议规则对照的 validation 复评：
 
 ```bash
-conda run -n eldercare-ai python scripts/evaluate/evaluate_sit_stand_rule.py \
-  --data data/processed/fall_risk/sit_stand_event_v1/provisional-20260803-seed42-v3/dataset.npz \
-  --metadata data/processed/fall_risk/sit_stand_event_v1/provisional-20260803-seed42-v3/metadata.json \
-  --output-dir /tmp/sit_stand_rule_validation
-
-conda run -n eldercare-ai python scripts/evaluate/evaluate_sit_stand.py \
-  --data data/processed/fall_risk/sit_stand_event_v1/provisional-20260803-seed42-v3/dataset.npz \
-  --metadata data/processed/fall_risk/sit_stand_event_v1/provisional-20260803-seed42-v3/metadata.json \
-  --checkpoint reports/fall_risk/sit_stand_event_v1/pilot-logreg-provisional-20260803-seed42-v2/checkpoint.joblib \
-  --output /tmp/sit_stand_logistic_validation.json
-
-conda run -n eldercare-ai python scripts/evaluate/evaluate_sit_stand_tcn.py \
-  --data data/processed/fall_risk/sit_stand_event_v1/provisional-20260803-seed42-v3/dataset.npz \
-  --metadata data/processed/fall_risk/sit_stand_event_v1/provisional-20260803-seed42-v3/metadata.json \
-  --checkpoint reports/fall_risk/sit_stand_event_v1/pilot-candidate-tcn-provisional-20260803-seed42-v1/best_model.pt \
-  --output /tmp/sit_stand_tcn_validation.json
+conda run -n eldercare-ai python scripts/evaluate/evaluate_sit_stand_streaming.py --help
 ```
 
 这些入口会拒绝 test 评估或只接受 `partition=validation`。模型权重和 `.joblib` 是本地忽略产物；命令路径用于复现实验，不表示仓库发布 checkpoint。候选 clip 指标不等于连续事件定位、连续背景误报率、老人域泛化或正式测试结果。
+
+## 个体基线纵向消融
+
+Phase 2 入口固定评估无个人基线、mean/std、median/MAD 和完整鲁棒候选四组，要求 prediction coverage 完全一致。先生成纯合成 fixture，再只评估 validation：
+
+```bash
+conda run -n eldercare-ai python scripts/evaluate/build_synthetic_fall_baseline_longitudinal_fixture.py \
+  --output-dir /tmp/fall_baseline_longitudinal_synthetic
+
+conda run -n eldercare-ai python scripts/evaluate/generate_fall_baseline_longitudinal_predictions.py \
+  --observations /tmp/fall_baseline_longitudinal_synthetic/observations.validation.jsonl \
+  --assignments /tmp/fall_baseline_longitudinal_synthetic/assignments.jsonl \
+  --split /tmp/fall_baseline_longitudinal_synthetic/split.json \
+  --partition validation \
+  --output /tmp/fall_baseline_longitudinal_synthetic/replay-predictions.validation.jsonl
+
+conda run -n eldercare-ai python scripts/evaluate/evaluate_fall_baseline_longitudinal.py \
+  --observations /tmp/fall_baseline_longitudinal_synthetic/observations.validation.jsonl \
+  --risk-labels /tmp/fall_baseline_longitudinal_synthetic/risk_labels.validation.jsonl \
+  --assignments /tmp/fall_baseline_longitudinal_synthetic/assignments.jsonl \
+  --split /tmp/fall_baseline_longitudinal_synthetic/split.json \
+  --predictions /tmp/fall_baseline_longitudinal_synthetic/replay-predictions.validation.jsonl \
+  --partition validation \
+  --data-status synthetic \
+  --output-dir /tmp/fall_baseline_longitudinal_bundle
+```
+
+该结果只证明前向 split、泄漏门禁、分层指标、人员级 bootstrap 和失败案例 bundle 可运行。真实 observation、`risk_labels` 与 subject profiles 当前为空；`--data-status formal` 只接受 frozen 协议和 frozen split，test 还要求绑定 split/协议/预测/标签/commit/授权角色/run ID 的 `--test-release-ack`，普通布尔开关不能开放 test。
 
 ## 正式门禁
 
 正式评估必须同时满足：
 
 - split 与 evaluation protocol 均为 frozen；
-- Git 工作区干净，bootstrap 不少于 10,000 次；
+- formal validation/test 的 Git 工作区干净并记录 commit，bootstrap 不少于 10,000 次；
 - manifest、assignments、标签、split 根哈希和环境绑定全部匹配；
-- `--validation-report` 指向的实际 formal report 哈希与 frozen split 完全一致；
+- split 构建时，`--formal-validation-report` 中的 `risk_labels`、subject profiles 文件哈希与 CLI 从实际文件字节计算的 SHA-256 完全一致；
 - test 分区提供绑定配置、预测、标签、commit 和唯一 run ID 的保管人授权记录；
+- run ID 的单次消费由保管人工作流登记；无状态评估器只校验授权记录的哈希绑定，不能单独证明该 ID 未被重复使用；
 - 测试集未用于阈值选择或调参。
 
 当前仓库不满足这些条件，不得运行或宣称正式测试指标。

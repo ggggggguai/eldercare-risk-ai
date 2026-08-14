@@ -7,9 +7,9 @@ runtime:
   conda_environment: eldercare-ai
   service_config: configs/modules/fall_risk_service.yaml
   pose_backend: yolov8_pose_bytetrack
-  pose_model: yolov8n-pose.pt
+  pose_model: models/yolov8n-pose.pt
   frame_queue_capacity: 2
-  max_inference_fps: 8.0
+  max_inference_fps: 10.0
 
 clock_contract:
   source_action_time: source_pts_sec

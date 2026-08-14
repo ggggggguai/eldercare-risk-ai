@@ -15,10 +15,12 @@ from elderly_monitoring.modules.fall_risk.fall_event_tcn import (
     FALL_SUBTYPE_LABELS,
     FallEventCandidateTCN,
     FallEventTCNConfig,
+    FallEventTCNEnsemblePredictor,
     FallEventTCNPredictor,
     build_fall_subtype_labels,
     compute_fall_multitask_loss,
     evaluate_fall_event_candidate_tcn,
+    evaluate_fall_event_candidate_ensemble,
     train_fall_event_candidate_tcn,
 )
 from elderly_monitoring.modules.fall_risk.fall_event_training import (
@@ -30,6 +32,10 @@ from elderly_monitoring.modules.fall_risk.fall_event_training import (
     prepare_fall_event_proxy_dataset,
 )
 from scripts.collect.run_fall_event_model import main as run_fall_event_model_main
+from scripts.train.train_fall_event_tcn import (
+    _load_training_config,
+    build_parser as build_fall_event_training_parser,
+)
 
 
 BASE_JOINTS = FALL_EVENT_JOINTS[:12]
@@ -66,6 +72,7 @@ def _write_model_checkpoint(path: Path) -> None:
             "model_version": "fall-event-test-model",
             "state_dict": model.state_dict(),
             "model_config": model_config,
+            "dataset_sha256": "test-dataset-sha256",
             "joint_order": list(FALL_EVENT_JOINTS),
             "channel_order": list(FALL_EVENT_CHANNELS),
             "threshold": 0.5,
@@ -463,6 +470,15 @@ class FallEventCandidateTCNTest(unittest.TestCase):
                 device="cpu",
                 batch_size=8,
             )
+            ensemble_evaluation = evaluate_fall_event_candidate_ensemble(
+                prepared["dataset_path"],
+                [first["checkpoint_path"], first["checkpoint_path"]],
+                root / "run-1" / "ensemble-validation.json",
+                metadata_path=prepared["metadata_path"],
+                device="cpu",
+                batch_size=8,
+                threshold=0.4,
+            )
             resumed = train_fall_event_candidate_tcn(
                 prepared["dataset_path"],
                 root / "run-2",
@@ -481,6 +497,10 @@ class FallEventCandidateTCNTest(unittest.TestCase):
         self.assertFalse(metrics["test_evaluated"])
         self.assertIsNone(metrics["test"])
         self.assertFalse(evaluation["test_evaluated"])
+        self.assertFalse(ensemble_evaluation["test_evaluated"])
+        self.assertEqual(ensemble_evaluation["aggregation"], "mean_probability")
+        self.assertEqual(len(ensemble_evaluation["member_checkpoint_sha256s"]), 2)
+        self.assertEqual(ensemble_evaluation["presence"]["threshold"], 0.4)
         self.assertEqual(metrics["validation"]["subtype"]["status"], "not_trained")
         self.assertEqual(evaluation["subtype"]["status"], "not_trained")
         confusion = metrics["validation"]["presence"]["confusion_matrix"]
@@ -488,8 +508,56 @@ class FallEventCandidateTCNTest(unittest.TestCase):
         self.assertGreaterEqual(prediction["fall_event_score"], 0.0)
         self.assertLessEqual(prediction["fall_event_score"], 1.0)
 
+    def test_ensemble_averages_member_probabilities_and_applies_threshold(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            checkpoint = Path(tmp) / "model.pt"
+            _write_model_checkpoint(checkpoint)
+            tensor = np.zeros(
+                (32, len(FALL_EVENT_JOINTS), len(FALL_EVENT_CHANNELS)),
+                dtype=np.float32,
+            )
+            tensor[..., -1] = 1.0
+            single = FallEventTCNPredictor(checkpoint, device="cpu").predict_tensor(
+                tensor
+            )
+            ensemble = FallEventTCNEnsemblePredictor(
+                [checkpoint, checkpoint],
+                device="cpu",
+                threshold=0.4,
+            ).predict_tensor(tensor)
+
+        self.assertAlmostEqual(
+            ensemble["fall_event_score"], single["fall_event_score"], places=7
+        )
+        self.assertEqual(ensemble["threshold"], 0.4)
+        self.assertEqual(ensemble["aggregation"], "mean_probability")
+        self.assertEqual(len(ensemble["member_scores"]), 2)
+
 
 class FallEventModelCLITest(unittest.TestCase):
+    def test_training_cli_accepts_seed_and_device_overrides(self) -> None:
+        args = build_fall_event_training_parser().parse_args(
+            [
+                "--output-dir",
+                "run",
+                "--seed",
+                "44",
+                "--device",
+                "cpu",
+                "--subtype-loss-weight",
+                "0.2",
+                "--allow-provisional",
+            ]
+        )
+        config = _load_training_config(
+            Path("configs/training/fall_event_v1.yaml"), "pilot"
+        )
+
+        self.assertEqual(args.seed, 44)
+        self.assertEqual(args.device, "cpu")
+        self.assertEqual(args.subtype_loss_weight, 0.2)
+        self.assertEqual(config.seed, 42)
+
     def _run(self, root: Path, records: list[dict[str, object]]) -> tuple[int, Path]:
         input_path = root / "poses.jsonl"
         output_path = root / "predictions.jsonl"

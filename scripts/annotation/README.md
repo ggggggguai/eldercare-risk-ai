@@ -272,22 +272,6 @@ training_ready.near_fall_event=true
 
 `action_type=false` 的直接原因是部分稀有 primary 类仍未覆盖全部分区。两个事件门槛为 true 只表示现有事件监督可按统一 split 开发训练；未取得连续背景分母、老人域验证和冻结评估协议前，不得把它解释为正式模型效果，也不得用自动背景窗或拆散保守源组改善数字。
 
-## 13. 下载 KINECAL 风险组骨架
+## 13. 模型候选收敛
 
-```bash
-conda run -n eldercare-ai python scripts/annotation/download_kinecal.py \
-  --output-dir data/external/kinecal/raw \
-  --workers 32 \
-  --retries 3 \
-  --allow-missing
-```
-
-该命令只下载 `NF/FHs/FHm` 三个官方风险组在 3 米步行、TUG 和 STS-5 动作中的 Kinect 骨架文本，不下载逐帧深度二进制文件。KINECAL v1.0.3 源站在该范围内有 17 个动作目录不存在，因此正式下载显式使用 `--allow-missing`，随后仍必须运行本地 manifest 校验。下载范围、源数据缺口、年龄冲突和 TCN 使用方式见 `data/external/kinecal/README.md`。
-
-本地校验：
-
-```bash
-conda run -n eldercare-ai python scripts/annotation/download_kinecal.py \
-  --output-dir data/external/kinecal/raw \
-  --verify-only
-```
+KINECAL 下载和准备入口已退休。当前各任务只保留一个 TCN 实验候选，规则 baseline 继续作为运行主路径和低质量输入 fallback。

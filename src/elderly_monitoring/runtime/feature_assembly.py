@@ -9,7 +9,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
-from elderly_monitoring.modules.fall_risk.baseline import build_personal_baselines, score_baseline_deviation
+from elderly_monitoring.modules.fall_risk.baseline import MODEL_VERSION as BASELINE_MODEL_VERSION
+from elderly_monitoring.modules.fall_risk.baseline import build_personal_baselines
 from elderly_monitoring.modules.fall_risk.gait import GAIT_KEYPOINT_NAMES, extract_gait_windows
 from elderly_monitoring.modules.fall_risk.near_fall import (
     MODEL_VERSION as NEAR_FALL_MODEL_VERSION,
@@ -380,37 +381,18 @@ class FeatureAssembler:
 
     def _run_baseline(self, cleaned: list[dict[str, Any]]) -> tuple[dict[str, Any], dict[str, Any]]:
         started = time.perf_counter()
-        if not self._baselines:
-            return {}, {
-                "status": "unavailable",
-                "score": None,
-                "reasons": ["insufficient_baseline_history"],
-                "input_frame_count": len(cleaned),
-                "valid_frame_count": 0,
-                "model_version": "personal-baseline-statistical-v0.1",
-                "duration_ms": _elapsed_ms(started),
-            }
-        try:
-            outputs = score_baseline_deviation(cleaned, self._baselines)
-            item = outputs[-1] if outputs else {}
-        except Exception as exc:
-            return {}, {
-                "status": "inference_error",
-                "score": None,
-                "reasons": ["branch_inference_failed"],
-                "error_type": type(exc).__name__,
-                "input_frame_count": len(cleaned),
-                "valid_frame_count": 0,
-                "model_version": "personal-baseline-statistical-v0.1",
-                "duration_ms": _elapsed_ms(started),
-            }
-        return item, {
-            "status": "valid",
-            "score": _number(item.get("baseline_deviation_score"), 0.0),
-            "reasons": [],
+        reasons = (
+            ["completed_baseline_period_unavailable"]
+            if self._baselines
+            else ["insufficient_baseline_history", "completed_baseline_period_unavailable"]
+        )
+        return {}, {
+            "status": "unavailable",
+            "score": None,
+            "reasons": reasons,
             "input_frame_count": len(cleaned),
-            "valid_frame_count": len(cleaned),
-            "model_version": str(item.get("model_version", "personal-baseline-statistical-v0.1")),
+            "valid_frame_count": 0,
+            "model_version": BASELINE_MODEL_VERSION,
             "duration_ms": _elapsed_ms(started),
         }
 

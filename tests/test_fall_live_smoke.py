@@ -18,6 +18,7 @@ def _sample(
     primary_pose_count: int = 8,
     analysis_count: int = 4,
     branch_status: str = "valid",
+    unavailable_branches: tuple[str, ...] = (),
 ) -> dict:
     return {
         "status": status,
@@ -32,10 +33,14 @@ def _sample(
             "last_frame": {
                 "window": {
                     "branches": {
-                        "gait": {"status": branch_status},
-                        "sit_stand": {"status": "unavailable"},
-                        "near_fall": {"status": "unavailable"},
-                        "fall_state": {"status": "valid"},
+                        name: {
+                            "status": (
+                                "unavailable"
+                                if name in unavailable_branches
+                                else branch_status
+                            )
+                        }
+                        for name in ("gait", "sit_stand", "near_fall", "fall_state")
                     }
                 }
             },
@@ -58,7 +63,11 @@ def test_redacted_source_drops_path_query_and_credentials() -> None:
 
 def test_assessment_passes_stable_transport_and_executed_branches() -> None:
     samples = [
-        _sample(last_frame_at="2026-07-30T01:00:00+00:00", processed_frames=2),
+        _sample(
+            last_frame_at="2026-07-30T01:00:00+00:00",
+            processed_frames=2,
+            unavailable_branches=("near_fall", "fall_state"),
+        ),
         _sample(last_frame_at="2026-07-30T01:00:01+00:00", processed_frames=10),
     ]
 
@@ -67,7 +76,29 @@ def test_assessment_passes_stable_transport_and_executed_branches() -> None:
     assert assessment["overall_status"] == "passed"
     assert assessment["transport"]["status"] == "passed"
     assert assessment["algorithm_pipeline"]["status"] == "passed"
-    assert assessment["algorithm_pipeline"]["branch_statuses"]["sit_stand"] == "unavailable"
+    assert assessment["algorithm_pipeline"]["branch_statuses"]["sit_stand"] == "valid"
+
+
+def test_assessment_fails_when_critical_fall_branch_is_unavailable() -> None:
+    samples = [
+        _sample(
+            last_frame_at="2026-07-30T01:00:00+00:00",
+            processed_frames=2,
+            unavailable_branches=("near_fall", "fall_state"),
+        ),
+        _sample(
+            last_frame_at="2026-07-30T01:00:01+00:00",
+            processed_frames=10,
+            unavailable_branches=("near_fall", "fall_state"),
+        ),
+    ]
+
+    assessment = _assess_samples(samples, completed_full_duration=True)
+
+    assert assessment["overall_status"] == "failed"
+    assert assessment["algorithm_pipeline"]["status"] == "failed"
+    assert "critical_branch_unavailable:near_fall" in assessment["algorithm_pipeline"]["reasons"]
+    assert "critical_branch_unavailable:fall_state" in assessment["algorithm_pipeline"]["reasons"]
 
 
 def test_assessment_fails_early_disconnect_and_missing_pose() -> None:

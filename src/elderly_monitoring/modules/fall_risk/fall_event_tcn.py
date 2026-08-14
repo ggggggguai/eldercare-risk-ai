@@ -654,7 +654,13 @@ def evaluate_fall_event_candidate_tcn(
 
 
 class FallEventTCNPredictor:
-    def __init__(self, checkpoint_path: str | Path, *, device: str = "auto") -> None:
+    def __init__(
+        self,
+        checkpoint_path: str | Path,
+        *,
+        device: str = "auto",
+        threshold: float | None = None,
+    ) -> None:
         source = Path(checkpoint_path)
         if not source.is_file():
             raise FileNotFoundError(f"fall-event TCN checkpoint not found: {source}")
@@ -663,7 +669,13 @@ class FallEventTCNPredictor:
         self.checkpoint_path = source
         self.checkpoint_sha256 = _sha256_file(source)
         self.device = _select_device(device)
-        self.threshold = float(checkpoint["threshold"])
+        checkpoint_threshold = float(checkpoint["threshold"])
+        self.threshold = (
+            checkpoint_threshold if threshold is None else float(threshold)
+        )
+        if not 0 < self.threshold < 1:
+            raise ValueError("fall-event predictor threshold must be within (0, 1)")
+        self.dataset_sha256 = str(checkpoint["dataset_sha256"])
         self.model_version = str(checkpoint["model_version"])
         self.model = FallEventCandidateTCN(**checkpoint["model_config"])
         self.model.load_state_dict(checkpoint["state_dict"])
@@ -696,6 +708,180 @@ class FallEventTCNPredictor:
             "checkpoint_sha256": self.checkpoint_sha256,
             "status": "provisional_shadow",
         }
+
+
+class FallEventTCNEnsemblePredictor:
+    def __init__(
+        self,
+        checkpoint_paths: Sequence[str | Path],
+        *,
+        device: str = "auto",
+        threshold: float = 0.5,
+    ) -> None:
+        paths = tuple(Path(path) for path in checkpoint_paths)
+        if len(paths) < 2:
+            raise ValueError("fall-event ensemble requires at least two checkpoints")
+        if not 0 < threshold < 1:
+            raise ValueError("fall-event ensemble threshold must be within (0, 1)")
+        self.members = tuple(
+            FallEventTCNPredictor(path, device=device) for path in paths
+        )
+        dataset_hashes = {member.dataset_sha256 for member in self.members}
+        if len(dataset_hashes) != 1:
+            raise ValueError("fall-event ensemble checkpoints use different datasets")
+        self.threshold = float(threshold)
+        self.model_version = "fall-event-candidate-tcn-ensemble-v0.1-provisional"
+        self.member_checkpoint_sha256s = tuple(
+            member.checkpoint_sha256 for member in self.members
+        )
+        signature = json.dumps(
+            {
+                "aggregation": "mean_probability",
+                "checkpoint_sha256s": self.member_checkpoint_sha256s,
+                "threshold": self.threshold,
+            },
+            sort_keys=True,
+        ).encode("utf-8")
+        self.checkpoint_sha256 = "ensemble:" + hashlib.sha256(signature).hexdigest()
+
+    def predict_tensor(self, tensor: np.ndarray) -> dict[str, Any]:
+        member_predictions = tuple(
+            member.predict_tensor(tensor) for member in self.members
+        )
+        member_scores = tuple(
+            float(prediction["fall_event_score"])
+            for prediction in member_predictions
+        )
+        score = float(np.mean(member_scores))
+        return {
+            "fall_event_score": score,
+            "fall_event_detected": score >= self.threshold,
+            "threshold": self.threshold,
+            "model_version": self.model_version,
+            "checkpoint_sha256": self.checkpoint_sha256,
+            "member_checkpoint_sha256s": list(self.member_checkpoint_sha256s),
+            "member_scores": list(member_scores),
+            "aggregation": "mean_probability",
+            "status": "provisional_shadow",
+        }
+
+
+def evaluate_fall_event_candidate_ensemble(
+    dataset_path: str | Path,
+    checkpoint_paths: Sequence[str | Path],
+    output_path: str | Path,
+    *,
+    metadata_path: str | Path | None = None,
+    device: str = "auto",
+    batch_size: int = 64,
+    threshold: float = 0.5,
+) -> dict[str, Any]:
+    if batch_size < 1:
+        raise ValueError("batch_size must be positive")
+    source_path = Path(dataset_path)
+    source_metadata_path = (
+        Path(metadata_path)
+        if metadata_path is not None
+        else source_path.with_name("metadata.json")
+    )
+    metadata, arrays = load_fall_event_candidate_dataset(
+        source_path, source_metadata_path
+    )
+    ensemble = FallEventTCNEnsemblePredictor(
+        checkpoint_paths,
+        device=device,
+        threshold=threshold,
+    )
+    if any(
+        member.dataset_sha256 != metadata["dataset_sha256"]
+        for member in ensemble.members
+    ):
+        raise ValueError("fall-event candidate TCN dataset SHA-256 mismatch")
+
+    features = arrays["features"].astype(np.float32, copy=False)
+    validation_indices = np.flatnonzero(
+        arrays["partitions"].astype(str) == "validation"
+    )
+    rows: list[dict[str, Any]] = []
+    with torch.no_grad():
+        for offset in range(0, len(validation_indices), batch_size):
+            batch_indices = validation_indices[offset : offset + batch_size]
+            batch = torch.from_numpy(features[batch_indices]).to(
+                ensemble.members[0].device
+            )
+            member_scores = [
+                torch.softmax(member.model(batch)["presence_logits"], dim=1)[:, 1]
+                .detach()
+                .cpu()
+                .numpy()
+                for member in ensemble.members
+            ]
+            scores = np.mean(np.stack(member_scores, axis=0), axis=0)
+            for source_index, score_value in zip(batch_indices, scores, strict=True):
+                source_index = int(source_index)
+                score = float(score_value)
+                rows.append(
+                    {
+                        "sample_id": str(arrays["sample_ids"][source_index]),
+                        "segment_id": str(arrays["segment_ids"][source_index]),
+                        "video_id": str(arrays["video_ids"][source_index]),
+                        "split_group_id": str(
+                            arrays["split_group_ids"][source_index]
+                        ),
+                        "source_group_id": str(
+                            arrays["source_group_ids"][source_index]
+                        ),
+                        "dataset": str(arrays["datasets"][source_index]),
+                        "action_id": str(arrays["action_ids"][source_index]),
+                        "presence_label": int(arrays["labels"][source_index]),
+                        "presence_probability": score,
+                        "presence_prediction": int(score >= threshold),
+                    }
+                )
+
+    rows.sort(key=lambda row: str(row["sample_id"]))
+    presence = _binary_metrics(rows, threshold)
+    dataset_presence = {
+        name: _binary_metrics(group, threshold)
+        for name, group in _group_rows(rows, "dataset").items()
+        if {int(row["presence_label"]) for row in group} == {0, 1}
+    }
+    action_presence = {
+        name: _binary_metrics(group, threshold)
+        for name, group in _group_rows(rows, "action_id").items()
+    }
+    failures = [
+        row
+        for row in rows
+        if row["presence_prediction"] != row["presence_label"]
+    ]
+    report = {
+        "schema_version": "fall-event-candidate-tcn-ensemble-evaluation-v1",
+        "task": TASK,
+        "status": "provisional",
+        "partition": "validation",
+        "test_evaluated": False,
+        "dataset_sha256": metadata["dataset_sha256"],
+        "aggregation": "mean_probability",
+        "threshold": float(threshold),
+        "ensemble_signature": ensemble.checkpoint_sha256,
+        "member_checkpoint_sha256s": list(
+            ensemble.member_checkpoint_sha256s
+        ),
+        "presence": presence,
+        "dataset_presence": dataset_presence,
+        "action_presence": action_presence,
+        "failure_case_count": len(failures),
+        "failure_cases": failures,
+    }
+    destination = Path(output_path)
+    if destination.exists():
+        raise FileExistsError(
+            f"fall-event TCN ensemble evaluation output exists: {destination}"
+        )
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    _write_json_atomic(destination, report)
+    return report
 
 
 def load_fall_event_candidate_dataset(

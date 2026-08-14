@@ -20,7 +20,7 @@ from elderly_monitoring.modules.fall_risk.gait_training import (
     _select_labeled_track,
     resample_pose_records,
 )
-from elderly_monitoring.modules.fall_risk.kinecal_gait import (
+from elderly_monitoring.modules.fall_risk.gait_contract import (
     CANONICAL_GAIT_JOINTS,
     GAIT_TCN_CHANNELS,
 )

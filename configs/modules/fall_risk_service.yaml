@@ -1,4 +1,4 @@
-model_path: yolov8n-pose.pt
+model_path: models/yolov8n-pose.pt
 # 只有通过步态稳定性验证门禁的 gait_instability_vs_normal_activity
 # checkpoint 才能配置为主分支；null 时规则 baseline 自动兜底。
 gait_model_path: null
@@ -6,7 +6,11 @@ gait_model_device: auto
 gait_model_window_frames: 16
 api_token: change-me
 callback_token: change-me
-max_inference_fps: 8.0
+max_inference_fps: 10.0
+# 当前模型事实源保持 640；修改后需重新验证关键点覆盖和四分支采样门禁。
+pose_inference_size: 640
+stream_reader_backend: ffmpeg
+ffmpeg_scale_width: 640
 pose_window_sec: 10.0
 analysis_interval_sec: 0.5
 fusion_interval_sec: 2.0
@@ -24,6 +28,9 @@ stream_open_timeout_ms: 5000
 stream_read_timeout_ms: 5000
 reconnect_attempts: 3
 reconnect_delay_sec: 1.0
+# 只有持续达到任一门槛的连接才会清零连续失败预算；短流不能无限重连。
+reconnect_stable_after_sec: 30.0
+reconnect_stable_after_frames: 120
 scene_risk_scores:
   bathroom: 0.7
   bedroom_bedside: 0.5

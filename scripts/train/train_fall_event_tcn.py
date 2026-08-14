@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from dataclasses import replace
 from pathlib import Path
 from typing import Any, Sequence
 
@@ -32,6 +33,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--profile", choices=("smoke", "pilot"), default="pilot")
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--resume-checkpoint", type=Path, default=None)
+    parser.add_argument("--seed", type=int, default=None)
+    parser.add_argument("--subtype-loss-weight", type=float, default=None)
+    parser.add_argument(
+        "--device",
+        choices=("auto", "cpu", "cuda", "mps"),
+        default=None,
+    )
     parser.add_argument("--allow-provisional", action="store_true")
     return parser
 
@@ -51,11 +59,21 @@ def _load_training_config(path: Path, profile: str) -> FallEventTCNConfig:
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
+        training_config = _load_training_config(args.config, args.profile)
+        if args.seed is not None:
+            training_config = replace(training_config, seed=args.seed)
+        if args.device is not None:
+            training_config = replace(training_config, device=args.device)
+        if args.subtype_loss_weight is not None:
+            training_config = replace(
+                training_config,
+                subtype_loss_weight=args.subtype_loss_weight,
+            )
         summary = train_fall_event_candidate_tcn(
             args.data,
             args.output_dir,
             metadata_path=args.metadata,
-            config=_load_training_config(args.config, args.profile),
+            config=training_config,
             allow_provisional=args.allow_provisional,
             resume_checkpoint=args.resume_checkpoint,
         )

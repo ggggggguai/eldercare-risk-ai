@@ -1,0 +1,17 @@
+{
+  "schema_version": "sit-stand-source-label-decision-v1",
+  "decision_id": "sit_stand_source_labels_20260810",
+  "approved_by_role": "project_owner",
+  "approval_source": "interactive_user_confirmation_20260810",
+  "source_action_labels_sha256": "894c6d052159be5f6aad19778b3484aa49e663e29b5030465134fc906b554e5f",
+  "source_split_id": "splitv3_e71a045eb58489f43dc5fd11",
+  "reuse_source_annotator_as_review_evidence": true,
+  "reuse_source_boundary_and_action_type": true,
+  "unlabelled_background_inference_allowed": false,
+  "test_truth_publication_allowed": false,
+  "notes": [
+    "Project owner confirmed on 2026-08-10 that existing human action boundaries and event types are the intended sit-stand source truth.",
+    "No additional reviewer field is required; existing annotator_id and reviewer_ids provide evidence provenance.",
+    "A11 assisted lowering and D04 post-fall immobility remain ignore because their intervals are ambiguous for sit-stand localization."
+  ]
+}

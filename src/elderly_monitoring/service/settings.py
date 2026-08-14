@@ -10,14 +10,15 @@ import yaml
 
 @dataclass(frozen=True)
 class ServiceSettings:
-    model_path: Path = Path("yolov8n-pose.pt")
+    model_path: Path = Path("models/yolov8n-pose.pt")
     gait_model_path: Path | None = None
     gait_model_device: str = "auto"
     gait_model_window_frames: int = 16
     api_token: str = "change-me"
     callback_token: str = "change-me"
     baseline_history_path: Path | None = None
-    max_inference_fps: float = 8.0
+    max_inference_fps: float = 10.0
+    pose_inference_size: int = 640
     pose_window_sec: float = 10.0
     analysis_interval_sec: float = 0.5
     fusion_interval_sec: float = 2.0
@@ -29,10 +30,14 @@ class ServiceSettings:
     outbox_drain_timeout_sec: float = 3.0
     session_stop_timeout_sec: float = 5.0
     frame_queue_capacity: int = 2
+    stream_reader_backend: str = "ffmpeg"
+    ffmpeg_scale_width: int = 640
     stream_open_timeout_ms: int = 5000
     stream_read_timeout_ms: int = 5000
     reconnect_attempts: int = 3
     reconnect_delay_sec: float = 1.0
+    reconnect_stable_after_sec: float = 30.0
+    reconnect_stable_after_frames: int = 120
     scene_risk_scores: Mapping[str, float] = field(default_factory=dict)
     branch_quality: Mapping[str, Any] = field(default_factory=dict)
     fall_state: Mapping[str, Any] = field(default_factory=dict)
@@ -48,12 +53,26 @@ class ServiceSettings:
             raise ValueError("gait_model_window_frames must be at least 2")
         if self.frame_queue_capacity < 1:
             raise ValueError("frame_queue_capacity must be at least 1")
+        if self.pose_inference_size < 32:
+            raise ValueError("pose_inference_size must be at least 32")
         if self.outbox_capacity < 1:
             raise ValueError("outbox_capacity must be at least 1")
         if self.outbox_drain_timeout_sec < 0:
             raise ValueError("outbox_drain_timeout_sec must be non-negative")
         if self.session_stop_timeout_sec <= 0:
             raise ValueError("session_stop_timeout_sec must be positive")
+        if self.stream_reader_backend not in {"opencv", "ffmpeg"}:
+            raise ValueError("stream_reader_backend must be opencv or ffmpeg")
+        if self.ffmpeg_scale_width < 2:
+            raise ValueError("ffmpeg_scale_width must be at least 2")
+        if self.reconnect_attempts < 0:
+            raise ValueError("reconnect_attempts must be non-negative")
+        if self.reconnect_delay_sec < 0:
+            raise ValueError("reconnect_delay_sec must be non-negative")
+        if self.reconnect_stable_after_sec <= 0:
+            raise ValueError("reconnect_stable_after_sec must be positive")
+        if self.reconnect_stable_after_frames < 1:
+            raise ValueError("reconnect_stable_after_frames must be at least 1")
 
     @classmethod
     def load(cls, path: Path | None = None, environ: Mapping[str, str] | None = None) -> "ServiceSettings":
@@ -75,6 +94,7 @@ class ServiceSettings:
             "CALLBACK_TOKEN": ("callback_token", str),
             "BASELINE_HISTORY_PATH": ("baseline_history_path", Path),
             "MAX_INFERENCE_FPS": ("max_inference_fps", float),
+            "POSE_INFERENCE_SIZE": ("pose_inference_size", int),
             "POSE_WINDOW_SEC": ("pose_window_sec", float),
             "ANALYSIS_INTERVAL_SEC": ("analysis_interval_sec", float),
             "FUSION_INTERVAL_SEC": ("fusion_interval_sec", float),
@@ -85,8 +105,12 @@ class ServiceSettings:
             "OUTBOX_DRAIN_TIMEOUT_SEC": ("outbox_drain_timeout_sec", float),
             "SESSION_STOP_TIMEOUT_SEC": ("session_stop_timeout_sec", float),
             "FRAME_QUEUE_CAPACITY": ("frame_queue_capacity", int),
+            "STREAM_READER_BACKEND": ("stream_reader_backend", str),
+            "FFMPEG_SCALE_WIDTH": ("ffmpeg_scale_width", int),
             "RECONNECT_ATTEMPTS": ("reconnect_attempts", int),
             "RECONNECT_DELAY_SEC": ("reconnect_delay_sec", float),
+            "RECONNECT_STABLE_AFTER_SEC": ("reconnect_stable_after_sec", float),
+            "RECONNECT_STABLE_AFTER_FRAMES": ("reconnect_stable_after_frames", int),
         }
         for env_name, (field_name, converter) in overrides.items():
             if env_name in env:

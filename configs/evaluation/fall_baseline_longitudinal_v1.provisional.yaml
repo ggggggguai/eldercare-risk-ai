@@ -1,0 +1,42 @@
+schema_version: fall-baseline-longitudinal-protocol-v1
+protocol_version: fall-baseline-longitudinal-evaluation-v1-provisional
+protocol_status: provisional
+seed: fall-baseline-longitudinal-development-20260812
+aggregation_period: day
+
+# Source groups, normally homes, are allocated without reading outcomes.
+outer_partitions:
+  train: 0.60
+  validation: 0.20
+  test: 0.20
+
+# Provisional development minimums. These are not calibrated clinical cutoffs.
+min_reference_periods: 10
+min_scoring_periods_per_identity: 3
+min_subjects_per_partition: 3
+min_total_subjects: 15
+min_valid_monitoring_hours: 1.0
+prediction_horizon_hours:
+  min: 0.0
+  max: 72.0
+
+high_risk_level_threshold: 3
+score_threshold: 0.50
+bootstrap_iterations: 2000
+bootstrap_seed: 20260812
+
+required_variants:
+  - no_personal_baseline
+  - mean_std_personal_baseline
+  - median_mad_personal_baseline
+  - robust_ewma_cusum_guarded
+
+review:
+  accepted_decision: accepted
+  manual_consensus_min_reviewers: 2
+  clinical_proxy_min_reviewers: 1
+
+# Test remains sealed while this protocol is provisional.
+test_governance:
+  custodian: null
+  frozen_at: null

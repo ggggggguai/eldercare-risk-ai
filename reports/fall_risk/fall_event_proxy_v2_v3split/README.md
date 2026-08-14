@@ -2,9 +2,11 @@
 
 日期：2026-08-04
 
+当前状态更新（2026-08-08）：本报告固定记录 `splitv3_f89832f6cad5b9c5f630d00b` 上的历史开发实验。当前 manifest 绑定的 v3 split 已更新为 `splitv3_e71a045eb58489f43dc5fd11`；标签与 assignment 内容虽未变化，但严格 hash/split 契约已经变化，因此下列结果不能直接作为当前 split 的 E1 复现证据。P0 门禁未通过，本次执行未重建 dataset、未重训、未读取 test。
+
 ## 结论
 
-本轮使用当前 v3 action labels、`splitv3_f89832f6cad5b9c5f630d00b` 和现有姿态缓存，重新构建并训练 `fall_action_presence_proxy_v1` candidate-clip TCN。三次固定 seed `42/43/44` 的 train/validation 结果已由独立 evaluator 复算一致。
+本轮使用当时的 v3 action labels、`splitv3_f89832f6cad5b9c5f630d00b` 和现有姿态缓存，重新构建并训练 `fall_action_presence_proxy_v1` candidate-clip TCN。三次固定 seed `42/43/44` 的 train/validation 结果已由独立 evaluator 复算一致。
 
 这仍是“预先截取的姿态窗口是否包含明确跌倒动作”的 proxy，不是连续视频跌倒事件定位器；`event_labels_v3.jsonl` 的正式事件边界、连续背景分母和 test 指标没有被这次训练替代。方向 subtype 头按 pilot 配置保持 `not_trained`。模型不接入实时告警，`fall_state` 规则继续作为主路径和安全覆盖。
 
@@ -21,7 +23,7 @@
 
 ## 三 seed 结果
 
-指标由固定 checkpoint 在 validation 分区按冻结阈值 `0.5` 复算；独立 evaluator 与训练器结果一致。
+指标由固定 checkpoint 在 validation 分区按固定开发阈值 `0.5` 复算；独立 evaluator 与训练器结果一致。该阈值不是 frozen 正式协议。
 
 | seed | best epoch | epochs | Precision | Recall | F1 | Balanced accuracy | PR-AUC | ROC-AUC | confusion `[[TN,FP],[FN,TP]]` |
 |---:|---:|---:|---:|---:|---:|---:|---:|---:|:---|

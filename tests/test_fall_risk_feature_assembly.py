@@ -21,6 +21,52 @@ def _record(frame_id: int, timestamp: float, quality: float = 0.9):
 
 
 class FeatureAssemblyTest(unittest.TestCase):
+    def test_pose_window_cannot_be_scored_as_completed_baseline_period(self) -> None:
+        history = [{
+            "record_type": "fall_baseline_period_features",
+            "schema_version": "fall-baseline-period-features-v1",
+            "person_id": "elder-1",
+            "device_id": "device-1",
+            "camera_profile_id": "camera-home-1",
+            "period_id": f"2026-06-{day:02d}",
+            "period_start": f"2026-06-{day:02d}T00:00:00+08:00",
+            "period_end": f"2026-06-{day:02d}T23:59:59+08:00",
+            "timezone": "Asia/Shanghai",
+            "completed": True,
+            "aggregation_version": "fall-baseline-period-aggregation-v1",
+            "upstream_versions": {"activity": "activity-test-v1"},
+            "input_summary": {"source_record_count": 1},
+            "valid_monitoring_hours": 2.0,
+            "activity_volume": 100.0,
+            "baseline_quality": 0.9,
+            "metric_quality": {
+                "activity_volume": {
+                    "available": True,
+                    "observation_count": 1,
+                    "quality": 0.9,
+                    "coverage": 0.9,
+                    "exposure_hours": 2.0,
+                    "missing_reason": None,
+                }
+            },
+        } for day in range(1, 8)]
+        assembler = FeatureAssembler(
+            person_id="elder-1",
+            scene_region="home",
+            baseline_history=history,
+            config=FeatureAssemblyConfig(analysis_interval_sec=0.0),
+        )
+
+        snapshot = assembler.add_pose(_record(1, 0.0), monotonic_sec=0.0)
+
+        self.assertIsNone(snapshot.features["baseline_deviation_score"])
+        self.assertFalse(snapshot.features["fusion_mask"]["baseline_deviation_score"])
+        self.assertEqual(snapshot.branch_diagnostics["baseline"]["status"], "unavailable")
+        self.assertIn(
+            "completed_baseline_period_unavailable",
+            snapshot.branch_diagnostics["baseline"]["reasons"],
+        )
+
     def test_window_prunes_old_records_and_respects_interval(self) -> None:
         assembler = FeatureAssembler(
             person_id="elder-1",

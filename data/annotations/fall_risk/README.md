@@ -20,6 +20,8 @@ event_labels_v3.jsonl
 
 v3 不覆盖 v2，也不再把正常动作、步态、坐站、D04 和 U01 映射成同一平面的事件类别。当前迁移结果为 9,314 条动作和 9,498 条事件窗口：动作父类 primary=8,444、auxiliary=702、ignore=168；事件 positive=3,265、negative=5,975、task-specific ignore=258，其中 fall 正/负=2,303/1,774，near-fall 正/负=962/4,201。71 个 LE2I/CVAT 重叠 fall 已合并；218 个 D04 作为 `post_fall_immobile` 与唯一父 fall 双向关联，2 个无唯一父事件的 D04 保持 ignore。
 
+连续坐站事件使用独立的 `configs/data/fall_risk_sit_stand_event_schema_v1.json`，不回写 v2 或 v3。2026-08-10 已根据项目负责人确认，复用现有 v3 人工动作边界和事件类型发布 `sit_stand_event_labels_v1.jsonl` 及对应 review log；`reviewed_by` 只记录原有 `annotator_id` 和已有 reviewer，不新增虚构复核人。发布包含 1,866 个事件、2,220 个显式困难背景和 192 个 ignore，`unlabelled_background_inferred=false`、`test_truth_published=false`。优化后的 pose 过滤采用短区间自适应观测门槛、显式 `frame_mask` 和占优轨迹选择，歧义目标继续拒绝；pose-aware development split `sitstandsplit_d751c5c4807698fc6882b593` 已通过方向、来源和困难负例门禁。test 姿态和真值仍未生成。
+
 v3 任务级正负样本只来自 `configs/data/fall_risk_training_decision_20260804.json` 的哈希绑定项目裁决，不是按动作名临时推断。当前 962 条 `stumble_recovery` 正例由 948 条 NTU C03、13 条 Pre_VFallp C03 和 1 条 fall_tiktok C03 组成；未标注背景、LE2I `0/0`、U01、重遮挡和出画没有转成 negative。未来新增 C04/C05 或背景窗仍需独立人工复核。
 
 CaucaFall 的 100 个 AVI 已完成手工 CVAT 标注并进入主标签链，manifest 均为 `eligibility=true`、`label_source=cvat_manual`，并绑定 10 个脱敏任务 ZIP。导入生成 311 条动作和 311 条映射事件；100 个视频、10 名受试者均保留，目录动作名只保留为来源元数据。v2/v3 迁移对少量 v3 标签名做了显式别名归一，原始标签和映射记录在 `generated/v2/caucafall_manual/import_report.json` 中。
@@ -33,6 +35,8 @@ NTU RGB+D 单动作来源按项目负责人 2026-07-25 的人工复核决定接�
 S001-S017 A043 CVAT 导出已按 `configs/data/ntu_rgbd_a043_cvat_decision_v1.json` 的项目负责人决定接入主标签链。`generated/v2/ntu_rgbd_a043_cvat_review/` 覆盖 938 个视频，生成 1,428 条动作和 1,428 条映射事件；主 manifest 只白名单导入这 938 个 `video_id`，不会自动导入未标注 A043。S016/C003/P008/R001 的严格命名 job revision 叠加在原完整 S016 project 上；合并 ZIP 已删除身份元数据，并重建为含完整 task/source 元数据的规范化 project。S013/C001/P018/R001 裁决为 D01，S015/C003/P015/R001 裁决为 D02；S011/P015/R001 与 S017/P020/R001 的六个视角裁决为 A05 fall hard negative。该批次仍缺少 S002 的 10 个 C001 任务。原 CVAT 导入把 446 个全片跌倒记录为没有片内 onset；现行 v3 受审决定已统一使用首帧 onset、媒体尾帧 offset，写为 `[0, frame_count)` 精确边界。306 个完整三视角组中有 303 组一致含跌倒、3 组一致非跌倒、0 组跌倒覆盖冲突；51 组方向不一致、36 组原 CVAT 边界差超过 5 帧，均保留为 QC 事实。
 
 Fall Detection 2017 的人工 CVAT 批次已接入 v2/v3 候选链：2,011 个源成功导入，生成 2,977 条 v2 动作/事件、2,977 条 v3 动作和 1,097 条 v3 事件窗口。该批次仍标记为 `project_collected_manual_cvat_unverified`，训练策略为 `candidate_requires_qc_review`；2 个源技术排除，另有 1 个 manifest 可用源尚未匹配。来源、归一化和 QC 警告固定在 `generated/v2/fall_detection_2017_manual/import_report.json`，不能据此宣称正式训练就绪。
+
+SCF_MVP_V1 新交付的 262 个自采视频和 262 个 CVAT 任务已完成本地对账，5 份移除账号/邮箱的脱敏导出保存在 `cvat_exports/raw/self_collected_scf_mvp_v1/`。该批次尚未有来源专用导入器，且授权、subject profile、P02 坐标缩放、P03 重复/帧对齐和双人复核门禁未解除，因此没有写入根 v2/v3 标签、manifest 或 split。详见 `reports/fall_risk/self-collected-data-audit-20260811.md`。
 
 动作父类与具体动作分别使用 `training_tier` 和 `action_type_training_tier`。具体动作少于 10 个独立 sample group 时忽略，10-29 个或来源少于 3 个 source group 时只作 auxiliary，至少 30 个 sample group且至少 3 个 source group才可作 primary；训练代码必须从 `action_labels_v3.jsonl` 读取该层级，不能只读取 split assignment 中的父类 tier。
 

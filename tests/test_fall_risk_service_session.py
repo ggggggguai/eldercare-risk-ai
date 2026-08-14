@@ -1,3 +1,4 @@
+import threading
 import time
 import unittest
 
@@ -141,6 +142,62 @@ class SessionServiceTest(unittest.TestCase):
         self.assertEqual(reasons[0], "session_started")
         self.assertIn("stream_url_updated", reasons[1:])
 
+    def test_url_update_during_open_discards_stale_connection(self):
+        open_started = threading.Event()
+        allow_open = threading.Event()
+
+        class SlowOpenReader(FakeReader):
+            def __init__(self, url, **kwargs):
+                super().__init__(url, **kwargs)
+                if url.endswith("/new"):
+                    self.frames = [object()] * 1000
+
+            def open(self):
+                if self.url.endswith("/old"):
+                    open_started.set()
+                    allow_open.wait(timeout=1.0)
+
+            def read(self):
+                if self.closed:
+                    return None
+                if self.url.endswith("/new"):
+                    time.sleep(0.001)
+                return super().read()
+
+        manager = SessionManager(
+            reader_factory=SlowOpenReader,
+            engine_factory=FakeEngine,
+            reconnect_attempts=1,
+            reconnect_delay_sec=0.0,
+            frame_queue_capacity=1,
+        )
+        session = manager.start(
+            request_id="open-update",
+            stream_url="https://example/old",
+            device_id="cam",
+            person_id="elder",
+            scene_region="home",
+            callback_url="https://backend/events",
+        )
+        self.assertTrue(open_started.wait(timeout=1.0))
+        manager.update_url(session.session_id, "https://example/new")
+        allow_open.set()
+        deadline = time.time() + 1.0
+        while (
+            not any(reader.url.endswith("/new") for reader in FakeReader.instances)
+            or session.stream_epoch < 1
+        ) and time.time() < deadline:
+            time.sleep(0.005)
+        manager.stop(session.session_id)
+
+        engine = FakeEngine.instances[-1]
+        self.assertTrue(engine.epochs)
+        self.assertEqual(engine.epochs[0][1]["reason"], "stream_url_updated")
+        self.assertEqual(session.stream_epoch, 1)
+        self.assertEqual(len(engine.epochs), 1)
+        self.assertTrue(FakeReader.instances[0].closed)
+        self.assertTrue(any(reader.url.endswith("/new") for reader in FakeReader.instances))
+
     def test_each_open_creates_epoch_and_passes_clock_fields_to_engine(self):
         session = self.manager.start(request_id="r1", stream_url="https://example/live", device_id="cam", person_id="elder", scene_region="home", callback_url="https://backend/events")
         session.thread.join(timeout=2)
@@ -154,6 +211,31 @@ class SessionServiceTest(unittest.TestCase):
         self.assertIn("received_monotonic_sec", kwargs)
         self.assertIn("stream_epoch", kwargs)
         self.assertGreaterEqual(session.frame_diagnostics["put_count"], len(engine.processed))
+
+    def test_repeated_short_streams_exhaust_reconnect_budget(self):
+        manager = SessionManager(
+            reader_factory=FakeReader,
+            engine_factory=FakeEngine,
+            reconnect_attempts=2,
+            reconnect_delay_sec=0.0,
+            reconnect_stable_after_sec=10.0,
+            reconnect_stable_after_frames=30,
+            frame_queue_capacity=2,
+        )
+        session = manager.start(
+            request_id="short-stream",
+            stream_url="https://example/live",
+            device_id="cam",
+            person_id="elder",
+            scene_region="home",
+            callback_url="https://backend/events",
+        )
+        session.thread.join(timeout=2)
+
+        self.assertFalse(session.thread.is_alive())
+        self.assertEqual(session.status, SessionStatus.FAILED)
+        self.assertEqual(session.stream_epoch, 3)
+        self.assertEqual(session.last_error, "stream reconnect attempts exhausted")
 
     def test_slow_inference_keeps_queue_bounded_and_drops_old_frames(self):
         class BurstReader(FakeReader):

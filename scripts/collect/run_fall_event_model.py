@@ -11,13 +11,33 @@ from typing import Any, Sequence
 
 import numpy as np
 
-from elderly_monitoring.modules.fall_risk.fall_event_tcn import FallEventTCNPredictor
+from elderly_monitoring.modules.fall_risk.fall_event_tcn import (
+    FallEventTCNEnsemblePredictor,
+    FallEventTCNPredictor,
+)
 from elderly_monitoring.modules.fall_risk.fall_event_training import (
     FallEventDatasetConfig,
     _resample_pose_records,
     _window_quality,
     build_fall_event_tensor,
 )
+
+
+DEFAULT_CHECKPOINTS = (
+    Path(
+        "reports/fall_risk/fall_event_proxy_v1/"
+        "development-splitv3-e71a045-seed42/best_model.pt"
+    ),
+    Path(
+        "reports/fall_risk/fall_event_proxy_v1/"
+        "development-splitv3-e71a045-seed43/best_model.pt"
+    ),
+    Path(
+        "reports/fall_risk/fall_event_proxy_v1/"
+        "development-splitv3-e71a045-seed44/best_model.pt"
+    ),
+)
+DEFAULT_ENSEMBLE_THRESHOLD = 0.42490479350090027
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -31,11 +51,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--checkpoint",
         type=Path,
-        default=Path(
-            "reports/fall_risk/fall_event_proxy_v1/"
-            "presence-pilot-seed42-v2/best_model.pt"
-        ),
+        action="append",
+        default=None,
+        help="Checkpoint path; repeat for mean-probability ensemble inference.",
     )
+    parser.add_argument("--threshold", type=float, default=None)
     parser.add_argument("--device", choices=("auto", "cpu", "cuda", "mps"), default="auto")
     parser.add_argument("--window-sec", type=float, default=4.0)
     parser.add_argument("--stride-sec", type=float, default=0.5)
@@ -136,7 +156,24 @@ def run(args: argparse.Namespace) -> int:
     timestamps = [float(row["timestamp_sec"]) for row in records if row.get("timestamp_sec") is not None]
     if not timestamps:
         raise ValueError("pose input contains no timestamp_sec values")
-    predictor = FallEventTCNPredictor(args.checkpoint, device=args.device)
+    using_default_ensemble = not args.checkpoint
+    checkpoint_paths = args.checkpoint or list(DEFAULT_CHECKPOINTS)
+    if len(checkpoint_paths) == 1:
+        predictor = FallEventTCNPredictor(
+            checkpoint_paths[0],
+            device=args.device,
+            threshold=args.threshold,
+        )
+    else:
+        predictor = FallEventTCNEnsemblePredictor(
+            checkpoint_paths,
+            device=args.device,
+            threshold=(
+                DEFAULT_ENSEMBLE_THRESHOLD
+                if args.threshold is None and using_default_ensemble
+                else (0.5 if args.threshold is None else args.threshold)
+            ),
+        )
     outputs: list[dict[str, Any]] = []
     starts = _window_starts(min(timestamps), max(timestamps), config.window_sec, args.stride_sec)
     for window_index, start in enumerate(starts):

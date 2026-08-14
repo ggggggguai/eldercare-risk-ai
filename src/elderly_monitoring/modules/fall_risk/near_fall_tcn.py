@@ -10,6 +10,15 @@ from typing import Any, Mapping, Sequence
 
 import numpy as np
 import torch
+from sklearn.metrics import (
+    average_precision_score,
+    balanced_accuracy_score,
+    confusion_matrix,
+    f1_score,
+    precision_score,
+    recall_score,
+    roc_auc_score,
+)
 from torch import nn
 from torch.nn import functional as F
 from torch.utils.data import DataLoader, Dataset
@@ -35,6 +44,7 @@ class NearFallTCNConfig:
     learning_rate: float = 1e-3
     weight_decay: float = 1e-4
     patience: int = 8
+    threshold: float = 0.5
     seed: int = 42
     device: str = "auto"
 
@@ -53,6 +63,8 @@ class NearFallTCNConfig:
             raise ValueError("invalid optimizer configuration")
         if self.patience < 1:
             raise ValueError("patience must be positive")
+        if not 0 < self.threshold < 1:
+            raise ValueError("threshold must be within (0, 1)")
         if self.device not in {"auto", "cpu", "cuda", "mps"}:
             raise ValueError("device must be auto, cpu, cuda or mps")
 
@@ -202,6 +214,7 @@ def train_near_fall_tcn(
     last_checkpoint_path = destination / "last_model.pt"
     metrics_path = destination / "metrics.json"
     config_path = destination / "config.json"
+    validation_predictions_path = destination / "validation_predictions.jsonl"
 
     _set_deterministic(training.seed)
     device = _resolve_device(training.device)
@@ -319,19 +332,36 @@ def train_near_fall_tcn(
         raise RuntimeError("near-fall training did not produce a checkpoint")
     best = torch.load(checkpoint_path, map_location=device, weights_only=False)
     model.load_state_dict(best["state_dict"])
-    train_metrics = _run_epoch(model, DataLoader(
-        _WindowDataset(arrays["features"], arrays["labels"], arrays["sample_weights"], train_indices),
+    train_metrics = _evaluate_partition(
+        model,
+        arrays,
+        train_indices,
+        partition="train",
+        device=device,
         batch_size=training.batch_size,
-        shuffle=False,
-        num_workers=0,
-    ), device=device, optimizer=None)
-    validation_metrics = _run_epoch(
-        model, validation_loader, device=device, optimizer=None
+        threshold=training.threshold,
+    )
+    validation_metrics = _evaluate_partition(
+        model,
+        arrays,
+        validation_indices,
+        partition="validation",
+        device=device,
+        batch_size=training.batch_size,
+        threshold=training.threshold,
+    )
+    validation_predictions = validation_metrics.pop("predictions")
+    train_metrics.pop("predictions")
+    _write_jsonl_atomic(validation_predictions_path, validation_predictions)
+    run_status = (
+        "synthetic_smoke_only"
+        if metadata.get("synthetic")
+        else str(metadata.get("status", "development_provisional"))
     )
     metrics = {
         "schema_version": "near-fall-tcn-training-metrics-v1",
         "task": TASK,
-        "status": "synthetic_smoke_only" if metadata.get("synthetic") else "training_ready_source",
+        "status": run_status,
         "synthetic": bool(metadata.get("synthetic")),
         "disclaimer": (
             "synthetic infrastructure smoke; not a supervised real-data model result"
@@ -371,6 +401,7 @@ def train_near_fall_tcn(
         "last_checkpoint_path": last_checkpoint_path.as_posix(),
         "metrics_path": metrics_path.as_posix(),
         "config_path": config_path.as_posix(),
+        "validation_predictions_path": validation_predictions_path.as_posix(),
         "epochs_completed": len(history),
         "resumed": resumed,
         "synthetic": bool(metadata.get("synthetic")),
@@ -452,6 +483,7 @@ def _load_dataset(path: Path) -> dict[str, np.ndarray]:
         "features",
         "labels",
         "partitions",
+        "sample_ids",
         "event_ids",
         "subject_ids",
         "source_group_ids",
@@ -518,7 +550,10 @@ def _validate_dataset(arrays: Mapping[str, np.ndarray]) -> None:
     for field in ("event_ids", "subject_ids", "source_group_ids", "sample_group_ids", "split_group_ids"):
         seen: dict[str, set[str]] = {}
         for value, partition in zip(np.asarray(arrays[field]).astype(str), partitions, strict=True):
-            seen.setdefault(value, set()).add(partition)
+            normalized = value.strip()
+            if not normalized or normalized.lower() in {"unknown", "none", "null"}:
+                continue
+            seen.setdefault(normalized, set()).add(partition)
         leaked = [value for value, values in seen.items() if len(values) > 1]
         if leaked:
             raise ValueError(f"near-fall {field} crosses partitions: {leaked[:5]}")
@@ -568,6 +603,176 @@ def _run_epoch(
     }
 
 
+def _evaluate_partition(
+    model: NearFallTCN,
+    arrays: Mapping[str, np.ndarray],
+    indices: np.ndarray,
+    *,
+    partition: str,
+    device: torch.device,
+    batch_size: int,
+    threshold: float,
+) -> dict[str, Any]:
+    model.eval()
+    labels = np.asarray(arrays["labels"], dtype=np.int64)[indices]
+    weights = np.asarray(arrays["sample_weights"], dtype=np.float64)[indices]
+    scores = np.zeros(len(indices), dtype=np.float64)
+    losses = np.zeros(len(indices), dtype=np.float64)
+    with torch.no_grad():
+        for start in range(0, len(indices), batch_size):
+            batch_indices = indices[start : start + batch_size]
+            features = torch.from_numpy(
+                np.asarray(arrays["features"])[batch_indices]
+            ).to(device)
+            batch_labels = torch.from_numpy(
+                np.asarray(arrays["labels"], dtype=np.int64)[batch_indices]
+            ).to(device)
+            logits = model(features)
+            end = start + len(batch_indices)
+            scores[start:end] = (
+                torch.softmax(logits, dim=1)[:, 1].detach().cpu().numpy()
+            )
+            losses[start:end] = (
+                F.cross_entropy(logits, batch_labels, reduction="none")
+                .detach()
+                .cpu()
+                .numpy()
+            )
+    predictions = (scores >= threshold).astype(np.int64)
+    rows = [
+        {
+            "sample_id": str(arrays["sample_ids"][source_index]),
+            "event_id": str(arrays["event_ids"][source_index]),
+            "subject_id": str(arrays["subject_ids"][source_index]),
+            "source_group_id": str(arrays["source_group_ids"][source_index]),
+            "split_group_id": str(arrays["split_group_ids"][source_index]),
+            "partition": partition,
+            "label": int(labels[offset]),
+            "probability": float(scores[offset]),
+            "prediction": int(predictions[offset]),
+            "sample_weight": float(weights[offset]),
+        }
+        for offset, source_index in enumerate(indices.tolist())
+    ]
+    event_rows = _aggregate_event_predictions(rows, threshold=threshold)
+    weight_total = float(weights.sum())
+    return {
+        "loss": float(np.sum(losses * weights) / weight_total),
+        "accuracy": float(np.sum((predictions == labels) * weights) / weight_total),
+        "window": _binary_metrics(
+            labels,
+            scores,
+            threshold=threshold,
+            sample_weight=weights,
+        ),
+        "event": _binary_metrics(
+            np.asarray([row["label"] for row in event_rows], dtype=np.int64),
+            np.asarray(
+                [row["probability"] for row in event_rows], dtype=np.float64
+            ),
+            threshold=threshold,
+        ),
+        "event_count": len(event_rows),
+        "predictions": rows,
+    }
+
+
+def _aggregate_event_predictions(
+    rows: Sequence[Mapping[str, Any]], *, threshold: float
+) -> list[dict[str, Any]]:
+    grouped: dict[str, list[Mapping[str, Any]]] = {}
+    for row in rows:
+        grouped.setdefault(str(row["event_id"]), []).append(row)
+    output: list[dict[str, Any]] = []
+    for event_id, group in sorted(grouped.items()):
+        labels = {int(row["label"]) for row in group}
+        if len(labels) != 1:
+            raise ValueError(f"near-fall event has inconsistent labels: {event_id}")
+        probability = max(float(row["probability"]) for row in group)
+        output.append(
+            {
+                "event_id": event_id,
+                "label": next(iter(labels)),
+                "probability": probability,
+                "prediction": int(probability >= threshold),
+            }
+        )
+    return output
+
+
+def _binary_metrics(
+    labels: np.ndarray,
+    scores: np.ndarray,
+    *,
+    threshold: float,
+    sample_weight: np.ndarray | None = None,
+) -> dict[str, Any]:
+    predictions = (scores >= threshold).astype(np.int64)
+    both_classes = set(labels.tolist()) == {0, 1}
+    matrix = confusion_matrix(
+        labels,
+        predictions,
+        labels=[0, 1],
+        sample_weight=sample_weight,
+    )
+    return {
+        "count": int(len(labels)),
+        "threshold": threshold,
+        "balanced_accuracy": (
+            float(
+                balanced_accuracy_score(
+                    labels,
+                    predictions,
+                    sample_weight=sample_weight,
+                )
+            )
+            if both_classes
+            else None
+        ),
+        "precision": float(
+            precision_score(
+                labels,
+                predictions,
+                zero_division=0,
+                sample_weight=sample_weight,
+            )
+        ),
+        "recall": float(
+            recall_score(
+                labels,
+                predictions,
+                zero_division=0,
+                sample_weight=sample_weight,
+            )
+        ),
+        "f1": float(
+            f1_score(
+                labels,
+                predictions,
+                zero_division=0,
+                sample_weight=sample_weight,
+            )
+        ),
+        "roc_auc": (
+            float(roc_auc_score(labels, scores, sample_weight=sample_weight))
+            if both_classes
+            else None
+        ),
+        "pr_auc": (
+            float(
+                average_precision_score(
+                    labels,
+                    scores,
+                    sample_weight=sample_weight,
+                )
+            )
+            if both_classes
+            else None
+        ),
+        "confusion_matrix": matrix.astype(float).tolist(),
+    }
+
+
 def _checkpoint_payload(
     *,
     model: NearFallTCN,
@@ -585,6 +790,11 @@ def _checkpoint_payload(
     return {
         "schema_version": "near-fall-tcn-checkpoint-v1",
         "task": TASK,
+        "status": (
+            "synthetic_smoke_only"
+            if metadata.get("synthetic")
+            else str(metadata.get("status", "development_provisional"))
+        ),
         "target_semantics": "recovery-confirmed binary near-fall; not onset early warning",
         "label_mapping": {"explicit_negative": 0, "near_fall": 1},
         "state_dict": model.state_dict(),
@@ -708,4 +918,14 @@ def _write_json_atomic(path: Path, payload: Mapping[str, Any]) -> None:
         json.dumps(dict(payload), indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
+    os.replace(partial, path)
+
+
+def _write_jsonl_atomic(
+    path: Path, rows: Sequence[Mapping[str, Any]]
+) -> None:
+    partial = path.with_suffix(f"{path.suffix}.part")
+    with partial.open("w", encoding="utf-8") as file:
+        for row in rows:
+            file.write(json.dumps(dict(row), sort_keys=True) + "\n")
     os.replace(partial, path)

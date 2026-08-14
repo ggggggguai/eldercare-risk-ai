@@ -2,6 +2,8 @@
 
 日期：2026-08-03
 
+> 当前状态说明（2026-08-09）：本报告固定记录旧 split 下的历史实验。当时选中的 246 条 Pre_VFallp assignment 位于 test；当前 `splitv3_e71a045eb58489f43dc5fd11` 已将全部 403 条 Pre_VFallp action/event assignment 放入 train。下列数据集、指标和 checkpoint 不得作为当前 split 证据，必须重建后再评估。
+
 状态：开发实验；未读取 test 指标，不满足部署或正式泛化门禁。
 
 ## 数据审计

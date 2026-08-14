@@ -1,40 +1,83 @@
-"""个体化行为基线建模的规则/统计 baseline。
+"""Causal, robust personal behaviour baseline for the fall-risk module.
 
-本模块消费步态、坐站、近跌倒、活动节律和场景聚合 JSONL，按
-person_id 建立个人历史统计，并输出当前窗口相对个人历史的偏离分。
-输出是供后续风险融合层消费的工程特征，不是最终跌倒风险等级或
-医疗诊断结论。
+The public batch API consumes completed period features. It deliberately does
+not accept pose frames: aggregation into an hour/day record is an upstream
+responsibility. Outputs are internal fall-risk features, not risk events or
+medical conclusions.
 """
 
 from __future__ import annotations
 
 import json
 import math
-from collections import Counter, defaultdict
-from dataclasses import dataclass
-from datetime import datetime, timezone
+from collections import Counter
+from dataclasses import dataclass, field, fields
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
+from elderly_monitoring.common.config import load_yaml
 from elderly_monitoring.modules.fall_risk.pose import write_jsonl
 
 
-MODEL_VERSION = "fall-baseline-rule-v0.1"
+MODEL_VERSION = "fall-personal-baseline-robust-v1"
+PERIOD_SCHEMA_VERSION = "fall-baseline-period-features-v1"
+DEFAULT_CONFIG_PATH = Path(__file__).resolve().parents[4] / "configs/modules/fall_risk_baseline.yaml"
+
+
+def _default_metric_weights() -> dict[str, float]:
+    return {
+        "mean_gait_speed": 0.22,
+        "mean_sit_stand_duration": 0.28,
+        "near_fall_rate_per_hour": 0.22,
+        "nighttime_activity_rate_per_hour": 0.10,
+        "activity_volume": 0.12,
+    }
 
 
 @dataclass(frozen=True)
 class BaselineModelConfig:
-    # 初始基线按 3-7 天可用，稳定基线按 7-14 天滚动统计。
+    config_version: str = "fall-personal-baseline-config-v1"
+    aggregation_period: str = "day"
     min_history_days: int = 3
     stable_history_days: int = 7
     max_history_days: int = 14
     min_history_records: int = 10
-    aggregation_period: str = "day"
+    min_metric_observations: int = 3
     min_quality_score: float = 0.60
-    insufficient_history_score_cap: float = 0.20
+    min_metric_quality: float = 0.30
+    initial_score_cap: float = 0.35
+    initial_fusion_weight: float = 0.25
     reduced_quality_score_cap: float = 0.25
-    near_fall_score_count_threshold: float = 0.25
+    relative_scale_floor: float = 0.05
+    absolute_scale_floor: float = 0.05
+    robust_z_start: float = 1.0
+    robust_z_full: float = 3.0
+    relative_change_start: float = 0.15
+    relative_change_full: float = 0.35
+    short_change_start: float = 0.10
+    short_change_full: float = 0.30
     scene_shift_probability_threshold: float = 0.20
+    fast_ewma_alpha: float = 0.50
+    drift_metric_score_threshold: float = 0.75
+    drift_consecutive_periods: int = 2
+    cusum_allowance: float = 0.35
+    cusum_threshold: float = 1.00
+    recovery_consecutive_periods: int = 3
+    metric_weights: Mapping[str, float] = field(default_factory=_default_metric_weights)
+
+
+def load_baseline_config(path: Path | str | None = None) -> BaselineModelConfig:
+    """Load the versioned provisional algorithm thresholds."""
+    config_path = Path(path) if path is not None else DEFAULT_CONFIG_PATH
+    if not config_path.exists():
+        return BaselineModelConfig()
+    payload = load_yaml(config_path)
+    allowed = {item.name for item in fields(BaselineModelConfig)}
+    unknown = sorted(set(payload) - allowed)
+    if unknown:
+        raise ValueError(f"unknown baseline config fields: {', '.join(unknown)}")
+    return BaselineModelConfig(**payload)
 
 
 def build_personal_baselines(
@@ -42,20 +85,35 @@ def build_personal_baselines(
     *,
     config: BaselineModelConfig | None = None,
 ) -> dict[str, dict[str, Any]]:
-    """按 person_id 从历史结构化结果中建立个人滚动统计摘要。"""
-    baseline_config = config or BaselineModelConfig()
-    record_list = [dict(record) for record in records]
-    period_features = _aggregate_records(record_list, baseline_config)
+    """Build references grouped by person and camera profile.
 
-    by_person: dict[str, list[dict[str, Any]]] = defaultdict(list)
-    for features in period_features:
-        by_person[str(features["person_id"])].append(features)
+    Invalid/non-period inputs fail closed. Exact duplicate periods are ignored;
+    conflicting records for the same identity and period are rejected.
+    """
+    baseline_config = config or load_baseline_config()
+    periods = _normalise_periods(records, baseline_config)
+    grouped: dict[str, dict[str, list[dict[str, Any]]]] = {}
+    for period in periods:
+        person = str(period["person_id"])
+        camera = str(period["camera_profile_id"])
+        grouped.setdefault(person, {}).setdefault(camera, []).append(period)
 
-    baselines: dict[str, dict[str, Any]] = {}
-    for person_id, features in by_person.items():
-        rolling_features = _select_rolling_features(features, baseline_config)
-        baselines[person_id] = _build_reference(person_id, rolling_features, baseline_config)
-    return baselines
+    output: dict[str, dict[str, Any]] = {}
+    for person, camera_periods in grouped.items():
+        output[person] = {
+            "person_id": person,
+            "camera_references": {
+                camera: _build_reference(
+                    person,
+                    camera,
+                    _select_rolling_periods(periods_for_camera, baseline_config),
+                    baseline_config,
+                )
+                for camera, periods_for_camera in sorted(camera_periods.items())
+            },
+            "model_version": MODEL_VERSION,
+        }
+    return output
 
 
 def score_baseline_deviation(
@@ -64,21 +122,15 @@ def score_baseline_deviation(
     *,
     config: BaselineModelConfig | None = None,
 ) -> list[dict[str, Any]]:
-    """计算当前观测窗口相对个人历史基线的偏离分和解释因子。"""
-    baseline_config = config or BaselineModelConfig()
-    current_features = _aggregate_records([dict(record) for record in current_records], baseline_config)
-    outputs = [
-        _score_current_features(features, baselines.get(str(features["person_id"])), baseline_config)
-        for features in current_features
-    ]
-    return sorted(
-        outputs,
-        key=lambda item: (
-            str(item.get("person_id", "")),
-            _sort_time_value(item.get("start_time")),
-            _sort_time_value(item.get("end_time")),
-        ),
-    )
+    """Score each completed current period against strictly earlier history."""
+    baseline_config = config or load_baseline_config()
+    current_periods = _normalise_periods(current_records, baseline_config)
+    outputs = []
+    for current in current_periods:
+        person_bundle = baselines.get(str(current["person_id"]))
+        reference = _causal_reference(person_bundle, current, baseline_config)
+        outputs.append(_score_period(current, reference, baseline_config))
+    return sorted(outputs, key=lambda item: (item["person_id"], _time_value(item["start_time"])))
 
 
 def run_baseline_jsonl(
@@ -88,187 +140,128 @@ def run_baseline_jsonl(
     output_path: Path,
     config: BaselineModelConfig | None = None,
 ) -> int:
-    """从历史 JSONL 和当前 JSONL 生成个体化行为基线偏离 JSONL。"""
-    baseline_config = config or BaselineModelConfig()
-    history_records = _read_jsonl(baseline_input_path)
-    current_records = _read_jsonl(current_input_path)
-    baselines = build_personal_baselines(history_records, config=baseline_config)
-    outputs = score_baseline_deviation(current_records, baselines, config=baseline_config)
+    baseline_config = config or load_baseline_config()
+    baselines = build_personal_baselines(_read_jsonl(baseline_input_path), config=baseline_config)
+    outputs = score_baseline_deviation(
+        _read_jsonl(current_input_path), baselines, config=baseline_config
+    )
     return write_jsonl(outputs, output_path)
 
 
+class PersonalBaselineTracker:
+    """Stateful slow-reference/fast-state tracker for ordered period records."""
+
+    def __init__(self, *, config: BaselineModelConfig | None = None) -> None:
+        self.config = config or load_baseline_config()
+        self._slow_periods: list[dict[str, Any]] = []
+        self._identity: tuple[str, str] | None = None
+        self._last_end: float | None = None
+        self._drift_streak = 0
+        self._recovery_streak = 0
+        self._state = "none"
+        self._fast_levels: dict[str, float] = {}
+        self._cusum: dict[str, float] = {}
+
+    def update(self, record: Mapping[str, Any]) -> dict[str, Any]:
+        periods = _normalise_periods([record], self.config)
+        if len(periods) != 1:
+            raise ValueError("tracker requires one valid completed baseline period")
+        current = periods[0]
+        identity = (str(current["person_id"]), str(current["camera_profile_id"]))
+        if self._identity is not None and identity != self._identity:
+            raise ValueError("tracker identity or camera profile changed")
+        if self._last_end is not None and _time_value(current["period_start"]) <= self._last_end:
+            raise ValueError("tracker periods must be strictly ordered and non-overlapping")
+        self._identity = identity
+
+        reference = None
+        if self._slow_periods:
+            reference = _build_reference(
+                identity[0],
+                identity[1],
+                _select_rolling_periods(self._slow_periods, self.config),
+                self.config,
+            )
+        result = _score_period(current, reference, self.config)
+        metric_scores = [
+            float(value)
+            for value in result["metric_deviation_scores"].values()
+            if value is not None
+        ]
+        for metric, value in result["metric_deviation_scores"].items():
+            if value is None:
+                continue
+            self._cusum[metric] = max(
+                0.0,
+                self._cusum.get(metric, 0.0) + float(value) - self.config.cusum_allowance,
+            )
+        cusum_triggered = any(
+            value >= self.config.cusum_threshold for value in self._cusum.values()
+        )
+        current_anomalous = (
+            bool(metric_scores)
+            and max(metric_scores) >= self.config.drift_metric_score_threshold
+        )
+        previous_state = self._state
+        # CUSUM can enter drift from a stable state, but recovery must follow
+        # current evidence; otherwise old accumulated evidence prevents exit.
+        anomalous = current_anomalous or (
+            previous_state not in {"drift_suspected", "recovery"} and cusum_triggered
+        )
+        if previous_state in {"drift_suspected", "recovery"}:
+            if anomalous:
+                self._state = "drift_suspected"
+                self._recovery_streak = 0
+            else:
+                self._cusum = {
+                    metric: max(0.0, value - self.config.cusum_allowance)
+                    for metric, value in self._cusum.items()
+                }
+                self._recovery_streak += 1
+                if self._recovery_streak >= self.config.recovery_consecutive_periods:
+                    self._state = "stable"
+                    self._drift_streak = 0
+                    self._recovery_streak = 0
+                    self._slow_periods.append(current)
+                else:
+                    self._state = "recovery"
+        elif anomalous and result["baseline_state"] == "stable":
+            self._drift_streak += 1
+            if self._drift_streak >= self.config.drift_consecutive_periods:
+                self._state = "drift_suspected"
+            else:
+                self._state = "stable"
+        else:
+            self._drift_streak = 0
+            self._state = str(result["baseline_state"])
+            self._slow_periods.append(current)
+
+        for metric in _SCORING_METRICS:
+            value = _optional_number(current.get(metric))
+            if value is None or not current["metric_status"][metric]["available"]:
+                continue
+            old = self._fast_levels.get(metric, value)
+            alpha = self.config.fast_ewma_alpha
+            self._fast_levels[metric] = alpha * value + (1.0 - alpha) * old
+
+        result["baseline_state"] = self._state
+        result["slow_reference_frozen"] = self._state in {"drift_suspected", "recovery"} or (
+            anomalous and result["baseline_state"] == "stable"
+        )
+        result["fast_state"] = {
+            "ewma": {key: round(value, 4) for key, value in sorted(self._fast_levels.items())},
+            "cusum": {key: round(value, 4) for key, value in sorted(self._cusum.items())},
+            "cusum_triggered": cusum_triggered,
+            "drift_streak": self._drift_streak,
+            "recovery_streak": self._recovery_streak,
+        }
+        self._last_end = _time_value(current["period_end"])
+        return result
+
+
 def _read_jsonl(path: Path) -> list[dict[str, Any]]:
-    records: list[dict[str, Any]] = []
     with path.open("r", encoding="utf-8") as file:
-        for line in file:
-            stripped = line.strip()
-            if stripped:
-                records.append(json.loads(stripped))
-    return records
-
-
-def _aggregate_records(records: list[dict[str, Any]], config: BaselineModelConfig) -> list[dict[str, Any]]:
-    groups: dict[tuple[str, str], list[tuple[int, dict[str, Any]]]] = defaultdict(list)
-    for index, record in enumerate(records):
-        person_id = str(record.get("person_id", "unknown"))
-        groups[(person_id, _period_key(record, index, config))].append((index, record))
-
-    features = [
-        _aggregate_group(person_id, period_key, items, config)
-        for (person_id, period_key), items in groups.items()
-    ]
-    return sorted(
-        features,
-        key=lambda item: (
-            str(item.get("person_id", "")),
-            _sort_time_value(item.get("start_time")),
-            str(item.get("period_key", "")),
-        ),
-    )
-
-
-def _aggregate_group(
-    person_id: str,
-    period_key: str,
-    items: list[tuple[int, dict[str, Any]]],
-    config: BaselineModelConfig,
-) -> dict[str, Any]:
-    sorted_items = sorted(items, key=lambda item: _record_sort_key(item[1], item[0]))
-    records = [record for _, record in sorted_items]
-
-    gait_speeds: list[float] = []
-    center_speed_cvs: list[float] = []
-    hip_lateral_sways: list[float] = []
-    gait_risk_scores: list[float] = []
-    sit_stand_durations: list[float] = []
-    failed_attempts = 0.0
-    stabilization_times: list[float] = []
-    sit_stand_risk_scores: list[float] = []
-    near_fall_event_scores: list[float] = []
-    near_fall_frequency = 0.0
-    nighttime_activity_count = 0.0
-    activity_values: list[float] = []
-    quality_values: list[float] = []
-    scene_counts: Counter[str] = Counter()
-    track_ids: set[str] = set()
-
-    for index, record in sorted_items:
-        track_id = record.get("track_id")
-        if track_id is not None:
-            track_ids.add(str(track_id))
-
-        scene_region = record.get("scene_region")
-        if scene_region:
-            scene_counts[str(scene_region)] += 1
-
-        quality_values.append(_quality_score(record))
-
-        gait_features = record.get("gait_stability_features")
-        if isinstance(gait_features, Mapping):
-            _append_number(gait_speeds, gait_features.get("mean_center_speed_norm_per_sec"))
-            _append_number(center_speed_cvs, gait_features.get("center_speed_cv"))
-            _append_number(hip_lateral_sways, gait_features.get("hip_lateral_sway"))
-        _append_number(gait_risk_scores, record.get("gait_risk_score"))
-
-        _append_number(sit_stand_durations, record.get("duration"))
-        failed_attempts += _number_or_default(record.get("failed_attempts"), 0.0)
-        _append_number(stabilization_times, record.get("stabilization_time"))
-        _append_number(sit_stand_risk_scores, record.get("sit_stand_risk_score"))
-
-        _append_number(near_fall_event_scores, record.get("near_fall_event_score"))
-        near_fall_frequency += _near_fall_count(record, config)
-        nighttime_activity_count += _nighttime_activity_count(record, index)
-        activity_value = _activity_value(record)
-        if activity_value is not None:
-            activity_values.append(activity_value)
-
-    start_time, end_time = _record_bounds(sorted_items)
-    quality_mean = _mean(quality_values)
-    activity_volume = sum(activity_values) if activity_values else None
-    dominant_scene = scene_counts.most_common(1)[0][0] if scene_counts else None
-    turn_instability_proxy = _turn_instability_proxy(center_speed_cvs, hip_lateral_sways)
-
-    return {
-        "person_id": person_id,
-        "period_key": period_key,
-        "day_key": _day_key(records[0], sorted_items[0][0]) if records else period_key,
-        "aggregation_period": config.aggregation_period,
-        "start_time": start_time,
-        "timestamp": start_time,
-        "end_time": end_time,
-        "record_count": len(records),
-        "track_ids": sorted(track_ids),
-        "mean_gait_speed": _rounded_or_none(_mean_or_none(gait_speeds)),
-        "gait_speed_observation_count": len(gait_speeds),
-        "center_speed_cv": _rounded_or_none(_mean_or_none(center_speed_cvs)),
-        "hip_lateral_sway": _rounded_or_none(_mean_or_none(hip_lateral_sways)),
-        "turn_instability_proxy": _rounded_or_none(turn_instability_proxy),
-        "mean_gait_risk_score": _rounded_or_none(_mean_or_none(gait_risk_scores)),
-        "mean_sit_stand_duration": _rounded_or_none(_mean_or_none(sit_stand_durations)),
-        "sit_stand_observation_count": len(sit_stand_durations),
-        "failed_attempts": round(failed_attempts, 4),
-        "mean_stabilization_time": _rounded_or_none(_mean_or_none(stabilization_times)),
-        "mean_sit_stand_risk_score": _rounded_or_none(_mean_or_none(sit_stand_risk_scores)),
-        "near_fall_frequency": round(near_fall_frequency, 4),
-        "mean_near_fall_event_score": _rounded_or_none(_mean_or_none(near_fall_event_scores)),
-        "nighttime_activity_count": round(nighttime_activity_count, 4),
-        "activity_volume": _rounded_or_none(activity_volume),
-        "dominant_scene_region": dominant_scene,
-        "scene_region_counts": dict(sorted(scene_counts.items())),
-        "scene_region_distribution": _distribution(scene_counts),
-        "quality_mean": round(quality_mean, 4),
-        "quality_min": round(min(quality_values), 4) if quality_values else 0.0,
-        "low_quality_record_count": sum(1 for value in quality_values if value < config.min_quality_score),
-    }
-
-
-def _build_reference(
-    person_id: str,
-    features: list[dict[str, Any]],
-    config: BaselineModelConfig,
-) -> dict[str, Any]:
-    day_count = len({str(feature.get("day_key")) for feature in features})
-    record_count = sum(int(feature.get("record_count", 0)) for feature in features)
-    quality_values = [float(feature.get("quality_mean", 0.0)) for feature in features]
-    history_quality_mean = _mean(quality_values)
-    reduced_quality = bool(quality_values) and history_quality_mean < config.min_quality_score
-    insufficient = day_count < config.min_history_days or record_count < config.min_history_records
-
-    metric_references = {
-        metric: _metric_stats([feature.get(metric) for feature in features], config)
-        for metric in _REFERENCE_METRICS
-    }
-    scene_counts: Counter[str] = Counter()
-    track_ids: set[str] = set()
-    for feature in features:
-        scene_counts.update({str(key): int(value) for key, value in feature.get("scene_region_counts", {}).items()})
-        track_ids.update(str(track_id) for track_id in feature.get("track_ids", []))
-
-    start_time = _min_output_time(feature.get("start_time") for feature in features)
-    end_time = _max_output_time(feature.get("end_time") for feature in features)
-    return {
-        "person_id": person_id,
-        "history_record_count": record_count,
-        "history_period_count": len(features),
-        "history_day_count": day_count,
-        "window_start": start_time,
-        "window_end": end_time,
-        "track_ids": sorted(track_ids),
-        "metric_references": metric_references,
-        "scene_region_distribution": _distribution(scene_counts),
-        "dominant_scene_region": scene_counts.most_common(1)[0][0] if scene_counts else None,
-        "baseline_quality": {
-            "history_record_count": record_count,
-            "history_period_count": len(features),
-            "history_day_count": day_count,
-            "initial_baseline_ready": day_count >= config.min_history_days,
-            "stable_baseline_ready": day_count >= config.stable_history_days,
-            "insufficient_baseline_history": insufficient,
-            "history_quality_mean": round(history_quality_mean, 4),
-            "reduced_baseline_quality": reduced_quality,
-        },
-        "model_version": MODEL_VERSION,
-    }
+        return [json.loads(line) for line in file if line.strip()]
 
 
 _REFERENCE_METRICS = (
@@ -279,657 +272,669 @@ _REFERENCE_METRICS = (
     "mean_sit_stand_duration",
     "failed_attempts",
     "mean_stabilization_time",
-    "near_fall_frequency",
-    "nighttime_activity_count",
+    "near_fall_rate_per_hour",
+    "nighttime_activity_rate_per_hour",
     "activity_volume",
 )
 
+_SCORING_METRICS = {
+    "mean_gait_speed": ("gait_speed_drop_from_baseline", "low"),
+    "mean_sit_stand_duration": ("sit_stand_duration_increase_from_baseline", "high"),
+    "near_fall_rate_per_hour": ("near_fall_frequency_increase", "high"),
+    "nighttime_activity_rate_per_hour": ("nighttime_activity_increase", "high"),
+    "activity_volume": ("activity_volume_drop", "low"),
+}
 
-def _score_current_features(
-    features: Mapping[str, Any],
+
+def _normalise_periods(
+    records: Iterable[Mapping[str, Any]], config: BaselineModelConfig
+) -> list[dict[str, Any]]:
+    unique: dict[tuple[str, str, str], tuple[str, dict[str, Any]]] = {}
+    for source in records:
+        record = dict(source)
+        if record.get("record_type") != "fall_baseline_period_features":
+            continue
+        if record.get("schema_version") != PERIOD_SCHEMA_VERSION or record.get("completed") is not True:
+            continue
+        person = str(record.get("person_id", "")).strip()
+        camera = str(record.get("camera_profile_id", "")).strip()
+        period_id = str(record.get("period_id", "")).strip()
+        device = str(record.get("device_id", "")).strip()
+        upstream_versions = record.get("upstream_versions")
+        input_summary = record.get("input_summary")
+        metric_quality = record.get("metric_quality")
+        monitoring_hours = _optional_number(record.get("valid_monitoring_hours"))
+        aggregation_version = str(record.get("aggregation_version", "")).strip()
+        if (
+            not person
+            or person.lower() == "unknown"
+            or not device
+            or not camera
+            or not period_id
+            or not aggregation_version
+            or not isinstance(upstream_versions, Mapping)
+            or not upstream_versions
+            or not isinstance(input_summary, Mapping)
+            or not input_summary
+            or not isinstance(metric_quality, Mapping)
+            or not metric_quality
+            or monitoring_hours is None
+            or monitoring_hours <= 0
+        ):
+            continue
+        start = _strict_datetime(record.get("period_start"))
+        end = _strict_datetime(record.get("period_end"))
+        if start is None or end is None or end <= start or not str(record.get("timezone", "")).strip():
+            continue
+        if config.aggregation_period not in {"day", "hour"}:
+            raise ValueError("aggregation_period must be day or hour")
+
+        normalised = _period_metrics(record, config)
+        normalised.update({
+            "person_id": person,
+            "device_id": device,
+            "camera_profile_id": camera,
+            "period_id": period_id,
+            "period_start": record["period_start"],
+            "period_end": record["period_end"],
+            "start_time": record["period_start"],
+            "timestamp": record["period_start"],
+            "end_time": record["period_end"],
+            "timezone": str(record["timezone"]),
+            "day_key": start.date().isoformat(),
+            "aggregation_period": config.aggregation_period,
+            "aggregation_version": aggregation_version,
+            "upstream_versions": dict(upstream_versions),
+            "input_summary": dict(input_summary),
+            "record_count": int(_number(record.get("record_count"), 1.0)),
+            "dominant_scene_region": record.get("dominant_scene_region") or record.get("scene_region"),
+            "scene_region_distribution": _scene_distribution(record),
+            "quality_mean": _quality_score(record),
+        })
+        identity = (person, camera, period_id)
+        fingerprint = json.dumps(record, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        prior = unique.get(identity)
+        if prior is not None and prior[0] != fingerprint:
+            raise ValueError(f"conflicting baseline period: {person}/{camera}/{period_id}")
+        unique[identity] = (fingerprint, normalised)
+    return sorted(
+        (item[1] for item in unique.values()),
+        key=lambda period: (period["person_id"], period["camera_profile_id"], _time_value(period["period_start"])),
+    )
+
+
+def _period_metrics(record: Mapping[str, Any], config: BaselineModelConfig) -> dict[str, Any]:
+    gait = record.get("gait_stability_features")
+    gait = gait if isinstance(gait, Mapping) else {}
+    exposure = _optional_number(record.get("valid_monitoring_hours"))
+    near_count = _first_number(record, "near_fall_event_count", "near_fall_count")
+    night_count = _first_number(record, "nighttime_activity_count", "night_activity_count")
+    values = {
+        "mean_gait_speed": _first_number(gait, "mean_center_speed_norm_per_sec"),
+        "center_speed_cv": _first_number(gait, "center_speed_cv"),
+        "hip_lateral_sway": _first_number(gait, "hip_lateral_sway"),
+        "turn_instability_proxy": _first_number(record, "turn_instability_proxy"),
+        "mean_sit_stand_duration": _first_number(record, "mean_sit_stand_duration", "duration"),
+        "failed_attempts": _first_number(record, "failed_attempts"),
+        "mean_stabilization_time": _first_number(record, "mean_stabilization_time", "stabilization_time"),
+        "near_fall_rate_per_hour": near_count / exposure if near_count is not None and exposure and exposure > 0 else None,
+        "nighttime_activity_rate_per_hour": night_count / exposure if night_count is not None and exposure and exposure > 0 else None,
+        "activity_volume": _first_number(record, "activity_volume", "daily_activity_volume"),
+    }
+    status = {
+        metric: _metric_status(record, metric, value, exposure, config)
+        for metric, value in values.items()
+    }
+    return {
+        **{key: _round(value) for key, value in values.items()},
+        "valid_monitoring_hours": _round(exposure),
+        "metric_status": status,
+    }
+
+
+def _metric_status(
+    record: Mapping[str, Any],
+    metric: str,
+    value: float | None,
+    exposure: float | None,
+    config: BaselineModelConfig,
+) -> dict[str, Any]:
+    quality_map = record.get("metric_quality")
+    quality_map = quality_map if isinstance(quality_map, Mapping) else {}
+    raw = quality_map.get(metric)
+    raw = raw if isinstance(raw, Mapping) else {}
+    count = int(_number(raw.get("observation_count"), 1.0 if value is not None else 0.0))
+    quality = _clamp(_number(raw.get("quality"), _quality_score(record)))
+    coverage = _clamp(_number(raw.get("coverage"), quality))
+    metric_exposure = _optional_number(raw.get("exposure_hours"))
+    if metric_exposure is None:
+        metric_exposure = exposure
+    available = bool(raw.get("available", value is not None)) and value is not None and count > 0
+    if metric.endswith("_rate_per_hour") and (metric_exposure is None or metric_exposure <= 0):
+        available = False
+    missing_reason = raw.get("missing_reason")
+    if not available and not missing_reason:
+        missing_reason = "missing_value_or_exposure"
+    return {
+        "available": available,
+        "observation_count": count,
+        "quality": round(quality, 4),
+        "coverage": round(coverage, 4),
+        "exposure_hours": _round(metric_exposure),
+        "missing_reason": missing_reason,
+    }
+
+
+def _causal_reference(
+    person_bundle: Mapping[str, Any] | None,
+    current: Mapping[str, Any],
+    config: BaselineModelConfig,
+) -> dict[str, Any] | None:
+    if not isinstance(person_bundle, Mapping):
+        return None
+    cameras = person_bundle.get("camera_references")
+    if not isinstance(cameras, Mapping):
+        return None
+    reference = cameras.get(str(current["camera_profile_id"]))
+    if not isinstance(reference, Mapping):
+        return None
+    cutoff = _time_value(current["period_start"])
+    history = [
+        dict(period)
+        for period in reference.get("_periods", [])
+        if _time_value(period.get("period_end")) < cutoff
+    ]
+    if not history:
+        return None
+    history = _select_rolling_periods(history, config)
+    return _build_reference(
+        str(current["person_id"]), str(current["camera_profile_id"]), history, config
+    )
+
+
+def _select_rolling_periods(
+    periods: Iterable[Mapping[str, Any]], config: BaselineModelConfig
+) -> list[dict[str, Any]]:
+    ordered = sorted((dict(period) for period in periods), key=lambda item: _time_value(item["period_start"]))
+    if config.max_history_days <= 0:
+        return ordered
+    days: list[str] = []
+    for period in ordered:
+        if period["day_key"] not in days:
+            days.append(period["day_key"])
+    selected = set(days[-config.max_history_days :])
+    return [period for period in ordered if period["day_key"] in selected]
+
+
+def _build_reference(
+    person: str,
+    camera: str,
+    periods: list[dict[str, Any]],
+    config: BaselineModelConfig,
+) -> dict[str, Any]:
+    metric_references: dict[str, dict[str, Any]] = {}
+    for metric in _REFERENCE_METRICS:
+        observations = [
+            (float(period[metric]), period["metric_status"][metric])
+            for period in periods
+            if period.get(metric) is not None
+            and period["metric_status"][metric]["available"]
+            and period["metric_status"][metric]["quality"] >= config.min_metric_quality
+        ]
+        metric_references[metric] = _metric_stats(observations, config)
+        unavailable = [
+            period["metric_status"][metric]
+            for period in periods
+            if not period["metric_status"][metric]["available"]
+        ]
+        metric_references[metric]["unavailable_period_count"] = len(unavailable)
+        metric_references[metric]["missing_reason_counts"] = dict(sorted(Counter(
+            str(status.get("missing_reason") or "unspecified") for status in unavailable
+        ).items()))
+
+    days = {period["day_key"] for period in periods}
+    record_count = sum(int(period.get("record_count", 1)) for period in periods)
+    quality_mean = _mean(float(period.get("quality_mean", 0.0)) for period in periods)
+    scene = Counter()
+    for period in periods:
+        for key, value in period.get("scene_region_distribution", {}).items():
+            scene[str(key)] += float(value)
+    return {
+        "person_id": person,
+        "camera_profile_id": camera,
+        "history_record_count": record_count,
+        "history_period_count": len(periods),
+        "history_day_count": len(days),
+        "window_start": periods[0]["period_start"] if periods else None,
+        "window_end": periods[-1]["period_end"] if periods else None,
+        "metric_references": metric_references,
+        "scene_region_distribution": _distribution(scene),
+        "history_quality_mean": round(quality_mean, 4),
+        "_periods": periods,
+        "model_version": MODEL_VERSION,
+    }
+
+
+def _metric_stats(
+    observations: list[tuple[float, Mapping[str, Any]]], config: BaselineModelConfig
+) -> dict[str, Any]:
+    values = [value for value, _ in observations]
+    if not values:
+        return {
+            "count": 0, "mean": None, "std": None, "median": None, "mad": None,
+            "winsorized_mean": None, "p10": None, "p25": None, "p50": None,
+            "p75": None, "p90": None, "observed_period_count": 0,
+            "total_exposure": 0.0, "quality_weight_sum": 0.0,
+            "recent_level": None, "slow_level": None,
+        }
+    median = _percentile(values, 0.5)
+    mad = _percentile([abs(value - median) for value in values], 0.5)
+    p10, p90 = _percentile(values, 0.1), _percentile(values, 0.9)
+    winsorized = [min(p90, max(p10, value)) for value in values]
+    recent_count = min(max(config.min_history_days, 1), len(values))
+    recent = values[-recent_count:]
+    ewma = values[0]
+    for value in values[1:]:
+        ewma = config.fast_ewma_alpha * value + (1.0 - config.fast_ewma_alpha) * ewma
+    return {
+        "count": len(values),
+        "mean": _round(_mean(values)),
+        "std": _round(_std(values)),
+        "median": _round(median),
+        "mad": _round(mad),
+        "winsorized_mean": _round(_mean(winsorized)),
+        "min": _round(min(values)),
+        "max": _round(max(values)),
+        "p10": _round(p10),
+        "p25": _round(_percentile(values, 0.25)),
+        "p50": _round(median),
+        "p75": _round(_percentile(values, 0.75)),
+        "p90": _round(p90),
+        "observed_period_count": len(values),
+        "total_exposure": _round(sum(_number(status.get("exposure_hours"), 0.0) for _, status in observations)),
+        "quality_weight_sum": _round(sum(_number(status.get("quality"), 0.0) for _, status in observations)),
+        "recent_level": _round(_mean(recent)),
+        "slow_level": _round(median),
+        "fast_ewma": _round(ewma),
+    }
+
+
+def _score_period(
+    current: Mapping[str, Any],
     reference: Mapping[str, Any] | None,
     config: BaselineModelConfig,
 ) -> dict[str, Any]:
-    empty_reference = reference is None
-    reference_data = reference or _empty_reference(str(features.get("person_id", "unknown")))
-    reference_quality = reference_data.get("baseline_quality", {})
-    history_insufficient = bool(reference_quality.get("insufficient_baseline_history", True)) or empty_reference
-    current_quality_mean = float(features.get("quality_mean", 0.0))
-    reduced_quality = (
-        bool(reference_quality.get("reduced_baseline_quality", False))
-        or current_quality_mean < config.min_quality_score
-    )
+    day_count = int(reference.get("history_day_count", 0)) if reference else 0
+    record_count = int(reference.get("history_record_count", 0)) if reference else 0
+    if day_count == 0:
+        state = "none"
+    elif day_count < config.min_history_days or record_count < config.min_history_records:
+        state = "cold"
+    elif day_count < config.stable_history_days:
+        state = "initial"
+    else:
+        state = "stable"
 
-    baseline_quality = {
-        "history_record_count": int(reference_quality.get("history_record_count", 0)),
-        "history_period_count": int(reference_quality.get("history_period_count", 0)),
-        "history_day_count": int(reference_quality.get("history_day_count", 0)),
-        "current_record_count": int(features.get("record_count", 0)),
-        "current_quality_mean": round(current_quality_mean, 4),
-        "history_quality_mean": round(float(reference_quality.get("history_quality_mean", 0.0)), 4),
-        "initial_baseline_ready": bool(reference_quality.get("initial_baseline_ready", False)),
-        "stable_baseline_ready": bool(reference_quality.get("stable_baseline_ready", False)),
-        "insufficient_baseline_history": history_insufficient,
-        "reduced_baseline_quality": reduced_quality,
-    }
-    baseline_quality["baseline_confidence"] = _baseline_confidence(baseline_quality, config)
-
-    deviation_factors: list[str] = []
-    factor_details: list[dict[str, Any]] = []
-    if history_insufficient:
-        deviation_factors.append("insufficient_baseline_history")
-    if reduced_quality:
-        deviation_factors.append("reduced_baseline_quality")
-
-    raw_score = 0.0
-    metric_references = reference_data.get("metric_references", {})
-    if not history_insufficient and not reduced_quality:
-        raw_score, factor_details = _deviation_score_components(features, metric_references, reference_data, config)
-        deviation_factors.extend(detail["factor"] for detail in factor_details)
-
-    score = _clamp(raw_score)
-    if history_insufficient:
-        score = min(score, config.insufficient_history_score_cap)
-    if reduced_quality:
-        score = min(score, config.reduced_quality_score_cap)
-
-    return {
-        "person_id": str(features.get("person_id", "unknown")),
-        "start_time": features.get("start_time"),
-        "timestamp": features.get("timestamp") or features.get("start_time"),
-        "end_time": features.get("end_time"),
-        "baseline_deviation_score": round(score, 4),
-        "baseline_features": _public_current_features(features),
-        "baseline_reference": _public_reference(reference_data),
-        "deviation_factors": _dedupe(deviation_factors),
-        "deviation_factor_details": factor_details,
-        "baseline_quality": baseline_quality,
-        "model_version": MODEL_VERSION,
-    }
-
-
-def _deviation_score_components(
-    features: Mapping[str, Any],
-    metric_references: Mapping[str, Any],
-    reference_data: Mapping[str, Any],
-    config: BaselineModelConfig,
-) -> tuple[float, list[dict[str, Any]]]:
+    refs = reference.get("metric_references", {}) if reference else {}
+    mask: dict[str, bool] = {}
+    metric_scores: dict[str, float | None] = {}
+    legacy_scores: dict[str, float | None] = {}
     details: list[dict[str, Any]] = []
     weighted_score = 0.0
-
-    for metric_name, factor, direction, weight in (
-        ("mean_gait_speed", "gait_speed_drop_from_baseline", "low", 0.22),
-        ("mean_sit_stand_duration", "sit_stand_duration_increase_from_baseline", "high", 0.28),
-        ("near_fall_frequency", "near_fall_frequency_increase", "high", 0.22),
-        ("nighttime_activity_count", "nighttime_activity_increase", "high", 0.10),
-        ("activity_volume", "activity_volume_drop", "low", 0.12),
-    ):
-        component, detail = _metric_deviation_component(
-            metric_name=metric_name,
-            current_value=features.get(metric_name),
-            stats=metric_references.get(metric_name),
-            direction=direction,
-            factor=factor,
+    weight_sum = 0.0
+    for metric, (factor, direction) in _SCORING_METRICS.items():
+        current_status = current["metric_status"][metric]
+        stats = refs.get(metric)
+        available = (
+            state in {"initial", "stable"}
+            and current_status["available"]
+            and float(current_status["quality"]) >= config.min_metric_quality
+            and isinstance(stats, Mapping)
+            and int(stats.get("observed_period_count", 0)) >= config.min_metric_observations
         )
-        weighted_score += weight * component
+        mask[metric] = available
+        if not available:
+            metric_scores[metric] = None
+            legacy_scores[metric] = None
+            continue
+        component, detail = _metric_component(
+            metric, float(current[metric]), stats, direction, factor, current_status, config
+        )
+        metric_scores[metric] = round(component, 4)
+        legacy_scores[metric] = round(
+            _legacy_mean_std_component(float(current[metric]), stats, direction, config), 4
+        )
+        quality_weight = config.metric_weights[metric] * float(current_status["quality"])
+        weighted_score += component * quality_weight
+        weight_sum += quality_weight
         if detail is not None:
             details.append(detail)
 
-    scene_component, scene_detail = _scene_shift_component(features, reference_data, config)
-    weighted_score += 0.06 * scene_component
-    if scene_detail is not None:
+    scene_score, scene_detail = _scene_component(current, reference, config)
+    if scene_detail is not None and state in {"initial", "stable"}:
         details.append(scene_detail)
+        weighted_score += 0.06 * scene_score * float(current["quality_mean"])
+        weight_sum += 0.06 * float(current["quality_mean"])
 
-    return _clamp(weighted_score), details
+    score = weighted_score / weight_sum if weight_sum > 0 else None
+    reduced_quality = bool(reference) and (
+        float(reference.get("history_quality_mean", 0.0)) < config.min_quality_score
+        or float(current["quality_mean"]) < config.min_quality_score
+    )
+    if score is not None and state == "initial":
+        score = min(score, config.initial_score_cap)
+    if score is not None and reduced_quality:
+        score = min(score, config.reduced_quality_score_cap)
+
+    factors = [detail["factor"] for detail in details]
+    if state in {"none", "cold"}:
+        factors.insert(0, "insufficient_baseline_history")
+    if reduced_quality:
+        factors.insert(0, "reduced_baseline_quality")
+    confidence = _baseline_confidence(day_count, record_count, current, reference, state, config)
+    return {
+        "person_id": current["person_id"],
+        "camera_profile_id": current["camera_profile_id"],
+        "start_time": current["period_start"],
+        "timestamp": current["period_start"],
+        "end_time": current["period_end"],
+        "baseline_deviation_score": _round(score),
+        "baseline_state": state,
+        "baseline_confidence": confidence,
+        "available_metric_mask": mask,
+        "metric_deviation_scores": metric_scores,
+        "legacy_mean_std_metric_scores": legacy_scores,
+        "scene_deviation_score": round(scene_score, 4),
+        "baseline_fusion_weight": (
+            1.0 if state == "stable" else config.initial_fusion_weight if state == "initial" else 0.0
+        ),
+        "baseline_features": _public_period(current),
+        "baseline_reference": _public_reference(reference),
+        "history_cutoff": current["period_start"],
+        "deviation_factors": list(dict.fromkeys(factors)),
+        "deviation_factor_details": details,
+        "baseline_quality": {
+            "history_record_count": record_count,
+            "history_period_count": int(reference.get("history_period_count", 0)) if reference else 0,
+            "history_day_count": day_count,
+            "current_quality_mean": current["quality_mean"],
+            "history_quality_mean": reference.get("history_quality_mean", 0.0) if reference else 0.0,
+            "initial_baseline_ready": state in {"initial", "stable"},
+            "stable_baseline_ready": state == "stable",
+            "insufficient_baseline_history": state in {"none", "cold"},
+            "reduced_baseline_quality": reduced_quality,
+            "baseline_confidence": confidence,
+        },
+        "slow_reference_frozen": False,
+        "model_version": MODEL_VERSION,
+        "config_version": config.config_version,
+    }
 
 
-def _metric_deviation_component(
-    *,
-    metric_name: str,
-    current_value: Any,
-    stats: Mapping[str, Any] | None,
+def _metric_component(
+    metric: str,
+    value: float,
+    stats: Mapping[str, Any],
     direction: str,
     factor: str,
-) -> tuple[float, dict[str, Any] | None]:
-    value = _optional_number(current_value)
-    if value is None or not stats or int(stats.get("count", 0)) <= 0:
-        return 0.0, None
-
-    mean = _number_or_default(stats.get("mean"), 0.0)
-    std = _number_or_default(stats.get("std"), 0.0)
-    p10 = _number_or_default(stats.get("p10"), mean)
-    p25 = _number_or_default(stats.get("p25"), mean)
-    p75 = _number_or_default(stats.get("p75"), mean)
-    p90 = _number_or_default(stats.get("p90"), mean)
-    recent_mean = _optional_number(stats.get("recent_mean"))
-
-    if direction == "low":
-        diff = mean - value
-        z = diff / _std_scale(std, mean)
-        quantile_component = 0.0
-        if value < p25:
-            quantile_component = 0.45
-        if value < p10:
-            quantile_component = 0.85
-        relative_change = diff / max(abs(mean), 1e-6)
-        trend_change = (
-            (recent_mean - value) / max(abs(recent_mean), 1e-6)
-            if recent_mean is not None
-            else relative_change
-        )
-    else:
-        diff = value - mean
-        z = diff / _std_scale(std, mean)
-        quantile_component = 0.0
-        if value > p75:
-            quantile_component = 0.45
-        if value > p90:
-            quantile_component = 0.85
-        relative_change = diff / max(abs(mean), 1.0 if mean == 0 else abs(mean))
-        trend_change = (
-            (value - recent_mean) / max(abs(recent_mean), 1.0 if recent_mean == 0 else abs(recent_mean))
-            if recent_mean is not None
-            else relative_change
-        )
-
-    if diff <= 0:
-        return 0.0, None
-
-    z_component = _range_score(z, 1.0, 3.0)
-    relative_component = _range_score(relative_change, 0.15, 0.35)
-    trend_component = _range_score(trend_change, 0.10, 0.30)
-    component = max(z_component, quantile_component, relative_component, trend_component)
-    component = _clamp(component)
-    if component < 0.35:
-        return component, None
-
-    return component, {
-        "factor": factor,
-        "metric": metric_name,
-        "current_value": round(value, 4),
-        "baseline_mean": round(mean, 4),
-        "baseline_std": round(std, 4),
-        "z_score": round(max(0.0, z), 4),
-        "relative_change": round(max(0.0, relative_change), 4),
-        "trend_change": round(max(0.0, trend_change), 4),
-        "component_score": round(component, 4),
-    }
-
-
-def _scene_shift_component(
-    features: Mapping[str, Any],
-    reference_data: Mapping[str, Any],
+    status: Mapping[str, Any],
     config: BaselineModelConfig,
 ) -> tuple[float, dict[str, Any] | None]:
-    current_scene = features.get("dominant_scene_region")
-    if not current_scene:
+    median = float(stats["median"])
+    mad = float(stats["mad"])
+    recent = _number(stats.get("recent_level"), median)
+    directional_delta = median - value if direction == "low" else value - median
+    if directional_delta <= 0:
         return 0.0, None
+    scale = max(
+        1.4826 * mad,
+        abs(median) * config.relative_scale_floor,
+        config.absolute_scale_floor,
+    )
+    robust_z = directional_delta / scale
+    relative_change = directional_delta / max(abs(median), config.absolute_scale_floor)
+    short_delta = recent - value if direction == "low" else value - recent
+    short_change = max(0.0, short_delta) / max(abs(recent), config.absolute_scale_floor)
+    p10, p25 = float(stats["p10"]), float(stats["p25"])
+    p75, p90 = float(stats["p75"]), float(stats["p90"])
+    quantile = 0.0
+    if direction == "low":
+        quantile = 0.85 if value < p10 else 0.45 if value < p25 else 0.0
+    else:
+        quantile = 0.85 if value > p90 else 0.45 if value > p75 else 0.0
+    component = max(
+        _range_score(robust_z, config.robust_z_start, config.robust_z_full),
+        quantile,
+        _range_score(relative_change, config.relative_change_start, config.relative_change_full),
+        _range_score(short_change, config.short_change_start, config.short_change_full),
+    )
+    detail = None
+    if component >= 0.35:
+        detail = {
+            "factor": factor,
+            "metric": metric,
+            "current_value": round(value, 4),
+            "baseline_median": round(median, 4),
+            "baseline_mad": round(mad, 4),
+            "winsorized_mean": stats.get("winsorized_mean"),
+            "robust_z": round(robust_z, 4),
+            "relative_change": round(relative_change, 4),
+            "short_term_change": round(short_change, 4),
+            "quality": status["quality"],
+            "observation_count": status["observation_count"],
+            "exposure_hours": status["exposure_hours"],
+            "component_score": round(component, 4),
+        }
+    return _clamp(component), detail
 
-    distribution = reference_data.get("scene_region_distribution")
-    if not isinstance(distribution, Mapping) or not distribution:
+
+def _scene_component(
+    current: Mapping[str, Any],
+    reference: Mapping[str, Any] | None,
+    config: BaselineModelConfig,
+) -> tuple[float, dict[str, Any] | None]:
+    scene = current.get("dominant_scene_region")
+    distribution = reference.get("scene_region_distribution", {}) if reference else {}
+    if not scene or not distribution:
         return 0.0, None
-
-    baseline_probability = float(distribution.get(str(current_scene), 0.0))
-    component = _clamp(1.0 - (baseline_probability / max(config.scene_shift_probability_threshold, 1e-6)))
-    if baseline_probability >= config.scene_shift_probability_threshold:
+    probability = float(distribution.get(str(scene), 0.0))
+    if probability >= config.scene_shift_probability_threshold:
         return 0.0, None
-
-    return component, {
+    score = _clamp(1.0 - probability / max(config.scene_shift_probability_threshold, 1e-6))
+    return score, {
         "factor": "scene_region_pattern_shift",
         "metric": "dominant_scene_region",
-        "current_value": str(current_scene),
-        "baseline_probability": round(baseline_probability, 4),
-        "component_score": round(component, 4),
+        "current_value": scene,
+        "baseline_probability": round(probability, 4),
+        "component_score": round(score, 4),
     }
 
 
-def _metric_stats(values: Iterable[Any], config: BaselineModelConfig) -> dict[str, Any]:
-    numeric_values = [_optional_number(value) for value in values]
-    value_list = [value for value in numeric_values if value is not None]
-    if not value_list:
-        return {
-            "count": 0,
-            "mean": None,
-            "std": None,
-            "min": None,
-            "max": None,
-            "p10": None,
-            "p25": None,
-            "p50": None,
-            "p75": None,
-            "p90": None,
-            "recent_mean": None,
-            "earlier_mean": None,
-            "recent_change_ratio": None,
-        }
-
-    recent_count = min(max(config.min_history_days, 1), len(value_list))
-    recent_values = value_list[-recent_count:]
-    earlier_values = value_list[:-recent_count]
-    recent_mean = _mean(recent_values)
-    earlier_mean = _mean_or_none(earlier_values)
-    recent_change_ratio = None
-    if earlier_mean is not None and abs(earlier_mean) > 1e-6:
-        recent_change_ratio = (recent_mean - earlier_mean) / abs(earlier_mean)
-
-    return {
-        "count": len(value_list),
-        "mean": round(_mean(value_list), 4),
-        "std": round(_std(value_list), 4),
-        "min": round(min(value_list), 4),
-        "max": round(max(value_list), 4),
-        "p10": round(_percentile(value_list, 0.10), 4),
-        "p25": round(_percentile(value_list, 0.25), 4),
-        "p50": round(_percentile(value_list, 0.50), 4),
-        "p75": round(_percentile(value_list, 0.75), 4),
-        "p90": round(_percentile(value_list, 0.90), 4),
-        "recent_mean": round(recent_mean, 4),
-        "earlier_mean": _rounded_or_none(earlier_mean),
-        "recent_change_ratio": _rounded_or_none(recent_change_ratio),
-    }
-
-
-def _select_rolling_features(
-    features: list[dict[str, Any]],
+def _legacy_mean_std_component(
+    value: float,
+    stats: Mapping[str, Any],
+    direction: str,
     config: BaselineModelConfig,
-) -> list[dict[str, Any]]:
-    sorted_features = sorted(features, key=lambda feature: _sort_time_value(feature.get("start_time")))
-    if config.max_history_days <= 0:
-        return sorted_features
-
-    seen_days: list[str] = []
-    for feature in sorted_features:
-        day_key = str(feature.get("day_key", feature.get("period_key", "")))
-        if day_key not in seen_days:
-            seen_days.append(day_key)
-    selected_days = set(seen_days[-config.max_history_days :])
-    return [feature for feature in sorted_features if str(feature.get("day_key")) in selected_days]
+) -> float:
+    mean = float(stats["mean"])
+    std = float(stats["std"])
+    delta = mean - value if direction == "low" else value - mean
+    if delta <= 0:
+        return 0.0
+    scale = max(std, abs(mean) * config.relative_scale_floor, config.absolute_scale_floor)
+    return _range_score(delta / scale, config.robust_z_start, config.robust_z_full)
 
 
-def _public_current_features(features: Mapping[str, Any]) -> dict[str, Any]:
+def _baseline_confidence(
+    days: int,
+    records: int,
+    current: Mapping[str, Any],
+    reference: Mapping[str, Any] | None,
+    state: str,
+    config: BaselineModelConfig,
+) -> float:
+    history_quality = float(reference.get("history_quality_mean", 0.0)) if reference else 0.0
+    confidence = (
+        0.30 * min(1.0, days / max(config.stable_history_days, 1))
+        + 0.25 * min(1.0, records / max(config.min_history_records, 1))
+        + 0.25 * _clamp(history_quality)
+        + 0.20 * _clamp(float(current["quality_mean"]))
+    )
+    if state in {"none", "cold"}:
+        confidence *= 0.45
+    return round(_clamp(confidence), 4)
+
+
+def _public_period(period: Mapping[str, Any]) -> dict[str, Any]:
+    keys = (
+        "aggregation_period", "period_id", "period_start", "period_end", "timezone",
+        "camera_profile_id", "record_count", "valid_monitoring_hours", "mean_gait_speed",
+        "center_speed_cv", "hip_lateral_sway", "turn_instability_proxy",
+        "mean_sit_stand_duration", "failed_attempts", "mean_stabilization_time",
+        "near_fall_rate_per_hour", "nighttime_activity_rate_per_hour", "activity_volume",
+        "dominant_scene_region", "scene_region_distribution", "quality_mean", "metric_status",
+        "aggregation_version",
+        "upstream_versions", "input_summary",
+    )
+    return {key: period.get(key) for key in keys}
+
+
+def _public_reference(reference: Mapping[str, Any] | None) -> dict[str, Any]:
+    if not reference:
+        return {
+            "person_id": None, "camera_profile_id": None, "history_record_count": 0,
+            "history_period_count": 0, "history_day_count": 0, "window_start": None,
+            "window_end": None, "metric_references": {}, "scene_region_distribution": {},
+        }
     return {
-        key: features.get(key)
+        key: reference.get(key)
         for key in (
-            "aggregation_period",
-            "period_key",
-            "record_count",
-            "track_ids",
-            "mean_gait_speed",
-            "center_speed_cv",
-            "hip_lateral_sway",
-            "turn_instability_proxy",
-            "mean_sit_stand_duration",
-            "failed_attempts",
-            "mean_stabilization_time",
-            "near_fall_frequency",
-            "nighttime_activity_count",
-            "activity_volume",
-            "dominant_scene_region",
-            "scene_region_distribution",
-            "quality_mean",
-            "quality_min",
-            "low_quality_record_count",
+            "person_id", "camera_profile_id", "history_record_count", "history_period_count",
+            "history_day_count", "window_start", "window_end", "metric_references",
+            "scene_region_distribution", "history_quality_mean",
         )
-    }
-
-
-def _public_reference(reference: Mapping[str, Any]) -> dict[str, Any]:
-    return {
-        "person_id": reference.get("person_id"),
-        "history_record_count": reference.get("history_record_count", 0),
-        "history_period_count": reference.get("history_period_count", 0),
-        "history_day_count": reference.get("history_day_count", 0),
-        "window_start": reference.get("window_start"),
-        "window_end": reference.get("window_end"),
-        "metric_references": reference.get("metric_references", {}),
-        "scene_region_distribution": reference.get("scene_region_distribution", {}),
-        "dominant_scene_region": reference.get("dominant_scene_region"),
-    }
-
-
-def _empty_reference(person_id: str) -> dict[str, Any]:
-    return {
-        "person_id": person_id,
-        "history_record_count": 0,
-        "history_period_count": 0,
-        "history_day_count": 0,
-        "metric_references": {},
-        "scene_region_distribution": {},
-        "dominant_scene_region": None,
-        "baseline_quality": {
-            "history_record_count": 0,
-            "history_period_count": 0,
-            "history_day_count": 0,
-            "initial_baseline_ready": False,
-            "stable_baseline_ready": False,
-            "insufficient_baseline_history": True,
-            "history_quality_mean": 0.0,
-            "reduced_baseline_quality": False,
-        },
-        "model_version": MODEL_VERSION,
     }
 
 
 def _quality_score(record: Mapping[str, Any]) -> float:
-    quality = record.get("quality_coverage")
-    values: list[float] = []
-    insufficient = False
-    if isinstance(quality, Mapping):
-        for key in (
-            "usable_frame_ratio",
-            "mean_core_keypoint_quality",
-            "gait_keypoint_coverage",
-            "sit_stand_keypoint_coverage",
-            "core_keypoint_coverage",
-            "usable_near_fall_window_ratio",
-        ):
-            value = _optional_number(quality.get(key))
-            if value is not None:
-                values.append(_clamp(value))
-        insufficient = any(
-            quality.get(key) is True
+    direct = _optional_number(record.get("baseline_quality"))
+    if direct is not None:
+        return round(_clamp(direct), 4)
+    coverage = record.get("quality_coverage")
+    if isinstance(coverage, Mapping):
+        values = [
+            _optional_number(coverage.get(key))
             for key in (
-                "insufficient_gait_quality",
-                "insufficient_sit_stand_quality",
-                "insufficient_near_fall_quality",
+                "usable_frame_ratio", "mean_core_keypoint_quality", "gait_keypoint_coverage",
+                "sit_stand_keypoint_coverage", "core_keypoint_coverage",
             )
-        )
-    direct_quality = _optional_number(record.get("baseline_quality"))
-    if direct_quality is not None:
-        values.append(_clamp(direct_quality))
-    if not values:
-        keypoint_quality = _optional_number(record.get("keypoint_quality"))
-        values.append(_clamp(keypoint_quality) if keypoint_quality is not None else 0.8)
-
-    score = _mean(values)
-    if insufficient:
-        score = min(score, 0.45)
-    return round(_clamp(score), 4)
-
-
-def _near_fall_count(record: Mapping[str, Any], config: BaselineModelConfig) -> float:
-    for key in ("near_fall_event_count", "near_fall_count", "near_fall_frequency"):
-        value = _optional_number(record.get(key))
-        if value is not None:
-            return max(0.0, value)
-
-    score = _number_or_default(record.get("near_fall_event_score"), 0.0)
-    event_type = str(record.get("event_type", ""))
-    if score >= config.near_fall_score_count_threshold:
-        return 1.0
-    if event_type and event_type not in {"unknown", "unknown_near_fall", "none"}:
-        return 1.0
+        ]
+        valid = [value for value in values if value is not None]
+        if valid:
+            return round(_clamp(_mean(valid)), 4)
+    metric_quality = record.get("metric_quality")
+    if isinstance(metric_quality, Mapping):
+        values = [
+            _optional_number(item.get("quality"))
+            for item in metric_quality.values()
+            if isinstance(item, Mapping)
+        ]
+        valid = [value for value in values if value is not None]
+        if valid:
+            return round(_clamp(_mean(valid)), 4)
     return 0.0
 
 
-def _nighttime_activity_count(record: Mapping[str, Any], fallback_index: int) -> float:
-    for key in ("nighttime_activity_count", "night_activity_count", "nighttime_activity_events"):
-        value = _optional_number(record.get(key))
-        if value is not None:
-            return max(0.0, value)
-    return 1.0 if _is_night_record(record, fallback_index) else 0.0
+def _scene_distribution(record: Mapping[str, Any]) -> dict[str, float]:
+    raw = record.get("scene_region_distribution")
+    if isinstance(raw, Mapping):
+        values = Counter({str(key): max(0.0, _number(value, 0.0)) for key, value in raw.items()})
+        return _distribution(values)
+    scene = record.get("dominant_scene_region") or record.get("scene_region")
+    return {str(scene): 1.0} if scene else {}
 
 
-def _activity_value(record: Mapping[str, Any]) -> float | None:
-    for key in ("activity_volume", "daily_activity_volume", "active_duration_sec", "activity_duration_sec"):
-        value = _optional_number(record.get(key))
-        if value is not None:
-            return max(0.0, value)
-    return None
-
-
-def _turn_instability_proxy(center_speed_cvs: list[float], hip_lateral_sways: list[float]) -> float | None:
-    if not center_speed_cvs and not hip_lateral_sways:
+def _strict_datetime(value: Any) -> datetime | None:
+    if not isinstance(value, str) or not value.strip():
         return None
-    cv_component = _ratio_score(_mean(center_speed_cvs), 0.60) if center_speed_cvs else 0.0
-    sway_component = _ratio_score(_mean(hip_lateral_sways), 0.05) if hip_lateral_sways else 0.0
-    return round(_clamp(max(cv_component, sway_component)), 4)
+    normalized = value.strip().replace("Z", "+00:00")
+    try:
+        parsed = datetime.fromisoformat(normalized)
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo is not None else None
 
 
-def _period_key(record: Mapping[str, Any], fallback_index: int, config: BaselineModelConfig) -> str:
-    period = config.aggregation_period
-    if period not in {"day", "hour"}:
-        period = "day"
-
-    parsed = _record_datetime(record)
-    if parsed is not None:
-        if period == "hour":
-            return parsed.strftime("%Y-%m-%dT%H")
-        return parsed.date().isoformat()
-
-    seconds = _record_seconds(record)
-    if seconds is not None:
-        unit = 3600.0 if period == "hour" else 86400.0
-        prefix = "hour" if period == "hour" else "day"
-        return f"{prefix}_{math.floor(seconds / unit)}"
-    return f"{period}_unknown_{fallback_index}"
+def _time_value(value: Any) -> float:
+    parsed = _strict_datetime(value)
+    return parsed.timestamp() if parsed is not None else math.inf
 
 
-def _day_key(record: Mapping[str, Any], fallback_index: int) -> str:
-    parsed = _record_datetime(record)
-    if parsed is not None:
-        return parsed.date().isoformat()
-    seconds = _record_seconds(record)
-    if seconds is not None:
-        return f"day_{math.floor(seconds / 86400.0)}"
-    return f"day_unknown_{fallback_index}"
-
-
-def _record_datetime(record: Mapping[str, Any]) -> datetime | None:
-    for key in ("timestamp", "start_time", "end_time"):
-        value = record.get(key)
-        if isinstance(value, str):
-            parsed = _parse_datetime(value)
-            if parsed is not None:
-                return parsed
-    return None
-
-
-def _record_seconds(record: Mapping[str, Any]) -> float | None:
-    for key in ("timestamp_sec", "start_time", "timestamp", "end_time"):
-        value = _optional_number(record.get(key))
+def _first_number(mapping: Mapping[str, Any], *keys: str) -> float | None:
+    for key in keys:
+        value = _optional_number(mapping.get(key))
         if value is not None:
             return value
     return None
 
 
-def _parse_datetime(value: str) -> datetime | None:
-    normalized = value.strip()
-    if not normalized:
+def _optional_number(value: Any) -> float | None:
+    if isinstance(value, bool):
         return None
-    if normalized.endswith("Z"):
-        normalized = normalized[:-1] + "+00:00"
-    try:
-        parsed = datetime.fromisoformat(normalized)
-    except ValueError:
-        return None
-    if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
-    return parsed
+    if isinstance(value, (int, float)) and math.isfinite(float(value)):
+        return float(value)
+    return None
 
 
-def _is_night_record(record: Mapping[str, Any], fallback_index: int) -> bool:
-    parsed = _record_datetime(record)
-    if parsed is None:
-        return False
-    hour = parsed.hour
-    return hour >= 22 or hour < 6
-
-
-def _record_bounds(items: list[tuple[int, Mapping[str, Any]]]) -> tuple[Any, Any]:
-    if not items:
-        return None, None
-    start_candidates = [
-        (_record_sort_key(record, index), _output_start_time(record, index))
-        for index, record in items
-    ]
-    end_candidates = [
-        (_record_end_sort_key(record, index), _output_end_time(record, index))
-        for index, record in items
-    ]
-    return min(start_candidates, key=lambda item: item[0])[1], max(end_candidates, key=lambda item: item[0])[1]
-
-
-def _output_start_time(record: Mapping[str, Any], fallback_index: int) -> Any:
-    for key in ("start_time", "timestamp", "timestamp_sec"):
-        if record.get(key) is not None:
-            return record.get(key)
-    return float(fallback_index)
-
-
-def _output_end_time(record: Mapping[str, Any], fallback_index: int) -> Any:
-    for key in ("end_time", "timestamp", "timestamp_sec"):
-        if record.get(key) is not None:
-            return record.get(key)
-    return float(fallback_index)
-
-
-def _record_sort_key(record: Mapping[str, Any], index: int) -> tuple[float, int]:
-    return _sort_time_value(_output_start_time(record, index)), index
-
-
-def _record_end_sort_key(record: Mapping[str, Any], index: int) -> tuple[float, int]:
-    return _sort_time_value(_output_end_time(record, index)), index
-
-
-def _sort_time_value(value: Any) -> float:
-    number = _optional_number(value)
-    if number is not None:
-        return number
-    if isinstance(value, str):
-        parsed = _parse_datetime(value)
-        if parsed is not None:
-            return parsed.timestamp()
-    return math.inf
-
-
-def _min_output_time(values: Iterable[Any]) -> Any:
-    value_list = [value for value in values if value is not None]
-    if not value_list:
-        return None
-    return min(value_list, key=_sort_time_value)
-
-
-def _max_output_time(values: Iterable[Any]) -> Any:
-    value_list = [value for value in values if value is not None]
-    if not value_list:
-        return None
-    return max(value_list, key=_sort_time_value)
-
-
-def _distribution(counter: Counter[str]) -> dict[str, float]:
-    total = sum(counter.values())
-    if total <= 0:
-        return {}
-    return {key: round(value / total, 4) for key, value in sorted(counter.items())}
-
-
-def _baseline_confidence(quality: Mapping[str, Any], config: BaselineModelConfig) -> float:
-    history_days = min(1.0, float(quality.get("history_day_count", 0)) / max(config.stable_history_days, 1))
-    history_records = min(1.0, float(quality.get("history_record_count", 0)) / max(config.min_history_records, 1))
-    history_quality = _clamp(float(quality.get("history_quality_mean", 0.0)))
-    current_quality = _clamp(float(quality.get("current_quality_mean", 0.0)))
-    confidence = 0.30 * history_days + 0.25 * history_records + 0.25 * history_quality + 0.20 * current_quality
-    if quality.get("insufficient_baseline_history"):
-        confidence *= 0.45
-    if quality.get("reduced_baseline_quality"):
-        confidence *= 0.50
-    return round(_clamp(confidence), 4)
-
-
-def _std_scale(std: float, mean: float) -> float:
-    return max(std, abs(mean) * 0.05, 0.05)
-
-
-def _append_number(values: list[float], value: Any) -> None:
-    number = _optional_number(value)
-    if number is not None:
-        values.append(number)
-
-
-def _mean_or_none(values: Iterable[float]) -> float | None:
-    value_list = list(values)
-    if not value_list:
-        return None
-    return _mean(value_list)
+def _number(value: Any, default: float) -> float:
+    parsed = _optional_number(value)
+    return default if parsed is None else parsed
 
 
 def _mean(values: Iterable[float]) -> float:
-    value_list = list(values)
-    if not value_list:
-        return 0.0
-    return sum(value_list) / len(value_list)
+    items = list(values)
+    return sum(items) / len(items) if items else 0.0
 
 
 def _std(values: Iterable[float]) -> float:
-    value_list = list(values)
-    if len(value_list) < 2:
+    items = list(values)
+    if len(items) < 2:
         return 0.0
-    mean = _mean(value_list)
-    variance = sum((value - mean) ** 2 for value in value_list) / len(value_list)
-    return math.sqrt(variance)
+    mean = _mean(items)
+    return math.sqrt(sum((value - mean) ** 2 for value in items) / len(items))
 
 
-def _percentile(values: Iterable[float], percentile: float) -> float:
-    value_list = sorted(values)
-    if not value_list:
+def _percentile(values: Iterable[float], quantile: float) -> float:
+    items = sorted(values)
+    if not items:
         return 0.0
-    if len(value_list) == 1:
-        return value_list[0]
-    position = _clamp(percentile) * (len(value_list) - 1)
-    lower_index = math.floor(position)
-    upper_index = math.ceil(position)
-    if lower_index == upper_index:
-        return value_list[lower_index]
-    ratio = position - lower_index
-    return value_list[lower_index] + ((value_list[upper_index] - value_list[lower_index]) * ratio)
+    position = _clamp(quantile) * (len(items) - 1)
+    lower = math.floor(position)
+    upper = math.ceil(position)
+    if lower == upper:
+        return items[lower]
+    fraction = position - lower
+    return items[lower] * (1.0 - fraction) + items[upper] * fraction
 
 
-def _range_score(value: float, low: float, high: float) -> float:
-    if high <= low:
+def _distribution(counter: Mapping[str, float]) -> dict[str, float]:
+    total = sum(float(value) for value in counter.values())
+    if total <= 0:
+        return {}
+    return {key: round(float(value) / total, 4) for key, value in sorted(counter.items())}
+
+
+def _range_score(value: float, start: float, full: float) -> float:
+    if value <= start:
         return 0.0
-    return _clamp((value - low) / (high - low))
-
-
-def _ratio_score(value: float, threshold: float) -> float:
-    if threshold <= 0:
-        return 0.0
-    return _clamp(value / threshold)
-
-
-def _rounded_or_none(value: float | None) -> float | None:
-    if value is None:
-        return None
-    return round(value, 4)
-
-
-def _dedupe(values: Iterable[str]) -> list[str]:
-    seen: set[str] = set()
-    output: list[str] = []
-    for value in values:
-        if value in seen:
-            continue
-        seen.add(value)
-        output.append(value)
-    return output
+    if full <= start:
+        return 1.0
+    return _clamp((value - start) / (full - start))
 
 
 def _clamp(value: float) -> float:
-    return max(0.0, min(1.0, value))
+    return max(0.0, min(1.0, float(value)))
 
 
-def _optional_number(value: Any) -> float | None:
-    try:
-        if value is None:
-            return None
-        number = float(value)
-    except (TypeError, ValueError):
-        return None
-    if math.isnan(number) or math.isinf(number):
-        return None
-    return number
-
-
-def _number_or_default(value: Any, default: float) -> float:
-    number = _optional_number(value)
-    return default if number is None else number
+def _round(value: float | None) -> float | None:
+    return round(value, 4) if value is not None else None

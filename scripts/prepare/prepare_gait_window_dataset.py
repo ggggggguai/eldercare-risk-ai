@@ -62,6 +62,15 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--max-windows-per-segment", type=int, default=4)
     parser.add_argument("--auxiliary-weight", type=float, default=0.35)
     parser.add_argument(
+        "--expand-real-context",
+        action="store_true",
+        help="Fill short windows with real same-track frames and emit label-span masks.",
+    )
+    parser.add_argument("--primary-min-labeled-observations", type=int, default=10)
+    parser.add_argument("--weak-min-labeled-observations", type=int, default=5)
+    parser.add_argument("--representation-min-labeled-observations", type=int, default=2)
+    parser.add_argument("--weak-context-weight", type=float, default=0.35)
+    parser.add_argument(
         "--target-profile",
         choices=GAIT_TARGET_PROFILES,
         default="gait_instability_b01_b04",
@@ -101,6 +110,15 @@ def main(argv: Sequence[str] | None = None) -> int:
                 max_gap_sec=args.max_gap_sec,
                 max_windows_per_segment=args.max_windows_per_segment,
                 auxiliary_weight=args.auxiliary_weight,
+                context_expansion=args.expand_real_context,
+                primary_min_labeled_observations=(
+                    args.primary_min_labeled_observations
+                ),
+                weak_min_labeled_observations=args.weak_min_labeled_observations,
+                representation_min_labeled_observations=(
+                    args.representation_min_labeled_observations
+                ),
+                weak_context_weight=args.weak_context_weight,
                 target_profile=args.target_profile,
                 excluded_action_ids=args.exclude_action_ids,
                 seed=args.seed,

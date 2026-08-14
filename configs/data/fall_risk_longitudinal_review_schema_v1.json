@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fall-risk-longitudinal-review-v1",
+  "title": "Fall Risk Longitudinal Outcome Review",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "review_id",
+    "label_id",
+    "reviewer_id",
+    "decision",
+    "reviewed_at",
+    "evidence_reference"
+  ],
+  "properties": {
+    "review_id": {"type": "string", "minLength": 1},
+    "label_id": {"type": "string", "minLength": 1},
+    "reviewer_id": {"type": "string", "minLength": 1},
+    "decision": {"enum": ["accepted", "rejected", "needs_revision"]},
+    "reviewed_at": {"type": "string", "format": "date-time"},
+    "evidence_reference": {"type": "string", "minLength": 1}
+  }
+}

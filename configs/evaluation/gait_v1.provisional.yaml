@@ -1,0 +1,15 @@
+protocol_version: gait-eval-v1
+protocol_status: development_provisional
+task_type: gait_instability_vs_normal_activity
+evaluation_unit: action_segment
+positive_action_ids: [B02, B03, B04]
+negative_action_ids: [A01, A02, A03, A04, A05, A06, A07, A08, A09, A10, A11, A12]
+functional_proxy_action_ids: [B01]
+threshold_selection: validation_balanced_accuracy
+cluster_bootstrap_group: source_group_id
+bootstrap_iterations: 1000
+minimum_validation_positive_segments: 30
+minimum_validation_segments_per_subtype: 10
+minimum_validation_positive_source_groups: 3
+test_release_policy: independent_custodian_hash_bound_single_release
+test_metrics_allowed: false

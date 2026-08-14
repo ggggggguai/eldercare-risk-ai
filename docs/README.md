@@ -1,6 +1,6 @@
 # 项目文档
 
-更新时间：2026-08-04
+更新时间：2026-08-12
 
 本页是文档唯一总入口。现行文档描述当前代码和接口；计划文档描述目标；归档文档只保留历史上下文，不能作为当前实现依据。
 
@@ -28,18 +28,22 @@
 | 跌倒 | [下一阶段执行计划](modules/fall_risk/plans/跌倒风险下一阶段执行计划.md) | 当前实时链路与算法语义质量冲刺：时钟与采样契约、分支可用性、会话边界、异步回调、变形回放和运行可观测性 |
 | 跌倒 | [算法技术方案](modules/fall_risk/plans/跌倒风险算法技术方案.md) | 分层算法链路、技术选型、模块输入输出、训练评估门槛和研发阶段路线 |
 | 跌倒 | [挑战杯冲奖增强计划](modules/fall_risk/plans/挑战杯揭榜挂帅冲奖增强计划.md) | 官方评分映射、七周执行计划、验收门槛和提交证据 |
+| 跌倒 | [算法链路剩余模型训练计划](modules/fall_risk/plans/算法链路剩余模型训练计划-比赛效果优先.md) | 以比赛模型效果为核心的步态、坐站、个体基线和风险融合训练路线、指标、消融与倒排计划 |
+| 跌倒 | [个体化行为基线算法增强计划](modules/fall_risk/plans/个体化行为基线算法增强计划.md) | 因果周期基线、鲁棒状态机、纵向前向 split、消融评估和真实数据门禁；计划状态不等于真实效果 |
 | 跌倒 | [环境因素多模态增强设计方案](modules/fall_risk/plans/环境因素多模态增强设计方案.md) | 环境增强的目标架构、输入契约、时间对齐、特征计算、融合边界和模块职责 |
 | 跌倒 | [环境因素多模态增强实施计划](modules/fall_risk/plans/环境因素多模态增强实施计划.md) | ESP32-S3、照度与水浸传感接入，人-环境交互特征、规则融合、受控实验和验收边界 |
 | 跌倒 | [工作流 A Codex 执行任务书](modules/fall_risk/plans/工作流A-Codex执行任务书.md) | 数据、标注与评估底座的代理执行范围、阶段门槛和验收条件 |
 | 跌倒 | [工作流 B Codex 执行任务书](modules/fall_risk/plans/工作流B-Codex执行任务书.md) | 算法增强、实验矩阵、数据门禁和冻结交接；不作为已实现或实测结果证明 |
+| 跌倒 | [跌倒模型训练计划：Codex 执行任务书](modules/fall_risk/plans/跌倒模型训练计划-Codex执行任务书.md) | fall/near-fall 事件模型训练、连续视频评估、shadow 和晋级门禁；不把 provisional 候选写成正式能力 |
 | 跌倒 | [模型选型矩阵](modules/fall_risk/plans/跌倒风险各任务模型调研与选型矩阵.md) | 候选模型和启用门槛，不等于已接入模型 |
 | 跌倒 | [步态模型训练方案](modules/fall_risk/plans/步态模型训练方案.md) | 基于现有数据的步态二分类、多任务 TCN、跨数据源评估、基线对照和主链替换门槛 |
+| 跌倒 | [步态模型训练计划：Codex 执行任务书](modules/fall_risk/plans/步态模型训练计划-Codex执行任务书.md) | 步态专项审计、test 隔离、数据重建、训练矩阵、冻结评估、shadow 和代理停止条件 |
 | 跌倒 | [坐站模型训练方案](modules/fall_risk/plans/坐站模型训练方案.md) | 坐站事件定位、逐帧相位分割、动作与功能 proxy、无泄漏评估和规则 fallback 的训练方案 |
+| 跌倒 | [坐站模型训练计划：Codex 执行任务书](modules/fall_risk/plans/坐站模型训练计划-Codex执行任务书.md) | 连续坐站事件标签、专项 split、因果 TCN、事件评估、一次性 test、shadow 和代理停止条件 |
 | 跌倒 | [近跌倒模型训练方案](modules/fall_risk/plans/近跌倒模型训练方案.md) | 近跌倒事件监督门禁、因果 TCN、困难负样本、事件级评估和规则 fallback 的训练方案 |
+| 跌倒 | [自采数据模型增强计划](modules/fall_risk/plans/自采数据模型增强计划.md) | 基于当前步态、坐站、近跌倒和跌倒事件训练进度，安全接入 SCF_MVP_V1 的优先级、实验矩阵、分区和门禁 |
 | 跌倒 | [跌倒事件模型训练方案](modules/fall_risk/plans/跌倒事件模型训练方案.md) | 跌倒事件边界、因果 TCN、困难负样本、事件级评估、校准和规则安全覆盖的训练方案 |
 | 跌倒 | [动作与事件标签 v3 训练版设计稿](modules/fall_risk/plans/跌倒风险事件级标签v3设计评审稿.md) | 已实现的动作/事件训练语义、subtype 门槛、hard negative、ignore 和防泄漏设计；机器契约以 v3 schema 和校验器为准 |
-| 跌倒 | [KINECAL 骨架数据下载设计](modules/fall_risk/plans/KINECAL骨架数据下载设计.md) | KINECAL 风险组骨架子集的下载范围、数据治理和验证标准 |
-| 跌倒 | [KINECAL 骨架数据下载实施计划](modules/fall_risk/plans/KINECAL骨架数据下载实施计划.md) | KINECAL 下载器、测试、文档和正式下载的执行步骤 |
 | 数据 | [标注 SOP](modules/fall_risk/data/数据标注SOP.md) | 标注执行和质检流程 |
 | 数据 | [跌倒标签目录说明](../data/annotations/fall_risk/README.md) | v2 根标签、v3 训练标签、来源批次、split 和机器事实源 |
 | 数据 | [数据集标注规范](modules/fall_risk/data/数据集标注规范.md) | 数据集到统一标注格式的映射 |
@@ -53,12 +57,21 @@
 | 审计 | [根标签校验报告](../reports/fall_risk/label_validation_formal_v2.json) | v2 根标签的机器可读 formal 结果；当前仍有 blocker |
 | 审计 | [训练标签 v3 迁移报告](../reports/fall_risk/training-labels-v3-migration.json) | 动作/事件训练标签的确定性迁移计数、去重和输入输出 hash |
 | 审计 | [训练标签 v3 校验报告](../reports/fall_risk/training-labels-v3-validation.json) | v3 结构与 split 合法；fall/near-fall 事件训练门禁通过，动作类型门禁仍未通过 |
+| 审计 | [跌倒事件训练 P0 审计](../reports/fall_risk/fall_event_training_audit.md) | 当前 hash、split、formal、连续背景、老人域、协议和 test 治理门禁；当前为 `infrastructure_only` |
+| 审计 | [跌倒事件训练阻塞清单](../reports/fall_risk/fall_event_blockers.md) | formal、样本规模、连续分母、老人域、冻结协议和保管人缺口 |
+| 复现 | [跌倒事件训练 manifest](../reports/reproducibility/fall_event_training_manifest.json) | P0 审计的机器可读输入 hash、门禁结果和执行授权边界 |
+| 审计 | [坐站训练 P0 审计](../reports/fall_risk/sit_stand_training_audit.md) | 连续坐站输入 hash、专项标签/背景、四类门禁和 test 隔离；当前为 `infrastructure_only` |
+| 审计 | [坐站训练阻塞清单](../reports/fall_risk/sit_stand_training_blockers.md) | 连续事件真值、显式背景、动作/相位/功能监督和冻结审批缺口 |
+| 复现 | [坐站训练 manifest](../reports/reproducibility/sit_stand_training_manifest.json) | 坐站 P0 审计的机器可读 hash、事实、门禁和执行授权边界 |
+| 跌倒 | [个体化行为基线算法增强计划](modules/fall_risk/plans/个体化行为基线算法增强计划.md) | 因果周期契约、鲁棒统计、冷启动、防污染、纵向数据、消融评估和轻量模型晋级路线 |
 | 评估 | [工作流 A 合成烟测报告](../reports/fall_risk/workflow_a_synthetic_evaluation/bundle/report.md) | 事件评估 bundle 的开发链路证据；不是比赛指标或真实效果 |
-| 评估 | [KINECAL 轻量步态 TCN baseline](../reports/fall_risk/kinecal_gait_tcn/README.md) | 14 点时序模型的固定划分实测、失败结论和复现方式 |
+| 评估 | [步态 observable-context v2 TCN](../reports/fall_risk/gait_observable_context_v2/splitv3-e71a045/README.md) | 当前唯一保留的步态实验候选；validation-only，未接入主路径 |
 | 评估 | [步态 TCN v5 六 seed 集成实验](../reports/fall_risk/gait_window_v5_effect_first/development-20260803/README.md) | B01-B04 functional proxy 的六 seed 训练、集成结果和 test 隔离状态 |
 | 评估 | [坐站首轮 provisional 训练](../reports/fall_risk/sit_stand_event_v1/README.md) | 坐站训练前审计、clip-level E0/E2、候选双头 TCN smoke、test 隔离、预估偏差与正式事件定位阻塞 |
-| 评估 | [跌倒 candidate-clip TCN v3 pilot](../reports/fall_risk/fall_event_proxy_v2_v3split/README.md) | 当前 v3 split 的三 seed validation、分域结果和 test 隔离状态；不是连续跌倒定位指标 |
+| 评估 | [跌倒连续因果 TCN 阻塞清单](../reports/fall_risk/fall_event_blockers.md) | 当前唯一保留的跌倒模型方向；真实连续训练和晋级门禁未完成，规则仍是主路径 |
 | 评估 | [近跌倒恢复确认 TCN pilot](../reports/fall_risk/near_fall_event_v1/README.md) | 当前 v3 split 的三 seed validation、窗口来源限制和 test 隔离状态；不是 onset-time 预警指标 |
+| 评估 | [SCF_MVP_V1 基线回放与近跌倒增强](../reports/fall_risk/self_collected_scf_mvp_v1/README.md) | 自采隔离 candidate、262 段四分支回放、E1-E3 九次训练与 P05 challenge；三组均 No-Go，未替换主路径 |
+| 评估 | [个体基线 Phase 2 状态报告](../reports/fall_risk/baseline_longitudinal_phase2.md) | 纵向 schema、前向 split、四组消融基础设施和真实空数据 blocker；不提供真实效果结论 |
 | 复现 | [实时链路工程回归](../reports/fall_risk/runtime/README.md) | 阶段 0/1 的固定输入 hash、离线服务烟测与时钟/队列诊断；不是效果指标 |
 | 心理健康 | [模块 README](modules/mental_health/README.md) | 日级聚合、基线、评分、离线 CLI，以及隔离徘徊数据管线的当前边界 |
 | 心理健康 | [徘徊样行为识别技术方案](modules/mental_health/plans/徘徊样行为识别技术方案.md) | 徘徊轨迹分类、摄像头接入、日级基线、评估门槛和个人工作范围；属于目标设计，不等于已实现 |

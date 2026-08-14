@@ -14,7 +14,7 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
 
-from elderly_monitoring.modules.fall_risk.kinecal_gait import (
+from elderly_monitoring.modules.fall_risk.gait_contract import (
     CANONICAL_GAIT_JOINTS,
     GAIT_TCN_CHANNELS,
 )
@@ -55,6 +55,10 @@ class GaitTCNTrainingConfig:
     coordinate_jitter_std: float = 0.005
 
     def __post_init__(self) -> None:
+        if self.evaluate_test is True:
+            raise ValueError(
+                "gait training cannot evaluate test; use the release-gated evaluator"
+            )
         if self.epochs < 1:
             raise ValueError("epochs must be at least 1")
         if self.batch_size < 1:
@@ -171,7 +175,9 @@ class LightweightGaitTCN(nn.Module):
             else None
         )
 
-    def _encode(self, inputs: torch.Tensor) -> torch.Tensor:
+    def _encode(
+        self, inputs: torch.Tensor, pooling_mask: torch.Tensor | None = None
+    ) -> torch.Tensor:
         if inputs.ndim != 4:
             raise ValueError("gait TCN input must have shape [B, T, V, C]")
         if inputs.shape[2] != self.joint_count or inputs.shape[3] != self.input_channels:
@@ -192,13 +198,19 @@ class LightweightGaitTCN(nn.Module):
         batch_size, frame_count, _, _ = inputs.shape
         encoded = encoded_inputs.reshape(batch_size, frame_count, -1).transpose(1, 2)
         encoded = self.temporal_blocks(self.input_projection(encoded))
+        if pooling_mask is not None:
+            if pooling_mask.shape != frame_mask.shape:
+                raise ValueError("gait pooling mask must have shape [B, T]")
+            frame_mask = frame_mask * (pooling_mask > 0).to(inputs.dtype)
+            if torch.any(frame_mask.sum(dim=1) <= 0):
+                raise ValueError("gait pooling mask has no observed labeled frame")
         weights = frame_mask.unsqueeze(1)
         return (encoded * weights).sum(dim=2) / weights.sum(dim=2).clamp_min(1.0)
 
     def forward_heads(
-        self, inputs: torch.Tensor
+        self, inputs: torch.Tensor, pooling_mask: torch.Tensor | None = None
     ) -> tuple[torch.Tensor, torch.Tensor | None]:
-        pooled = self._encode(inputs)
+        pooled = self._encode(inputs, pooling_mask)
         gait_logits = self.classifier(pooled)
         walking_logits = (
             self.walking_classifier(pooled)
@@ -232,13 +244,20 @@ def _augment_gait_window(
     temporal_shift_frames: int,
     keypoint_dropout_probability: float,
     coordinate_jitter_std: float,
+    temporal_shift: int | None = None,
 ) -> torch.Tensor:
     output = features.clone()
     frame_count = int(output.shape[0])
     base_joint_count = 12
     maximum_shift = min(temporal_shift_frames, max(0, frame_count - 1))
     if maximum_shift:
-        shift = int(torch.randint(-maximum_shift, maximum_shift + 1, ()).item())
+        shift = (
+            int(torch.randint(-maximum_shift, maximum_shift + 1, ()).item())
+            if temporal_shift is None
+            else int(temporal_shift)
+        )
+        if abs(shift) > maximum_shift:
+            raise ValueError("temporal_shift exceeds temporal_shift_frames")
         shifted = torch.zeros_like(output)
         if shift > 0:
             shifted[shift:] = output[:-shift]
@@ -304,9 +323,18 @@ def _augment_gait_window(
     return output
 
 
-class _GaitWindowDataset(
-    Dataset[tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, int]]
-):
+def _shift_temporal_mask(mask: torch.Tensor, shift: int) -> torch.Tensor:
+    shifted = torch.zeros_like(mask)
+    if shift > 0:
+        shifted[shift:] = mask[:-shift]
+    elif shift < 0:
+        shifted[:shift] = mask[-shift:]
+    else:
+        shifted = mask.clone()
+    return shifted
+
+
+class _GaitWindowDataset(Dataset[Any]):
     def __init__(
         self,
         features: np.ndarray,
@@ -315,6 +343,7 @@ class _GaitWindowDataset(
         walking_targets: np.ndarray,
         indices: np.ndarray,
         *,
+        label_span_masks: np.ndarray | None = None,
         augment_mirror: bool,
         temporal_shift_frames: int = 0,
         keypoint_dropout_probability: float = 0.0,
@@ -325,6 +354,7 @@ class _GaitWindowDataset(
         self.sample_weights = sample_weights
         self.walking_targets = walking_targets
         self.indices = indices.astype(np.int64, copy=False)
+        self.label_span_masks = label_span_masks
         self.augment_mirror = augment_mirror
         self.temporal_shift_frames = temporal_shift_frames
         self.keypoint_dropout_probability = keypoint_dropout_probability
@@ -335,9 +365,14 @@ class _GaitWindowDataset(
 
     def __getitem__(
         self, item: int
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, int]:
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, int]:
         source_index = int(self.indices[item])
         features = torch.from_numpy(self.features[source_index]).clone()
+        label_span_mask = (
+            torch.from_numpy(self.label_span_masks[source_index]).clone().float()
+            if self.label_span_masks is not None
+            else (features[..., -1].amax(dim=1) > 0).float()
+        )
         if self.augment_mirror and bool(torch.rand(()) < 0.5):
             features = features[:, _MIRROR_JOINT_INDICES, :].clone()
             features[..., 0] *= -1.0
@@ -347,12 +382,22 @@ class _GaitWindowDataset(
             or self.keypoint_dropout_probability
             or self.coordinate_jitter_std
         ):
+            maximum_shift = min(
+                self.temporal_shift_frames, max(0, int(features.shape[0]) - 1)
+            )
+            temporal_shift = (
+                int(torch.randint(-maximum_shift, maximum_shift + 1, ()).item())
+                if maximum_shift
+                else 0
+            )
             features = _augment_gait_window(
                 features,
                 temporal_shift_frames=self.temporal_shift_frames,
                 keypoint_dropout_probability=self.keypoint_dropout_probability,
                 coordinate_jitter_std=self.coordinate_jitter_std,
+                temporal_shift=temporal_shift,
             )
+            label_span_mask = _shift_temporal_mask(label_span_mask, temporal_shift)
         label = torch.tensor(int(self.labels[source_index]), dtype=torch.long)
         sample_weight = torch.tensor(
             float(self.sample_weights[source_index]), dtype=torch.float32
@@ -360,7 +405,15 @@ class _GaitWindowDataset(
         walking_target = torch.tensor(
             int(self.walking_targets[source_index]), dtype=torch.long
         )
-        return features, label, walking_target, sample_weight, source_index
+        label_span_mask *= (features[..., -1].amax(dim=1) > 0).float()
+        return (
+            features,
+            label,
+            walking_target,
+            sample_weight,
+            label_span_mask,
+            source_index,
+        )
 
 
 def aggregate_participant_predictions(
@@ -525,11 +578,23 @@ def load_prepared_gait_dataset(path: str | Path) -> dict[str, np.ndarray]:
         "segment_durations_sec",
         "action_ids",
         "walking_targets",
+        "valid_masks",
+        "label_span_masks",
+        "evidence_tiers",
+        "labeled_observed_frame_counts",
+        "primary_evaluation_mask",
+        "sensitivity_evaluation_mask",
     ):
         if optional in arrays and len(arrays[optional]) != len(features):
             raise ValueError(f"prepared gait {optional} has inconsistent length")
+    for mask_name in ("valid_masks", "label_span_masks"):
+        if mask_name in arrays and arrays[mask_name].shape != features.shape[:2]:
+            raise ValueError(f"prepared gait {mask_name} must have shape [N, T]")
+    if "label_span_masks" in arrays and "valid_masks" in arrays:
+        if np.any(arrays["label_span_masks"] > arrays["valid_masks"]):
+            raise ValueError("gait label span mask cannot include an invalid frame")
     partitions = {str(value) for value in np.unique(arrays["partitions"])}
-    if not {"train", "validation", "test"}.issubset(partitions) or not partitions.issubset(
+    if not {"train", "validation"}.issubset(partitions) or not partitions.issubset(
         {"train", "validation", "test", "excluded"}
     ):
         raise ValueError(f"unexpected prepared partitions: {sorted(partitions)}")
@@ -709,12 +774,17 @@ def train_gait_tcn(
         raise ValueError("prepared gait joint order does not match the TCN contract")
     if source_metadata.get("channel_order") != list(GAIT_TCN_CHANNELS):
         raise ValueError("prepared gait channel order does not match the TCN contract")
+    _validate_dataset_protocol(source_metadata)
 
     arrays = load_prepared_gait_dataset(source_path)
+    if source_metadata.get("source_split_id") is not None and "test" in {
+        str(value) for value in np.unique(arrays["partitions"])
+    }:
+        raise ValueError("current provisional gait dataset must not contain test tensors")
     evaluate_test = (
         training.evaluate_test
         if training.evaluate_test is not None
-        else source_metadata.get("split_protocol") != "frozen_training_labels_v3"
+        else source_metadata.get("source_split_id") is None
     )
     destination = Path(output_dir)
     destination.mkdir(parents=True, exist_ok=True)
@@ -791,9 +861,27 @@ def train_gait_tcn(
     aggregate_field = (
         "action_segment_id" if "action_segment_ids" in arrays else "participant_id"
     )
-    indices = {
+    all_partition_indices = {
         partition: np.flatnonzero(partitions == partition)
         for partition in ("train", "validation", "test")
+    }
+    primary_evaluation_mask = arrays.get(
+        "primary_evaluation_mask", np.ones(len(labels), dtype=np.uint8)
+    ).astype(bool, copy=False)
+    sensitivity_evaluation_mask = arrays.get(
+        "sensitivity_evaluation_mask", np.zeros(len(labels), dtype=np.uint8)
+    ).astype(bool, copy=False)
+    indices = {
+        "train": all_partition_indices["train"][
+            sample_weights[all_partition_indices["train"]] > 0
+        ],
+        "validation": all_partition_indices["validation"][
+            primary_evaluation_mask[all_partition_indices["validation"]]
+        ],
+        "validation_sensitivity": all_partition_indices["validation"][
+            sensitivity_evaluation_mask[all_partition_indices["validation"]]
+        ],
+        "test": all_partition_indices["test"],
     }
     required_partitions = ["train", "validation"] + (["test"] if evaluate_test else [])
     for partition in required_partitions:
@@ -817,6 +905,7 @@ def train_gait_tcn(
             sample_weights,
             walking_targets,
             partition_indices,
+            label_span_masks=arrays.get("label_span_masks"),
             augment_mirror=training.augment_mirror and partition == "train",
             temporal_shift_frames=(
                 training.temporal_shift_frames if partition == "train" else 0
@@ -841,6 +930,12 @@ def train_gait_tcn(
         ),
         "validation": DataLoader(
             datasets["validation"],
+            batch_size=training.batch_size,
+            shuffle=False,
+            num_workers=0,
+        ),
+        "validation_sensitivity": DataLoader(
+            datasets["validation_sensitivity"],
             batch_size=training.batch_size,
             shuffle=False,
             num_workers=0,
@@ -1004,6 +1099,23 @@ def train_gait_tcn(
         walking_criterion=walking_criterion,
         walking_gate_loss_weight=training.walking_gate_loss_weight,
     )
+    validation_sensitivity = (
+        _evaluate(
+            model,
+            loaders["validation_sensitivity"],
+            criterion,
+            device,
+            aggregate_ids=aggregate_ids,
+            sample_ids=arrays["sample_ids"],
+            aggregate_groups=aggregate_participants or "action_segment_ids" in arrays,
+            aggregate_field=aggregate_field,
+            threshold=selected_threshold,
+            walking_criterion=walking_criterion,
+            walking_gate_loss_weight=training.walking_gate_loss_weight,
+        )
+        if len(indices["validation_sensitivity"])
+        else None
+    )
     test = (
         _evaluate(
             model,
@@ -1022,6 +1134,8 @@ def train_gait_tcn(
         else None
     )
     _attach_group_context(validation, arrays)
+    if validation_sensitivity is not None:
+        _attach_group_context(validation_sensitivity, arrays)
     if test is not None:
         _attach_group_context(test, arrays)
 
@@ -1050,6 +1164,13 @@ def train_gait_tcn(
         "input_contract": source_metadata.get("preparation_config"),
         "best_epoch": best_epoch,
         "dataset_sha256": source_metadata["dataset_sha256"],
+        "protocol_status": source_metadata.get(
+            "protocol_status", "development_provisional"
+        ),
+        "test_pose_read": bool(source_metadata.get("test_pose_read", False)),
+        "test_evaluated": False,
+        "source_split_id": source_metadata.get("source_split_id"),
+        "input_sha256": dict(source_metadata.get("input_sha256", {})),
         "training_config": asdict(training),
         "pretraining_transfer": pretraining_transfer,
     }
@@ -1087,6 +1208,12 @@ def train_gait_tcn(
         "pretraining_transfer": pretraining_transfer,
         "selected_threshold": selected_threshold,
         "test_evaluated": evaluate_test,
+        "test_pose_read": bool(source_metadata.get("test_pose_read", False)),
+        "protocol_status": source_metadata.get(
+            "protocol_status", "development_provisional"
+        ),
+        "source_split_id": source_metadata.get("source_split_id"),
+        "input_sha256": dict(source_metadata.get("input_sha256", {})),
         "partition_scheme": training.partition_scheme,
         "validation": {
             "loss": validation["loss"],
@@ -1100,6 +1227,19 @@ def train_gait_tcn(
                 validation["group_predictions"]
             ),
         },
+        "validation_sensitivity": (
+            {
+                "scope": "weak_context_only_not_used_for_selection",
+                "loss": validation_sensitivity["loss"],
+                "window_metrics": validation_sensitivity["window_metrics"],
+                "group_metrics": validation_sensitivity["group_metrics"],
+                "walking_window_metrics": validation_sensitivity[
+                    "walking_window_metrics"
+                ],
+            }
+            if validation_sensitivity is not None
+            else None
+        ),
         "test": (
             {
                 "loss": test["loss"],
@@ -1137,6 +1277,27 @@ def train_gait_tcn(
     }
 
 
+def _validate_dataset_protocol(metadata: Mapping[str, Any]) -> None:
+    if metadata.get("test_pose_read") is True or metadata.get("test_tensor_generated") is True:
+        raise ValueError("prepared gait training dataset contains test-derived inputs")
+    source_split_id = metadata.get("source_split_id")
+    source_split_path = metadata.get("source_split_report_path")
+    if source_split_id is None:
+        return
+    if not isinstance(source_split_path, str) or not source_split_path:
+        raise ValueError("prepared gait metadata is missing source split report path")
+    candidate = Path(source_split_path)
+    if not candidate.is_absolute():
+        candidate = Path.cwd() / candidate
+    if not candidate.is_file():
+        raise FileNotFoundError(f"prepared gait source split report not found: {candidate}")
+    split_report = json.loads(candidate.read_text(encoding="utf-8"))
+    if split_report.get("split_id") != source_split_id:
+        raise ValueError("prepared gait dataset source_split_id is stale")
+    if metadata.get("source_split_report_sha256") != _sha256_file(candidate):
+        raise ValueError("prepared gait source split report SHA-256 is stale")
+
+
 def _train_epoch(
     model: LightweightGaitTCN,
     loader: DataLoader[Any],
@@ -1152,13 +1313,14 @@ def _train_epoch(
     gait_loss_denominator = 0.0
     walking_loss_numerator = 0.0
     walking_loss_denominator = 0.0
-    for features, labels, walking_targets, sample_weights, _ in loader:
+    for features, labels, walking_targets, sample_weights, label_span_masks, _ in loader:
         features = features.to(device)
         labels = labels.to(device)
         walking_targets = walking_targets.to(device)
         sample_weights = sample_weights.to(device)
+        label_span_masks = label_span_masks.to(device)
         optimizer.zero_grad(set_to_none=True)
-        gait_logits, walking_logits = model.forward_heads(features)
+        gait_logits, walking_logits = model.forward_heads(features, label_span_masks)
         gait_weights = sample_weights
         if walking_criterion is not None:
             gait_weights = gait_weights * (walking_targets == 1)
@@ -1240,12 +1402,22 @@ def _evaluate(
     groups: list[str] = []
     samples: list[str] = []
     with torch.inference_mode():
-        for features, labels, walking_targets, sample_weights, source_indices in loader:
+        for (
+            features,
+            labels,
+            walking_targets,
+            sample_weights,
+            label_span_masks,
+            source_indices,
+        ) in loader:
             features = features.to(device)
             labels_device = labels.to(device)
             walking_targets_device = walking_targets.to(device)
             sample_weights_device = sample_weights.to(device)
-            gait_logits, walking_logits = model.forward_heads(features)
+            label_span_masks_device = label_span_masks.to(device)
+            gait_logits, walking_logits = model.forward_heads(
+                features, label_span_masks_device
+            )
             gait_weights = sample_weights_device
             if walking_criterion is not None:
                 gait_weights = gait_weights * (walking_targets_device == 1)

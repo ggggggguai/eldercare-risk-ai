@@ -1,6 +1,6 @@
 schema_version: near-fall-event-training-config-v1
 task: near_fall_recovery_confirmation_v1
-status: infrastructure_only_until_v3_training_ready
+status: development_provisional_test_locked
 
 dataset:
   target_fps: 8.0
@@ -25,6 +25,7 @@ tcn_profiles:
     learning_rate: 0.01
     weight_decay: 0.0
     patience: 30
+    threshold: 0.5
     seed: 42
     device: cpu
   pilot:
@@ -37,6 +38,7 @@ tcn_profiles:
     learning_rate: 0.001
     weight_decay: 0.0001
     patience: 8
+    threshold: 0.5
     seed: 42
     device: auto
 

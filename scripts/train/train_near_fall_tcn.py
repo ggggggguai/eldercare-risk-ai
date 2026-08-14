@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from dataclasses import replace
 from pathlib import Path
 from typing import Any, Sequence
 
@@ -40,6 +41,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--resume-checkpoint", type=Path, default=None)
+    parser.add_argument("--seed", type=int, default=None)
+    parser.add_argument(
+        "--device",
+        choices=("auto", "cpu", "cuda", "mps"),
+        default=None,
+    )
     parser.add_argument(
         "--synthetic-smoke",
         action="store_true",
@@ -78,11 +85,16 @@ def main(argv: Sequence[str] | None = None) -> int:
             data_path = Path(synthetic["dataset_path"])
             metadata_path = Path(synthetic["metadata_path"])
             run_output = args.output_dir / "training"
+        training_config = _load_training_config(args.config, profile)
+        if args.seed is not None:
+            training_config = replace(training_config, seed=args.seed)
+        if args.device is not None:
+            training_config = replace(training_config, device=args.device)
         summary = train_near_fall_tcn(
             data_path,
             run_output,
             metadata_path=metadata_path,
-            config=_load_training_config(args.config, profile),
+            config=training_config,
             allow_synthetic=args.synthetic_smoke,
             resume_checkpoint=args.resume_checkpoint,
         )

@@ -85,11 +85,6 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--device", choices=("auto", "cpu", "cuda", "mps"), default="auto")
     parser.add_argument("--no-mirror-augmentation", action="store_true")
-    parser.add_argument(
-        "--evaluate-test",
-        action="store_true",
-        help="Evaluate the locked test partition after the candidate is frozen.",
-    )
     parser.add_argument("--overwrite", action="store_true")
     return parser
 
@@ -129,7 +124,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 partition_scheme=args.partition_scheme,
                 device=args.device,
                 augment_mirror=not args.no_mirror_augmentation,
-                evaluate_test=True if args.evaluate_test else None,
+                evaluate_test=False,
                 pretrained_checkpoint=(
                     args.pretrained_checkpoint.as_posix()
                     if args.pretrained_checkpoint is not None

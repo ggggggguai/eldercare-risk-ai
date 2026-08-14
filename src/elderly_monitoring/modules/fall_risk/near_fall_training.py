@@ -435,6 +435,16 @@ def prepare_near_fall_event_dataset(
         if not track:
             rejected["no_matching_pose_track"] += 1
             continue
+        pose_track_ids = {
+            str(record.get("track_id", record.get("person_id", "unknown")))
+            for record in track.values()
+        }
+        if len(pose_track_ids) != 1:
+            raise ValueError(
+                f"near-fall selected pose track is not unique: {video_id}"
+            )
+        pose_track_id = next(iter(pose_track_ids))
+        annotation_track_id = str(label.get("track_id") or "")
         anchors = _window_anchor_frames(label, track, preparation)
         if not anchors:
             rejected["insufficient_causal_context"] += 1
@@ -486,6 +496,9 @@ def prepare_near_fall_event_dataset(
                 "sample_group_id": str(label["sample_group_id"]),
                 "split_group_id": str(assignment["split_group_id"]),
                 "physical_event_id": label.get("physical_event_id"),
+                "annotation_track_id": annotation_track_id or None,
+                "pose_track_id": pose_track_id,
+                "track_match_method": "dominant_pose_track_in_label_interval",
                 "dataset": str(manifest_row.get("dataset", "unknown")),
                 "anchor_reason": (
                     "recovery_frame" if int(label["label"]) == 1 else "explicit_negative_window_end"
@@ -508,6 +521,43 @@ def prepare_near_fall_event_dataset(
         dtype=np.float32,
     )
     _validate_event_weights(samples, weights)
+    hard_negative_window_counts = {
+        partition: dict(
+            sorted(
+                Counter(
+                    str(sample["hard_negative_type"])
+                    for sample in samples
+                    if sample["partition"] == partition
+                    and int(sample["label"]) == 0
+                    and sample.get("hard_negative_type") is not None
+                ).items()
+            )
+        )
+        for partition in sorted(_DEVELOPMENT_PARTITIONS)
+    }
+    missing_hard_negative_windows = {
+        partition: sorted(
+            set(NEAR_FALL_HARD_NEGATIVES)
+            - set(hard_negative_window_counts[partition])
+        )
+        for partition in sorted(_DEVELOPMENT_PARTITIONS)
+    }
+    dataset_counts = {
+        partition: dict(
+            sorted(
+                Counter(
+                    str(sample["dataset"])
+                    for sample in samples
+                    if sample["partition"] == partition
+                ).items()
+            )
+        )
+        for partition in sorted(_DEVELOPMENT_PARTITIONS)
+    }
+    namespace_mismatch_count = sum(
+        sample.get("annotation_track_id") not in (None, sample["pose_track_id"])
+        for sample in samples
+    )
     raw_features = np.stack(tensors).astype(np.float32)
     partitions = np.asarray([sample["partition"] for sample in samples])
     normalization = fit_normalization_statistics(raw_features, partitions)
@@ -530,9 +580,11 @@ def prepare_near_fall_event_dataset(
     metadata = {
         "schema_version": "near-fall-event-dataset-v1",
         "task": "near_fall_recovery_confirmation_v1",
-        "status": "training_ready_source",
+        "status": "development_provisional",
         "synthetic": False,
         "training_ready": True,
+        "formal_training_ready": False,
+        "training_scope": "train_validation_development_only",
         "target_semantics": (
             "binary near-fall confirmation using only a causal window ending at recovery_frame"
         ),
@@ -557,6 +609,14 @@ def prepare_near_fall_event_dataset(
         "test_pose_read": False,
         "test_evaluated": False,
         "rejected_window_counts": dict(sorted(rejected.items())),
+        "hard_negative_window_counts": hard_negative_window_counts,
+        "missing_hard_negative_windows": missing_hard_negative_windows,
+        "dataset_counts": dataset_counts,
+        "track_mapping": {
+            "method": "dominant_pose_track_in_label_interval",
+            "annotation_and_pose_track_namespaces_are_distinct": True,
+            "namespace_mismatch_count": namespace_mismatch_count,
+        },
         "event_weight_sums": {
             event_id: float(weights[arrays["event_ids"] == event_id].sum())
             for event_id in sorted(event_counts)
@@ -902,14 +962,11 @@ def _select_labeled_track(
     start = int(label["start_frame"])
     end = int(label["end_frame_exclusive"])
     by_track: dict[str, dict[int, dict[str, Any]]] = defaultdict(dict)
-    requested_track = str(label.get("track_id") or "")
     for source in records:
         frame_id = int(source.get("frame_id", -1))
         if not start <= frame_id < end:
             continue
         track_id = str(source.get("track_id", source.get("person_id", "unknown")))
-        if requested_track and track_id != requested_track:
-            continue
         record = dict(source)
         previous = by_track[track_id].get(frame_id)
         if previous is None or _record_confidence(record) > _record_confidence(previous):
