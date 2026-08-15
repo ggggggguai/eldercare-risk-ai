@@ -1,10 +1,12 @@
 # 心理健康风险算法模块
 
-更新时间：2026-08-13
+更新时间：2026-08-15
 
 本模块输出行为与睡眠变化的工程特征和独立心理健康风险事件，用于风险预警和人工复核，不输出医学诊断。心理健康与跌倒模块共享上游感知和 `AlgorithmEvent` 字段契约，但分别评分、验证和输出；本模块只产生 `module=mental_health` 事件。
 
 - 现行徘徊路线：[徘徊识别技术文档2](plans/徘徊识别技术文档2.md)
+- 拍摄手册：[萤石 C6C 办公室视频拍摄与标注手册](拍摄与标注/萤石C6C办公室视频拍摄与标注手册.md)
+- CVAT 标注员教程：[Windows 本地部署 CVAT 徘徊识别标注员教程](拍摄与标注/Windows本地部署CVAT徘徊识别标注员教程.md)
 - 当前任务：[任务表](../../tasks/README.md)
 - 跨角色接口：[徘徊模块协作交接与职责边界](徘徊模块协作交接与职责边界.md)
 - 旧完整方案：[历史归档](../../../文档/徘徊样行为识别技术方案（历史归档-2026-08-12）.md)
@@ -41,9 +43,19 @@
 11. M0-S 固定三种子训练、显式 seed 绑定、崩溃窗口恢复、逐 seed fresh reload、RF/TCN 同种子 paired 对照、成本汇总和 development primary-seed 冻结；
 12. M0-RH v3 的受信 frozen-WP 正式计分入口、固定 CPU 运行时、accessor 前 source/archive/双身份 preflight、拒绝覆盖和原子提交协议；
 13. M0-RS 固定 primary 候选的一次 WP public-holdout 计分、正式六文件固化、独立指标复算和预注册门槛判定；
-14. M0-CAM-E 将同一固定 primary 通过独立 wrapper 接入 Step7 camera adapter/QC/prepared arrays，形成逐窗分层概率、最小 episode candidate、失败闭锁、原子 bundle 与 synthetic CPU 延迟证据；M0-CAM-H 已进一步完成 synthetic-only 入口、二分类平票规则和 active model/release 源码身份三项加固。
+14. M0-CAM-E 将同一固定 primary 通过独立 wrapper 接入 Step7 camera adapter/QC/prepared arrays，形成固定 40 秒逐窗概率和同预测类别窗口事后聚合。该路径现在明确为 legacy long-context shape diagnostic；`camera_episode.py` 尚不是模型前的行为分段器。
 15. M0-CAM-RD-F/RD-F2 已完成独立 authorized-development 入口加固：三个 CLI receipt-first、primary loader threshold/evidence envelope 兼容、实际 tracking↔C3 participant/session/setup/clock 唯一绑定、session-aware eligible negative person-hours、truth mask/abstention/unavailable/error/miss 分离，以及最大基数优先的确定性 episode matching；非 fixture Python 调用会在最早入口拒绝 hooks/fake loader，公开逐窗 predictor 固定为 synthetic-only，authorized scope 只由 receipt-gated controller 的未导出内部路径产生；
-16. M0-CAM-C01-PREP/F/F2 已完成 C1 输入对 round-trip、receipt-first 视频准备、公共 provenance 边界和 final integrity 加固。active checkout/config 以 samefile 固定身份，外部路径按 receipt→collection/scope/source→output/input 顺序触碰；pair-only/video-direct 分别使用声明式和 controller 前后哈希式 `source_sha256_basis`；synthetic、pair-only 与 video-direct 共用 portable component validator。tracking/sidecar/summary 在同一 staging 重载后原子提交。仍未接收真实 C0/C1，未运行 QC 或模型评估。
+16. M0-CAM-C01-PREP/F/F2 已完成正式 collection/receipt 场景下的 C1 tracking/sidecar 准备和交接加固；这些工具保留给数据冻结、跨机交接和 sealed 评估，不继续作为本机 episode-first 小样开发的前置工作。
+17. M0-CAM-PORTABLE 已有运行资产恢复原型，F1 后续复审仍留有跨机恢复/rollback 等发布缺口，状态为 `rework_deferred`。它不阻塞当前机器上的 EP1/EP2；到实际跨机部署或正式交付前集中关闭。
+18. M0-CAM-MVP-1 已复用同一 fixed-primary builder 形成薄的 session-level 产品切片：单命令 synthetic CLI 输出完整 `primary/`、`wandering-session-evidence-v1` 和产品 manifest，保留三态、QC、episode 数量与 duration sum，并固定 person/risk/alert/diagnosis/`AlgorithmEvent` 为空。F1 已关闭后续复审发现的 descriptor-aware missing/extra、嵌套 probability/summary、非空决策字段与 final 顶层集合缺口，当前为 `implementation_complete + acceptance=passed`；证据仍仅为 `synthetic_contract_only`。
+19. M0-CAM-MVP-2S 已形成独立 `WanderingDailySummary`：完整回读一个或多个 MVP-1-F1 product final/primary，以显式 `wandering-daily-binding-v1` 绑定 synthetic person/session/timezone/track/presence，按 epoch elapsed seconds 与 IANA 自然日汇总 presence、三态 coverage、status overlap 和跨日 episode。final 固定为 canonical `daily_summary.jsonl + manifest.json`，person binding、baseline、risk/action/diagnosis/`AlgorithmEvent` 均保持 false/null；没有改动 generic daily/baseline/pipeline/config 或 fixed primary producer。
+20. M0-CAM-MVP-3S 已形成独立 `WanderingBaselineProfilePreview` v2 builder：完整回读一个或多个 MVP-2S final，按 synthetic person 隔离，使用 3/7 日 readiness、最近 14 个机械可用日和 fixed reference stats 输出 canonical `baseline_profiles.jsonl + manifest.json`；timezone/candidate/model/class/threshold/calibration/episode/night/config/duration identity 漂移会返回 `baseline_version_reset_required`。F1 已真实绑定 marker 前冻结 MVP-2S producer prefix，并让 profile 携带 exact selected `reference_days`，public loader 会重算 window/readiness 与全部统计；v1 final 明确需要重新审计，不能进入 v2 downstream。当前接受状态为 `passed`。person binding、真实 baseline/deviation、risk/action/diagnosis/`AlgorithmEvent` 均保持 false/null；没有改动 generic baseline/daily/pipeline/config、fixed candidate 或 PORTABLE。
+21. M0-CAM-MVP-3D 已形成独立 `WanderingBaselineDeviationPreview` builder 与 public loader：完整回读一个 MVP-3S v2 baseline final 和一个或多个 MVP-2S observation daily final，强制唯一 person/timezone profile、strictly-prior reference date、reference/observation manifest 隔离和完整 identity 一致；九项 metric 只输出 observation value、reference median/P90 与 signed delta。warming、无 coverage、current null 或 reference count 0 均传播 null，candidate-duration rate 允许大于 3600。producer prefix 与 consumer-only loader 从首版分隔，final 固定为 canonical `baseline_deviation_preview.jsonl + manifest.json`；接受状态为 `passed`。不输出 abnormal、综合分、概率、风险、动作或 `AlgorithmEvent`，也未接入 generic pipeline。
+22. M0-CAM-EP1A 已形成独立 `wandering_camera_episode_v1.yaml`、episode inference/importer 和两个 CLI。入口支持 truth-free 简化 boundary JSONL、CVAT for video 1.1 XML 和显式 `target_track_id` 的 whole-clip 短片；CVAT track ID 与机器 track ID 分层，boundary/truth 分文件。episode 内复用既有技术 track-break、0.5 秒 bucket、短缺口质量权重、bbox-height compensation、`prepare_camera_window()`、train-only stats 和同一 frozen candidate。`ready/unavailable/boundary_uncertain/inference_error` 分开，旧 40 秒配置和 `camera_episode.py` 未改语义。
+
+2026-08-15 的 EP1A 正式入口回归使用负责人提供的本地 development 样片派生 tracking：D01 12 条 whole-clip 均为 `ready/direct`，S00 三个 CVAT episode（0–18.60、18.60–39.73、39.73–44.73 秒）均为 `ready/direct`，逐条概率与先前临时诊断一致。S00 0–40 秒 legacy 路径仍单独为 lapping-like。成绩名称仅为 **oracle-boundary shape classification**；它证明给定人工/whole-clip 边界后的工程分类行为，不是 automatic boundary、现实 camera accuracy、告警或临床证据。详见 [EP1A 报告](../../../reports/mental_health/wandering_camera_episode_v1/README.md)。
+
+当前 EP1B 先消费本机已有 P01 4 条、L01 3 条、R01 3 条及 H01–H05 9 条剪辑，补齐实际画面复核、tracking、truth 和 EP1A 输出，再用独立批量 evaluator 计算 all-eligible 主指标与 ready-only 条件指标。除 S00 外这些剪辑当前尚无 XML/正式 episode bundle，目录名不能直接充当真值。实现与完成门见 [EP1B 执行任务书](plans/M0-CAM-EP1B执行任务书.md)。
 
 这些能力彼此隔离，不自动表示已经形成可部署的徘徊模型。
 
@@ -91,6 +103,11 @@ M0-RS 固定 primary 在 240 条 WP public holdout 上的 WP 四分类 macro-F1 
 - [TopoWander-MPT M0-CAM-E / M0-CAM-H primary camera 工程报告](../../../reports/mental_health/wandering_m0cam_engineering_v1/README.md)
 - [TopoWander-MPT M0-CAM-RD camera development 数据工具报告](../../../reports/mental_health/wandering_camera_data_readiness_v1/README.md)
 - [TopoWander-MPT M0-CAM-RD-F development entry/evaluator 加固报告](../../../reports/mental_health/wandering_camera_rd_f_v1/README.md)
+- [TopoWander-MPT M0-CAM-MVP-1 session evidence 原型报告](../../../reports/mental_health/wandering_camera_mvp1_v1/README.md)
+- [TopoWander-MPT M0-CAM-MVP-2S synthetic 日级摘要报告](../../../reports/mental_health/wandering_camera_mvp2s_v1/README.md)
+- [TopoWander-MPT M0-CAM-MVP-3S synthetic 个人基线预览报告](../../../reports/mental_health/wandering_camera_mvp3s_v1/README.md)
+- [M0-CAM-MVP-3S 独立复审](../../../reports/mental_health/wandering_camera_mvp3s_v1/MVP3S_REAUDIT_20260814.md)
+- [M0-CAM-MVP-3D synthetic baseline deviation preview 报告](../../../reports/mental_health/wandering_camera_mvp3d_v1/README.md)
 
 合成 Camera QC 与污染压力只用于工程兼容性和鲁棒性诊断：
 
@@ -109,9 +126,11 @@ M0-RH v3 已在保持相同 M0-S model/forward/performance bytes 的前提下补
 
 M0-RS 已在负责人明确授权后使用同一 primary 和唯一正式入口完成一次 WP public-holdout 计分。正式六文件通过同文件系统 staging 验证后原子提交，canonical records/order SHA 已形成；独立复算与 artifact descriptor 全部一致，结果为 `wandering_m0rs_public_holdout_scored`、`performance_status=target_met`。该结果不会用于回调模型、阈值、split、标签或协议；其后的 M0-CAM-E 仅复用该固定候选做 camera 工程接线。
 
-M0-CAM-E 已把固定 primary candidate 通过 manifest-bound loader 接入既有 Step7 adapter、Camera QC 和 prepared-array 路径，并以 CPU float32 `eval`/`inference_mode` 直接 forward ready window。逐窗输出保留完整 scope/tracklet/time/QC、binary/subtype/four-class 未校准概率和不可用零调用语义；最小 episode candidate 只在相同完整 scope、parent tracklet 与预测 shape 内合并，策略保持 `development_unfrozen`，不输出 alert、risk 或 `AlgorithmEvent`。M0-CAM-H 已完成 synthetic-only 入口、`p(wandering_like) >= 0.5` 平票规则和 active `model.py/release.py` 身份预检；fresh synthetic v4 仍为 2 ready、1 unavailable、2 个隔离 episode。状态保持 `wandering_m0cam_primary_camera_engineering_ready`，`hardening_complete=true`，证据仍严格限定为 `synthetic_contract_only`，不是 camera 性能。
+M0-CAM-E 已把固定 primary candidate 接入既有 Step7 adapter、Camera QC 和 prepared-array 路径，并以 CPU float32 `eval`/`inference_mode` 直接 forward ready 40 秒 window。逐窗输出保留 scope/tracklet/time/QC、binary/subtype/four-class 未校准概率和不可用零调用语义；所谓 episode candidate 只在相同 scope、parent tracklet 与预测 shape 内合并这些 window，不是 episode-first。它不输出 alert、risk 或 `AlgorithmEvent`，只属于 synthetic/legacy camera 工程证据。
 
-M0-CAM-RD 初版已实现匿名 collection/session manifest、C0 receipt validator、tracking+sidecar 规范化、episode annotation validator、C0-C3 readiness、authorized-development 控制流骨架和参数化 evaluator 原语；原 240 条 synthetic observation 与 `not_ready` 制品保持不变。M0-CAM-RD-F/RD-F2 已完成 receipt-first、C3/session-aware person-hours、evaluator/matching 与 authorized API provenance 加固。C01-PREP/F/F2 的 fake-media 成功测试只在 `tmp_path` 走正式 API、立即消费且不保留为 authorized evidence；F2 已关闭 active-root/samefile、resolver 顺序、source SHA basis 和 component metadata 缺口。当前状态为 `wandering_m0cam_c0_c1_handoff_hardened_waiting_owner_inputs`、`c01_f_complete=true`、`c01_f2_complete=true`；证据仍为 `synthetic_schema_contract_only`、`readiness_status=not_ready`，`C0=false/C1=false`，没有真人数据或 camera 性能。
+M0-CAM-RD/RD-F/F2 已实现正式 collection/annotation validator、session-aware person-hours、episode matching 和 evaluator 原语。正式 C0-C3 数据包尚未冻结，但用户提供的 D01/S00 已用于本机 development diagnostic；这些结果不能直接晋升为正式 camera 性能。EP1 只复用有收益的 importer、matching 和 metric 原语，不继续扩展 receipt/provenance 审计。
+
+M0-CAM-PORTABLE-F1 的执行时证据为聚焦 `100 passed`、受影响窄测 `79 passed, 4 subtests passed`、完整 camera `297 passed`、七文件 DrvFS `git archive` overlay 的 `unshare -Urn` 回归 `100 passed`，以及固定 candidate manifest-bound CPU/eval safe-load 的 forward/network attempt 0。完整 camera 回归包含 synthetic tracking 上的真实 fixed-candidate forward 和 QC，只有 production preflight 与独立 safe-load可以表述为 forward=0。后续复审证明这些数字没有覆盖 4 个可构造 P0，因此当前是 `m0cam_portable_f1_acceptance_status=rework_deferred`、`portable_software_audit_status=rework_required`、`portable_review_blocker=post_f1_findings_open`；formal 继续 blocked。这些仍不产生 camera 性能证据。见 [PORTABLE 执行时报告](../../../reports/mental_health/wandering_camera_portable_v1/README.md)和 [F1 后续复审](../../../reports/mental_health/wandering_camera_portable_v1/F1_REAUDIT_20260814.md)。
 
 独立审计从 278 条 development predictions 复算出了相同 validation 指标，并确认 materialized train/validation 的 sample ID、parent ID 和精确特征无重合。边界口径需要准确理解：共享 preprocessing container 会为完整性解析其中的 WP test 行，M0-S 的训练、validation、fresh reload 与选点路径没有使用 test；SmartCare official/raw 与 sealed camera 没有进入本次模型流程。仓库契约测试会读取 frozen accessor，Step5/Step6 也已对 WP test 做过历史评分，因此 M0-RS 只能称为固定候选的 public-holdout 计分，而不是项目级首次盲测。WanderingPatterns 没有可靠 participant/session 分组，且近邻审计有 4,054 对 `<0.05` 跨分区形状近邻，所以当前高分只属于固定公开轨迹 benchmark。
 
@@ -134,10 +153,12 @@ Step10-A 的五 seed pair-aware 预训练仍只在外部活动工作树形成候
 
 以下能力尚未完成或未获得证据：
 
-- M0-CAM-E / M0-CAM-H 只有 synthetic contract 工程证据；没有目标机位真人 development 数据，不能报告 camera accuracy/F1/recall/FAR、校准、真实 episode 或产品延迟结论；
-- M0-CAM-RD-F2、M0-CAM-C01-PREP、C01-F 与 C01-F2 及其本地 Git 集成已完成；真实数据线继续等待负责人提供合法 C0+C1，软件线当前唯一无视频任务是尚未启动的 `M0-CAM-PORTABLE`；有标签评估还需 C2+C3，现有 primary CLI 继续只接受 synthetic fixture；
-- 固定 candidate 和部分 preprocessing/detector 运行资产目前仍依赖当前机器的 ignored/local-only 文件；`M0-CAM-PORTABLE` 是首次真实 M0-CAM-D 前的软件硬门，在它通过前不能声称 fresh clone 已具备可确定复现的 C1/M0-CAM-D 运行环境，也不得启动正式 smoke；
-- M0-CAM-D 尚未取得授权 development 数据上的目标机位轨迹、覆盖率、逐窗置信度、QC/fallback、episode 指标或延迟证据；
+- automatic/semiautomatic episode boundary producer 尚未实现。技术 tracklet、转弯和行为 episode 不是同一概念；不能靠调旧 `episode_merge_gap_seconds` 解决；
+- oracle-boundary inference 与 legacy 40 秒 diagnostic 已在 EP1A 输出和报告中分离；automatic boundary+shape 尚未实现，四类 camera episode F1、boundary 指标和 candidate false activations/person-hour 仍需补齐；
+- 当前时间通道被预处理、模型配置和 forward 共同关闭。duration/speed/dwell/repetition 只能先作为模型外元数据；若以后进入模型，必须建立新配置、统计和训练候选；
+- 除 D01/S00 oracle-boundary development 回归外，已有 P/L/R/H 原始剪辑尚未完成实际画面复核、tracking、truth 和批量评估，仍缺足量可评分 pacing/lapping/random、连续自然负例和长时徘徊；不能报告 camera 95%、真实老人效果或最终 FAR；
+- M0-CAM-RD-F2、M0-CAM-C01-PREP、C01-F 与 C01-F2 已完成；[M0-CAM-MVP-1](plans/M0-CAM-MVP-1执行任务书.md)、[MVP-1-F1](plans/M0-CAM-MVP-1-F1执行任务书.md)、synthetic [MVP-2S](plans/M0-CAM-MVP-2S执行任务书.md)、[MVP-3S/F1](plans/M0-CAM-MVP-3S-F1执行任务书.md) 与 [MVP-3D](plans/M0-CAM-MVP-3D执行任务书.md) 已通过各自软件契约门。MVP-2S/3S/3D 仍固定 `person_binding_verified=false`、真实 baseline/deviation/risk/event 为空；产品代码线停在 deviation preview，真实 MVP-2R/3R/4 未启动。PORTABLE-F1 接受状态仍为 `rework_deferred`；
+- PORTABLE/F1 仍有跨机恢复和发布债务，不能声称 fresh clone 已正式可交付；这些债务不阻塞当前机器上的 EP1/EP2 开发，到实际部署/发布节点集中处理；
 - 目标摄像头授权、episode 真值和独立 sealed camera 评估；
 - 目的性行为与真正告警需求的上下文决策层；
 - 由授权标注数据支持的概率校准、OOD/uncertain 策略和冻结 episode 合并策略；
@@ -153,6 +174,7 @@ Step10-A 的五 seed pair-aware 预训练仍只在外部活动工作树形成候
 ```bash
 conda run -n eldercare-ai python -m pip show elderly-monitoring-algorithms
 conda run -n eldercare-ai python -m pytest tests/test_wandering_*.py -q
+conda run -n eldercare-ai python scripts/wandering/preflight_camera_runtime.py --project-root .
 ```
 
 完整测试只在合并或发布候选时运行；单次性能实验按技术文档2使用窄测、overfit smoke 和固定 validation evaluator。

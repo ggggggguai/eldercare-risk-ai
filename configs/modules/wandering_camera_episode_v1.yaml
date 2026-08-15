@@ -1,0 +1,59 @@
+schema_version: wandering-camera-episode-config-v1
+purpose: topowander_oracle_boundary_shape_classification
+
+camera_chain:
+  path: configs/modules/wandering_camera_v1.yaml
+  sha256: 08bbec6ef263dd45fef3262c407ce675107f87ea584584f7ab61142cd734ae8e
+  size_bytes: 2500
+
+primary_inference:
+  path: configs/modules/wandering_camera_primary_v1.yaml
+  sha256: 79f8e06e57ca355da926044828fc7a8a4c7d0e123d59767a2c86ef6c620ca2f5
+  size_bytes: 1767
+
+candidate:
+  candidate_id: topowander-m0s-seed20260731-epoch0005
+  manifest_sha256: 3a1e56c37b9b43e340dcd67a3163454da1d37f24b01d8677935f63a069d97ac7
+  model_state_sha256: 94c3c22d4caa38ece347d6a10f440b9fb3f7067b6c791ac1f259ce7efe69c031
+
+sampling:
+  bucket_seconds: 0.5
+  minimum_track_confidence: 0.25
+
+episode_qc:
+  minimum_observed_ratio: 0.75
+  maximum_internal_gap_seconds: 1.5
+  maximum_internal_gap_buckets: 3
+  maximum_boundary_gap_seconds: 1.5
+  minimum_raw_detections: 8
+  minimum_observed_buckets: 2
+  minimum_motion_extent_body_heights: 0.25
+
+model_input:
+  target_points: 80
+  input_channels: 14
+  temporal_features_enabled: false
+
+inference:
+  probability_calibrated: false
+  binary_decision_threshold: 0.5
+
+class_order:
+  binary: [direct_or_non_wandering, wandering_like]
+  subtype: [pacing, lapping, random]
+  four_class: [direct, pacing, lapping, random]
+
+boundary_sources: [simplified_jsonl, cvat_xml, whole_clip]
+
+output_schemas:
+  boundary: wandering-camera-episode-boundary-v1
+  truth: wandering-camera-episode-truth-v1
+  prediction: wandering-camera-episode-prediction-v1
+  summary: wandering-camera-episode-run-summary-v1
+
+data_access:
+  synthetic_fixture: true
+  authorized_camera_development: true
+  sealed_camera: false
+  wp_raw: false
+  smartcare_official_or_raw: false

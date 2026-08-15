@@ -7,6 +7,7 @@ import json
 import re
 import subprocess
 import sys
+from contextlib import nullcontext
 from pathlib import Path
 
 import pytest
@@ -154,6 +155,8 @@ def _forbid_protected_work(monkeypatch: pytest.MonkeyPatch) -> list[str]:
         raise AssertionError("video/runtime/temp work must remain unreachable")
 
     for name in (
+        "_resolve_portable_detector",
+        "_verify_portable_detector",
         "_resolve_video",
         "_sha256_file",
         "_probe_video",
@@ -163,6 +166,27 @@ def _forbid_protected_work(monkeypatch: pytest.MonkeyPatch) -> list[str]:
         monkeypatch.setattr(camera_collection, name, forbidden)
     monkeypatch.setattr(camera_collection.tempfile, "TemporaryDirectory", forbidden)
     return calls
+
+
+def _enable_portable_detector(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> tuple[Path, list[Path]]:
+    detector = tmp_path / "portable-runtime" / "yolov8n.pt"
+    detector.parent.mkdir(parents=True, exist_ok=True)
+    detector.write_bytes(b"synthetic local detector fixture")
+    verification_calls: list[Path] = []
+    monkeypatch.setattr(
+        camera_collection, "_resolve_portable_detector", lambda root: detector.resolve()
+    )
+
+    def verify(root: Path, observed: Path) -> Path:
+        verification_calls.append(observed)
+        assert observed.samefile(detector)
+        return detector.resolve()
+
+    monkeypatch.setattr(camera_collection, "_verify_portable_detector", verify)
+    monkeypatch.setattr(camera_collection, "_portable_network_guard", nullcontext)
+    return detector.resolve(), verification_calls
 
 
 @pytest.mark.parametrize(
@@ -357,6 +381,9 @@ def test_success_uses_fixed_shared_tracker_builds_bound_pair_and_cleans_raw_temp
     video.write_bytes(b"deterministic fake media, never decoded by this test")
     raw_parents: list[Path] = []
     tracker_calls: list[dict] = []
+    detector_path, detector_verification_calls = _enable_portable_detector(
+        tmp_path, monkeypatch
+    )
 
     def fake_tracker(**kwargs) -> int:
         tracker_calls.append(kwargs)
@@ -518,9 +545,10 @@ def test_success_uses_fixed_shared_tracker_builds_bound_pair_and_cleans_raw_temp
     assert_portable_artifact_tree(sidecar)
     assert len(tracker_calls) == 1
     assert tracker_calls[0]["video_path"] == video.resolve(strict=True)
-    assert tracker_calls[0]["model_name"] == "yolov8n.pt"
+    assert Path(tracker_calls[0]["model_name"]).samefile(detector_path)
     assert tracker_calls[0]["tracker_config"] == "bytetrack.yaml"
     assert tracker_calls[0]["max_frames"] is None
+    assert detector_verification_calls == [detector_path]
     assert all(not path.exists() for path in raw_parents)
     reloaded = load_camera_inputs(
         output / "tracking.jsonl",
@@ -539,6 +567,7 @@ def test_raw_temp_is_cleaned_when_tracker_fails(
         tmp_path, receipt=_receipt(), collection=_collection()
     )
     (tmp_path / "fake-video.mp4").write_bytes(b"fake")
+    _enable_portable_detector(tmp_path, monkeypatch)
     raw_parents: list[Path] = []
 
     def failed_tracker(**kwargs) -> int:
@@ -571,6 +600,116 @@ def test_raw_temp_is_cleaned_when_tracker_fails(
     assert not (tmp_path / "prepared-c1").exists()
 
 
+def test_network_attempt_inside_tracker_is_denied_and_mapped_to_collection_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    receipt_path, collection_path = _write_inputs(
+        tmp_path, receipt=_receipt(), collection=_collection()
+    )
+    (tmp_path / "fake-video.mp4").write_bytes(b"fake")
+    detector = tmp_path / "portable-runtime" / "yolov8n.pt"
+    detector.parent.mkdir(parents=True)
+    detector.write_bytes(b"synthetic local detector fixture")
+    monkeypatch.setattr(
+        camera_collection, "_resolve_portable_detector", lambda root: detector.resolve()
+    )
+    monkeypatch.setattr(
+        camera_collection,
+        "_verify_portable_detector",
+        lambda root, observed: detector.resolve(),
+    )
+
+    def network_tracker(**kwargs) -> int:
+        import socket
+
+        socket.create_connection(("example.invalid", 443))
+        raise AssertionError("network denial must stop the tracker")
+
+    monkeypatch.setattr(
+        camera_collection,
+        "_probe_video",
+        lambda path: camera_collection._VideoMetadata(
+            width=640, height=480, fps=25.0, frame_count=25
+        ),
+    )
+    monkeypatch.setattr(
+        camera_collection,
+        "_load_tracking_runtime",
+        lambda: camera_collection._TrackingRuntime(
+            run=network_tracker,
+            detector_backend="ultralytics_yolo",
+            detector_version="test-version",
+            tracker_backend="bytetrack",
+            tracker_version="test-version",
+        ),
+    )
+    with pytest.raises(
+        CameraCollectionPreparationError, match="network guard"
+    ):
+        _call(tmp_path, receipt_path, collection_path)
+    assert not (tmp_path / "prepared-c1").exists()
+
+
+def test_swallowed_network_attempt_inside_tracker_still_blocks_final(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    receipt_path, collection_path = _write_inputs(
+        tmp_path, receipt=_receipt(), collection=_collection()
+    )
+    (tmp_path / "fake-video.mp4").write_bytes(b"fake")
+    detector = tmp_path / "portable-runtime" / "yolov8n.pt"
+    detector.parent.mkdir(parents=True)
+    detector.write_bytes(b"synthetic local detector fixture")
+    token = object()
+    monkeypatch.setattr(
+        camera_collection, "_resolve_portable_detector", lambda root: token
+    )
+    monkeypatch.setattr(
+        camera_collection,
+        "_verify_portable_detector",
+        lambda root, observed: detector.resolve(),
+    )
+
+    def swallowing_tracker(**kwargs) -> int:
+        import socket
+        from elderly_monitoring.modules.mental_health.wandering.camera_portability import (
+            NetworkAccessDeniedError,
+        )
+
+        try:
+            socket.create_connection(("example.invalid", 443))
+        except NetworkAccessDeniedError:
+            pass
+        kwargs["output_path"].write_text(
+            '{"frame_id":1,"track_id":7,"bbox":[10,20,50,80],'
+            '"track_confidence":0.91,"timestamp_sec":0.04}\n',
+            encoding="utf-8",
+        )
+        return 1
+
+    monkeypatch.setattr(
+        camera_collection,
+        "_probe_video",
+        lambda path: camera_collection._VideoMetadata(
+            width=640, height=480, fps=25.0, frame_count=25
+        ),
+    )
+    monkeypatch.setattr(
+        camera_collection,
+        "_load_tracking_runtime",
+        lambda: camera_collection._TrackingRuntime(
+            run=swallowing_tracker,
+            detector_backend="ultralytics_yolo",
+            detector_version="test-version",
+            tracker_backend="bytetrack",
+            tracker_version="test-version",
+        ),
+    )
+    with pytest.raises(CameraCollectionPreparationError, match="network guard"):
+        _call(tmp_path, receipt_path, collection_path)
+    assert not (tmp_path / "prepared-c1").exists()
+
+
 @pytest.mark.parametrize(
     ("field", "bad"),
     [
@@ -592,6 +731,7 @@ def test_runtime_component_attacks_fail_before_raw_temp_and_tracker(
         tmp_path, receipt=_receipt(), collection=_collection()
     )
     (tmp_path / "fake-video.mp4").write_bytes(b"fake")
+    _enable_portable_detector(tmp_path, monkeypatch)
     tracker_calls: list[str] = []
     temp_calls: list[str] = []
 
@@ -804,6 +944,7 @@ def test_same_length_video_mutation_after_tracker_fails_and_cleans_everything(
     )
     video = tmp_path / "fake-video.mp4"
     video.write_bytes(b"original-bytes")
+    _enable_portable_detector(tmp_path, monkeypatch)
     raw_parents: list[Path] = []
 
     def mutating_tracker(**kwargs) -> int:

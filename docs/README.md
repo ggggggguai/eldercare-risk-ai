@@ -1,6 +1,6 @@
 # 项目文档
 
-更新时间：2026-08-13
+更新时间：2026-08-15
 
 本页是文档唯一总入口。现行文档描述当前代码和接口；计划文档描述目标；归档文档只保留历史上下文，不能作为当前实现依据。
 
@@ -61,7 +61,18 @@
 | 评估 | [近跌倒恢复确认 TCN pilot](../reports/fall_risk/near_fall_event_v1/README.md) | 当前 v3 split 的三 seed validation、窗口来源限制和 test 隔离状态；不是 onset-time 预警指标 |
 | 复现 | [实时链路工程回归](../reports/fall_risk/runtime/README.md) | 阶段 0/1 的固定输入 hash、离线服务烟测与时钟/队列诊断；不是效果指标 |
 | 心理健康 | [模块 README](modules/mental_health/README.md) | 日级聚合、基线、评分、离线 CLI，以及隔离徘徊数据管线的当前边界 |
-| 心理健康 | [徘徊识别技术文档2](modules/mental_health/plans/徘徊识别技术文档2.md) | 现行唯一技术路线：TCN + Transformer 模型闭环、95% 指标口径、轻量治理和目标摄像头采集/标注路线 |
+| 心理健康 | [徘徊识别技术文档2](modules/mental_health/plans/徘徊识别技术文档2.md) | 现行唯一技术路线：完整 episode 为主判别、legacy 40 秒为长上下文诊断、目的/持续性告警分层，以及 TCN + Transformer 与目标摄像头评估路线 |
+| 心理健康 | [M0-CAM-EP1B 执行任务书](modules/mental_health/plans/M0-CAM-EP1B执行任务书.md) | 当前代码目标：复用 EP1A 批量连接独立 truth/prediction，形成 all-eligible 主指标、ready-only 诊断、QC/时长/目的性分层和真实四类小样报告；附可直接交给 Codex 的最高推理强度提示词 |
+| 心理健康 | [萤石 C6C 办公室视频拍摄与标注手册](modules/mental_health/拍摄与标注/萤石C6C办公室视频拍摄与标注手册.md) | 面向拍摄人员的完整 episode 优先、自然活动长片、legacy 40 秒诊断、质量检查和命名指南 |
+| 心理健康 | [Windows 本地部署 CVAT 徘徊识别标注员教程](modules/mental_health/拍摄与标注/Windows本地部署CVAT徘徊识别标注员教程.md) | 面向标注同学的本地 CVAT 部署、真实 episode Rectangle Track、轨迹与目的分离、导出和交接指南 |
+| 心理健康 | [M0-CAM-PORTABLE 执行任务书](modules/mental_health/plans/M0-CAM-PORTABLE执行任务书.md) | PORTABLE 首次实现的固定资产、离线恢复、零视频 preflight 与隔离验收协议；首次实现已结束，formal 仍 blocked |
+| 心理健康 | [M0-CAM-PORTABLE-F1 执行任务书](modules/mental_health/plans/M0-CAM-PORTABLE-F1执行任务书.md) | F1 原执行设计与历史测试证据；当前作为跨机部署/正式发布前 `rework_deferred` 债务，不阻塞本机 episode-first 开发 |
+| 心理健康 | [M0-CAM-MVP-1 执行任务书](modules/mental_health/plans/M0-CAM-MVP-1执行任务书.md) | session-level WanderingEvidence 实现协议；主功能与 F1 exact-schema 接受门均已完成 |
+| 心理健康 | [M0-CAM-MVP-1-F1 执行任务书](modules/mental_health/plans/M0-CAM-MVP-1-F1执行任务书.md) | 已完成 primary/product exact-schema 和非空风险/事件字段边界收口；未展开日级风险 |
+| 心理健康 | [M0-CAM-MVP-2S 执行任务书](modules/mental_health/plans/M0-CAM-MVP-2S执行任务书.md) | 已完成：用已验收 synthetic session bundle 和显式 binding 构建 exact-schema 日级摘要；不接真实 identity、基线、风险或事件 |
+| 心理健康 | [M0-CAM-MVP-3S 执行任务书](modules/mental_health/plans/M0-CAM-MVP-3S执行任务书.md) | 主体与 F1 接受门已完成；v2 profile 携带可独立重算的 reference-day evidence，现行接受状态为 `passed` |
+| 心理健康 | [M0-CAM-MVP-3S-F1 执行任务书](modules/mental_health/plans/M0-CAM-MVP-3S-F1执行任务书.md) | 已完成：真实校验冻结 producer prefix，并由 public loader 重算 v2 window/readiness/reference stats |
+| 心理健康 | [M0-CAM-MVP-3D 执行任务书](modules/mental_health/plans/M0-CAM-MVP-3D执行任务书.md) | 已完成：用严格早于 observation day 的 synthetic profile 生成九项 signed deviation preview；接受状态 passed，不输出风险或事件 |
 | 心理健康 | [徘徊模块协作交接与职责边界](modules/mental_health/徘徊模块协作交接与职责边界.md) | 按角色分配徘徊模块上下游交付、验收标准和阻塞条件 |
 | 复现 | [徘徊步骤 2 转换与复核](../reports/mental_health/wandering_step2/README.md) | WanderingPatterns/SmartCare 来源哈希、转换统计、异常、确定性证据和人工联系表入口 |
 | 复现 | [徘徊步骤 3 固定 split](../reports/mental_health/wandering_step3/README.md) | 1,810 条来源专用固定分配、official 封存、重复/近邻审计、五产物和完整哈希 |
@@ -77,11 +88,19 @@
 | 复现 | [TopoWander-MPT M0-RH score-entry hardening v3](../reports/mental_health/wandering_performance/m0r_score_entry_hardening_v1/README.md) | 唯一 `score-frozen-wp` 正式入口、固定 CPU runtime、source/archive/双身份 preflight、validation parity 与拒绝覆盖原子提交；作为 M0-RS 的冻结前置证据 |
 | 评估 | [TopoWander-MPT M0-RS fixed WP public-holdout score](../reports/mental_health/wandering_performance/m0rs_public_holdout_score_report_v1/README.md) | 固定 primary 候选的一次 public-shape 计分、六文件原子输出、独立复算与预注册门槛判定；`target_met`，不是首次盲测或 camera/老人域证据 |
 | 复现 | [TopoWander-MPT M0-CAM-E / M0-CAM-H primary camera 工程闭环](../reports/mental_health/wandering_m0cam_engineering_v1/README.md) | 固定 primary 接入 Step7 adapter/QC/prepared arrays，并完成 synthetic-only、二分类平票与 active-source 三项加固；仅为 `synthetic_contract_only`，当前数据工具与授权评估见任务表 |
+| 复现 | [TopoWander-MPT M0-CAM-EP1A oracle-boundary episode inference](../reports/mental_health/wandering_camera_episode_v1/README.md) | truth-separated CVAT/whole-clip boundary、episode 内 QC、80 点 frozen forward，以及 D01 12 条和 S00 三段正式入口回归；不是 automatic boundary 或 camera accuracy 证据 |
 | 复现 | [TopoWander-MPT M0-CAM-RD camera development 数据工具](../reports/mental_health/wandering_camera_data_readiness_v1/README.md) | 初版 240 条 synthetic observation、schema/readiness 与历史工具骨架；制品保持不变，真实 readiness 仍为 `not_ready` |
 | 复现 | [TopoWander-MPT M0-CAM-RD-F / RD-F2 development entry hardening](../reports/mental_health/wandering_camera_rd_f_v1/README.md) | receipt-first、C3、session-aware person-hours、evaluator、最大基数 matching 和 authorized API provenance 已收口；证据仍为 `synthetic_schema_contract_only`、`readiness_status=not_ready`，当前工作见任务表 |
 | 复现 | [TopoWander-MPT M0-CAM-C01-PREP receipt-first C1 handoff](../reports/mental_health/wandering_camera_c01_prep_v1/README.md) | canonical tracking/sidecar round-trip、receipt-first 视频→共享 tracker→C1 pair 主体及 owner 清单；原定初版缺口由 C01-F 处理，后续完整关闭见任务表中的 F2 |
 | 复现 | [TopoWander-MPT M0-CAM-C01-F provenance and final-binding hardening](../reports/mental_health/wandering_camera_c01_f_v1/README.md) | C01-F 原定公共 context、原子 safe binding、portable metadata 与视频 SHA 范围已完成；后续 active-root/resolver/source/component 审计已由 F2 收口，仅为 `synthetic_schema_contract_only`，实时状态见任务表 |
-| 复现 | [TopoWander-MPT M0-CAM-C01-F2 handoff integrity hardening](../reports/mental_health/wandering_camera_c01_f2_v1/README.md) | active checkout/config samefile、receipt-first resolver、统一 source SHA basis 与 portable component metadata 已收口并完成本地 Git 集成；仅为 `synthetic_schema_contract_only`，真实数据线等待 owner C0+C1，当前唯一无视频软件任务是尚未启动的 `M0-CAM-PORTABLE` |
+| 复现 | [TopoWander-MPT M0-CAM-C01-F2 handoff integrity hardening](../reports/mental_health/wandering_camera_c01_f2_v1/README.md) | 正式 collection/receipt 跨机交接的历史加固证据；本机 episode-first 小样开发不再以继续扩展该审计链为前置 |
+| 复现 | [TopoWander-MPT M0-CAM-PORTABLE runtime assets and zero-video preflight](../reports/mental_health/wandering_camera_portable_v1/README.md) | 首次实现与 F1 执行时测试快照；当前接受状态由任务表和后续复审决定，formal 仍 blocked，不是 camera 性能证据 |
+| 复现 | [TopoWander-MPT M0-CAM-MVP-1 session evidence prototype](../reports/mental_health/wandering_camera_mvp1_v1/README.md) | 首次实现与 F1 synthetic 验证记录；当前接受状态为 passed，但不输出风险或 AlgorithmEvent |
+| 审计 | [M0-CAM-MVP-1 复审与 F1 关闭记录](../reports/mental_health/wandering_camera_mvp1_v1/MVP1_REAUDIT_20260814.md) | exact-schema/decision-boundary P1 复现、F1 修复证据与接受状态恢复 |
+| 复现 | [M0-CAM-MVP-2S synthetic 日级摘要](../reports/mental_health/wandering_camera_mvp2s_v1/README.md) | 显式 synthetic binding、epoch/IANA 自然日、presence/status coverage、episode 日级切分与空 baseline/risk/event 边界 |
+| 复现 | [M0-CAM-MVP-3S synthetic 个人基线预览](../reports/mental_health/wandering_camera_mvp3s_v1/README.md) | v2 builder、reference-day readback 与 F1 自动化/synthetic 收据；接受状态 passed |
+| 审计 | [M0-CAM-MVP-3S 独立复审与关闭记录](../reports/mental_health/wandering_camera_mvp3s_v1/MVP3S_REAUDIT_20260814.md) | producer prefix identity 与 rehashed reference stats 两个假通过的复现、影响和 F1 关闭证据 |
+| 复现 | [M0-CAM-MVP-3D synthetic baseline deviation preview](../reports/mental_health/wandering_camera_mvp3d_v1/README.md) | strictly-prior-day、九项 signed delta、exact-schema loader 与 Git 外 synthetic 攻击收据；接受状态 passed |
 | 历史 | [徘徊样行为识别旧方案](../文档/徘徊样行为识别技术方案（历史归档-2026-08-12）.md) | 截至 2026-08-12 的旧步骤、报告和精确协议，仅供追溯，不代表现行路线 |
 | 任务 | [当前任务](tasks/README.md) | 项目待办和验证缺口 |
 
