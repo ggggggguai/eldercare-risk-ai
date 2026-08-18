@@ -50,6 +50,13 @@ class RealtimeFallRiskEngine:
         )
         return event
 
+    def update_baseline_period(self, record: Mapping[str, Any] | None) -> dict[str, Any] | None:
+        """Forward an upstream completed period to the feature assembler."""
+        updater = getattr(self.assembler, "update_baseline_period", None)
+        if updater is None:
+            raise RuntimeError("feature assembler does not support baseline period updates")
+        return updater(record)
+
     def reset_window(
         self,
         *,
@@ -86,6 +93,53 @@ class FallRiskSessionEngine:
                 window_frames=int(kwargs.get("gait_model_window_frames", 16)),
                 expected_task="gait_instability_vs_normal_activity",
             )
+        sit_stand_predictor = None
+        sit_stand_runtime_mode = str(
+            kwargs.get("sit_stand_runtime_mode", "rule_baseline")
+        )
+        if sit_stand_runtime_mode == "experimental_tcn":
+            sit_stand_model_path = kwargs.get("sit_stand_model_path")
+            if not sit_stand_model_path:
+                raise ValueError(
+                    "sit_stand_model_path is required for experimental_tcn"
+                )
+            from elderly_monitoring.modules.fall_risk.sit_stand_continuous_inference import (
+                ExperimentalSitStandTCNPredictor,
+            )
+
+            sit_stand_predictor = ExperimentalSitStandTCNPredictor(
+                sit_stand_model_path,
+                device=str(kwargs.get("sit_stand_model_device", "cpu")),
+                batch_size=int(kwargs.get("sit_stand_model_batch_size", 128)),
+            )
+        elif sit_stand_runtime_mode != "rule_baseline":
+            raise ValueError(
+                "sit_stand_runtime_mode must be rule_baseline or experimental_tcn"
+            )
+        fall_event_predictor = None
+        fall_event_runtime_mode = str(
+            kwargs.get("fall_event_runtime_mode", "shadow")
+        )
+        if fall_event_runtime_mode not in {"shadow", "experimental_tcn"}:
+            raise ValueError(
+                "fall_event_runtime_mode must be shadow or experimental_tcn"
+            )
+        shadow_paths = tuple(kwargs.get("fall_event_shadow_checkpoint_paths") or ())
+        if shadow_paths:
+            if fall_event_runtime_mode == "experimental_tcn":
+                from elderly_monitoring.modules.fall_risk.fall_event_continuous_tcn import (
+                    ContinuousFallTCNRuntimePredictor as Predictor,
+                )
+            else:
+                from elderly_monitoring.modules.fall_risk.fall_event_continuous_tcn import (
+                    ContinuousFallTCNShadowPredictor as Predictor,
+                )
+
+            fall_event_predictor = Predictor(
+                shadow_paths,
+                device=str(kwargs.get("fall_event_shadow_device", "cpu")),
+                threshold=float(kwargs.get("fall_event_shadow_threshold", 0.5)),
+            )
         self.assembler = FeatureAssembler(
             person_id=session.person_id,
             device_id=session.device_id,
@@ -95,6 +149,9 @@ class FallRiskSessionEngine:
             baseline_history=history,
             fall_state_config=FallStateConfig(**dict(kwargs.get("fall_state") or {})),
             gait_predictor=gait_predictor,
+            sit_stand_predictor=sit_stand_predictor,
+            fall_event_predictor=fall_event_predictor,
+            fall_event_runtime_mode=fall_event_runtime_mode,
         )
         self.engine = RealtimeFallRiskEngine(assembler=self.assembler, fusion_interval_sec=float(kwargs.get("fusion_interval_sec", 2.0)))
         self.policy = EventPolicy(cooldown_sec=float(kwargs.get("event_cooldown_sec", 30.0)))
@@ -147,6 +204,10 @@ class FallRiskSessionEngine:
             source_time_sec=0.0,
             monotonic_sec=self._epoch_started_monotonic_sec,
         )
+
+    def update_baseline_period(self, record: Mapping[str, Any] | None) -> dict[str, Any] | None:
+        """Submit or clear the latest completed personal-baseline period."""
+        return self.engine.update_baseline_period(record)
 
     def begin_stream_epoch(
         self,
@@ -281,7 +342,13 @@ class FallRiskSessionEngine:
             )
         observation_status = "unavailable"
         if snapshot is not None:
-            fall_diagnostic = snapshot.branch_diagnostics.get("fall_state", {})
+            score_source = snapshot.features.get("fall_event_score_source")
+            branch_name = (
+                "fall_event_tcn"
+                if score_source == "continuous_tcn"
+                else "fall_state"
+            )
+            fall_diagnostic = snapshot.branch_diagnostics.get(branch_name, {})
             observation_status = str(fall_diagnostic.get("status", "unavailable"))
         if event is not None:
             self._process_algorithm_event(

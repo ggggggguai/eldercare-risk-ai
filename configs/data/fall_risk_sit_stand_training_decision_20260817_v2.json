@@ -1,0 +1,23 @@
+{
+  "schema_version": "sit-stand-source-label-decision-v2",
+  "decision_id": "sit_stand_training_data_v2_20260817",
+  "approved_by_role": "project_owner",
+  "approval_source": "interactive_user_confirmation_20260817_scf_mvp_v1_published",
+  "source_action_labels_sha256": "c439acdcb0bb712dce2ce64f72eb19203fc71fa6639d27f44e6aabdbb2509f59",
+  "source_split_id": "splitv3_3342705b7b1ac51570148337",
+  "reuse_source_annotator_as_review_evidence": true,
+  "reuse_source_boundary_and_action_type": true,
+  "unlabelled_background_inference_allowed": false,
+  "test_truth_publication_allowed": false,
+  "auxiliary_train_datasets": ["self_collected_scf"],
+  "scf_allowed_subsets": ["P01", "P02", "P04"],
+  "scf_challenge_subsets": ["P05"],
+  "scf_excluded_subsets": ["P03"],
+  "sampling_policy": "balanced_causal_v2",
+  "notes": [
+    "All reviewed action intervals are reused only within their annotated boundaries; unlabelled gaps are not synthesized as background.",
+    "SCF_MVP_V1 P01/P02/P04 is auxiliary train-only supervision and the root v3 migration preserves that tier.",
+    "P05 remains challenge-only and P03 remains excluded; neither may enter the sit-stand development split.",
+    "The task-specific split protects subject, source, sample, video, event and source-action identities and never reads test pose."
+  ]
+}

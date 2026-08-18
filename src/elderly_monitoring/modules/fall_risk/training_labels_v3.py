@@ -338,7 +338,14 @@ def migrate_v2_training_labels(
                     "reviewed decision would duplicate an action/task event: "
                     f"{action['label_id']}:{task_type}"
                 )
-            events_v3.append(_event_negative_from_action(action, rule))
+            event_tier_cap = _required_manifest(
+                manifests, str(action["video_id"])
+            ).get("training_tier_cap")
+            events_v3.append(
+                _event_negative_from_action(
+                    action, rule, training_tier_cap=event_tier_cap
+                )
+            )
             occupied_action_targets.add(target)
             matched_reviewed_directives[str(rule["directive_key"])] += 1
             reviewed_decision_matches[str(rule["match_category"])] += 1
@@ -390,7 +397,14 @@ def migrate_v2_training_labels(
                 "manual and reviewed decisions target the same action/task: "
                 f"{action['label_id']}:{decision['task_type']}"
             )
-        events_v3.append(_event_negative_from_action(action, decision))
+        event_tier_cap = _required_manifest(
+            manifests, str(action["video_id"])
+        ).get("training_tier_cap")
+        events_v3.append(
+            _event_negative_from_action(
+                action, decision, training_tier_cap=event_tier_cap
+            )
+        )
         occupied_action_targets.add(target)
         matched_manual_negative_decisions.add(decision_key)
 
@@ -651,6 +665,7 @@ def build_training_split_v3(
     event_rows: Sequence[Mapping[str, Any]],
     seed: str,
     ratios: Mapping[str, float] = DEFAULT_SPLIT_RATIOS,
+    inherited_assignment_rows: Sequence[Mapping[str, Any]] = (),
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Build one deterministic split shared by v3 action and event labels."""
 
@@ -669,6 +684,44 @@ def build_training_split_v3(
     ]
     if not labels:
         raise ValueError("cannot build a split without v3 labels")
+    labels_by_id: dict[str, tuple[str, Mapping[str, Any]]] = {}
+    for kind, row in labels:
+        label_id = _required_string(row, "label_id")
+        if label_id in labels_by_id:
+            raise ValueError(f"duplicate v3 split label_id: {label_id}")
+        labels_by_id[label_id] = (kind, row)
+    inherited_by_label: dict[str, Mapping[str, Any]] = {}
+    inherited_rows_by_asset: dict[str, list[Mapping[str, Any]]] = defaultdict(list)
+    for inherited in inherited_assignment_rows:
+        asset_id = _required_string(inherited, "asset_id")
+        inherited_rows_by_asset[asset_id].append(inherited)
+        label_id = _required_string(inherited, "label_id")
+        if label_id not in labels_by_id:
+            continue
+        if label_id in inherited_by_label:
+            raise ValueError(f"duplicate inherited split label_id: {label_id}")
+        kind, label = labels_by_id[label_id]
+        expected = {
+            "label_kind": kind,
+            "asset_id": label.get("asset_id"),
+            "video_id": label.get("video_id"),
+            "source_group_id": label.get("source_group_id"),
+            "sample_group_id": label.get("sample_group_id"),
+            "content_sha256": label.get("content_sha256"),
+            "training_tier": label.get("training_tier"),
+        }
+        mismatched = [
+            field
+            for field, expected_value in expected.items()
+            if inherited.get(field) != expected_value
+        ]
+        if mismatched:
+            raise ValueError(
+                f"inherited split label mismatch for {label_id}: {mismatched}"
+            )
+        if inherited.get("partition") not in SPLIT_PARTITIONS:
+            raise ValueError(f"invalid inherited split partition for {label_id}")
+        inherited_by_label[label_id] = inherited
 
     labels_by_asset: dict[str, list[tuple[str, Mapping[str, Any]]]] = defaultdict(list)
     for kind, row in labels:
@@ -676,6 +729,34 @@ def build_training_split_v3(
         if asset_id not in manifests:
             raise ValueError(f"label asset_id missing from manifest: {asset_id}")
         labels_by_asset[asset_id].append((kind, row))
+
+    inherited_partition_by_asset: dict[str, str] = {}
+    inherited_group_by_asset: dict[str, str] = {}
+    for asset_id, inherited_rows in inherited_rows_by_asset.items():
+        if asset_id not in labels_by_asset:
+            continue
+        partitions = {str(row.get("partition")) for row in inherited_rows}
+        group_ids = {str(row.get("split_group_id")) for row in inherited_rows}
+        if len(partitions) != 1 or not partitions <= set(SPLIT_PARTITIONS):
+            raise ValueError(f"inherited asset {asset_id} has conflicting partitions")
+        if len(group_ids) != 1:
+            raise ValueError(f"inherited asset {asset_id} has conflicting split groups")
+        for field in (
+            "video_id",
+            "source_group_id",
+            "sample_group_id",
+            "content_sha256",
+        ):
+            inherited_values = {str(row.get(field)) for row in inherited_rows}
+            current_values = {
+                str(row.get(field)) for _, row in labels_by_asset[asset_id]
+            }
+            if inherited_values != current_values:
+                raise ValueError(
+                    f"inherited asset mismatch for {asset_id}: {field}"
+                )
+        inherited_partition_by_asset[asset_id] = next(iter(partitions))
+        inherited_group_by_asset[asset_id] = next(iter(group_ids))
 
     union_find = _UnionFind(labels_by_asset)
     token_owner: dict[str, str] = {}
@@ -704,6 +785,38 @@ def build_training_split_v3(
     partition_by_component = _balanced_component_partitions(
         components, seed=seed, ratios=normalized_ratios
     )
+    for component_id, members, _ in components:
+        fixed_partitions = {
+            str(manifests[asset_id]["split_partition"])
+            for asset_id in members
+            if manifests[asset_id].get("split_partition") is not None
+        }
+        inherited_partitions = {
+            inherited_partition_by_asset[asset_id]
+            for asset_id in members
+            if asset_id in inherited_partition_by_asset
+        }
+        inherited_group_ids = {
+            inherited_group_by_asset[asset_id]
+            for asset_id in members
+            if asset_id in inherited_group_by_asset
+        }
+        if inherited_group_ids and inherited_group_ids != {component_id}:
+            raise ValueError(
+                f"component {component_id} does not match inherited split group"
+            )
+        fixed_partitions.update(inherited_partitions)
+        if not fixed_partitions:
+            continue
+        if not fixed_partitions <= set(SPLIT_PARTITIONS):
+            raise ValueError(
+                f"component {component_id} has an invalid fixed split partition"
+            )
+        if len(fixed_partitions) != 1:
+            raise ValueError(
+                f"component {component_id} has conflicting fixed split partitions"
+            )
+        partition_by_component[component_id] = next(iter(fixed_partitions))
     component_by_asset: dict[str, str] = {}
     partition_by_asset: dict[str, str] = {}
     for component_id, members, _ in components:
@@ -765,6 +878,11 @@ def build_training_split_v3(
             assignments, _split_label_index(action_rows, event_rows)
         ),
         "allocation_method": "deterministic_group_level_supervision_balance",
+        "inherited_assignment_count": sum(
+            len(labels_by_asset[asset_id])
+            for asset_id in inherited_partition_by_asset
+        ),
+        "inherited_asset_count": len(inherited_partition_by_asset),
         "leakage_issues": [],
     }
     return assignments, report
@@ -779,6 +897,7 @@ def write_training_split_v3(
     report_path: Path | str,
     seed: str,
     ratios: Mapping[str, float] = DEFAULT_SPLIT_RATIOS,
+    inherited_assignments_path: Path | str | None = None,
     overwrite: bool = False,
 ) -> dict[str, Any]:
     input_paths = {
@@ -789,12 +908,21 @@ def write_training_split_v3(
     assignments_output = Path(assignments_path)
     report_output = Path(report_path)
     _ensure_outputs_available([assignments_output, report_output], overwrite=overwrite)
+    inherited_source = (
+        Path(inherited_assignments_path)
+        if inherited_assignments_path is not None
+        else None
+    )
+    inherited_rows = (
+        read_jsonl_strict(inherited_source) if inherited_source is not None else []
+    )
     assignments, report = build_training_split_v3(
         manifest_rows=read_jsonl_strict(input_paths["manifest"]),
         action_rows=read_jsonl_strict(input_paths["action_labels"]),
         event_rows=read_jsonl_strict(input_paths["event_labels"]),
         seed=seed,
         ratios=ratios,
+        inherited_assignment_rows=inherited_rows,
     )
     _write_jsonl_atomic(assignments_output, assignments)
     report = {
@@ -802,6 +930,16 @@ def write_training_split_v3(
         "input_sha256": {key: _sha256_file(path) for key, path in input_paths.items()},
         "assignments_sha256": _sha256_file(assignments_output),
     }
+    if inherited_source is not None:
+        report["inherited_assignments"] = {
+            "sha256": _sha256_file(inherited_source),
+        }
+        try:
+            report["inherited_assignments"]["path"] = inherited_source.resolve().relative_to(
+                Path.cwd().resolve()
+            ).as_posix()
+        except ValueError:
+            pass
     report["split_id"] = _stable_id(
         "splitv3",
         report["seed"],
@@ -1900,7 +2038,10 @@ def _event_ignore_from_action(
 
 
 def _event_negative_from_action(
-    action: Mapping[str, Any], decision: Mapping[str, Any]
+    action: Mapping[str, Any],
+    decision: Mapping[str, Any],
+    *,
+    training_tier_cap: Any = None,
 ) -> dict[str, Any]:
     common = {
         key: action[key]
@@ -1926,6 +2067,14 @@ def _event_negative_from_action(
     }
     if decision.get("event_training_tier") is not None:
         common["training_tier"] = str(decision["event_training_tier"])
+    if training_tier_cap is not None:
+        cap = str(training_tier_cap)
+        if cap not in _TIER_RANK:
+            raise ValueError(f"invalid event training_tier_cap: {cap}")
+        common["training_tier"] = min(
+            (str(common["training_tier"]), cap),
+            key=lambda tier: _TIER_RANK[tier],
+        )
     task_type = str(decision["task_type"])
     return {
         **common,
@@ -2067,6 +2216,13 @@ def _common_from_v2_action(
         training_tier = "auxiliary"
     else:
         training_tier = "primary"
+    tier_cap = manifest.get("training_tier_cap")
+    if tier_cap is not None:
+        if tier_cap not in _TIER_RANK:
+            raise ValueError(f"invalid manifest training_tier_cap: {tier_cap}")
+        training_tier = min(
+            (training_tier, str(tier_cap)), key=lambda tier: _TIER_RANK[tier]
+        )
     track = (
         None
         if is_official_clip_source or is_manual_exact_clip_source

@@ -203,7 +203,7 @@ conda run -n eldercare-ai python scripts/annotation/migrate_fall_labels_v2_to_v3
 - 明确动作只按裁决映射为 task-specific negative；`partial_occlusion` 可在事件任务中由复核决定成为 primary `occlusion_or_camera_motion`，但动作任务层级仍保持 auxiliary。重遮挡、出画、多人不确定和 U01 不生成 negative。
 - 未标注背景和 LE2I `0/0` 不自动生成 negative。
 
-当前输出为 9,314 条动作和 9,498 条事件窗口，其中 event positive=3,265、negative=5,975、ignore=258；fall 正/负=2,303/1,774，near-fall 正/负=962/4,201。项目裁决的 36 个展开指令全部匹配：446 条 NTU 全片跌倒使用 `[0, frame_count)` 精确边界，962 条 C03 生成双向关联正例，7 条 UR Fall A07 为 `bed_entry_or_exit`，其余动作/事件生成完整的 7 类 fall 和 8 类 near-fall hard negative。该裁决是项目负责人对现有规范标签语义的 adjudication，保留原 annotator，不虚构第二名复核员；也不构成老人域或连续监控数据。
+当前输出为 9,612 条动作和 9,651 条事件窗口，其中 event positive=3,284、negative=6,109、ignore=258；fall 正/负=2,303/1,827，near-fall 正/负=981/4,282。SCF 的 451 条 assignment 全部固定在 train。
 
 ### 11.1 发布新增人工近跌倒 v3 候选
 
@@ -253,7 +253,7 @@ conda run -n eldercare-ai python scripts/annotation/validate_fall_labels_v3.py \
 
 只有候选报告同时满足 `valid=true` 和 `training_ready.near_fall_event=true`，且人工检查确认 train/validation 的人员、来源、场景和八类 hard negative 覆盖足够，才能准备真实 train/validation 数据。此步骤不读取 test 姿态、不输出 test 指标，也不能通过拆分同一受试者或来源组改善数字。
 
-正式 v3 split 有 18,812 条标签分配、6,516 个资产和 184 个保守泄漏组，校验未发现跨 partition 泄漏。primary fall 正/负按 train/validation/test 分为 `74/7/14` 和 `958/396/369`；primary near-fall 正/负为 `348/300/300` 和 `1109/364/433`。NTU 按受试者组不跨 partition，Pre_VFallp 维持一个保守源组，CaucaFall 按 10 名受试者分组；不能为了改善分区数字而拆散保护组。旧 v2 `fall_event_v1` split 不适用于 v3。
+正式 v3 split 有 19,263 条标签分配、6,666 个资产和 187 个保守泄漏组，校验未发现跨 partition 泄漏。SCF P01/P02/P04 强制位于 train，P03/P05 不进入该 split。
 
 ## 12. 校验模型训练标签 v3
 

@@ -34,8 +34,8 @@ continuous_dataset:
 
 continuous_candidate:
   model: causal_multitask_tcn
-  checkpoint: null
-  runtime_mode: rule_baseline
+  checkpoint: reports/fall_risk/sit_stand_continuous_tcn_v2/sitstandsplit_11e163684e3bb898a5c3508d/seed42-pilot-loss-scale-fixed/best_model.pt
+  runtime_mode: experimental_tcn_with_rule_fallback
   development_seeds: [42, 43, 44]
   smoke_max_epochs: 2
   default_candidate: S4

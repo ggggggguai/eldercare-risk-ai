@@ -258,6 +258,9 @@ def enrich_gait_training_labels(
                 "fps": manifest.get("fps"),
                 "frame_count": manifest.get("frame_count"),
                 "manifest_content_sha256": manifest.get("sha256"),
+                "gait_training_role": str(
+                    manifest.get("gait_training_role", "full_supervision")
+                ),
             }
         )
         enriched.append(row)
@@ -272,12 +275,14 @@ def prepare_gait_window_dataset(
     manifest_path: str | Path | None = None,
     assignments_path: str | Path | None = None,
     split_report_path: str | Path | None = None,
+    additional_pose_dirs: Sequence[str | Path] = (),
     config: GaitWindowPreparationConfig | None = None,
     overwrite: bool = False,
 ) -> dict[str, Any]:
     preparation = config or GaitWindowPreparationConfig()
     label_source = Path(labels_path)
     pose_root = Path(pose_dir)
+    pose_roots = (pose_root, *(Path(path) for path in additional_pose_dirs))
     destination = Path(output_dir)
     source_rows = _read_jsonl(label_source)
     is_v3 = bool(source_rows) and all(
@@ -384,7 +389,7 @@ def prepare_gait_window_dataset(
         if not video_id:
             raise ValueError("gait training label is missing video_id")
         if video_id not in pose_cache:
-            path = _resolve_pose_path(pose_root, video_id)
+            path = _resolve_pose_path(pose_roots, video_id)
             if path is None:
                 raise FileNotFoundError(
                     f"pose-quality JSONL not found for {video_id} in {pose_root}"
@@ -583,6 +588,9 @@ def prepare_gait_window_dataset(
                     "sample_group_id": str(label.get("sample_group_id", label["label_id"])),
                     "dataset": str(label.get("dataset", "unknown")),
                     "training_tier": str(label.get("training_tier", "primary")),
+                    "gait_training_role": str(
+                        label.get("gait_training_role", "full_supervision")
+                    ),
                     "label": int(label["label"]),
                     "target_name": str(label["target_name"]),
                     "action_id": str(label.get("action_id", "")),
@@ -651,6 +659,16 @@ def prepare_gait_window_dataset(
             )
             / segment_window_counts[str(sample["label_id"])]
             for sample in samples
+        ],
+        dtype=np.float32,
+    )
+    conditional_gait_weights = np.asarray(
+        [
+            0.0
+            if sample["gait_training_role"]
+            == "action_pretraining_and_walking_gate_only"
+            else float(weight)
+            for sample, weight in zip(samples, sample_weights, strict=True)
         ],
         dtype=np.float32,
     )
@@ -725,6 +743,7 @@ def prepare_gait_window_dataset(
         ),
         segment_durations_sec=segment_durations_sec,
         sample_weights=sample_weights,
+        conditional_gait_weights=conditional_gait_weights,
         partitions=partitions,
         fold_a_partitions=fold_a_partitions,
         fold_b_partitions=fold_b_partitions,
@@ -765,6 +784,11 @@ def prepare_gait_window_dataset(
             "walking_action_ids": sorted(GAIT_WALKING_ACTION_IDS),
             "non_walking_policy": "not_applicable_for_conditional_gait_head",
             "final_probability": "p_walking_times_p_abnormal_given_walking",
+            "conditional_head_exclusions": {
+                "action_pretraining_and_walking_gate_only": int(
+                    np.sum(conditional_gait_weights == 0)
+                )
+            },
         },
         "label_mapping": dict(GAIT_TARGET_MAPPING),
         "joint_order": list(CANONICAL_GAIT_JOINTS),
@@ -1257,10 +1281,14 @@ def _limit_window_starts(starts: Sequence[int], maximum: int) -> list[int]:
     return [int(starts[index]) for index in sorted(set(indices.tolist()))]
 
 
-def _resolve_pose_path(root: Path, video_id: str) -> Path | None:
+def _resolve_pose_path(
+    roots: Path | Sequence[Path], video_id: str
+) -> Path | None:
+    search_roots = (roots,) if isinstance(roots, Path) else tuple(roots)
     candidates = (
-        root / f"{video_id}.jsonl",
-        root / f"{video_id}_poses_cleaned.jsonl",
+        root / filename
+        for root in search_roots
+        for filename in (f"{video_id}.jsonl", f"{video_id}_poses_cleaned.jsonl")
     )
     return next((path for path in candidates if path.is_file()), None)
 

@@ -583,7 +583,7 @@ def _loss(
         outputs["frame_logits"].transpose(1, 2), frame_targets, ignore_index=-100, reduction="none"
     )
     weights = supervision_masks * sample_weights[:, None]
-    frame_loss = (frame_losses * weights).sum() / weights.sum().clamp_min(1.0)
+    frame_loss = (frame_losses * weights).sum() / weights.sum().clamp_min(1e-8)
     boundary_supervision = _dilate_boundary_targets(
         boundary_targets, config.boundary_tolerance_frames
     )
@@ -599,13 +599,26 @@ def _loss(
         pos_weight=positive_weight,
         reduction="none",
     ).mean(dim=2)
-    boundary_loss = (boundary_losses * weights).sum() / weights.sum().clamp_min(1.0)
+    boundary_loss = (boundary_losses * weights).sum() / weights.sum().clamp_min(1e-8)
     presence = (targets > 0).long()
-    presence_loss = F.cross_entropy(outputs["presence_logits"], presence)
-    direction_mask = targets > 0
-    direction_loss = F.cross_entropy(
-        outputs["direction_logits"][direction_mask], targets[direction_mask] - 1
+    presence_losses = F.cross_entropy(
+        outputs["presence_logits"], presence, reduction="none"
     )
+    presence_loss = (presence_losses * sample_weights).sum() / sample_weights.sum().clamp_min(1e-8)
+    direction_mask = targets > 0
+    if torch.any(direction_mask):
+        direction_losses = F.cross_entropy(
+            outputs["direction_logits"][direction_mask],
+            targets[direction_mask] - 1,
+            reduction="none",
+        )
+        direction_weights = sample_weights[direction_mask]
+        direction_loss = (
+            (direction_losses * direction_weights).sum()
+            / direction_weights.sum().clamp_min(1e-8)
+        )
+    else:
+        direction_loss = outputs["direction_logits"].sum() * 0.0
     total = (
         config.frame_loss_weight * frame_loss
         + config.boundary_loss_weight * boundary_loss

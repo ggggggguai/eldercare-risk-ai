@@ -52,14 +52,21 @@ def build_parser() -> argparse.ArgumentParser:
         default=Path("data/processed/fall_risk/pose_quality_y8n_v1/cleaned"),
     )
     parser.add_argument(
+        "--additional-pose-dir",
+        type=Path,
+        action="append",
+        default=[],
+        help="Additional cleaned pose directory; may be supplied more than once.",
+    )
+    parser.add_argument(
         "--config",
         type=Path,
-        default=Path("configs/training/near_fall_event_v1.yaml"),
+        default=Path("configs/training/near_fall_event_v2.yaml"),
     )
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=Path("data/processed/fall_risk/near_fall_event_v1"),
+        default=Path("data/processed/fall_risk/near_fall_event_v2"),
     )
     return parser
 
@@ -68,7 +75,10 @@ def _load_dataset_config(path: Path) -> NearFallDatasetConfig:
     payload: Any = yaml.safe_load(path.read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
         raise ValueError("near-fall training config must be a mapping")
-    if payload.get("schema_version") != "near-fall-event-training-config-v1":
+    if payload.get("schema_version") not in {
+        "near-fall-event-training-config-v1",
+        "near-fall-event-training-config-v2",
+    }:
         raise ValueError("unsupported near-fall training config schema")
     dataset = payload.get("dataset")
     if not isinstance(dataset, dict):
@@ -86,6 +96,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             split=args.split,
             validation=args.validation,
             pose_dir=args.pose_dir,
+            additional_pose_dirs=args.additional_pose_dir,
             output_dir=args.output_dir,
             config=_load_dataset_config(args.config),
         )

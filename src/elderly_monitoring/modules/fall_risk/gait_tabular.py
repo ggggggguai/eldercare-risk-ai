@@ -170,9 +170,35 @@ def train_gait_tabular_baselines(
     sample_weights = arrays.get(
         "sample_weights", np.ones(len(labels), dtype=np.float32)
     ).astype(np.float32, copy=False)
-    indices = {
+    primary_evaluation_mask = arrays.get(
+        "primary_evaluation_mask", np.ones(len(labels), dtype=np.uint8)
+    ).astype(bool, copy=False)
+    sensitivity_evaluation_mask = arrays.get(
+        "sensitivity_evaluation_mask", np.zeros(len(labels), dtype=np.uint8)
+    ).astype(bool, copy=False)
+    all_partition_indices = {
         partition: np.flatnonzero(partitions == partition)
         for partition in ("train", "validation", "test")
+    }
+    # Align the validation evaluation with the gait TCN protocol: the main
+    # validation口径 uses only primary-evaluation windows (>=10 labeled
+    # observations in the annotation span). Weak-context windows are reported
+    # as a separate sensitivity口径 and never drive threshold selection. When
+    # the prepared dataset has no such masks, all validation windows are used,
+    # preserving the legacy behavior.
+    indices = {
+        # Match the gait TCN: zero-weight windows (audit-only and
+        # representation-only evidence tiers) never enter training.
+        "train": all_partition_indices["train"][
+            sample_weights[all_partition_indices["train"]] > 0
+        ],
+        "validation": all_partition_indices["validation"][
+            primary_evaluation_mask[all_partition_indices["validation"]]
+        ],
+        "validation_sensitivity": all_partition_indices["validation"][
+            sensitivity_evaluation_mask[all_partition_indices["validation"]]
+        ],
+        "test": all_partition_indices["test"],
     }
     required_partitions = ["train", "validation"] + (["test"] if evaluate_test else [])
     for partition in required_partitions:
@@ -197,6 +223,9 @@ def train_gait_tabular_baselines(
     for model_name in training.models:
         if model_name == "rule":
             validation_scores = arrays["rule_scores"][indices["validation"]]
+            validation_sensitivity_scores = arrays["rule_scores"][
+                indices["validation_sensitivity"]
+            ]
             test_scores = (
                 arrays["rule_scores"][indices["test"]] if evaluate_test else None
             )
@@ -215,6 +244,11 @@ def train_gait_tabular_baselines(
             validation_scores = model.predict_proba(
                 features[indices["validation"]]
             )[:, 1]
+            validation_sensitivity_scores = (
+                model.predict_proba(features[indices["validation_sensitivity"]])[:, 1]
+                if len(indices["validation_sensitivity"])
+                else np.empty(0, dtype=np.float32)
+            )
             test_scores = (
                 model.predict_proba(features[indices["test"]])[:, 1]
                 if evaluate_test
@@ -248,6 +282,12 @@ def train_gait_tabular_baselines(
             arrays,
             indices["validation"],
             validation_scores,
+            threshold=threshold,
+        )
+        validation_sensitivity_rows = _aggregate_rows(
+            arrays,
+            indices["validation_sensitivity"],
+            validation_sensitivity_scores,
             threshold=threshold,
         )
         _write_jsonl_atomic(
@@ -297,6 +337,23 @@ def train_gait_tabular_baselines(
             "validation_normal_false_positives_per_hour": (
                 _normal_false_positives_per_hour(validation_rows)
             ),
+            "validation_sensitivity_action_segment": (
+                _binary_metrics(
+                    [int(row["label"]) for row in validation_sensitivity_rows],
+                    [float(row["probability"]) for row in validation_sensitivity_rows],
+                    dependencies["sklearn_metrics"],
+                    threshold=threshold,
+                )
+                if validation_sensitivity_rows
+                else None
+            ),
+            "validation_sensitivity_dataset_metrics": (
+                _metrics_by_group_field(
+                    validation_sensitivity_rows, "dataset", threshold
+                )
+                if validation_sensitivity_rows
+                else None
+            ),
             "test": (
                 _binary_metrics(
                     labels[indices["test"]],
@@ -336,6 +393,14 @@ def train_gait_tabular_baselines(
         "training_config": asdict(training),
         "feature_names": feature_names,
         "feature_profile": training.feature_profile,
+        "evaluation_protocol": {
+            "validation_scope": "primary_evaluation_mask",
+            "validation_sensitivity_scope": "sensitivity_evaluation_mask",
+            "validation_window_count": int(len(indices["validation"])),
+            "validation_sensitivity_window_count": int(
+                len(indices["validation_sensitivity"])
+            ),
+        },
         "models": model_reports,
         "test_evaluated": evaluate_test,
         "test_pose_read": bool(metadata.get("test_pose_read", False)),

@@ -599,16 +599,24 @@ def _has_valid_project_collection_provenance(
         and bool(_SHA256_PATTERN.fullmatch(decision_sha256))
         and _sha256_path(decision_path) == decision_sha256
     )
+    expected_collection_status = {
+        "fall_tiktok": "project_collected",
+        "self_collected_scf": "project_self_collected",
+    }.get(str(row.get("dataset")))
+    expected_subject_grouping_status = {
+        "fall_tiktok": "unknown",
+        "self_collected_scf": "pseudonymous_project_subject",
+    }.get(str(row.get("dataset")))
     return (
-        row.get("dataset") == "fall_tiktok"
+        expected_collection_status is not None
         and source_uri.startswith("internal://collection/")
         and row.get("provenance_status")
         == "project_collected_training_authorized"
-        and row.get("collection_status") == "project_collected"
+        and row.get("collection_status") == expected_collection_status
         and row.get("training_use") == "authorized"
         and row.get("redistribution_use") == "not_authorized_by_this_decision"
         and row.get("consent_status") == "not_recorded"
-        and row.get("subject_grouping_status") == "unknown"
+        and row.get("subject_grouping_status") == expected_subject_grouping_status
         and isinstance(row.get("collection_decision_id"), str)
         and bool(row["collection_decision_id"])
         and isinstance(row.get("collection_decided_at"), str)

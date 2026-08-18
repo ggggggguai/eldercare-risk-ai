@@ -1,8 +1,8 @@
 # SCF_MVP_V1 自采数据基线回放与近跌倒增强门禁报告
 
-执行日期：2026-08-12
+初次执行日期：2026-08-12；训练治理更新：2026-08-17
 执行范围：`自采数据模型增强计划` 的 G0、G1 和 G2
-结论：G0 候选构建、G1 四分支冻结回放和 G2 E1-E3 九次开发训练已完成；三组增强均 No-Go，不替换原 checkpoint 或规则主路径。
+结论：G0 候选构建、G1 回放和 G2 训练已完成；2026-08-17 起 P01/P02/P04 的受审标签进入训练根标签。步态 action-pretrained hierarchical TCN 已完成三 seed provisional 训练，但尚不满足主链路替换门禁；近跌倒三组候选 checkpoint 仍均为 No-Go。
 
 ## 1. 边界
 
@@ -11,8 +11,9 @@
 - 文件名动作只用于压力分层，不替代 onset/peak/recovery、方向或事件边界的 canonical truth。
 - 项目负责人已确认该批次为自采数据、允许内部开发训练，且 262 个文件标注已经复核。
 - 冻结开发分区为 P01/P02/P04 auxiliary train、P05 challenge、P03 excluded；重复内容按 SHA-256 分组。
-- 根 manifest、v2/v3 标签、现有 validation 和 test 均未修改；test 姿态和真值未读取。
+- 根 manifest、v2/v3 和统一 split 已于 2026-08-17 重建；SCF assignment 只进入 train，现有 validation/test 不接纳 SCF。
 - `test_pose_read=false`、`test_evaluated=false`。
+- 发布策略为 `training_tier_cap=auxiliary`、`split_partition=train`；SCF 的 gait role 仅为 `action_pretraining_and_walking_gate_only`，不作为 conditional abnormal head 的正/负监督。
 
 ## 2. G0 候选构建
 
@@ -25,7 +26,7 @@
 | 近跌倒候选 | 294 |
 | 可进入 loss / challenge-only | 124 / 52 个候选（P03 排除） |
 
-G0 已 `ready`；P03 的帧差仍未解释，因此整组排除，不进入 train 或 challenge。候选仍只保存在隔离目录，不发布到根标签链。
+G0 已 `ready`。P01/P02/P04 共 150 个视频、298 条动作已发布到根标签链；P03 整组排除，P05 保持 challenge-only。
 
 ## 3. G1 冻结回放
 
@@ -73,9 +74,28 @@ E1-E3 各运行 seed 42/43/44，共 9 次。自采有效训练窗口为 E1 `152`
 
 C03/C04/C05 原始触发只用于复核排队：有效窗口分母为 28/30/8，seed 42 触发 28/30/8，seed 43 为 28/27/8，seed 44 为 28/26/8。因为尚无双审 canonical 恢复事件，这些数字不是 Recall。
 
-G2 最终决策为：E0 `frozen_baseline_available`，E1/E2/E3 `No-Go`。数据集、checkpoint 和评估产物均隔离保存，规则主路径不变。
+G2 最终决策为：E0 `frozen_baseline_available`，E1/E2/E3 `No-Go`。近跌倒数据集、checkpoint 和评估产物均隔离保存；步态 TCN 的单独运行启用见 `gait_runtime_activation_20260818.md`，不改变近跌倒 No-Go 结论。
 
-## 5. 机器证据与复现
+## 5. 步态 TCN 训练治理（2026-08-17）
+
+SCF 发布后按 `splitv3_3342705b7b1ac51570148337` 继承既有 6,516 个资产分区，只新增 150 个 SCF train 资产和 451 条 assignment；P03/P05 在 root/v3/split 中均为 0。步态 observable-context v2 重新物化 2,372 个窗口（train/validation `1,849/523`，独立正段 `15`），其中 SCF 260 个窗口只参与 shared encoder/walking gate，conditional abnormal head 权重为 0。
+
+| 方案 | seed 42 | seed 43 | seed 44 | 均值 | 决策 |
+|---|---:|---:|---:|---:|---|
+| scratch TCN validation F1 | 0.692 | 0.720 | 0.643 | 0.685 | 对照 |
+| action-pretrained hierarchical TCN validation F1 | 0.621 | 0.857 | 0.857 | 0.778 | provisional 首选 |
+
+迁移方案 ROC-AUC 为 `0.994/0.997/0.998`，Brier 为 `0.0125/0.0138/0.0150`；正常窗口误报为 `44.1/12.0/12.0` 次/hour。seed 方差和误报量仍偏高，且仅有 2 个 source groups、没有老人域连续背景验证。test pose/tensor/metrics 均未读取，当前状态为 `development_provisional`；2026-08-18 仅 pretrained seed 43 按受控运行决定启用，规则 baseline 继续作为 fallback。
+
+步态产物：
+
+- `data/processed/fall_risk/action_pretraining_v1/splitv3-3342705-scfaux-v1/`：2,619 windows，dataset SHA `7eab581f5d4819a20b8e770a24ea1c0d46a4c23a75d5fa7e2a71c3014948468c`。
+- `data/processed/fall_risk/gait_observable_context_v2/splitv3-3342705-scfaux-v1/`：2,372 windows，dataset SHA `37d8f93e18e41de50a6a1039845a082e815b2446804f9daf1442c05e53adfa1c`，metadata SHA `3601872cd9fafc2b7aa7fccd628ad223e64ca8b3ac8b723ca7a46702d09a5717`。
+- `reports/fall_risk/gait_training_audit_scfaux_v1.md`：当前审计结论 `development_provisional`，`runtime_replacement_allowed=false`。
+
+主链路替换仍需补齐：至少 30 个独立 validation 正段、每个异常子类至少 10 段、至少 3 个 source groups，连续背景/老人域验证，冻结 split 和评估协议，test 保管释放，阈值/校准、延迟和低质量输入降级证据。
+
+## 6. 机器证据与复现
 
 本地机器证据：
 

@@ -1,10 +1,10 @@
 {
   "schema_version": "fall-risk-reviewed-training-decision-v1",
-  "decision_id": "fall-risk-existing-labels-adjudication-20260804",
-  "reviewed_at": "2026-08-04",
+  "decision_id": "fall-risk-existing-labels-adjudication-20260817",
+  "reviewed_at": "2026-08-17",
   "reviewer_id": "project_owner",
   "source_task_id": "019fcb65-e9d1-7400-b018-aba2d2fc9941",
-  "action_labels_sha256": "058540ce76076b373bfa86c70d0b157fa10af5cbb521aa7c4c58a3ac7a1b3af6",
+  "action_labels_sha256": "52ac8f6a371db36d7b3120135a459f48d377bd095518850e62690b1c9ca29b11",
   "ntu_full_clip_fall_boundary": {
     "enabled": true,
     "video_id_prefix": "ntu_rgbd_",
@@ -137,6 +137,7 @@
     "Canonical action descriptions are accepted as sufficient task-specific positive/negative evidence; only eligible labeled actions are converted, and unlabelled background remains ignore.",
     "UR Fall A07 bed-entry overrides were visually checked; other A07 labels remain controlled_lie_down.",
     "This decision maximizes existing data as discussed in task 019fcb65-e9d1-7400-b018-aba2d2fc9941 and does not assert new elderly-domain or longitudinal evidence.",
+    "The 2026-08-17 SCF_MVP_V1 decision admits only P01/P02/P04 reviewed auxiliary actions; P03 remains excluded and P05 remains challenge-only.",
     "The earlier NTU A043 review remains traceable at configs/data/ntu_rgbd_a043_cvat_decision_v1.json with SHA-256 6c90ce9bd9137aa28ba473504ca7afe75b5f50e15fa3a3b85054f6ea04867492."
   ]
 }

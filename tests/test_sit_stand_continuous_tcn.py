@@ -19,6 +19,41 @@ from elderly_monitoring.modules.fall_risk.sit_stand_continuous_tcn import (
 
 
 class ContinuousSitStandTCNTest(unittest.TestCase):
+    def test_sample_weights_apply_to_presence_and_direction_losses(self) -> None:
+        outputs = {
+            "frame_logits": torch.zeros(2, 2, 3),
+            "boundary_logits": torch.zeros(2, 2, 2),
+            "presence_logits": torch.tensor([[-4.0, 4.0], [4.0, -4.0]]),
+            "direction_logits": torch.tensor([[4.0, -4.0], [-4.0, 4.0]]),
+        }
+        targets = torch.tensor([1, 1])
+        frame_targets = torch.ones(2, 2, dtype=torch.long)
+        boundary_targets = torch.zeros(2, 2, 2)
+        masks = torch.ones(2, 2)
+        config = ContinuousSitStandTCNConfig()
+
+        equal = _loss(
+            outputs,
+            targets,
+            frame_targets,
+            boundary_targets,
+            masks,
+            torch.ones(2),
+            config,
+        )
+        downweighted_bad = _loss(
+            outputs,
+            targets,
+            frame_targets,
+            boundary_targets,
+            masks,
+            torch.tensor([1.0, 0.01]),
+            config,
+        )
+
+        self.assertLess(downweighted_bad["presence"], equal["presence"])
+        self.assertLess(downweighted_bad["direction"], equal["direction"])
+
     def test_boundary_positive_weight_penalizes_missed_boundaries(self) -> None:
         outputs = {
             "frame_logits": torch.zeros(1, 4, 3),
@@ -54,6 +89,55 @@ class ContinuousSitStandTCNTest(unittest.TestCase):
         )
 
         self.assertGreater(weighted["boundary"], unweighted["boundary"])
+
+    def test_loss_is_invariant_to_uniform_sample_weight_scale(self) -> None:
+        outputs = {
+            "frame_logits": torch.randn(3, 4, 3),
+            "boundary_logits": torch.randn(3, 4, 2),
+            "presence_logits": torch.randn(3, 2),
+            "direction_logits": torch.randn(3, 2),
+        }
+        targets = torch.tensor([0, 1, 2])
+        frame_targets = targets[:, None].repeat(1, 4)
+        boundary_targets = torch.zeros(3, 4, 2)
+        masks = torch.ones(3, 4)
+        config = ContinuousSitStandTCNConfig()
+
+        normal = _loss(
+            outputs, targets, frame_targets, boundary_targets, masks, torch.ones(3), config
+        )
+        tiny = _loss(
+            outputs,
+            targets,
+            frame_targets,
+            boundary_targets,
+            masks,
+            torch.full((3,), 1e-6),
+            config,
+        )
+
+        for name in ("loss", "frame", "boundary", "presence", "direction"):
+            torch.testing.assert_close(normal[name], tiny[name])
+
+    def test_background_only_batch_has_finite_zero_direction_loss(self) -> None:
+        outputs = {
+            "frame_logits": torch.zeros(2, 3, 3),
+            "boundary_logits": torch.zeros(2, 3, 2),
+            "presence_logits": torch.zeros(2, 2),
+            "direction_logits": torch.zeros(2, 2),
+        }
+        losses = _loss(
+            outputs,
+            torch.zeros(2, dtype=torch.long),
+            torch.zeros(2, 3, dtype=torch.long),
+            torch.zeros(2, 3, 2),
+            torch.ones(2, 3),
+            torch.ones(2),
+            ContinuousSitStandTCNConfig(),
+        )
+
+        self.assertTrue(torch.isfinite(losses["loss"]))
+        self.assertEqual(float(losses["direction"]), 0.0)
 
     def test_stream_decoder_confirms_and_closes_event_at_boundary(self) -> None:
         rows = [

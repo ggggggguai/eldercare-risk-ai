@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import math
+import threading
 import time
 from collections import deque
 from dataclasses import dataclass, field
@@ -10,7 +11,10 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping
 
 from elderly_monitoring.modules.fall_risk.baseline import MODEL_VERSION as BASELINE_MODEL_VERSION
-from elderly_monitoring.modules.fall_risk.baseline import build_personal_baselines
+from elderly_monitoring.modules.fall_risk.baseline import (
+    build_personal_baselines,
+    score_baseline_deviation,
+)
 from elderly_monitoring.modules.fall_risk.gait import GAIT_KEYPOINT_NAMES, extract_gait_windows
 from elderly_monitoring.modules.fall_risk.near_fall import (
     MODEL_VERSION as NEAR_FALL_MODEL_VERSION,
@@ -100,6 +104,9 @@ class FeatureAssembler:
         baseline_history: Iterable[Mapping[str, Any]] | None = None,
         fall_state_config: FallStateConfig | None = None,
         gait_predictor: Any | None = None,
+        sit_stand_predictor: Any | None = None,
+        fall_event_predictor: Any | None = None,
+        fall_event_runtime_mode: str = "shadow",
     ) -> None:
         self.person_id = person_id
         self.device_id = device_id
@@ -110,7 +117,16 @@ class FeatureAssembler:
         self._last_analysis: float | None = None
         self._fall_state = FallStateDetector(fall_state_config)
         self._gait_predictor = gait_predictor
+        self._sit_stand_predictor = sit_stand_predictor
+        self._fall_event_predictor = fall_event_predictor
+        if fall_event_runtime_mode not in {"shadow", "experimental_tcn"}:
+            raise ValueError(
+                "fall_event_runtime_mode must be shadow or experimental_tcn"
+            )
+        self._fall_event_runtime_mode = fall_event_runtime_mode
         self._baselines = build_personal_baselines(baseline_history or []) if baseline_history else {}
+        self._baseline_lock = threading.RLock()
+        self._baseline_period_result: dict[str, Any] | None = None
         self.analysis_count = 0
         self.stream_epoch = 0
         self.reset_count = 0
@@ -128,6 +144,37 @@ class FeatureAssembler:
         self.last_reset_reason = reason
         if stream_epoch is not None:
             self.stream_epoch = stream_epoch
+
+    def update_baseline_period(self, record: Mapping[str, Any] | None) -> dict[str, Any] | None:
+        """Submit one completed period result for the next realtime fusion window.
+
+        Pose windows remain deliberately unsupported as baseline periods. The
+        caller is expected to provide an upstream daily/hourly aggregate that
+        satisfies the baseline period schema. Passing ``None`` clears the
+        current result and restores the unavailable fallback.
+        """
+        if record is None:
+            with self._baseline_lock:
+                self._baseline_period_result = None
+                self._cached_signature = None
+                self._cached_snapshot = None
+            return None
+        person_id = str(record.get("person_id", ""))
+        if person_id != self.person_id:
+            raise ValueError(
+                f"baseline period person_id {person_id!r} does not match assembler person_id {self.person_id!r}"
+            )
+        results = score_baseline_deviation([record], self._baselines)
+        if not results:
+            raise ValueError(
+                "baseline period must be a valid completed fall-baseline-period-features-v1 record"
+            )
+        result = results[0]
+        with self._baseline_lock:
+            self._baseline_period_result = dict(result)
+            self._cached_signature = None
+            self._cached_snapshot = None
+            return dict(self._baseline_period_result)
 
     def add_pose(self, record: Mapping[str, Any], *, monotonic_sec: float) -> FeatureSnapshot | None:
         item = dict(record)
@@ -166,6 +213,16 @@ class FeatureAssembler:
         sit_item, branch_diagnostics["sit_stand"] = self._run_sit_stand(cleaned)
         near_item, branch_diagnostics["near_fall"] = self._run_near_fall(cleaned)
         state, branch_diagnostics["fall_state"] = self._run_fall_state(cleaned)
+        if self._fall_event_runtime_mode == "experimental_tcn":
+            fall_event_tcn_item, branch_diagnostics["fall_event_tcn"] = (
+                self._run_fall_event_tcn_runtime(cleaned)
+            )
+            fall_event_tcn_diagnostic = branch_diagnostics["fall_event_tcn"]
+        else:
+            fall_event_tcn_item, branch_diagnostics["fall_event_tcn_shadow"] = (
+                self._run_fall_event_tcn_shadow(cleaned)
+            )
+            fall_event_tcn_diagnostic = branch_diagnostics["fall_event_tcn_shadow"]
         baseline_item, branch_diagnostics["baseline"] = self._run_baseline(cleaned)
         scene_score = max(
             0.0,
@@ -178,7 +235,7 @@ class FeatureAssembler:
         )
         for name, diagnostic in branch_diagnostics.items():
             stage_timings[name] = float(diagnostic.get("duration_ms", 0.0))
-            if diagnostic["status"] != "valid":
+            if diagnostic["status"] != "valid" and not diagnostic.get("optional"):
                 quality_flags.extend(f"{name}:{reason}" for reason in diagnostic["reasons"])
         if branch_diagnostics["baseline"]["status"] == "unavailable":
             quality_flags.append("insufficient_baseline_history")
@@ -187,15 +244,40 @@ class FeatureAssembler:
             branch_diagnostics[name]["status"] == "valid"
             for name in ("gait", "sit_stand", "near_fall", "baseline")
         )
+        rule_fall_score = state.fall_event_score if state else None
+        fall_event_score = rule_fall_score
+        fall_event_score_source = (
+            "fall_state_rule"
+            if branch_diagnostics["fall_state"]["status"] == "valid"
+            else "unavailable"
+        )
+        fall_event_score_available = (
+            branch_diagnostics["fall_state"]["status"] == "valid"
+        )
+        if self._fall_event_runtime_mode == "experimental_tcn":
+            if fall_event_tcn_diagnostic["status"] == "valid":
+                detected = bool(fall_event_tcn_item.get("fall_event_tcn_detected"))
+                # Preserve the existing event-feature contract: a detected fall is
+                # a strong binary trigger, while the raw model probability remains
+                # available separately for diagnostics and threshold tuning.
+                fall_event_score = 0.9 if detected else 0.0
+                fall_event_score_source = "continuous_tcn"
+                fall_event_score_available = True
+            elif fall_event_score_available:
+                fall_event_score_source = "fall_state_rule_fallback"
+
         fusion_mask = {
             "gait_risk_score": branch_diagnostics["gait"]["status"] == "valid",
             "sit_stand_risk_score": branch_diagnostics["sit_stand"]["status"] == "valid",
             "near_fall_event_score": branch_diagnostics["near_fall"]["status"] == "valid",
             "baseline_deviation_score": branch_diagnostics["baseline"]["status"] == "valid",
-            "activity_rhythm_score": branch_diagnostics["baseline"]["status"] == "valid",
+            "activity_rhythm_score": (
+                branch_diagnostics["baseline"]["status"] == "valid"
+                and baseline_item.get("activity_rhythm_score") is not None
+            ),
             # Scene risk is contextual and must never drive a warning by itself.
             "scene_risk_score": contextual_signal_available,
-            "fall_event_score": branch_diagnostics["fall_state"]["status"] == "valid",
+            "fall_event_score": fall_event_score_available,
             "long_static_score": branch_diagnostics["fall_state"]["status"] == "valid",
         }
         coverage_names = (
@@ -229,17 +311,51 @@ class FeatureAssembler:
             "near_fall_event_score": near_score,
             "baseline_deviation_score": baseline_score,
             "activity_rhythm_score": activity_score,
+            "baseline_state": baseline_item.get("baseline_state"),
+            "baseline_confidence": baseline_item.get("baseline_confidence"),
+            "baseline_fusion_weight": baseline_item.get("baseline_fusion_weight"),
+            "baseline_deviation_factors": list(
+                baseline_item.get("deviation_factors", [])
+            ),
             "scene_risk_score": scene_score,
-            "fall_event_score": state.fall_event_score if state else None,
+            "fall_event_score": fall_event_score,
+            "fall_event_score_source": fall_event_score_source,
             "long_static_score": state.long_static_score if state else None,
+            "fall_event_tcn_score": fall_event_tcn_item.get(
+                "fall_event_tcn_score"
+            ),
+            "fall_event_tcn_detected": bool(
+                fall_event_tcn_item.get("fall_event_tcn_detected", False)
+            ),
+            "fall_event_tcn_onset_frame": fall_event_tcn_item.get(
+                "fall_event_tcn_onset_frame"
+            ),
+            "fall_event_tcn_shadow_score": fall_event_tcn_item.get(
+                "fall_event_tcn_shadow_score"
+            ),
+            "fall_event_tcn_shadow_detected": bool(
+                fall_event_tcn_item.get("fall_event_tcn_shadow_detected", False)
+            ),
+            "fall_event_tcn_shadow_onset_frame": fall_event_tcn_item.get(
+                "fall_event_tcn_shadow_onset_frame"
+            ),
             "fusion_mask": fusion_mask,
             "branch_diagnostics": branch_diagnostics,
         }
+        usable_branches = ["gait", "sit_stand", "near_fall", "fall_state"]
+        if self._fall_event_runtime_mode == "experimental_tcn":
+            usable_branches.append("fall_event_tcn")
         usable = any(
             branch_diagnostics[name]["status"] == "valid"
-            for name in ("gait", "sit_stand", "near_fall", "fall_state")
+            for name in usable_branches
         )
-        urgent = bool(state and (state.triggered_now or state.long_static_score >= 0.8))
+        urgent = bool(
+            (state and (state.triggered_now or state.long_static_score >= 0.8))
+            or (
+                self._fall_event_runtime_mode == "experimental_tcn"
+                and fall_event_tcn_item.get("fall_event_tcn_detected")
+            )
+        )
         stage_timings["feature_assembly_total"] = _elapsed_ms(assembly_started)
         snapshot = FeatureSnapshot(
             features=features,
@@ -265,13 +381,20 @@ class FeatureAssembler:
         )
 
     def _run_sit_stand(self, cleaned: list[dict[str, Any]]) -> tuple[dict[str, Any], dict[str, Any]]:
+        predictor = self._sit_stand_predictor
         return self._run_scored_branch(
             name="sit_stand",
             cleaned=cleaned,
             gate=self.config.sit_stand_gate,
             score_field="sit_stand_risk_score",
-            default_version=SIT_STAND_MODEL_VERSION,
-            run=lambda: extract_sit_stand_events(cleaned),
+            default_version=str(
+                getattr(predictor, "model_version", SIT_STAND_MODEL_VERSION)
+            ),
+            run=(
+                (lambda: predictor.predict_records(cleaned))
+                if predictor is not None
+                else (lambda: extract_sit_stand_events(cleaned))
+            ),
             unavailable_flag="insufficient_sit_stand_quality",
         )
 
@@ -379,8 +502,159 @@ class FeatureAssembler:
         })
         return state, diagnostic
 
+    def _run_fall_event_tcn_shadow(
+        self, cleaned: list[dict[str, Any]]
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
+        started = time.perf_counter()
+        if self._fall_event_predictor is None:
+            return {}, {
+                "status": "disabled",
+                "score": None,
+                "reasons": ["shadow_predictor_disabled"],
+                "model_version": "fall-event-continuous-tcn-shadow-none",
+                "optional": True,
+                "duration_ms": _elapsed_ms(started),
+            }
+        try:
+            item = dict(self._fall_event_predictor.predict_records(cleaned))
+        except Exception as exc:
+            return {}, {
+                "status": "inference_error",
+                "score": None,
+                "reasons": ["shadow_inference_failed"],
+                "error_type": type(exc).__name__,
+                "model_version": str(
+                    getattr(self._fall_event_predictor, "model_version", "unknown")
+                ),
+                "optional": True,
+                "duration_ms": _elapsed_ms(started),
+            }
+        score = item.get("fall_event_tcn_shadow_score")
+        if score is None:
+            return item, {
+                "status": "unavailable",
+                "score": None,
+                "reasons": [str(item.get("fall_event_tcn_shadow_reason", "shadow_unavailable"))],
+                "model_version": str(
+                    item.get(
+                        "fall_event_tcn_shadow_model_version",
+                        getattr(self._fall_event_predictor, "model_version", "unknown"),
+                    )
+                ),
+                "optional": True,
+                "duration_ms": _elapsed_ms(started),
+            }
+        return item, {
+            "status": "valid",
+            "score": float(score),
+            "reasons": [],
+            "model_version": str(
+                item.get(
+                    "fall_event_tcn_shadow_model_version",
+                    getattr(self._fall_event_predictor, "model_version", "unknown"),
+                )
+            ),
+            "score_source": "provisional_shadow",
+            "optional": True,
+            "duration_ms": _elapsed_ms(started),
+        }
+
+    def _run_fall_event_tcn_runtime(
+        self, cleaned: list[dict[str, Any]]
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
+        started = time.perf_counter()
+        if self._fall_event_predictor is None:
+            return {}, {
+                "status": "unavailable",
+                "score": None,
+                "reasons": ["runtime_predictor_disabled"],
+                "model_version": "fall-event-continuous-tcn-runtime-none",
+                "score_source": "fall_state_rule_fallback",
+                "optional": True,
+                "duration_ms": _elapsed_ms(started),
+            }
+        try:
+            item = dict(self._fall_event_predictor.predict_records(cleaned))
+        except Exception as exc:
+            return {}, {
+                "status": "inference_error",
+                "score": None,
+                "reasons": ["runtime_inference_failed"],
+                "error_type": type(exc).__name__,
+                "model_version": str(
+                    getattr(self._fall_event_predictor, "model_version", "unknown")
+                ),
+                "score_source": "fall_state_rule_fallback",
+                "optional": True,
+                "duration_ms": _elapsed_ms(started),
+            }
+        score = item.get("fall_event_tcn_score")
+        if score is None:
+            return item, {
+                "status": "unavailable",
+                "score": None,
+                "reasons": [
+                    str(item.get("fall_event_tcn_reason", "runtime_window_unavailable"))
+                ],
+                "model_version": str(
+                    item.get(
+                        "fall_event_tcn_model_version",
+                        getattr(self._fall_event_predictor, "model_version", "unknown"),
+                    )
+                ),
+                "score_source": "fall_state_rule_fallback",
+                "optional": True,
+                "duration_ms": _elapsed_ms(started),
+            }
+        return item, {
+            "status": "valid",
+            "score": float(score),
+            "reasons": [],
+            "model_version": str(
+                item.get(
+                    "fall_event_tcn_model_version",
+                    getattr(self._fall_event_predictor, "model_version", "unknown"),
+                )
+            ),
+            "score_source": "continuous_tcn",
+            "provisional": True,
+            "optional": True,
+            "duration_ms": _elapsed_ms(started),
+        }
+
     def _run_baseline(self, cleaned: list[dict[str, Any]]) -> tuple[dict[str, Any], dict[str, Any]]:
         started = time.perf_counter()
+        with self._baseline_lock:
+            period_result = dict(self._baseline_period_result) if self._baseline_period_result is not None else None
+        if period_result is not None:
+            item = period_result
+            score = item.get("baseline_deviation_score")
+            if score is not None:
+                return item, {
+                    "status": "valid",
+                    "score": float(score),
+                    "reasons": [],
+                    "model_version": str(item.get("model_version", BASELINE_MODEL_VERSION)),
+                    "score_source": "personal_baseline_period",
+                    "input_frame_count": len(cleaned),
+                    "valid_frame_count": len(cleaned),
+                    "baseline_state": item.get("baseline_state"),
+                    "duration_ms": _elapsed_ms(started),
+                }
+            reasons = list(item.get("deviation_factors", [])) or [
+                "baseline_score_unavailable"
+            ]
+            return item, {
+                "status": "unavailable",
+                "score": None,
+                "reasons": reasons,
+                "model_version": str(item.get("model_version", BASELINE_MODEL_VERSION)),
+                "score_source": "personal_baseline_period",
+                "input_frame_count": len(cleaned),
+                "valid_frame_count": 0,
+                "baseline_state": item.get("baseline_state"),
+                "duration_ms": _elapsed_ms(started),
+            }
         reasons = (
             ["completed_baseline_period_unavailable"]
             if self._baselines

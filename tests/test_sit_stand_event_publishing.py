@@ -11,10 +11,12 @@ from elderly_monitoring.modules.fall_risk.sit_stand_event_publishing import (
 
 def _action(label_id: str, action_id: str, *, tier: str = "primary") -> dict:
     action_type = {
+        "A01": "normal_walk",
         "A03": "controlled_sit_down",
         "A04": "normal_sit_to_stand",
         "A05": "controlled_squat",
         "C01": "failed_sit_to_stand",
+        "C03": "stumble_recovery",
     }[action_id]
     return {
         "schema_version": "fall-risk-action-label-v3",
@@ -146,6 +148,84 @@ class SitStandEventPublishingTest(unittest.TestCase):
                 ],
                 decision=_decision(actions),
             )
+
+    def test_expanded_background_actions_and_scf_policy_are_explicit(self) -> None:
+        actions = [
+            _action("walk", "A01"),
+            _action("stumble", "C03"),
+            _action("scf_event", "A04"),
+        ]
+        assignments = [
+            {"label_id": row["label_id"], "partition": "train", "split_group_id": "g"}
+            for row in actions
+        ]
+        manifest = [
+            {
+                "video_id": row["video_id"],
+                "asset_id": row["asset_id"],
+                "dataset": "self_collected_scf" if row["label_id"] == "scf_event" else "fixture",
+                "subset": "P01" if row["label_id"] == "scf_event" else "train",
+                "scene_region": "home",
+                "eligibility": True,
+            }
+            for row in actions
+        ]
+
+        result = publish_sit_stand_event_labels(
+            actions, assignments, manifest, decision=_decision(actions)
+        )
+        by_source = {
+            row["source_action_label_ids"][0]: row for row in result["labels"]
+        }
+
+        self.assertEqual(by_source["walk"]["hard_negative_type"], "locomotion")
+        self.assertEqual(by_source["stumble"]["hard_negative_type"], "near_fall_recovery")
+        self.assertEqual(by_source["scf_event"]["eligibility"], "auxiliary")
+        self.assertEqual(by_source["scf_event"]["partition_policy"], "train_only")
+        self.assertEqual(by_source["scf_event"]["dataset"], "self_collected_scf")
+        self.assertEqual(by_source["scf_event"]["source_dataset"], "self_collected_scf")
+
+    def test_scf_challenge_subject_fails_closed_if_it_reaches_root_input(self) -> None:
+        actions = [_action("scf_p05", "A04")]
+        manifest = [
+            {
+                "video_id": actions[0]["video_id"],
+                "asset_id": actions[0]["asset_id"],
+                "dataset": "self_collected_scf",
+                "subset": "P05",
+                "scene_region": "home",
+                "eligibility": True,
+            }
+        ]
+
+        with self.assertRaisesRegex(ValueError, "SCF.*P05"):
+            publish_sit_stand_event_labels(
+                actions,
+                [{"label_id": "scf_p05", "partition": "train", "split_group_id": "g"}],
+                manifest,
+                decision=_decision(actions),
+            )
+
+    def test_source_verified_is_mapped_without_inventing_a_second_reviewer(self) -> None:
+        actions = [_action("walk", "A01")]
+        actions[0]["review_status"] = "source_verified"
+        result = publish_sit_stand_event_labels(
+            actions,
+            [{"label_id": "walk", "partition": "train", "split_group_id": "g"}],
+            [
+                {
+                    "video_id": actions[0]["video_id"],
+                    "asset_id": actions[0]["asset_id"],
+                    "dataset": "fixture",
+                    "scene_region": "home",
+                    "eligibility": True,
+                }
+            ],
+            decision=_decision(actions),
+        )
+
+        self.assertEqual(result["labels"][0]["review_status"], "single_reviewed")
+        self.assertEqual(result["labels"][0]["reviewed_by"], ["owner_annotation_batch"])
 
 
 if __name__ == "__main__":

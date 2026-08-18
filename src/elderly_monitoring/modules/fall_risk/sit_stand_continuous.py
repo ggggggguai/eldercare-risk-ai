@@ -80,6 +80,36 @@ class SitStandContinuousConfig:
 
 
 @dataclass(frozen=True)
+class SitStandSamplingConfig:
+    policy: str = "balanced_causal_v2"
+    event_cutoff_fractions: tuple[float, ...] = (0.5, 0.75, 1.0)
+    post_event_offsets_sec: tuple[float, ...] = (0.5,)
+    background_cutoff_fractions: tuple[float, ...] = (0.5, 1.0)
+    auxiliary_weight: float = 0.5
+    maximum_source_balance_factor: float = 4.0
+    target_weight_shares: tuple[float, float, float] = (0.5, 0.25, 0.25)
+
+    def __post_init__(self) -> None:
+        if self.policy != "balanced_causal_v2":
+            raise ValueError("unsupported sit-stand sampling policy")
+        for name in ("event_cutoff_fractions", "background_cutoff_fractions"):
+            values = tuple(float(value) for value in getattr(self, name))
+            if not values or any(not 0 < value <= 1 for value in values):
+                raise ValueError(f"{name} values must be within (0, 1]")
+        if any(
+            value <= 0 or not math.isfinite(value)
+            for value in self.post_event_offsets_sec
+        ):
+            raise ValueError("post_event_offsets_sec values must be positive")
+        if not 0 < self.auxiliary_weight <= 1:
+            raise ValueError("auxiliary_weight must be within (0, 1]")
+        if self.maximum_source_balance_factor < 1:
+            raise ValueError("maximum_source_balance_factor must be at least 1")
+        if any(value <= 0 for value in self.target_weight_shares):
+            raise ValueError("target_weight_shares must be positive")
+
+
+@dataclass(frozen=True)
 class SitStandCausalWindow:
     tensor: np.ndarray
     slot_timestamps_sec: tuple[float, ...]
@@ -169,13 +199,19 @@ def prepare_sit_stand_continuous_dataset(
     output_dir: Path,
     config: SitStandContinuousConfig | None = None,
     manifest: Iterable[Mapping[str, Any]] | None = None,
+    sampling: SitStandSamplingConfig | None = None,
 ) -> dict[str, Any]:
     contract = config or SitStandContinuousConfig()
     destination = Path(output_dir)
     if destination.exists():
         raise FileExistsError(f"continuous dataset output already exists: {destination}")
     label_rows = sorted(
-        [dict(row) for row in labels], key=lambda row: str(row.get("label_id", ""))
+        [dict(row) for row in labels],
+        key=lambda row: (
+            str(row.get("video_id", "")),
+            float(row.get("onset_time", 0.0)),
+            str(row.get("label_id", "")),
+        ),
     )
     assignment_index = {
         str(row["label_id"]): dict(row)
@@ -187,6 +223,7 @@ def prepare_sit_stand_continuous_dataset(
         for row in (manifest or [])
         if isinstance(row.get("video_id"), str)
     }
+    next_interval_onset = _next_interval_onsets(label_rows)
     tensors: list[np.ndarray] = []
     frame_targets: list[np.ndarray] = []
     boundary_targets: list[np.ndarray] = []
@@ -218,51 +255,61 @@ def prepare_sit_stand_continuous_dataset(
                 pose_cache.pop(next(iter(pose_cache)))
             pose_cache[video_id] = pose_reader(video_id)
         onset = _finite_nonnegative(label.get("onset_time"), f"{label_id}.onset_time")
-        cutoff = _finite_nonnegative(label.get("offset_time"), f"{label_id}.offset_time")
+        offset = _finite_nonnegative(label.get("offset_time"), f"{label_id}.offset_time")
         required_observed = _required_observed_frames(
             onset_time_sec=onset,
-            offset_time_sec=cutoff,
+            offset_time_sec=offset,
             config=contract,
         )
-        try:
-            selected_pose, target_selection = _select_pose_target(
-                pose_cache[video_id],
-                onset_time_sec=onset,
-                cutoff_time_sec=cutoff,
-                config=contract,
-            )
-            window = build_sit_stand_causal_window(
-                selected_pose,
-                cutoff_time_sec=cutoff,
-                config=contract,
-                required_observed_frames=required_observed,
-            )
-        except ValueError as exc:
-            rejected[_rejection_reason(exc)] += 1
-            continue
-        if window.status != "valid":
-            rejected[str(window.metadata["unavailable_reason"])] += 1
-            continue
-        target = (
+        event_target = (
             1
             if label.get("transition_type") == "sit_to_stand"
             else 2
             if label.get("transition_type") == "stand_to_sit"
             else 0
         )
-        tensors.append(window.tensor)
-        frame_target, boundary_target, supervision_mask = _build_supervision(
-            window,
+        for cutoff, cutoff_role in _sampling_cutoffs(
+            interval_type=interval_type,
             onset_time_sec=onset,
-            offset_time_sec=cutoff,
-            target=target,
-        )
-        frame_targets.append(frame_target)
-        boundary_targets.append(boundary_target)
-        supervision_masks.append(supervision_mask)
-        target_selection_counts[str(target_selection["policy"])] += 1
-        samples.append(
-            {
+            offset_time_sec=offset,
+            next_onset_time_sec=next_interval_onset.get(label_id),
+            sampling=sampling,
+        ):
+            try:
+                selected_pose, target_selection = _select_pose_target(
+                    pose_cache[video_id],
+                    onset_time_sec=onset,
+                    cutoff_time_sec=cutoff,
+                    config=contract,
+                )
+                window = build_sit_stand_causal_window(
+                    selected_pose,
+                    cutoff_time_sec=cutoff,
+                    config=contract,
+                    required_observed_frames=required_observed,
+                )
+            except ValueError as exc:
+                rejected[_rejection_reason(exc)] += 1
+                continue
+            if window.status != "valid":
+                rejected[str(window.metadata["unavailable_reason"])] += 1
+                continue
+            target = event_target if cutoff_role == "active" else 0
+            tensors.append(window.tensor)
+            frame_target, boundary_target, supervision_mask = _build_supervision(
+                window,
+                onset_time_sec=onset,
+                offset_time_sec=offset,
+                target=event_target,
+                interval_type=interval_type,
+                cutoff_time_sec=cutoff,
+            )
+            frame_targets.append(frame_target)
+            boundary_targets.append(boundary_target)
+            supervision_masks.append(supervision_mask)
+            target_selection_counts[str(target_selection["policy"])] += 1
+            media = manifest_index.get(video_id, {})
+            samples.append({
                 "sample_id": f"{label_id}:cutoff-{cutoff:.6f}",
                 "label_id": label_id,
                 "event_id": str(label.get("event_id", label_id)),
@@ -273,7 +320,14 @@ def prepare_sit_stand_continuous_dataset(
                 "target": target,
                 "transition_type": label.get("transition_type"),
                 "onset_time_sec": onset,
+                "offset_time_sec": offset,
                 "cutoff_time_sec": cutoff,
+                "cutoff_role": cutoff_role,
+                "source_dataset": str(
+                    label.get("source_dataset") or media.get("dataset") or "unknown"
+                ),
+                "source_group_id": str(label.get("source_group_id") or "unknown"),
+                "eligibility": str(label.get("eligibility") or "eligible"),
                 "sample_weight": 1.0,
                 "observed_frame_count": int(window.metadata["observed_frame_count"]),
                 "required_observed_frame_count": int(
@@ -286,13 +340,15 @@ def prepare_sit_stand_continuous_dataset(
                     6,
                 ),
                 "target_selection": target_selection,
-            }
-        )
+            })
     if not samples:
         raise ValueError("no valid train/validation continuous windows were generated")
-    event_counts = Counter(str(sample["event_id"]) for sample in samples)
-    for sample in samples:
-        sample["sample_weight"] = 1.0 / event_counts[str(sample["event_id"])]
+    if sampling is None:
+        event_counts = Counter(str(sample["event_id"]) for sample in samples)
+        for sample in samples:
+            sample["sample_weight"] = 1.0 / event_counts[str(sample["event_id"])]
+    else:
+        _assign_balanced_sample_weights(samples, sampling)
     arrays = {
         "features": np.stack(tensors).astype(np.float32),
         "targets": np.asarray([sample["target"] for sample in samples], dtype=np.int64),
@@ -333,6 +389,23 @@ def prepare_sit_stand_continuous_dataset(
         "status": "development_provisional",
         "task": "sit_stand_event_localization_v1",
         "sample_count": len(samples),
+        "sampling_policy": "single_offset_v1" if sampling is None else sampling.policy,
+        "sampling_config": (
+            None
+            if sampling is None
+            else {
+                "event_cutoff_fractions": list(sampling.event_cutoff_fractions),
+                "post_event_offsets_sec": list(sampling.post_event_offsets_sec),
+                "background_cutoff_fractions": list(
+                    sampling.background_cutoff_fractions
+                ),
+                "auxiliary_weight": sampling.auxiliary_weight,
+                "maximum_source_balance_factor": (
+                    sampling.maximum_source_balance_factor
+                ),
+                "target_weight_shares": list(sampling.target_weight_shares),
+            }
+        ),
         "locked_test_label_count": locked_test,
         "test_pose_read": False,
         "test_features_generated": False,
@@ -349,6 +422,22 @@ def prepare_sit_stand_continuous_dataset(
         "target_selection_counts": dict(sorted(target_selection_counts.items())),
         "partial_context_sample_count": sum(
             bool(sample["partial_context"]) for sample in samples
+        ),
+        "sample_weight_sums": dict(
+            sorted(
+                (
+                    partition,
+                    round(
+                        sum(
+                            float(row["sample_weight"])
+                            for row in samples
+                            if row["partition"] == partition
+                        ),
+                        6,
+                    ),
+                )
+                for partition in {str(row["partition"]) for row in samples}
+            )
         ),
         "semantic_arrays_sha256": semantic_hash,
         "materialized_development_gate": materialized_gate,
@@ -368,6 +457,120 @@ def prepare_sit_stand_continuous_dataset(
         },
     )
     return metadata
+
+
+def _next_interval_onsets(labels: Sequence[Mapping[str, Any]]) -> dict[str, float]:
+    by_video: dict[str, list[tuple[float, str]]] = defaultdict(list)
+    for row in labels:
+        if row.get("interval_type") == "ignore":
+            continue
+        label_id = str(row.get("label_id", ""))
+        video_id = str(row.get("video_id", ""))
+        onset = _finite_nonnegative(row.get("onset_time"), f"{label_id}.onset_time")
+        by_video[video_id].append((onset, label_id))
+    result: dict[str, float] = {}
+    for intervals in by_video.values():
+        ordered = sorted(intervals)
+        for (_, label_id), (next_onset, _) in zip(ordered, ordered[1:], strict=False):
+            result[label_id] = next_onset
+    return result
+
+
+def _sampling_cutoffs(
+    *,
+    interval_type: str,
+    onset_time_sec: float,
+    offset_time_sec: float,
+    next_onset_time_sec: float | None,
+    sampling: SitStandSamplingConfig | None,
+) -> list[tuple[float, str]]:
+    if sampling is None:
+        return [(offset_time_sec, "active" if interval_type == "event" else "background")]
+    duration = offset_time_sec - onset_time_sec
+    if interval_type == "event":
+        candidates = [
+            (onset_time_sec + duration * fraction, "active")
+            for fraction in sampling.event_cutoff_fractions
+        ]
+        for delta in sampling.post_event_offsets_sec:
+            cutoff = offset_time_sec + delta
+            if next_onset_time_sec is None or cutoff < next_onset_time_sec - _EPSILON:
+                candidates.append((cutoff, "post_event"))
+    else:
+        candidates = [
+            (onset_time_sec + duration * fraction, "background")
+            for fraction in sampling.background_cutoff_fractions
+        ]
+    unique: dict[float, str] = {}
+    for cutoff, role in candidates:
+        unique[round(cutoff, 6)] = role
+    return sorted(unique.items())
+
+
+def _assign_balanced_sample_weights(
+    samples: list[dict[str, Any]], sampling: SitStandSamplingConfig
+) -> None:
+    event_counts = Counter(str(row["event_id"]) for row in samples)
+    events_per_group = Counter(
+        (str(row["partition"]), str(row["split_group_id"]))
+        for row in {
+            str(sample["event_id"]): sample for sample in samples
+        }.values()
+    )
+    for row in samples:
+        event_count = event_counts[str(row["event_id"])]
+        group_event_count = events_per_group[
+            (str(row["partition"]), str(row["split_group_id"]))
+        ]
+        row["sample_weight"] = 1.0 / event_count / group_event_count
+
+    dataset_totals: Counter[tuple[str, str]] = Counter()
+    for row in samples:
+        dataset_totals[(str(row["partition"]), str(row["source_dataset"]))] += float(
+            row["sample_weight"]
+        )
+    partition_datasets: dict[str, list[float]] = defaultdict(list)
+    for (partition, _), total in dataset_totals.items():
+        partition_datasets[partition].append(total)
+    dataset_factors: dict[tuple[str, str], float] = {}
+    for key, total in dataset_totals.items():
+        partition = key[0]
+        target = sum(partition_datasets[partition]) / len(partition_datasets[partition])
+        raw = math.sqrt(target / total)
+        limit = sampling.maximum_source_balance_factor
+        dataset_factors[key] = min(limit, max(1.0 / limit, raw))
+
+    for row in samples:
+        factor = dataset_factors[(str(row["partition"]), str(row["source_dataset"]))]
+        if row["eligibility"] == "auxiliary":
+            factor *= sampling.auxiliary_weight
+        row["sample_weight"] = float(row["sample_weight"]) * factor
+
+    target_totals: Counter[tuple[str, int]] = Counter()
+    for row in samples:
+        target_totals[(str(row["partition"]), int(row["target"]))] += float(
+            row["sample_weight"]
+        )
+    for partition in {str(row["partition"]) for row in samples}:
+        present = [
+            target
+            for target in range(3)
+            if target_totals[(partition, target)] > 0
+        ]
+        desired_total = sum(sampling.target_weight_shares[target] for target in present)
+        factors = {
+            target: (
+                sampling.target_weight_shares[target]
+                / desired_total
+                / target_totals[(partition, target)]
+            )
+            for target in present
+        }
+        for row in samples:
+            if row["partition"] == partition:
+                row["sample_weight"] = round(
+                    float(row["sample_weight"]) * factors[int(row["target"])], 12
+                )
 
 
 def _resample_causal(
@@ -441,22 +644,33 @@ def _build_supervision(
     onset_time_sec: float,
     offset_time_sec: float,
     target: int,
+    interval_type: str = "event",
+    cutoff_time_sec: float | None = None,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     timestamps = np.asarray(window.slot_timestamps_sec, dtype=np.float64)
     frame_mask_index = SIT_STAND_CONTINUOUS_CHANNELS.index("frame_mask")
     observed = window.tensor[:, 0, frame_mask_index] > 0
-    supervised = (
+    interval = (
         observed
         & (timestamps >= onset_time_sec - _EPSILON)
         & (timestamps <= offset_time_sec + _EPSILON)
     )
     frame_target = np.full(len(timestamps), -100, dtype=np.int64)
-    frame_target[supervised] = target
+    if interval_type == "event":
+        frame_target[observed] = 0
+        frame_target[interval] = target
+        supervised = observed
+    else:
+        frame_target[interval] = 0
+        supervised = interval
     boundary_target = np.zeros((len(timestamps), 2), dtype=np.float32)
-    indices = np.flatnonzero(supervised)
+    indices = np.flatnonzero(interval)
+    effective_cutoff = offset_time_sec if cutoff_time_sec is None else cutoff_time_sec
     if target in {1, 2} and len(indices):
-        boundary_target[int(indices[0]), 0] = 1.0
-        boundary_target[int(indices[-1]), 1] = 1.0
+        if timestamps[0] - _EPSILON <= onset_time_sec <= effective_cutoff + _EPSILON:
+            boundary_target[int(indices[0]), 0] = 1.0
+        if effective_cutoff + _EPSILON >= offset_time_sec:
+            boundary_target[int(indices[-1]), 1] = 1.0
     return frame_target, boundary_target, supervised.astype(np.float32)
 
 

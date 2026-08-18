@@ -45,6 +45,7 @@ def build_gait_training_audit(
     training: Path,
     evaluation: Path,
     pose_dir: Path,
+    additional_pose_dirs: tuple[Path, ...] = (),
     dataset_metadata: Path | None = None,
     historical_reports: tuple[Path, ...] = (),
 ) -> dict[str, Any]:
@@ -122,6 +123,7 @@ def build_gait_training_audit(
     pose_cache = _audit_pose_cache(
         selected,
         pose_dir=pose_dir,
+        additional_pose_dirs=additional_pose_dirs,
         manifest_by_video=manifest_by_video,
     )
 
@@ -463,6 +465,7 @@ def _audit_pose_cache(
     rows: list[Mapping[str, Any]],
     *,
     pose_dir: Path,
+    additional_pose_dirs: tuple[Path, ...] = (),
     manifest_by_video: Mapping[str, Mapping[str, Any]],
 ) -> dict[str, Any]:
     relevant_by_video: dict[str, set[str]] = defaultdict(set)
@@ -486,7 +489,7 @@ def _audit_pose_cache(
     }
     digest = hashlib.sha256()
     for video_id, partitions in sorted(relevant_by_video.items()):
-        path = _resolve_pose_path(pose_dir, video_id)
+        path = _resolve_pose_path((pose_dir, *additional_pose_dirs), video_id)
         if path is None:
             result["missing"] += 1
             continue

@@ -106,6 +106,21 @@ class SessionManager:
             session.reader = None
         return session
 
+    def update_baseline_period(
+        self, session_id: str, period: dict[str, Any] | None
+    ) -> MonitoringSession | None:
+        session = self.get(session_id)
+        if session is None:
+            return None
+        engine = session.engine
+        if engine is None:
+            raise ValueError("session engine is not ready")
+        updater = getattr(engine, "update_baseline_period", None)
+        if updater is None:
+            raise ValueError("session engine does not support baseline period updates")
+        updater(period)
+        return session
+
     def stop(self, session_id: str) -> MonitoringSession | None:
         session = self.get(session_id)
         if session is None:

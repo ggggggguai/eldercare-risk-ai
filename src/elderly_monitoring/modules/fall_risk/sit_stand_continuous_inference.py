@@ -24,6 +24,67 @@ from elderly_monitoring.modules.fall_risk.sit_stand_continuous_tcn import (
 )
 
 
+class ExperimentalSitStandTCNPredictor:
+    """Adapt the provisional causal TCN to the runtime sit-stand contract.
+
+    This predictor is opt-in. When the candidate emits no event or inference
+    fails, the established rule extractor remains the safety fallback.
+    """
+
+    def __init__(
+        self,
+        checkpoint_path: str | Path,
+        *,
+        device: str = "cpu",
+        batch_size: int = 128,
+    ) -> None:
+        if batch_size < 1:
+            raise ValueError("sit-stand TCN batch_size must be positive")
+        self.model, self.device, self.checkpoint_sha256 = load_continuous_sit_stand_tcn(
+            checkpoint_path,
+            device=device,
+        )
+        self.batch_size = batch_size
+        self.model_version = f"sit-stand-continuous-tcn-v1:{self.checkpoint_sha256[:12]}"
+
+    def predict_records(self, records: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
+        source = [dict(record) for record in records]
+        try:
+            predictions = predict_tcn_sit_stand_video(
+                source,
+                video_id="runtime",
+                model=self.model,
+                device=self.device,
+                checkpoint_sha256=self.checkpoint_sha256,
+                batch_size=self.batch_size,
+                latest_only=True,
+            )["predictions"]
+        except (OSError, RuntimeError, TypeError, ValueError):
+            predictions = []
+        if predictions:
+            return [
+                {
+                    "person_id": str(prediction["stream_id"]).split(":", 1)[0],
+                    "track_id": str(prediction["stream_id"]).split(":", 1)[1],
+                    "start_time": float(prediction["onset_time"]),
+                    "end_time": float(prediction["offset_time"]),
+                    "transition_type": prediction["transition_type"],
+                    "sit_stand_risk_score": float(prediction["score"]),
+                    "score_source": "tcn",
+                    "model_version": prediction["model_version"],
+                    "risk_factors": ["experimental_sit_stand_tcn_event"],
+                }
+                for prediction in predictions
+            ]
+
+        fallback = extract_sit_stand_events(source)
+        for event in fallback:
+            event["score_source"] = "rule_fallback"
+            event["fallback_reason"] = "tcn_no_event_or_inference_failure"
+            event["model_version"] = self.model_version
+        return fallback
+
+
 def load_continuous_sit_stand_tcn(
     checkpoint_path: str | Path,
     *,
@@ -56,6 +117,7 @@ def predict_tcn_sit_stand_video(
     continuous_config: SitStandContinuousConfig | None = None,
     decoder_config: SitStandStreamDecoderConfig | None = None,
     batch_size: int = 128,
+    latest_only: bool = False,
 ) -> dict[str, Any]:
     if batch_size < 1:
         raise ValueError("batch_size must be positive")
@@ -87,7 +149,7 @@ def predict_tcn_sit_stand_video(
                 int(row.get("frame_id", 0) or 0),
             ),
         )
-        cutoffs = sorted(
+        all_cutoffs = sorted(
             {
                 float(row["timestamp_sec"])
                 for row in ordered
@@ -97,6 +159,7 @@ def predict_tcn_sit_stand_video(
                 and float(row["timestamp_sec"]) >= 0
             }
         )
+        cutoffs = all_cutoffs[-1:] if latest_only else all_cutoffs
         diagnostics["cutoff_count"] += len(cutoffs)
         tensors: list[np.ndarray] = []
         valid_cutoffs: list[float] = []

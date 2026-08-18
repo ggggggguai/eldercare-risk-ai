@@ -128,6 +128,27 @@ class SitStandEventSplitTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "cannot satisfy localization gate"):
             build_sit_stand_event_split(labels, source_assignments, manifest)
 
+    def test_train_only_auxiliary_group_never_moves_to_validation(self) -> None:
+        labels, source_assignments, manifest = _fixture()
+        protected_video = "video_0"
+        protected_ids = {
+            row["label_id"] for row in labels if row["video_id"] == protected_video
+        }
+        for row in labels:
+            if row["label_id"] in protected_ids:
+                row["partition_policy"] = "train_only"
+                row["eligibility"] = "auxiliary"
+
+        result = build_sit_stand_event_split(labels, source_assignments, manifest)
+        assigned = {
+            row["partition"]
+            for row in result["assignments"]
+            if row["label_id"] in protected_ids
+        }
+
+        self.assertEqual(assigned, {"train"})
+        self.assertEqual(result["split"]["train_only_label_count"], len(protected_ids))
+
 
 if __name__ == "__main__":
     unittest.main()

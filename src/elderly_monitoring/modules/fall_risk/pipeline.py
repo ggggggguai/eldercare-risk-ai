@@ -55,6 +55,11 @@ class FallRiskPipeline:
             }
         metadata = {
             "stream_epoch": sample.get("stream_epoch"),
+            "fall_event_score_source": sample.get("fall_event_score_source"),
+            "fall_event_tcn_score": sample.get("fall_event_tcn_score"),
+            "fall_event_tcn_detected": bool(
+                sample.get("fall_event_tcn_detected", False)
+            ),
             "feature_coverage": sample.get("feature_coverage", feature_coverage(sample)),
             "fusion_mask": dict(sample.get("fusion_mask", {}))
             if isinstance(sample.get("fusion_mask"), Mapping)
@@ -107,6 +112,15 @@ class FallRiskPipeline:
             factors.append("sit_stand_difficulty")
         if clamp_score(sample.get("baseline_deviation_score")) >= 0.5:
             factors.append("personal_baseline_deviation")
+            baseline_factors = sample.get("baseline_deviation_factors", [])
+            if isinstance(baseline_factors, (list, tuple)):
+                factors.extend(
+                    str(factor)
+                    for factor in baseline_factors
+                    if isinstance(factor, str)
+                    and factor
+                    and not factor.startswith("insufficient_")
+                )
         if clamp_score(sample.get("activity_rhythm_score")) >= 0.5:
             factors.append("activity_rhythm_change")
         if clamp_score(sample.get("scene_risk_score")) >= 0.5:

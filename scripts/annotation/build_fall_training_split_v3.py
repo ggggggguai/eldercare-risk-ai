@@ -43,6 +43,12 @@ def parse_args() -> argparse.Namespace:
         "--seed",
         default="fall-risk-training-labels-v3-20260721",
     )
+    parser.add_argument(
+        "--inherit-assignments",
+        type=Path,
+        default=None,
+        help="Preserve matching partitions from an existing assignments JSONL.",
+    )
     parser.add_argument("--overwrite", action="store_true")
     return parser.parse_args()
 
@@ -56,6 +62,7 @@ def main() -> int:
         assignments_path=args.assignments_output,
         report_path=args.report_output,
         seed=args.seed,
+        inherited_assignments_path=args.inherit_assignments,
         overwrite=args.overwrite,
     )
     print(json.dumps(report, ensure_ascii=False, sort_keys=True, indent=2))

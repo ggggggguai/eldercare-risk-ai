@@ -1,0 +1,30 @@
+{
+  "batch_id": "SCF_MVP_V1",
+  "event_labels_published": 0,
+  "publication_status": "accepted_for_v2_publication",
+  "root_manifest_modified": true,
+  "root_v2_labels_modified": true,
+  "root_v3_labels_modified": false,
+  "schema_version": "self-collected-scf-mvp-v1-root-publication-v1",
+  "selection": {
+    "auxiliary_train_subjects": [
+      "P01",
+      "P02",
+      "P04"
+    ],
+    "challenge_subjects": [
+      "P05"
+    ],
+    "excluded_subjects": [
+      "P03"
+    ],
+    "selected_action_labels": 298,
+    "selected_videos": 150
+  },
+  "source_candidate_dir": "data/annotations/fall_risk/generated/v2/self_collected_scf_mvp_v1_candidate",
+  "source_candidate_sha256": {
+    "action_labels": "993beebceb64f17bc322803fe00c848dd5d5853c6cc19b79fce86fc23f626793",
+    "import_report": "f06d7699660ae1776d7f8843acd61bc5c1e331d58f89928c22b7391bbd994ddf",
+    "manifest": "8d7b74b9583daa5fc6d6007936a4c4e72b0270ca37cc54102491d8fee2977786"
+  }
+}

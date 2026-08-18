@@ -27,6 +27,10 @@ from elderly_monitoring.modules.fall_risk.near_fall_training import (
     prepare_near_fall_event_dataset,
     select_near_fall_training_labels,
     _manifest_index,
+    _select_labeled_track,
+)
+from elderly_monitoring.modules.fall_risk.near_fall_action_auxiliary import (
+    select_action_auxiliary_labels,
 )
 
 
@@ -363,6 +367,80 @@ class NearFallTensorContractTest(unittest.TestCase):
 
 
 class NearFallLabelAndGateTest(unittest.TestCase):
+    def test_action_auxiliary_selection_is_tiered_and_locks_test(self) -> None:
+        def action(label_id: str, action_id: str, partition: str, *, linked: str | None = None) -> dict[str, object]:
+            return {
+                "schema_version": "fall-risk-action-label-v3",
+                "label_id": label_id,
+                "action_id": action_id,
+                "action_type_training_tier": "primary",
+                "training_tier": "primary",
+                "review_status": "single_annotated",
+                "target_status": "confirmed",
+                "quality_flags": [],
+                "linked_event_id": linked,
+                "video_id": f"video-{label_id}",
+                "subject_id": f"subject-{label_id}",
+                "source_group_id": f"source-{label_id}",
+                "sample_group_id": f"sample-{label_id}",
+                "partition": partition,
+            }
+
+        rows = [
+            action("a01", "A01", "train"),
+            action("a04", "A04", "validation"),
+            action("atest", "A01", "test"),
+            action("linked", "A01", "train", linked="event-1"),
+            action("other", "A02", "train"),
+        ]
+        assignments = [
+            {
+                "label_id": row["label_id"],
+                "label_kind": "action",
+                "task_type": "action",
+                "partition": row["partition"],
+                "video_id": row["video_id"],
+                "subject_id": row["subject_id"],
+                "source_group_id": row["source_group_id"],
+                "sample_group_id": row["sample_group_id"],
+            }
+            for row in rows
+        ]
+        selected, locked = select_action_auxiliary_labels(rows, assignments)
+        self.assertEqual([row["label_id"] for row in selected], ["a01", "a04"])
+        self.assertEqual([row["label_id"] for row in locked], ["atest"])
+        self.assertTrue(all(row["label"] == 0 for row in selected))
+        self.assertTrue(all(row["supervision_tier"] == "auxiliary" for row in selected))
+
+    def test_action_auxiliary_selection_rejects_assignment_identity_mismatch(self) -> None:
+        row = {
+            "schema_version": "fall-risk-action-label-v3",
+            "label_id": "mismatch",
+            "action_id": "A01",
+            "action_type_training_tier": "primary",
+            "training_tier": "primary",
+            "review_status": "single_annotated",
+            "target_status": "confirmed",
+            "quality_flags": [],
+            "linked_event_id": None,
+            "video_id": "video-a",
+            "subject_id": "subject-a",
+            "source_group_id": "source-a",
+            "sample_group_id": "sample-a",
+        }
+        assignment = {
+            "label_id": "mismatch",
+            "label_kind": "action",
+            "task_type": "action",
+            "partition": "train",
+            "video_id": "other-video",
+            "subject_id": "subject-a",
+            "source_group_id": "source-a",
+            "sample_group_id": "sample-a",
+        }
+        with self.assertRaisesRegex(ValueError, "video_id mismatch"):
+            select_action_auxiliary_labels([row], [assignment])
+
     def test_strict_selection_excludes_ignore_uncertain_and_low_quality(self) -> None:
         positive, _, _ = _event_label(1, partition="train", role="positive")
         progressed, _, _ = _event_label(
@@ -557,6 +635,110 @@ class NearFallDatasetPreparationTest(unittest.TestCase):
         self.assertIn("missing_hard_negative_windows", metadata)
         self.assertEqual(metadata["status"], "development_provisional")
         self.assertFalse(metadata["formal_training_ready"])
+
+    def test_short_label_uses_full_history_from_the_same_pose_track(self) -> None:
+        label, _, _ = _event_label(1, partition="train", role="negative")
+        label["start_frame"] = 20
+        label["end_frame_exclusive"] = 32
+        records = [_pose_record(frame_id, positive=False) for frame_id in range(48)]
+        competing = [
+            {
+                **_pose_record(frame_id, positive=False),
+                "track_id": 2,
+                "person_id": "other-person",
+                "pose_confidence": 1.0,
+            }
+            for frame_id in range(20)
+        ]
+
+        track = _select_labeled_track(label, [*records, *competing])
+
+        self.assertEqual(min(track), 0)
+        self.assertEqual(max(track), 47)
+        self.assertEqual(
+            {
+                str(row.get("track_id", row.get("person_id")))
+                for row in track.values()
+            },
+            {"1"},
+        )
+
+    def test_multiscale_fallback_is_causal_right_aligned_and_audited(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            paths = _fixture(root)
+            labels = [
+                json.loads(line)
+                for line in paths["labels"].read_text(encoding="utf-8").splitlines()
+            ]
+            positive = next(
+                row
+                for row in labels
+                if row["label_role"] == "positive"
+                and next(
+                    assignment["partition"]
+                    for assignment in (
+                        json.loads(line)
+                        for line in paths["assignments"]
+                        .read_text(encoding="utf-8")
+                        .splitlines()
+                    )
+                    if assignment["label_id"] == row["label_id"]
+                )
+                == "train"
+            )
+            positive["start_frame"] = 12
+            positive["end_frame_exclusive"] = 20
+            positive["onset_frame"] = 13
+            positive["peak_frame"] = 16
+            positive["recovery_frame"] = 18
+            _write_jsonl(paths["labels"], labels)
+            _refresh_contract_hashes(paths)
+
+            result = prepare_near_fall_event_dataset(
+                **paths,
+                output_dir=root / "prepared-v2",
+                config=NearFallDatasetConfig(
+                    target_fps=8.0,
+                    window_sec=3.0,
+                    fallback_window_secs=(2.0,),
+                    min_observed_frames=12,
+                ),
+            )
+            samples = [
+                json.loads(line)
+                for line in Path(result["samples_path"])
+                .read_text(encoding="utf-8")
+                .splitlines()
+            ]
+            audits = [
+                json.loads(line)
+                for line in Path(result["audit_path"])
+                .read_text(encoding="utf-8")
+                .splitlines()
+            ]
+            metadata = json.loads(
+                Path(result["metadata_path"]).read_text(encoding="utf-8")
+            )
+            with np.load(result["dataset_path"], allow_pickle=False) as archive:
+                feature = archive["features"][
+                    np.asarray(archive["sample_ids"]).astype(str)
+                    == f"{positive['label_id']}:window-000"
+                ][0]
+
+        sample = next(row for row in samples if row["label_id"] == positive["label_id"])
+        audit = next(row for row in audits if row["label_id"] == positive["label_id"])
+        self.assertEqual(metadata["schema_version"], "near-fall-event-dataset-v2")
+        self.assertEqual(sample["context_sec"], 2.0)
+        self.assertEqual(sample["context_frames"], 16)
+        self.assertEqual(sample["window_frames"], 24)
+        self.assertEqual(sample["padding_frames"], 8)
+        self.assertFalse(np.any(feature[:8, :, 7] > 0))
+        self.assertTrue(np.any(feature[-1, :, 7] > 0))
+        self.assertEqual(audit["status"], "materialized")
+        self.assertEqual(audit["materialized_window_count"], 1)
+        self.assertEqual(audit["context_sec_counts"], {"2.0": 1})
+        self.assertEqual(metadata["label_audit_count"], metadata["selected_label_count"])
 
 
 class NearFallTCNTrainingTest(unittest.TestCase):

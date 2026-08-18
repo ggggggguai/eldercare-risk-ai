@@ -8,6 +8,7 @@ from pathlib import Path
 
 from elderly_monitoring.modules.fall_risk.training_labels_v3 import (
     FALL_HARD_NEGATIVES,
+    build_training_split_v3,
     migrate_v2_training_labels,
     validate_training_labels_v3,
     write_training_label_migration,
@@ -58,6 +59,106 @@ class FallRiskTrainingLabelsV3Test(unittest.TestCase):
         path = root / "annotations.xml"
         path.write_text("<annotations/>", encoding="utf-8")
         return path, hashlib.sha256(path.read_bytes()).hexdigest()
+
+    def test_manifest_fixed_partition_is_preserved_by_shared_split(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            manifest, _ = self._manifest(root)
+            manifest["split_partition"] = "train"
+            source_path, source_hash = self._source(root)
+            action = self._action(
+                source_path,
+                source_hash,
+                label_id="action_1",
+                action_id="A01",
+                action_name="normal_walk",
+                start_frame=0,
+                end_frame=20,
+            )
+            migrated = migrate_v2_training_labels(
+                manifest_rows=[manifest], action_rows=[action], event_rows=[]
+            )
+            assignments, _ = build_training_split_v3(
+                manifest_rows=[manifest],
+                action_rows=migrated.action_labels,
+                event_rows=migrated.event_labels,
+                seed="fixture",
+            )
+
+        self.assertEqual({row["partition"] for row in assignments}, {"train"})
+
+    def test_shared_split_can_inherit_existing_label_partition(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            manifest, _ = self._manifest(root)
+            source_path, source_hash = self._source(root)
+            action = self._action(
+                source_path,
+                source_hash,
+                label_id="action_1",
+                action_id="A01",
+                action_name="normal_walk",
+                start_frame=0,
+                end_frame=20,
+            )
+            migrated = migrate_v2_training_labels(
+                manifest_rows=[manifest], action_rows=[action], event_rows=[]
+            )
+            initial, _ = build_training_split_v3(
+                manifest_rows=[manifest],
+                action_rows=migrated.action_labels,
+                event_rows=migrated.event_labels,
+                seed="fixture",
+            )
+            initial[0]["partition"] = "validation"
+
+            inherited, report = build_training_split_v3(
+                manifest_rows=[manifest],
+                action_rows=migrated.action_labels,
+                event_rows=migrated.event_labels,
+                inherited_assignment_rows=initial,
+                seed="different-seed",
+            )
+
+        self.assertEqual(inherited[0]["partition"], "validation")
+        self.assertEqual(report["inherited_assignment_count"], 1)
+
+    def test_manifest_training_tier_cap_applies_to_actions_and_derived_events(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            manifest, _ = self._manifest(root)
+            manifest["training_tier_cap"] = "auxiliary"
+            source_path, source_hash = self._source(root)
+            action = self._action(
+                source_path,
+                source_hash,
+                label_id="action_1",
+                action_id="A03",
+                action_name="controlled_sit_down",
+                start_frame=10,
+                end_frame=20,
+            )
+
+            _, migrated_actions, migrated_events = (
+                self._write_migration_with_reviewed_decision(
+                    root,
+                    manifests=[manifest],
+                    actions=[action],
+                    events=[],
+                    decision_overrides={
+                        "action_hard_negative_mappings": [
+                            {
+                                "task_type": "fall_event",
+                                "action_ids": ["A03"],
+                                "hard_negative_type": "controlled_sit_down",
+                            }
+                        ]
+                    },
+                )
+            )
+
+        self.assertEqual(migrated_actions[0]["training_tier"], "auxiliary")
+        self.assertEqual(migrated_events[0]["training_tier"], "auxiliary")
 
     def _action(
         self,

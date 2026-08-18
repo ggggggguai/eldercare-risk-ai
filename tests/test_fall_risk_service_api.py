@@ -87,6 +87,12 @@ class _FakeManager:
             return None
         return self.session
 
+    def update_baseline_period(self, session_id, period):
+        if not self.get(session_id):
+            return None
+        self.session.baseline_period = period
+        return self.session
+
     def stop(self, session_id):
         session = self.get(session_id)
         if session:
@@ -119,6 +125,12 @@ class ServiceApiTest(unittest.TestCase):
         self.assertEqual(status_response.json()["stream_epoch"], 0)
         self.assertEqual(status_response.json()["frame_diagnostics"], {})
         self.assertEqual(self.client.put("/v1/monitoring/sessions/s1/stream-url", json={"stream_url": "https://camera/new"}, headers=self.headers()).status_code, 200)
+        baseline_response = self.client.post(
+            "/v1/monitoring/sessions/s1/baseline-period",
+            json={"period": {"period_id": "2026-07-12"}},
+            headers=self.headers(),
+        )
+        self.assertEqual(baseline_response.status_code, 200)
         self.assertEqual(self.client.post("/v1/monitoring/sessions/s1/stop", headers=self.headers()).status_code, 202)
         self.assertEqual(self.client.post("/v1/monitoring/sessions/s1/stop", headers=self.headers()).status_code, 202)
 
@@ -163,6 +175,34 @@ class ServiceSettingsTest(unittest.TestCase):
         self.assertEqual(settings.frame_queue_capacity, 4)
         self.assertEqual(settings.pose_inference_size, 512)
 
+    def test_empty_gait_model_override_disables_tcn(self) -> None:
+        from elderly_monitoring.service.settings import ServiceSettings
+
+        settings = ServiceSettings.load(
+            path=Path("/path/that/does/not/exist.yaml"),
+            environ={"GAIT_MODEL_PATH": ""},
+        )
+
+        self.assertIsNone(settings.gait_model_path)
+
+    def test_loads_opt_in_sit_stand_tcn_runtime_overrides(self) -> None:
+        from elderly_monitoring.service.settings import ServiceSettings
+
+        settings = ServiceSettings.load(
+            path=Path("/path/that/does/not/exist.yaml"),
+            environ={
+                "SIT_STAND_RUNTIME_MODE": "experimental_tcn",
+                "SIT_STAND_MODEL_PATH": "reports/sit-stand.pt",
+                "SIT_STAND_MODEL_DEVICE": "cpu",
+                "SIT_STAND_MODEL_BATCH_SIZE": "32",
+            },
+        )
+
+        self.assertEqual(settings.sit_stand_runtime_mode, "experimental_tcn")
+        self.assertEqual(settings.sit_stand_model_path, Path("reports/sit-stand.pt"))
+        self.assertEqual(settings.sit_stand_model_device, "cpu")
+        self.assertEqual(settings.sit_stand_model_batch_size, 32)
+
     def test_repository_config_freezes_stage_two_runtime_gates(self) -> None:
         from elderly_monitoring.runtime.realtime_fall_risk import (
             _feature_assembly_config,
@@ -181,7 +221,22 @@ class ServiceSettingsTest(unittest.TestCase):
         )
 
         self.assertEqual(settings.primary_lost_timeout_sec, 2.0)
+        self.assertEqual(settings.fall_event_runtime_mode, "experimental_tcn")
+        self.assertEqual(len(settings.fall_event_shadow_checkpoint_paths), 3)
+        self.assertTrue(
+            all(path.is_file() for path in settings.fall_event_shadow_checkpoint_paths)
+        )
         self.assertEqual(settings.model_path, Path("models/yolov8n-pose.pt"))
+        self.assertEqual(
+            settings.gait_model_path,
+            Path(
+                "reports/fall_risk/gait_observable_context_v2/"
+                "splitv3-3342705-scfaux-v1/pretrained-seed43/best_model.pt"
+            ),
+        )
+        self.assertTrue(settings.gait_model_path.is_file())
+        self.assertEqual(settings.gait_model_device, "cpu")
+        self.assertEqual(settings.gait_model_window_frames, 16)
         self.assertEqual(settings.ffmpeg_scale_width, 640)
         self.assertEqual(settings.max_inference_fps, 10.0)
         self.assertEqual(settings.pose_inference_size, 640)

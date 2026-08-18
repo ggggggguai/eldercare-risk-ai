@@ -251,7 +251,7 @@ def train_near_fall_tcn(
     generator = torch.Generator().manual_seed(training.seed)
     train_loader = DataLoader(
         _WindowDataset(
-            arrays["features"], arrays["labels"], arrays["sample_weights"], train_indices
+            arrays["features"], arrays["labels"], arrays["loss_weights"], train_indices
         ),
         batch_size=training.batch_size,
         shuffle=True,
@@ -262,7 +262,7 @@ def train_near_fall_tcn(
         _WindowDataset(
             arrays["features"],
             arrays["labels"],
-            arrays["sample_weights"],
+            arrays["loss_weights"],
             validation_indices,
         ),
         batch_size=training.batch_size,
@@ -498,13 +498,23 @@ def _load_dataset(path: Path) -> dict[str, np.ndarray]:
         missing = sorted(required - set(archive.files))
         if missing:
             raise ValueError(f"near-fall dataset is missing arrays: {missing}")
-        return {name: archive[name] for name in required}
+        arrays = {name: archive[name] for name in required}
+        arrays["loss_weights"] = np.asarray(
+            archive["loss_weights"]
+            if "loss_weights" in archive.files
+            else arrays["sample_weights"],
+            dtype=np.float32,
+        )
+        return arrays
 
 
 def _validate_metadata(
     metadata: Mapping[str, Any], data_path: Path, *, allow_synthetic: bool
 ) -> None:
-    if metadata.get("schema_version") != "near-fall-event-dataset-v1":
+    if metadata.get("schema_version") not in {
+        "near-fall-event-dataset-v1",
+        "near-fall-event-dataset-v2",
+    }:
         raise ValueError("unsupported near-fall dataset metadata schema")
     if metadata.get("task") != TASK:
         raise ValueError("near-fall dataset task mismatch")
@@ -544,6 +554,9 @@ def _validate_dataset(arrays: Mapping[str, np.ndarray]) -> None:
     weights = np.asarray(arrays["sample_weights"], dtype=np.float32)
     if np.any(weights <= 0) or not np.isfinite(weights).all():
         raise ValueError("near-fall sample weights must be finite and positive")
+    loss_weights = np.asarray(arrays.get("loss_weights", weights), dtype=np.float32)
+    if len(loss_weights) != count or np.any(loss_weights <= 0) or not np.isfinite(loss_weights).all():
+        raise ValueError("near-fall loss weights must be finite and positive")
     for partition in ("train", "validation"):
         if set(labels[partitions == partition].tolist()) != {0, 1}:
             raise ValueError(f"near-fall {partition} partition lacks a binary class")
@@ -615,7 +628,9 @@ def _evaluate_partition(
 ) -> dict[str, Any]:
     model.eval()
     labels = np.asarray(arrays["labels"], dtype=np.int64)[indices]
-    weights = np.asarray(arrays["sample_weights"], dtype=np.float64)[indices]
+    weights = np.asarray(
+        arrays.get("loss_weights", arrays["sample_weights"]), dtype=np.float64
+    )[indices]
     scores = np.zeros(len(indices), dtype=np.float64)
     losses = np.zeros(len(indices), dtype=np.float64)
     with torch.no_grad():

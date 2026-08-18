@@ -220,6 +220,7 @@ def prepare_action_pretraining_dataset(
     manifest_path: str | Path,
     assignments_path: str | Path,
     split_report_path: str | Path,
+    additional_pose_dirs: Sequence[str | Path] = (),
     config: ActionPretrainingPreparationConfig | None = None,
     overwrite: bool = False,
 ) -> dict[str, Any]:
@@ -229,6 +230,7 @@ def prepare_action_pretraining_dataset(
     assignments_source = Path(assignments_path)
     split_report_source = Path(split_report_path)
     pose_root = Path(pose_dir)
+    pose_roots = (pose_root, *(Path(path) for path in additional_pose_dirs))
     destination = Path(output_dir)
     split_report = _validate_split_report(
         label_source,
@@ -252,7 +254,7 @@ def prepare_action_pretraining_dataset(
     pose_inputs: dict[str, dict[str, str]] = {}
     rejected: Counter[str] = Counter()
     for video_id in sorted(rows_by_video):
-        pose_path = _resolve_pose_path(pose_root, video_id)
+        pose_path = _resolve_pose_path(pose_roots, video_id)
         if pose_path is None:
             raise FileNotFoundError(f"pose-quality JSONL not found for {video_id}")
         pose_inputs[video_id] = {

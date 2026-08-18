@@ -28,13 +28,16 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--data",
         type=Path,
-        default=Path("data/processed/fall_risk/near_fall_event_v1/dataset.npz"),
+        default=Path(
+            "data/processed/fall_risk/near_fall_event_v2/"
+            "splitv3-c7fd01cf-input992017e2-scf-e1-ms/dataset.npz"
+        ),
     )
     parser.add_argument("--metadata", type=Path, default=None)
     parser.add_argument(
         "--config",
         type=Path,
-        default=Path("configs/training/near_fall_event_v1.yaml"),
+        default=Path("configs/training/near_fall_event_v2.yaml"),
     )
     parser.add_argument(
         "--profile", choices=("synthetic_smoke", "pilot"), default="pilot"
@@ -60,7 +63,10 @@ def _load_training_config(path: Path, profile: str) -> NearFallTCNConfig:
     payload: Any = yaml.safe_load(path.read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
         raise ValueError("near-fall training config must be a mapping")
-    if payload.get("schema_version") != "near-fall-event-training-config-v1":
+    if payload.get("schema_version") not in {
+        "near-fall-event-training-config-v1",
+        "near-fall-event-training-config-v2",
+    }:
         raise ValueError("unsupported near-fall training config schema")
     profiles = payload.get("tcn_profiles")
     if not isinstance(profiles, dict) or not isinstance(profiles.get(profile), dict):

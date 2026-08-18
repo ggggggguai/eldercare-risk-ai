@@ -6,6 +6,7 @@ import json
 import os
 import zipfile
 from collections import Counter, defaultdict
+from dataclasses import replace
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
@@ -15,6 +16,8 @@ from .near_fall_training import (
     NEAR_FALL_CHANNELS,
     NEAR_FALL_JOINTS,
     NearFallDatasetConfig,
+    _has_causal_context,
+    _left_pad_causal_tensor,
     _read_jsonl,
     _resample_causal_window,
     _window_quality,
@@ -308,26 +311,54 @@ def _build_scf_windows(
         for window_index, anchor in enumerate(anchors):
             anchor_frame = int(anchor["frame_id"])
             anchor_time = float(anchor["timestamp_sec"])
-            slots = _resample_causal_window(
-                track,
-                anchor_time_sec=anchor_time,
-                anchor_frame=anchor_frame,
-                config=config,
-            )
-            quality = _window_quality(slots, config.window_frames)
-            if quality["observed_frame_count"] < config.min_observed_frames:
-                rejected["insufficient_observed_frames"] += 1
+            selected_window = None
+            attempted_quality = False
+            for context_sec in config.context_window_secs:
+                context_config = replace(
+                    config, window_sec=context_sec, fallback_window_secs=()
+                )
+                if not _has_causal_context(
+                    track,
+                    anchor_time_sec=anchor_time,
+                    window_frames=context_config.window_frames,
+                    target_fps=context_config.target_fps,
+                ):
+                    continue
+                slots = _resample_causal_window(
+                    track,
+                    anchor_time_sec=anchor_time,
+                    anchor_frame=anchor_frame,
+                    config=context_config,
+                )
+                quality = _window_quality(slots, context_config.window_frames)
+                attempted_quality = True
+                if quality["observed_frame_count"] < config.min_observed_frames:
+                    continue
+                if (
+                    quality["usable_frame_ratio"] < config.min_usable_frame_ratio
+                    or quality["joint_coverage"] < config.min_joint_coverage
+                    or quality["mean_joint_quality"] < config.min_mean_joint_quality
+                ):
+                    continue
+                tensor = build_near_fall_tensor(
+                    slots,
+                    window_frames=context_config.window_frames,
+                    target_fps=context_config.target_fps,
+                )
+                selected_window = (
+                    context_sec,
+                    context_config,
+                    slots,
+                    quality,
+                    _left_pad_causal_tensor(tensor, config.window_frames),
+                )
+                break
+            if selected_window is None:
+                rejected[
+                    "insufficient_quality" if attempted_quality else "insufficient_context"
+                ] += 1
                 continue
-            if (
-                quality["usable_frame_ratio"] < config.min_usable_frame_ratio
-                or quality["joint_coverage"] < config.min_joint_coverage
-                or quality["mean_joint_quality"] < config.min_mean_joint_quality
-            ):
-                rejected["insufficient_quality"] += 1
-                continue
-            tensor = build_near_fall_tensor(
-                slots, window_frames=config.window_frames, target_fps=config.target_fps
-            )
+            context_sec, context_config, slots, quality, tensor = selected_window
             if not np.any(tensor[..., 7] > 0):
                 rejected["empty_valid_mask"] += 1
                 continue
@@ -362,6 +393,12 @@ def _build_scf_windows(
                     ),
                     "window_end_frame": anchor_frame,
                     "window_end_time_sec": anchor_time,
+                    "context_sec": context_sec,
+                    "context_frames": context_config.window_frames,
+                    "context_length": quality["observed_frame_count"],
+                    "window_frames": config.window_frames,
+                    "padding_frames": config.window_frames
+                    - context_config.window_frames,
                     "max_source_frame": max(
                         int(row["frame_id"]) for row in slots if row is not None
                     ),
@@ -406,7 +443,9 @@ def _candidate_anchors(
     if str(candidate["candidate_role"]) == "positive_candidate":
         return [max(interval, key=lambda row: (int(row["frame_id"]), float(row["timestamp_sec"])))]
     first_track_time = min(float(row["timestamp_sec"]) for row in track)
-    span = (config.window_frames - 1) / config.target_fps
+    span = (
+        int(round(config.target_fps * min(config.context_window_secs))) - 1
+    ) / config.target_fps
     eligible = [row for row in interval if float(row["timestamp_sec"]) >= first_track_time + span - 1e-9]
     if not eligible:
         return []

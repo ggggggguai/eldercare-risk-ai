@@ -1,8 +1,10 @@
 {
   "schema_version": "self-collected-scf-mvp-v1-import-decision-v1",
   "batch_id": "SCF_MVP_V1",
-  "decision_id": "scf-mvp-v1-candidate-import-20260812",
+  "decision_id": "scf-mvp-v1-root-training-publication-20260817",
   "decision_status": "approved_for_internal_development_training",
+  "decided_by": "project_owner",
+  "decided_at": "2026-08-17",
   "inventory_sha256": "6f95ed01982c10ac485db9a0d7e52899e42bd235f4c250759e6689d11f35b8cb",
   "annotation_exports": {
     "P01": {
@@ -70,10 +72,14 @@
     "test_locked": true
   },
   "publication_policy": {
-    "candidate_output_only": true,
-    "root_manifest_immutable": true,
-    "root_v2_labels_immutable": true,
-    "root_v3_labels_immutable": true,
-    "existing_splits_immutable": true
+    "candidate_output_only": false,
+    "root_manifest_immutable": false,
+    "root_v2_labels_immutable": false,
+    "root_v3_labels_immutable": false,
+    "existing_splits_immutable": false,
+    "root_publication_subjects": ["P01", "P02", "P04"],
+    "root_publication_training_tier": "auxiliary",
+    "challenge_subjects_remain_isolated": ["P05"],
+    "excluded_subjects_remain_isolated": ["P03"]
   }
 }

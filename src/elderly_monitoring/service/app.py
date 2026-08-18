@@ -8,7 +8,13 @@ from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from elderly_monitoring.service.schemas import SessionAccepted, SessionStatusResponse, StartSessionRequest, StreamUrlUpdate
+from elderly_monitoring.service.schemas import (
+    BaselinePeriodUpdate,
+    SessionAccepted,
+    SessionStatusResponse,
+    StartSessionRequest,
+    StreamUrlUpdate,
+)
 from elderly_monitoring.service.session import SessionManager, SessionStatus
 from elderly_monitoring.service.settings import ServiceSettings
 from elderly_monitoring.service.stream_reader import FFmpegStreamReader, StreamReader
@@ -32,6 +38,14 @@ def create_app(*, settings: ServiceSettings | None = None, session_manager: Sess
         gait_model_path=service_settings.gait_model_path,
         gait_model_device=service_settings.gait_model_device,
         gait_model_window_frames=service_settings.gait_model_window_frames,
+        sit_stand_runtime_mode=service_settings.sit_stand_runtime_mode,
+        sit_stand_model_path=service_settings.sit_stand_model_path,
+        sit_stand_model_device=service_settings.sit_stand_model_device,
+        sit_stand_model_batch_size=service_settings.sit_stand_model_batch_size,
+        fall_event_runtime_mode=service_settings.fall_event_runtime_mode,
+        fall_event_shadow_checkpoint_paths=service_settings.fall_event_shadow_checkpoint_paths,
+        fall_event_shadow_device=service_settings.fall_event_shadow_device,
+        fall_event_shadow_threshold=service_settings.fall_event_shadow_threshold,
         reconnect_attempts=service_settings.reconnect_attempts,
         reconnect_delay_sec=service_settings.reconnect_delay_sec,
         reconnect_stable_after_sec=service_settings.reconnect_stable_after_sec,
@@ -81,6 +95,25 @@ def create_app(*, settings: ServiceSettings | None = None, session_manager: Sess
             and not service_settings.gait_model_path.exists()
         ):
             raise HTTPException(status_code=503, detail="gait model is not available")
+        if (
+            service_settings.sit_stand_runtime_mode == "experimental_tcn"
+            and (
+                service_settings.sit_stand_model_path is None
+                or not service_settings.sit_stand_model_path.exists()
+            )
+        ):
+            raise HTTPException(status_code=503, detail="sit-stand model is not available")
+        missing_fall_event_models = [
+            path.as_posix()
+            for path in service_settings.fall_event_shadow_checkpoint_paths
+            if not path.exists()
+        ]
+        if missing_fall_event_models:
+            raise HTTPException(
+                status_code=503,
+                detail="fall-event TCN model is not available: "
+                + ", ".join(missing_fall_event_models),
+            )
         if service_settings.stream_reader_backend == "ffmpeg" and (
             shutil.which("ffmpeg") is None or shutil.which("ffprobe") is None
         ):
@@ -114,6 +147,22 @@ def create_app(*, settings: ServiceSettings | None = None, session_manager: Sess
     @app.put("/v1/monitoring/sessions/{session_id}/stream-url", response_model=SessionAccepted, dependencies=[Depends(require_token)])
     def update(session_id: str, request: StreamUrlUpdate) -> SessionAccepted:
         session = manager.update_url(session_id, request.stream_url)
+        if session is None:
+            raise HTTPException(status_code=404, detail="session not found")
+        return SessionAccepted(session_id=session.session_id, status=session.status.value)
+
+    @app.post(
+        "/v1/monitoring/sessions/{session_id}/baseline-period",
+        response_model=SessionAccepted,
+        dependencies=[Depends(require_token)],
+    )
+    def update_baseline_period(
+        session_id: str, request: BaselinePeriodUpdate
+    ) -> SessionAccepted:
+        try:
+            session = manager.update_baseline_period(session_id, request.period)
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
         if session is None:
             raise HTTPException(status_code=404, detail="session not found")
         return SessionAccepted(session_id=session.session_id, status=session.status.value)

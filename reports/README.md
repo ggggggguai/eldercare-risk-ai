@@ -18,7 +18,8 @@ Workflow A 当前入口：
 - [`fall_risk/data_audit.md`](fall_risk/data_audit.md)：真实本地数据与标签审计。
 - [`fall_risk/self-collected-data-audit-20260810.md`](fall_risk/self-collected-data-audit-20260810.md)：2026-08-10 自采 P01/P02、P03 与未归属来源的完整性、重复、媒体、授权和治理状态审查；全部暂不进入训练或正式评测。
 - [`fall_risk/self-collected-data-audit-20260811.md`](fall_risk/self-collected-data-audit-20260811.md)：新交付 P01–P05 的哈希对账、CVAT 脱敏与一一对应校验、P04/P05 增量整理和当前入链门禁。
-- [`fall_risk/self_collected_scf_mvp_v1/README.md`](fall_risk/self_collected_scf_mvp_v1/README.md)：SCF_MVP_V1 隔离 candidate、262 段四分支冻结基线回放和 G2 E0/E1-E3 门禁；全部样本未进入 loss，规则主路径不变。
+- [`fall_risk/self_collected_scf_mvp_v1/README.md`](fall_risk/self_collected_scf_mvp_v1/README.md)：SCF_MVP_V1 候选审计、根标签发布、262 段冻结回放和 G2 门禁；P01/P02/P04 已进入 train，P03/P05 保持隔离。G2 近跌倒 checkpoint 仍为 No-Go，步态运行启用另见下一项。
+- [`fall_risk/gait_runtime_activation_20260818.md`](fall_risk/gait_runtime_activation_20260818.md)：步态 pretrained seed 43 的比赛交付受控启用、配置路径、fallback、验证和回滚记录。
 - [`fall_risk/workflow_a_blockers.md`](fall_risk/workflow_a_blockers.md)：来源、隐私、真值与数据门槛。
 - [`fall_risk/fall-risk-data-v2-release-candidate.md`](fall_risk/fall-risk-data-v2-release-candidate.md)：发布候选验收结论。
 - [`fall_risk/training-labels-v3-migration.json`](fall_risk/training-labels-v3-migration.json)：v2 到模型训练标签 v3 的确定性迁移计数与 hash。
@@ -35,8 +36,14 @@ Workflow A 当前入口：
 - [`fall_risk/gait_observable_context_v2/splitv3-e71a045/README.md`](fall_risk/gait_observable_context_v2/splitv3-e71a045/README.md)：同轨真实上下文、label-span 掩码和证据分层的受限消融；train 正类监督段增至 92，正式 validation 门禁仍未通过。
 - [`fall_risk/sit_stand_event_v1/README.md`](fall_risk/sit_stand_event_v1/README.md)：坐站 candidate-clip Logistic/TCN provisional validation；不提供连续事件定位或 test 结论。
 - [`fall_risk/sit_stand_training_audit.md`](fall_risk/sit_stand_training_audit.md)与[`fall_risk/sit_stand_training_blockers.md`](fall_risk/sit_stand_training_blockers.md)：连续坐站 P0 hash/test 隔离审计和真实标签、背景、冻结协议阻塞；当前为 `infrastructure_only`。
+- [`fall_risk/sit_stand_event_v2/README.md`](fall_risk/sit_stand_event_v2/README.md)：SCF 发布后的坐站专项 v2 治理、物化感知保护组 split、11,605 个多 cutoff 因果窗口和同协议 TCN/规则完整流开发评估；正式模型门禁仍为 No-Go，比赛期默认运行已临时切换为 TCN-first。
+- [`fall_risk/sit_stand_runtime_activation_20260818.md`](fall_risk/sit_stand_runtime_activation_20260818.md)：比赛期坐站 TCN-first 默认启用记录；保留规则 fallback，正式模型门禁仍为 No-Go。
 - [`fall_risk/near_fall_event_v1/README.md`](fall_risk/near_fall_event_v1/README.md)：当前 v3 split 的近跌倒恢复确认 TCN 三 seed 开发训练；validation 事件 F1 `0.9933-0.9967`，test 未读取，困难负例/连续背景/老人域门禁仍阻塞，未替换规则主路径。
+- [`fall_risk/near_fall_event_v2/README.md`](fall_risk/near_fall_event_v2/README.md)：SCF 发布后按完整同轨上下文和 3 秒/2 秒回退重建的近跌倒数据；E1 仅加入受审负例，最终为 3,842 个窗口、1,695 个事件，三 seed P05 结果仍为 No-Go。
 - [`fall_risk/fall_event_proxy_v2_v3split/README.md`](fall_risk/fall_event_proxy_v2_v3split/README.md)：当前 v3 split 的跌倒 candidate-clip TCN 三 seed provisional pilot；validation F1 `0.958-0.963`，test 未读取，未替换规则主路径。
+- [`fall_risk/fall_event_continuous_governance_v1/README.md`](fall_risk/fall_event_continuous_governance_v1/README.md)：历史 `splitv3_c7fd...` 的连续跌倒训练监督治理；已由当前 split 的 v2 治理取代，只作追溯。
+- [`fall_risk/fall_event_continuous_governance_v2/README.md`](fall_risk/fall_event_continuous_governance_v2/README.md)：当前 `splitv3_334...` 的 7,701 条连续跌倒开发监督、姿态覆盖、平衡权重和 test 隔离审计。
+- [`fall_risk/fall_event_continuous_tcn_v2/README.md`](fall_risk/fall_event_continuous_tcn_v2/README.md)：当前 `splitv3_334...` 上重新治理的 7,504 个因果窗口、三 seed TCN、validation 概率集成和分层误报审计；当前为 No-Go，test 未读取，未替换规则主路径。
 - [`fall_risk/runtime/ezviz-live-smoke-20260812.md`](fall_risk/runtime/ezviz-live-smoke-20260812.md)：真实萤石 HTTPS-FLV 的 120 秒算法端严格烟测；业务回调、地址刷新、弱网和一小时资源验收仍未完成。
 - [`fall_risk/baseline_longitudinal_phase2.md`](fall_risk/baseline_longitudinal_phase2.md)：个体基线 Phase 2 的 longitudinal schema、outcome-blind 前向 split、四组消融评估基础设施、合成验收和真实空数据 blocker；不是老人域效果报告。
 

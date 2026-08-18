@@ -34,10 +34,10 @@ functional_proxy = B01 slow_walk（单列，不作为主任务正类）
 
 ## 2. 当前事实快照
 
-开始执行时必须重新读取机器产物，不得盲信本节数字。2026-08-10 的仓库事实为：
+开始执行时必须重新读取机器产物，不得盲信本节数字。本节旧快照已由 2026-08-17 的 SCF 训练治理报告 supersede：
 
 - editable 安装已指向当前仓库。
-- 当前 v3 split 为 `splitv3_e71a045eb58489f43dc5fd11`，`valid=true`、无机器报告泄漏，但仍是 provisional，未冻结。
+- 当前 v3 split 为 `splitv3_3342705b7b1ac51570148337`，`valid=true`、无机器报告泄漏，但仍是 provisional，未冻结。
 - `training_ready.action_type=false`；fall/near-fall 事件门禁通过不能替代步态动作门禁。
 - 当前 9,314 条 v3 动作标签中，B02/B03/B04 分别为 36/36/65 段；按父任务 `training_tier` 的 primary 数分别为 32/27/63。
 - B03 的 `action_type_training_tier` 没有 primary：34 条 auxiliary、2 条 ignore，因此 subtype 头不具备正式监督资格。

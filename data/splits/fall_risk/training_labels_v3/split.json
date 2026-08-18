@@ -1,13 +1,18 @@
 {
   "allocation_method": "deterministic_group_level_supervision_balance",
-  "asset_count": 6516,
-  "assignment_count": 18812,
-  "assignments_sha256": "878a3b46afc570ca32baf37220579301b5cdb420009249318012fc79ac68f715",
-  "group_count": 184,
+  "asset_count": 6666,
+  "assignment_count": 19263,
+  "assignments_sha256": "f4f9ee9a1e58c9a840abea7dfd847dc5db5ce558de58536f899ddb5d4349d7b8",
+  "group_count": 187,
+  "inherited_asset_count": 6516,
+  "inherited_assignment_count": 18812,
+  "inherited_assignments": {
+    "sha256": "878a3b46afc570ca32baf37220579301b5cdb420009249318012fc79ac68f715"
+  },
   "input_sha256": {
-    "action_labels": "894c6d052159be5f6aad19778b3484aa49e663e29b5030465134fc906b554e5f",
-    "event_labels": "7b263e8c1b2d2eae5d8e88cdc23316beb8d41a0e6479a76c620f127a372b8f82",
-    "manifest": "539274222b8a3b91249398a0415f304b73edf3dc5066150304102a7ca773503a"
+    "action_labels": "c439acdcb0bb712dce2ce64f72eb19203fc71fa6639d27f44e6aabdbb2509f59",
+    "event_labels": "992017e2da198e87f9ade9f8279c1797c7bfeeb00c1d5067b14489958f2b1d9c",
+    "manifest": "e09ba07a6ae74c012f5bc2eb0bbb55bffc24763989e55fc16ac4df8e46e6f629"
   },
   "leakage_issues": [],
   "partition_action_type_counts": {
@@ -20,6 +25,11 @@
       "test": 3,
       "train": 76,
       "validation": 8
+    },
+    "controlled_lie_down": {
+      "test": 1,
+      "train": 24,
+      "validation": 0
     },
     "controlled_sit_down": {
       "test": 325,
@@ -76,6 +86,11 @@
       "train": 1274,
       "validation": 248
     },
+    "routine_support_contact": {
+      "test": 1,
+      "train": 13,
+      "validation": 0
+    },
     "seated_fall": {
       "test": 6,
       "train": 177,
@@ -104,12 +119,12 @@
   },
   "partition_asset_counts": {
     "test": 1318,
-    "train": 3769,
+    "train": 3919,
     "validation": 1429
   },
   "partition_label_counts": {
     "test": 3730,
-    "train": 11364,
+    "train": 11815,
     "validation": 3718
   },
   "partition_supervision_counts": {
@@ -149,5 +164,5 @@
   },
   "schema_version": "fall-risk-training-split-v3",
   "seed": "fall-risk-training-labels-v3-20260721",
-  "split_id": "splitv3_e71a045eb58489f43dc5fd11"
+  "split_id": "splitv3_3342705b7b1ac51570148337"
 }

@@ -133,6 +133,9 @@ _FALL_TIKTOK_REDACTED_CVAT = Path(
     "data/annotations/fall_risk/cvat_exports/raw/fall_tiktok/"
     "fall_tiktok_cvat_redacted.zip"
 )
+_SCF_MVP_V1_TRAINING_MANIFEST = Path(
+    "data/annotations/fall_risk/generated/v2/SCF_MVP_V1/manifest.jsonl"
+)
 _INTERNAL_AUTHORIZATION_EVIDENCE_TYPES = {
     "cvat_export_archive",
     "local_media_inventory",
@@ -274,6 +277,7 @@ def build_fall_risk_manifest(
         _adapt_pre_vfallp,
         _adapt_caucafall,
         _adapt_fall_tiktok,
+        _adapt_scf_mvp_v1_training,
     )
     for adapter in adapters:
         rows.extend(adapter(root, probe))
@@ -291,6 +295,37 @@ def build_fall_risk_manifest(
         manifest_sha256=manifest_sha256,
         summary=summary,
     )
+
+
+def _adapt_scf_mvp_v1_training(
+    root: Path, probe: _VideoProbe
+) -> list[dict[str, Any]]:
+    """Load the explicit SCF root-publication manifest, if present.
+
+    SCF media are already measured and hash-bound by its delivery inventory;
+    rebuilding the general manifest must preserve those values and must not
+    silently re-admit the candidate or challenge subjects.
+    """
+    manifest_path = root / _SCF_MVP_V1_TRAINING_MANIFEST
+    if not manifest_path.is_file():
+        return []
+    rows: list[dict[str, Any]] = []
+    for line_number, line in enumerate(
+        manifest_path.read_text(encoding="utf-8").splitlines(), 1
+    ):
+        if not line.strip():
+            continue
+        row = json.loads(line)
+        if not isinstance(row, dict) or row.get("dataset") != "self_collected_scf":
+            raise ValueError(f"invalid SCF root manifest row: {manifest_path}:{line_number}")
+        relative_path = Path(str(row.get("path", "")))
+        media_path = root / relative_path
+        if not media_path.is_file():
+            raise FileNotFoundError(media_path)
+        if _sha256_file(media_path) != row.get("sha256"):
+            raise ValueError(f"SCF root manifest media hash mismatch: {media_path}")
+        rows.append(dict(row))
+    return rows
 
 
 def _load_reviewed_ntu_rgbd_rows(root: Path) -> list[dict[str, Any]]:

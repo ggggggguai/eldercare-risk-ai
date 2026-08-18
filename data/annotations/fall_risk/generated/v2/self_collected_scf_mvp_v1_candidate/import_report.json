@@ -33,7 +33,7 @@
       "P04": "783b087c02a0ae4df2815e1e7f2a4db731af2fb69e958672f5ba2588b72fb871",
       "P05": "14206b6de578ea78a68126daadf54643c69c63cf7dba37ae5cffb21a20afbf89"
     },
-    "decision_sha256": "186d2bc85df51dc74ce0f6978ae4a16adf76be1fda0b798d41bbe771428486da",
+    "decision_sha256": "4361d96f3da7ec240c1834e5f8f1d1f29e927c7cc9a8411e36c53791962afd7d",
     "inventory_sha256": "6f95ed01982c10ac485db9a0d7e52899e42bd235f4c250759e6689d11f35b8cb"
   },
   "root_artifacts_modified": false,

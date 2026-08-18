@@ -7,9 +7,11 @@ from pathlib import Path
 
 import numpy as np
 
+from scripts.prepare.prepare_sit_stand_continuous_dataset import build_parser
 from elderly_monitoring.modules.fall_risk.sit_stand_continuous import (
     SIT_STAND_CONTINUOUS_CHANNELS,
     SitStandContinuousConfig,
+    SitStandSamplingConfig,
     build_sit_stand_causal_window,
     prepare_sit_stand_continuous_dataset,
 )
@@ -166,6 +168,112 @@ class SitStandContinuousWindowTest(unittest.TestCase):
 
 
 class SitStandContinuousDatasetTest(unittest.TestCase):
+    def test_prepare_cli_accepts_recall_balanced_sampling_parameters(self) -> None:
+        args = build_parser().parse_args(
+            [
+                "--labels",
+                "labels.jsonl",
+                "--review-log",
+                "review.jsonl",
+                "--assignments",
+                "assignments.jsonl",
+                "--pose-dir",
+                "pose",
+                "--output-dir",
+                "output",
+                "--sampling-policy",
+                "balanced_causal_v2",
+                "--event-cutoff-fractions",
+                "0.25",
+                "0.5",
+                "0.75",
+                "1.0",
+                "--post-event-offsets-sec",
+                "0.25",
+                "0.5",
+                "--target-weight-shares",
+                "0.4",
+                "0.3",
+                "0.3",
+            ]
+        )
+
+        self.assertEqual(args.event_cutoff_fractions, [0.25, 0.5, 0.75, 1.0])
+        self.assertEqual(args.post_event_offsets_sec, [0.25, 0.5])
+        self.assertEqual(args.target_weight_shares, [0.4, 0.3, 0.3])
+
+    def test_balanced_causal_sampling_uses_active_and_post_event_cutoffs(self) -> None:
+        labels = [
+            {
+                "label_id": "event",
+                "event_id": "event",
+                "video_id": "video",
+                "source_group_id": "source",
+                "interval_type": "event",
+                "eligibility": "eligible",
+                "onset_time": 1.0,
+                "offset_time": 2.0,
+                "transition_type": "sit_to_stand",
+            }
+        ]
+        assignments = [
+            {"label_id": "event", "partition": "train", "split_group_id": "g1"}
+        ]
+        config = SitStandContinuousConfig(
+            target_fps=4.0,
+            context_sec=2.0,
+            max_gap_sec=0.3,
+            min_observed_frames=4,
+            min_partial_observed_frames=2,
+        )
+        sampling = SitStandSamplingConfig(
+            event_cutoff_fractions=(0.5, 1.0),
+            post_event_offsets_sec=(0.5,),
+            background_cutoff_fractions=(1.0,),
+        )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            output = Path(tmp) / "dataset"
+            result = prepare_sit_stand_continuous_dataset(
+                labels,
+                assignments,
+                pose_reader=lambda _: [_pose(index / 4) for index in range(1, 11)],
+                output_dir=output,
+                config=config,
+                sampling=sampling,
+                manifest=[{"video_id": "video", "dataset": "fixture"}],
+            )
+            samples = [
+                __import__("json").loads(line)
+                for line in (output / "samples.jsonl").read_text(encoding="utf-8").splitlines()
+            ]
+            with np.load(output / "dataset.npz", allow_pickle=False) as archive:
+                targets = archive["targets"]
+                boundaries = archive["boundary_targets"]
+
+        self.assertEqual(result["sampling_policy"], "balanced_causal_v2")
+        self.assertEqual(
+            result["sampling_config"],
+            {
+                "event_cutoff_fractions": [0.5, 1.0],
+                "post_event_offsets_sec": [0.5],
+                "background_cutoff_fractions": [1.0],
+                "auxiliary_weight": 0.5,
+                "maximum_source_balance_factor": 4.0,
+                "target_weight_shares": [0.5, 0.25, 0.25],
+            },
+        )
+        self.assertEqual([row["cutoff_role"] for row in samples], ["active", "active", "post_event"])
+        self.assertEqual(targets.tolist(), [1, 1, 0])
+        self.assertEqual(float(boundaries[0, :, 1].sum()), 0.0)
+        self.assertEqual(float(boundaries[1, :, 1].sum()), 1.0)
+        self.assertAlmostEqual(sum(row["sample_weight"] for row in samples), 1.0, places=6)
+        self.assertAlmostEqual(
+            sum(row["sample_weight"] for row in samples if row["target"] == 0),
+            2.0 / 3.0,
+            places=6,
+        )
+
     def test_dominant_track_is_selected_when_distractor_is_intermittent(self) -> None:
         labels = [
             {

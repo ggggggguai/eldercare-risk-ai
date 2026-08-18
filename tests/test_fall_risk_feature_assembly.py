@@ -1,5 +1,6 @@
 import unittest
 
+from elderly_monitoring.modules.fall_risk.pipeline import FallRiskPipeline
 from elderly_monitoring.runtime.feature_assembly import FeatureAssembler, FeatureAssemblyConfig
 
 
@@ -20,7 +21,75 @@ def _record(frame_id: int, timestamp: float, quality: float = 0.9):
     }
 
 
+def _baseline_period(day: int, *, activity_volume: float = 100.0):
+    metrics = (
+        "mean_gait_speed",
+        "mean_sit_stand_duration",
+        "near_fall_rate_per_hour",
+        "nighttime_activity_rate_per_hour",
+        "activity_volume",
+    )
+    return {
+        "record_type": "fall_baseline_period_features",
+        "schema_version": "fall-baseline-period-features-v1",
+        "person_id": "elder-1",
+        "device_id": "device-1",
+        "camera_profile_id": "camera-home-1",
+        "period_id": f"2026-06-{day:02d}",
+        "period_start": f"2026-06-{day:02d}T00:00:00+08:00",
+        "period_end": f"2026-06-{day:02d}T23:59:59+08:00",
+        "timezone": "Asia/Shanghai",
+        "completed": True,
+        "aggregation_version": "fall-baseline-period-aggregation-v1",
+        "upstream_versions": {"activity": "activity-test-v1"},
+        "input_summary": {"source_record_count": 1},
+        "valid_monitoring_hours": 2.0,
+        "gait_stability_features": {"mean_center_speed_norm_per_sec": 0.42},
+        "duration": 2.4,
+        "near_fall_event_count": 0,
+        "nighttime_activity_count": 1,
+        "activity_volume": activity_volume,
+        "metric_quality": {
+            metric: {
+                "available": True,
+                "observation_count": 1,
+                "quality": 0.9,
+                "coverage": 0.9,
+                "exposure_hours": 2.0,
+                "missing_reason": None,
+            }
+            for metric in metrics
+        },
+    }
+
+
 class FeatureAssemblyTest(unittest.TestCase):
+    def test_completed_baseline_period_enters_main_fusion_path(self) -> None:
+        history = [_baseline_period(day) for day in range(1, 11)]
+        assembler = FeatureAssembler(
+            person_id="elder-1",
+            scene_region="home",
+            baseline_history=history,
+            config=FeatureAssemblyConfig(analysis_interval_sec=0.0),
+        )
+
+        result = assembler.update_baseline_period(
+            _baseline_period(11, activity_volume=20.0)
+        )
+        self.assertIsNotNone(result)
+        self.assertEqual(result["baseline_state"], "stable")
+        self.assertIsNotNone(result["baseline_deviation_score"])
+
+        snapshot = assembler.add_pose(_record(1, 0.0), monotonic_sec=0.0)
+
+        self.assertEqual(snapshot.branch_diagnostics["baseline"]["status"], "valid")
+        self.assertEqual(
+            snapshot.features["baseline_deviation_score"],
+            result["baseline_deviation_score"],
+        )
+        self.assertTrue(snapshot.features["fusion_mask"]["baseline_deviation_score"])
+        self.assertFalse(snapshot.features["fusion_mask"]["activity_rhythm_score"])
+
     def test_pose_window_cannot_be_scored_as_completed_baseline_period(self) -> None:
         history = [{
             "record_type": "fall_baseline_period_features",
@@ -252,6 +321,163 @@ class FeatureAssemblyTest(unittest.TestCase):
         self.assertIsNotNone(snapshot)
         self.assertEqual(snapshot.features["gait_risk_score"], 0.73)
         self.assertEqual(snapshot.features["gait_score_source"], "tcn")
+
+    def test_configured_sit_stand_predictor_is_used_by_runtime_assembly(self) -> None:
+        class Predictor:
+            model_version = "sit-stand-tcn-test"
+
+            def predict_records(self, records):
+                return [{
+                    "person_id": "elder-1",
+                    "track_id": 1,
+                    "start_time": 1.0,
+                    "end_time": 2.0,
+                    "transition_type": "sit_to_stand",
+                    "sit_stand_risk_score": 0.73,
+                    "score_source": "tcn",
+                    "model_version": self.model_version,
+                    "risk_factors": ["experimental_sit_stand_tcn_event"],
+                }]
+
+        assembler = FeatureAssembler(
+            person_id="elder-1",
+            scene_region="home",
+            config=FeatureAssemblyConfig(analysis_interval_sec=0.0),
+            sit_stand_predictor=Predictor(),
+        )
+        snapshot = None
+        for frame_id in range(12):
+            snapshot = assembler.add_pose(
+                _record(frame_id, frame_id * 0.1),
+                monotonic_sec=frame_id * 0.1,
+            )
+
+        self.assertIsNotNone(snapshot)
+        self.assertEqual(snapshot.features["sit_stand_risk_score"], 0.73)
+        self.assertEqual(
+            snapshot.branch_diagnostics["sit_stand"]["score_source"], "tcn"
+        )
+        self.assertEqual(
+            snapshot.branch_diagnostics["sit_stand"]["model_version"],
+            "sit-stand-tcn-test",
+        )
+
+    def test_continuous_fall_tcn_shadow_is_diagnostic_only(self) -> None:
+        class ShadowPredictor:
+            model_version = "fall-event-continuous-tcn-test-shadow"
+
+            def predict_records(self, records):
+                return {
+                    "fall_event_tcn_shadow_score": 0.83,
+                    "fall_event_tcn_shadow_detected": True,
+                    "fall_event_tcn_shadow_onset_frame": 18,
+                    "fall_event_tcn_shadow_model_version": self.model_version,
+                    "fall_event_tcn_shadow_status": "provisional_shadow",
+                }
+
+        assembler = FeatureAssembler(
+            person_id="elder-1",
+            scene_region="home",
+            scene_risk_scores={},
+            config=FeatureAssemblyConfig(analysis_interval_sec=0.0),
+            fall_event_predictor=ShadowPredictor(),
+        )
+        snapshot = None
+        for frame_id in range(12):
+            snapshot = assembler.add_pose(
+                _record(frame_id, frame_id * 0.1),
+                monotonic_sec=frame_id * 0.1,
+            )
+
+        self.assertIsNotNone(snapshot)
+        self.assertEqual(snapshot.features["fall_event_tcn_shadow_score"], 0.83)
+        self.assertTrue(snapshot.features["fall_event_tcn_shadow_detected"])
+        self.assertEqual(
+            snapshot.branch_diagnostics["fall_event_tcn_shadow"]["status"],
+            "valid",
+        )
+        self.assertNotIn("fall_event_tcn_shadow_score", snapshot.features["fusion_mask"])
+
+    def test_continuous_fall_tcn_can_drive_fall_event_with_rule_fallback(self) -> None:
+        class RuntimePredictor:
+            model_version = "fall-event-continuous-tcn-test-runtime"
+
+            def predict_records(self, records):
+                return {
+                    "fall_event_tcn_score": 0.83,
+                    "fall_event_tcn_detected": True,
+                    "fall_event_tcn_onset_frame": 18,
+                    "fall_event_tcn_model_version": self.model_version,
+                    "fall_event_tcn_status": "valid",
+                }
+
+        assembler = FeatureAssembler(
+            person_id="elder-1",
+            scene_region="home",
+            scene_risk_scores={},
+            config=FeatureAssemblyConfig(analysis_interval_sec=0.0),
+            fall_event_predictor=RuntimePredictor(),
+            fall_event_runtime_mode="experimental_tcn",
+        )
+        snapshot = None
+        for frame_id in range(12):
+            snapshot = assembler.add_pose(
+                _record(frame_id, frame_id * 0.1),
+                monotonic_sec=frame_id * 0.1,
+            )
+
+        self.assertIsNotNone(snapshot)
+        self.assertEqual(snapshot.features["fall_event_tcn_score"], 0.83)
+        self.assertEqual(snapshot.features["fall_event_score"], 0.9)
+        self.assertEqual(
+            snapshot.features["fall_event_score_source"], "continuous_tcn"
+        )
+        self.assertTrue(snapshot.features["fusion_mask"]["fall_event_score"])
+        self.assertTrue(snapshot.urgent)
+        event = FallRiskPipeline().predict_from_features(snapshot.features)
+        self.assertEqual(event.risk_level, 4)
+        self.assertEqual(event.metadata["fall_event_score_source"], "continuous_tcn")
+        self.assertEqual(event.metadata["fall_event_tcn_score"], 0.83)
+
+    def test_continuous_fall_tcn_unavailable_uses_rule_fallback(self) -> None:
+        class UnavailableRuntimePredictor:
+            model_version = "fall-event-continuous-tcn-test-runtime"
+
+            def predict_records(self, records):
+                return {
+                    "fall_event_tcn_score": None,
+                    "fall_event_tcn_detected": False,
+                    "fall_event_tcn_reason": "insufficient_observed_frames",
+                    "fall_event_tcn_model_version": self.model_version,
+                    "fall_event_tcn_status": "unavailable",
+                }
+
+        assembler = FeatureAssembler(
+            person_id="elder-1",
+            scene_region="home",
+            scene_risk_scores={},
+            config=FeatureAssemblyConfig(analysis_interval_sec=0.0),
+            fall_event_predictor=UnavailableRuntimePredictor(),
+            fall_event_runtime_mode="experimental_tcn",
+        )
+        snapshot = None
+        for frame_id in range(12):
+            snapshot = assembler.add_pose(
+                _record(frame_id, frame_id * 0.1),
+                monotonic_sec=frame_id * 0.1,
+            )
+
+        self.assertIsNotNone(snapshot)
+        self.assertEqual(snapshot.features["fall_event_score"], 0.0)
+        self.assertEqual(
+            snapshot.features["fall_event_score_source"],
+            "fall_state_rule_fallback",
+        )
+        self.assertEqual(
+            snapshot.branch_diagnostics["fall_event_tcn"]["status"],
+            "unavailable",
+        )
+        self.assertTrue(snapshot.features["fusion_mask"]["fall_event_score"])
 
 
 if __name__ == "__main__":

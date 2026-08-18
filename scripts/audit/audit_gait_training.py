@@ -25,6 +25,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--training", type=Path, default=Path("configs/training/gait_hierarchical_v1.yaml"))
     parser.add_argument("--evaluation", type=Path, default=Path("configs/evaluation/gait_v1.provisional.yaml"))
     parser.add_argument("--pose-dir", type=Path, default=Path("data/processed/fall_risk/pose_quality_y8n_v1/cleaned"))
+    parser.add_argument(
+        "--additional-pose-dir",
+        type=Path,
+        action="append",
+        default=[],
+        help="Additional cleaned-pose directory; repeat for fallback roots.",
+    )
     parser.add_argument("--dataset-metadata", type=Path, default=None)
     parser.add_argument("--manifest-output", type=Path, default=Path("reports/reproducibility/gait_training_manifest.json"))
     parser.add_argument("--audit-output", type=Path, default=Path("reports/fall_risk/gait_training_audit.md"))
@@ -45,6 +52,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             training=args.training,
             evaluation=args.evaluation,
             pose_dir=args.pose_dir,
+            additional_pose_dirs=tuple(args.additional_pose_dir),
             dataset_metadata=args.dataset_metadata,
             historical_reports=(
                 Path("reports/fall_risk/gait-action-pretraining-20260803.md"),

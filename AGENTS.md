@@ -151,9 +151,9 @@ configs/modules/mental_health.yaml
 
 ## 当前研发阶段
 
-当前项目处于跌倒风险算法的模型化增强阶段。步态、坐站、近跌倒和跌倒事件已经存在数据准备、训练、validation 复评或 shadow 推理实现，但全部仍是 provisional 候选；规则 baseline 继续作为运行主路径、安全覆盖和低质量输入 fallback。个体行为基线 Phase 0-1 算法与 Phase 2 纵向 schema、前向 split、消融评估基础设施已完成合成验收，但真实 observation、`risk_labels` 和 subject profiles 为空，split/协议未冻结，不能写成真实效果已验收或已接入主路径。不得再把这些任务写成“尚未开始构建训练链”，也不得把候选实验写成已替换主路径。
+当前项目处于跌倒风险算法的模型化增强阶段。步态、坐站、近跌倒和跌倒事件已经存在数据准备、训练、validation 复评或 shadow/实时推理实现，但全部仍是 provisional 候选。2026-08-18 起，步态 seed 43、坐站 seed 42 和跌倒事件三 seed TCN 按比赛交付决定以显式 provisional/`experimental_tcn` 模式进入默认运行分支；规则 baseline 继续作为输入不足、契约不兼容或推理失败时的安全覆盖和 fallback，近跌倒与最终风险融合仍以规则为主。个体行为基线 Phase 0-1 算法与 Phase 2 纵向 schema、前向 split、消融评估基础设施已完成合成验收，并提供显式周期提交入口，但真实 observation、`risk_labels` 和 subject profiles 为空，split/协议未冻结；没有有效周期输入时必须失败关闭，不能写成真实效果已验收。不得再把这些任务写成“尚未开始构建训练链”，也不得把比赛期受控启用写成正式模型门禁通过。
 
-当前 v3 训练标签的 fall/near-fall 事件监督门禁通过，动作类型门禁仍未通过，且所有 split 尚未冻结。模型候选只有在来源完整的标注、无泄漏且冻结的 train/validation/test split、连续背景与老人域验证、冻结评估协议和延迟/稳定性证据具备后，才能替换主路径。个体行为基线和最终风险融合仍需对应的连续个人数据或 `risk_labels` 真值；在这些条件满足前，保留统计/规则 fallback。
+当前 v3 训练标签的 fall/near-fall 事件监督门禁通过，动作类型门禁仍未通过，且所有 split 尚未冻结。比赛期 provisional 启用不改变正式晋级条件：模型候选只有在来源完整的标注、无泄漏且冻结的 train/validation/test split、连续背景与老人域验证、冻结评估协议和延迟/稳定性证据具备后，才能视为正式替换规则主路径。个体行为基线和最终风险融合仍需对应的连续个人数据或 `risk_labels` 真值；在这些条件满足前，保留统计/规则 fallback。
 
 心理健康日级 baseline 已实现；徘徊专项当前完成步骤 2 的安全转换、严格数据契约和人工复核，下一步是固定 split。正式 split、模型、片段状态机、日级接入和摄像头域验证完成前，不把转换产物写成徘徊识别能力。
 

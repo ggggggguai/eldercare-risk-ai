@@ -9,7 +9,7 @@ risk_labels.jsonl
 subject_profiles.json
 ```
 
-v2 是根标签与发布候选契约。当前根目录有 9,314 条动作和 6,338 条事件；audit 结构错误为 0，但 formal 报告仍有 blocker，因此不能称为 frozen 数据发布。单条记录是否可用于具体任务还必须满足来源、hash、review、tier 和 split 门禁；`U01/uncertain` 不进入正式指标。
+v2 是根标签与发布候选契约。当前根目录有 9,612 条动作和 6,338 条事件；audit 结构错误为 0，但 formal 仍有 285 个 blocker，因此不能称为 frozen 数据发布。
 
 供动作分类和 fall/near-fall 事件模型使用的训练版 v3 标签独立保存为：
 
@@ -18,9 +18,9 @@ action_labels_v3.jsonl
 event_labels_v3.jsonl
 ```
 
-v3 不覆盖 v2，也不再把正常动作、步态、坐站、D04 和 U01 映射成同一平面的事件类别。当前迁移结果为 9,314 条动作和 9,498 条事件窗口：动作父类 primary=8,444、auxiliary=702、ignore=168；事件 positive=3,265、negative=5,975、task-specific ignore=258，其中 fall 正/负=2,303/1,774，near-fall 正/负=962/4,201。71 个 LE2I/CVAT 重叠 fall 已合并；218 个 D04 作为 `post_fall_immobile` 与唯一父 fall 双向关联，2 个无唯一父事件的 D04 保持 ignore。
+v3 不覆盖 v2。当前迁移结果为 9,612 条动作和 9,651 条事件窗口：动作 primary=8,699、auxiliary=745、ignore=168；事件 positive=3,284、negative=6,109、ignore=258，其中 fall 正/负=2,303/1,827，near-fall 正/负=981/4,282。
 
-连续坐站事件使用独立的 `configs/data/fall_risk_sit_stand_event_schema_v1.json`，不回写 v2 或 v3。2026-08-10 已根据项目负责人确认，复用现有 v3 人工动作边界和事件类型发布 `sit_stand_event_labels_v1.jsonl` 及对应 review log；`reviewed_by` 只记录原有 `annotator_id` 和已有 reviewer，不新增虚构复核人。发布包含 1,866 个事件、2,220 个显式困难背景和 192 个 ignore，`unlabelled_background_inferred=false`、`test_truth_published=false`。优化后的 pose 过滤采用短区间自适应观测门槛、显式 `frame_mask` 和占优轨迹选择，歧义目标继续拒绝；pose-aware development split `sitstandsplit_d751c5c4807698fc6882b593` 已通过方向、来源和困难负例门禁。test 姿态和真值仍未生成。
+连续坐站事件使用独立契约，不回写根 v2/v3。旧 `sit_stand_event_labels_v1.jsonl` 保留用于历史复现；2026-08-17 的 `sit_stand_event_labels_v2.jsonl` 和 review log 复用当前受审动作边界，发布 1,942 个事件、5,512 个显式背景和 229 个 ignore。SCF P01/P02/P04 的 298 条标签强制 auxiliary/train-only，P03/P05 不进入发布；未标注背景和 test 真值不生成。最终物化感知 split 为 `sitstandsplit_11e163684e3bb898a5c3508d`，test 姿态、特征和评估均未读取。
 
 v3 任务级正负样本只来自 `configs/data/fall_risk_training_decision_20260804.json` 的哈希绑定项目裁决，不是按动作名临时推断。当前 962 条 `stumble_recovery` 正例由 948 条 NTU C03、13 条 Pre_VFallp C03 和 1 条 fall_tiktok C03 组成；未标注背景、LE2I `0/0`、U01、重遮挡和出画没有转成 negative。未来新增 C04/C05 或背景窗仍需独立人工复核。
 
@@ -36,11 +36,11 @@ S001-S017 A043 CVAT 导出已按 `configs/data/ntu_rgbd_a043_cvat_decision_v1.js
 
 Fall Detection 2017 的人工 CVAT 批次已接入 v2/v3 候选链：2,011 个源成功导入，生成 2,977 条 v2 动作/事件、2,977 条 v3 动作和 1,097 条 v3 事件窗口。该批次仍标记为 `project_collected_manual_cvat_unverified`，训练策略为 `candidate_requires_qc_review`；2 个源技术排除，另有 1 个 manifest 可用源尚未匹配。来源、归一化和 QC 警告固定在 `generated/v2/fall_detection_2017_manual/import_report.json`，不能据此宣称正式训练就绪。
 
-SCF_MVP_V1 新交付的 262 个自采视频和 262 个 CVAT 任务已完成本地对账，5 份移除账号/邮箱的脱敏导出保存在 `cvat_exports/raw/self_collected_scf_mvp_v1/`。该批次尚未有来源专用导入器，且授权、subject profile、P02 坐标缩放、P03 重复/帧对齐和双人复核门禁未解除，因此没有写入根 v2/v3 标签、manifest 或 split。详见 `reports/fall_risk/self-collected-data-audit-20260811.md`。
+SCF_MVP_V1 的 262 个自采视频已完成对账。P01/P02/P04 中 150 个视频、298 条受审动作已进入根 manifest、v2/v3 和 train split；P03 继续 excluded，P05 继续 challenge-only。来源候选仍完整保留供审计。
 
 动作父类与具体动作分别使用 `training_tier` 和 `action_type_training_tier`。具体动作少于 10 个独立 sample group 时忽略，10-29 个或来源少于 3 个 source group 时只作 auxiliary，至少 30 个 sample group且至少 3 个 source group才可作 primary；训练代码必须从 `action_labels_v3.jsonl` 读取该层级，不能只读取 split assignment 中的父类 tier。
 
-动作与事件共用 `data/splits/fall_risk/training_labels_v3/` 下的 v3 split：18,812 条标签分配覆盖 6,516 个有标签资产，按人员/来源组、内容 hash、sample group、physical event 及派生关系合并为 184 个保守泄漏组，当前跨分区泄漏为 0。primary fall 正/负按 train/validation/test 分为 `74/7/14` 和 `958/396/369`；primary near-fall 正/负为 `348/300/300` 和 `1109/364/433`。NTU 按受试者组划分且不跨 partition；Pre_VFallp 保持单一保守源组，CaucaFall 按 10 名受试者分组。不能为改善数字拆散保护组，旧 v2 `fall_event_v1` split 也不得用于 v3 标签。
+动作与事件共用 `data/splits/fall_risk/training_labels_v3/` 下的 v3 split：19,263 条分配覆盖 6,666 个资产、187 个保守泄漏组，跨分区泄漏为 0。SCF 的 451 条分配全部位于 train；P03/P05 不在该 split。
 
 当前 v3 schema、引用和 split 校验为 `valid=true`、`issues=[]`，`training_ready.fall_event=true`、`training_ready.near_fall_event=true`；部分 primary 动作类别仍未覆盖全部分区，故 `training_ready.action_type=false`。事件监督门禁通过只表示现有标签可按该 split 做开发训练，不代表 split 已冻结、模型已通过连续背景/老人域/正式 test 验证，也不代表可以替换规则主路径。
 

@@ -60,8 +60,13 @@ def weighted_fall_risk_score(features: Mapping[str, Any]) -> float:
     for spec in FALL_RISK_FEATURE_SPECS:
         if explicit_mask is not None and explicit_mask.get(spec.name) is not True:
             continue
-        score += clamp_score(features.get(spec.name)) * spec.weight
-        available_weight += spec.weight
+        effective_weight = spec.weight
+        if spec.name == "baseline_deviation_score":
+            configured_weight = features.get("baseline_fusion_weight")
+            if configured_weight is not None:
+                effective_weight *= clamp_score(configured_weight)
+        score += clamp_score(features.get(spec.name)) * effective_weight
+        available_weight += effective_weight
     if available_weight <= 0:
         return 0.0
     if explicit_mask is not None:

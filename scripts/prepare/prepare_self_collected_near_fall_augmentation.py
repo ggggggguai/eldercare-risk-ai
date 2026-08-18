@@ -7,6 +7,9 @@ from pathlib import Path
 from elderly_monitoring.modules.fall_risk.near_fall_self_collected import (
     build_augmented_near_fall_dataset,
 )
+from elderly_monitoring.modules.fall_risk.near_fall_training import (
+    NearFallDatasetConfig,
+)
 
 
 def main() -> None:
@@ -15,7 +18,10 @@ def main() -> None:
     parser.add_argument(
         "--base-dir",
         type=Path,
-        default=Path("data/processed/fall_risk/near_fall_event_v1/splitv3-e71a045-trackmap-v2"),
+        default=Path(
+            "data/processed/fall_risk/near_fall_event_v2/"
+            "splitv3-c7fd01cf-input992017e2-base"
+        ),
     )
     parser.add_argument(
         "--candidate-dir",
@@ -38,6 +44,7 @@ def main() -> None:
         pose_dir=args.pose_dir,
         output_dir=args.output_dir,
         experiment=args.experiment,
+        config=NearFallDatasetConfig(fallback_window_secs=(2.0,)),
     )
     print(json.dumps(result, indent=2, sort_keys=True))
 

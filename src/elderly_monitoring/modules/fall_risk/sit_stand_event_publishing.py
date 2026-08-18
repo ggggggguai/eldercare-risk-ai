@@ -18,10 +18,24 @@ EVENT_ACTIONS = {
     "C01": ("sit_to_stand", "failed"),
 }
 HARD_NEGATIVE_ACTIONS = {
+    "A01": "locomotion",
+    "A02": "turning",
     "A05": "controlled_squat",
     "A06": "controlled_bend",
     "A07": "bed_transfer_or_lying",
+    "A08": "support_contact_without_transition",
     "A09": "kneel_or_floor_activity",
+    "A10": "step_adjustment",
+    "A12": "hop_or_jump",
+    "B01": "locomotion",
+    "B02": "locomotion",
+    "B03": "locomotion",
+    "B04": "unstable_locomotion",
+    "B05": "turning",
+    "C02": "near_fall_recovery",
+    "C03": "near_fall_recovery",
+    "C04": "near_fall_recovery",
+    "C05": "protective_descent",
     "D01": "fall_or_rapid_descent",
     "D02": "fall_or_rapid_descent",
     "D03": "fall_or_rapid_descent",
@@ -67,6 +81,8 @@ def publish_sit_stand_event_labels(
     partition_counts: Counter[str] = Counter()
     locked_test_source_label_count = 0
     excluded_source_label_count = 0
+    auxiliary_label_count = 0
+    train_only_label_count = 0
 
     for source in sorted(actions, key=lambda row: str(row.get("label_id", ""))):
         action_id = str(source.get("action_id", ""))
@@ -89,6 +105,17 @@ def publish_sit_stand_event_labels(
         if media is None or media.get("eligibility") is not True:
             excluded_source_label_count += 1
             continue
+        source_dataset = str(media.get("dataset") or "unknown")
+        source_subset = str(media.get("subset") or "")
+        is_scf = source_dataset == "self_collected_scf"
+        if is_scf and source_subset in {"P03", "P05"}:
+            raise ValueError(
+                f"SCF {source_subset} is not eligible for sit-stand training: {source_label_id}"
+            )
+        if is_scf and partition != "train":
+            raise ValueError(
+                f"SCF auxiliary source must inherit train partition: {source_label_id}"
+            )
         annotator_id = _required_string(source, "annotator_id")
         reviewed_by = _reviewed_by(source, annotator_id)
         start_time = _finite_nonnegative(source.get("start_time"), "start_time")
@@ -103,8 +130,11 @@ def publish_sit_stand_event_labels(
         )
         if tier not in {"primary", "auxiliary", "ignore"}:
             raise ValueError(f"invalid source training tier for {source_label_id}: {tier}")
+        effective_tier = (
+            "ignore" if tier == "ignore" else "auxiliary" if is_scf else tier
+        )
         interval_type, transition_type, outcome, hard_negative_type = _semantics(
-            action_id, tier
+            action_id, effective_tier
         )
         material = (
             f"{decision['decision_id']}|{source_label_id}|{interval_type}|"
@@ -118,7 +148,9 @@ def publish_sit_stand_event_labels(
             else []
         )
         eligibility = (
-            "ignore" if interval_type == "ignore" else ("eligible" if tier == "primary" else "auxiliary")
+            "ignore"
+            if interval_type == "ignore"
+            else ("eligible" if effective_tier == "primary" else "auxiliary")
         )
         label = {
             "schema_version": SCHEMA_VERSION,
@@ -143,9 +175,12 @@ def publish_sit_stand_event_labels(
             "support_contact_proxy": None,
             "stabilization_time_proxy": None,
             "scene_region": str(media.get("scene_region") or "unknown"),
+            "dataset": source_dataset,
+            "source_dataset": source_dataset,
+            "partition_policy": "train_only" if is_scf else "rebalanced_development",
             "visibility": "uncertain",
             "quality_flags": _string_list(source.get("quality_flags", []), "quality_flags"),
-            "review_status": str(source.get("review_status", "single_annotated")),
+            "review_status": _sit_stand_review_status(source.get("review_status")),
             "reviewed_by": reviewed_by,
             "eligibility": eligibility,
             "hard_negative_type": hard_negative_type,
@@ -171,6 +206,10 @@ def publish_sit_stand_event_labels(
             direction_counts[transition_type] += 1
         if hard_negative_type is not None:
             hard_negative_counts[hard_negative_type] += 1
+        if eligibility == "auxiliary":
+            auxiliary_label_count += 1
+        if is_scf:
+            train_only_label_count += 1
 
     labels.sort(key=lambda row: str(row["label_id"]))
     review_log.sort(key=lambda row: (str(row["label_id"]), str(row["reviewer_id"])))
@@ -179,7 +218,11 @@ def publish_sit_stand_event_labels(
         "labels": labels,
         "review_log": review_log,
         "report": {
-            "schema_version": "sit-stand-event-publication-report-v1",
+            "schema_version": (
+                "sit-stand-event-publication-report-v2"
+                if decision.get("schema_version") == "sit-stand-source-label-decision-v2"
+                else "sit-stand-event-publication-report-v1"
+            ),
             "decision_id": decision["decision_id"],
             "source_split_id": decision["source_split_id"],
             "source_action_labels_sha256": decision["source_action_labels_sha256"],
@@ -190,6 +233,8 @@ def publish_sit_stand_event_labels(
             "development_partition_counts": dict(sorted(partition_counts.items())),
             "locked_test_source_label_count": locked_test_source_label_count,
             "excluded_source_label_count": excluded_source_label_count,
+            "auxiliary_label_count": auxiliary_label_count,
+            "train_only_label_count": train_only_label_count,
             "unlabelled_background_inferred": False,
             "test_truth_published": False,
             "validation": validation,
@@ -205,13 +250,30 @@ def canonical_jsonl_sha256(rows: Iterable[Mapping[str, Any]]) -> str:
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
+def _sit_stand_review_status(value: Any) -> str:
+    status = str(value or "single_annotated")
+    if status == "source_verified":
+        return "single_reviewed"
+    if status not in {
+        "single_annotated",
+        "single_reviewed",
+        "double_reviewed",
+        "adjudicated",
+    }:
+        raise ValueError(f"unsupported sit-stand review status: {status}")
+    return status
+
+
 def _validate_decision(
     decision: Mapping[str, Any],
     actions: list[dict[str, Any]],
     *,
     source_action_labels_sha256: str | None,
 ) -> None:
-    if decision.get("schema_version") != "sit-stand-source-label-decision-v1":
+    if decision.get("schema_version") not in {
+        "sit-stand-source-label-decision-v1",
+        "sit-stand-source-label-decision-v2",
+    }:
         raise ValueError("invalid sit-stand source label decision schema_version")
     for field in (
         "decision_id",

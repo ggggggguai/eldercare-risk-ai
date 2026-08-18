@@ -25,8 +25,21 @@ class _Assembler:
     def reset(self, **kwargs):
         self.reset_called = True
 
+    def update_baseline_period(self, record):
+        self.updated_baseline_period = record
+        return {"baseline_state": "stable"} if record is not None else None
+
 
 class RealtimeEngineTest(unittest.TestCase):
+    def test_completed_baseline_period_is_forwarded_to_assembler(self) -> None:
+        assembler = _Assembler(FeatureSnapshot(features={}, quality_flags=[], usable=False))
+        engine = RealtimeFallRiskEngine(assembler=assembler)
+
+        result = engine.update_baseline_period({"period_id": "2026-07-12"})
+
+        self.assertEqual(result["baseline_state"], "stable")
+        self.assertEqual(assembler.updated_baseline_period["period_id"], "2026-07-12")
+
     def test_low_quality_does_not_fuse(self) -> None:
         assembler = _Assembler(FeatureSnapshot(features={}, quality_flags=["insufficient_pose_quality"], usable=False))
         engine = RealtimeFallRiskEngine(assembler=assembler, fusion_interval_sec=0.0)

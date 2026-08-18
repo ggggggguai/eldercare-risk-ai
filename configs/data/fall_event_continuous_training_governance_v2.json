@@ -1,0 +1,77 @@
+{
+  "schema_version": "fall-event-continuous-training-governance-v1",
+  "governance_id": "fall-event-continuous-governance-current-split-v2-20260817",
+  "authorized_at": "2026-08-17",
+  "reviewer_id": "project_owner",
+  "status": "development_provisional",
+  "input_sha256": {
+    "action_labels": "c439acdcb0bb712dce2ce64f72eb19203fc71fa6639d27f44e6aabdbb2509f59",
+    "event_labels": "992017e2da198e87f9ade9f8279c1797c7bfeeb00c1d5067b14489958f2b1d9c",
+    "manifest": "e09ba07a6ae74c012f5bc2eb0bbb55bffc24763989e55fc16ac4df8e46e6f629",
+    "split_assignments": "f4f9ee9a1e58c9a840abea7dfd847dc5db5ce558de58536f899ddb5d4349d7b8",
+    "split_report": "668feae4bb17ec898a77dadd92495879cedb18572c5bfc1a8c149637d2095439",
+    "validation_report": "b9ac8f1f99ea70f2136675cec21ba24c060b1c8dc12ead8bf6fb6e6525d25eb1"
+  },
+  "action_negative_families": {
+    "ordinary_background": [
+      "A01",
+      "A02",
+      "A04",
+      "A08",
+      "A10",
+      "A12",
+      "B01",
+      "B02",
+      "B03",
+      "B04",
+      "B05",
+      "B06",
+      "C01",
+      "C02"
+    ],
+    "recovered_near_fall": ["C03", "C04", "C05"]
+  },
+  "onset_source_types": ["v2_le2i_txt"],
+  "family_policy": {
+    "primary_fall": {
+      "presence_loss_weight": 1.0,
+      "bucket_mass": 1.0
+    },
+    "auxiliary_fall": {
+      "presence_loss_weight": 0.45,
+      "bucket_mass": 0.65
+    },
+    "explicit_hard_negative": {
+      "presence_loss_weight": 1.0,
+      "bucket_mass": 1.0
+    },
+    "recovered_near_fall": {
+      "primary_presence_loss_weight": 0.9,
+      "auxiliary_presence_loss_weight": 0.55,
+      "bucket_mass": 1.25
+    },
+    "ordinary_background": {
+      "primary_presence_loss_weight": 0.45,
+      "auxiliary_presence_loss_weight": 0.25,
+      "bucket_mass": 0.5
+    }
+  },
+  "pose_policy": {
+    "interpolated_coordinates": "mask_coordinates_and_derived_motion",
+    "test_pose_access": "forbidden"
+  },
+  "sampling_policy": {
+    "hierarchy": ["supervision_family", "dataset", "subject_id"],
+    "retain_all_materializable_rows": true,
+    "validation_sampling_weight": 1.0,
+    "window_normalization": "inverse_expanded_window_count",
+    "min_sampling_weight": 0.1,
+    "max_sampling_weight": 20.0
+  },
+  "rationale": [
+    "Use v3 fall-event labels as primary supervision and action intervals only as explicit supplemental negatives.",
+    "Retain all materializable development rows while balancing sampling mass by supervision family, dataset and subject.",
+    "Emphasize recovered SCF near-falls without allowing three self-collected subjects or abundant NTU clips to dominate.",
+    "Do not train onset from whole-clip proxy boundaries and do not read test truth or test pose."
+  ]
+}

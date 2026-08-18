@@ -343,6 +343,7 @@ class _GaitWindowDataset(Dataset[Any]):
         walking_targets: np.ndarray,
         indices: np.ndarray,
         *,
+        conditional_gait_weights: np.ndarray | None = None,
         label_span_masks: np.ndarray | None = None,
         augment_mirror: bool,
         temporal_shift_frames: int = 0,
@@ -352,6 +353,11 @@ class _GaitWindowDataset(Dataset[Any]):
         self.features = features
         self.labels = labels
         self.sample_weights = sample_weights
+        self.conditional_gait_weights = (
+            sample_weights
+            if conditional_gait_weights is None
+            else conditional_gait_weights
+        )
         self.walking_targets = walking_targets
         self.indices = indices.astype(np.int64, copy=False)
         self.label_span_masks = label_span_masks
@@ -365,7 +371,15 @@ class _GaitWindowDataset(Dataset[Any]):
 
     def __getitem__(
         self, item: int
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, int]:
+    ) -> tuple[
+        torch.Tensor,
+        torch.Tensor,
+        torch.Tensor,
+        torch.Tensor,
+        torch.Tensor,
+        torch.Tensor,
+        int,
+    ]:
         source_index = int(self.indices[item])
         features = torch.from_numpy(self.features[source_index]).clone()
         label_span_mask = (
@@ -377,6 +391,8 @@ class _GaitWindowDataset(Dataset[Any]):
             features = features[:, _MIRROR_JOINT_INDICES, :].clone()
             features[..., 0] *= -1.0
             features[..., 2] *= -1.0
+        fallback_features = features.clone()
+        fallback_label_span_mask = label_span_mask.clone()
         if (
             self.temporal_shift_frames
             or self.keypoint_dropout_probability
@@ -402,15 +418,23 @@ class _GaitWindowDataset(Dataset[Any]):
         sample_weight = torch.tensor(
             float(self.sample_weights[source_index]), dtype=torch.float32
         )
+        conditional_gait_weight = torch.tensor(
+            float(self.conditional_gait_weights[source_index]), dtype=torch.float32
+        )
         walking_target = torch.tensor(
             int(self.walking_targets[source_index]), dtype=torch.long
         )
         label_span_mask *= (features[..., -1].amax(dim=1) > 0).float()
+        if label_span_mask.sum() <= 0:
+            features = fallback_features
+            label_span_mask = fallback_label_span_mask
+            label_span_mask *= (features[..., -1].amax(dim=1) > 0).float()
         return (
             features,
             label,
             walking_target,
             sample_weight,
+            conditional_gait_weight,
             label_span_mask,
             source_index,
         )
@@ -572,6 +596,7 @@ def load_prepared_gait_dataset(path: str | Path) -> dict[str, np.ndarray]:
         raise ValueError("prepared gait labels must contain both binary classes")
     for optional in (
         "sample_weights",
+        "conditional_gait_weights",
         "action_segment_ids",
         "datasets",
         "source_group_ids",
@@ -825,6 +850,9 @@ def train_gait_tcn(
     sample_weights = arrays.get(
         "sample_weights", np.ones(len(labels), dtype=np.float32)
     ).astype(np.float32, copy=False)
+    conditional_gait_weights = arrays.get(
+        "conditional_gait_weights", sample_weights
+    ).astype(np.float32, copy=False)
     use_walking_gate = training.hierarchical_walking_gate and source_metadata.get(
         "task"
     ) == "gait_instability_vs_normal_activity"
@@ -897,6 +925,12 @@ def train_gait_tcn(
             arrays["datasets"].astype(str),
             indices["train"],
         )
+        conditional_gait_weights = _apply_source_balance_factors(
+            conditional_gait_weights,
+            arrays["datasets"].astype(str),
+            indices["train"],
+            source_balance_factors,
+        )
 
     datasets = {
         partition: _GaitWindowDataset(
@@ -905,6 +939,7 @@ def train_gait_tcn(
             sample_weights,
             walking_targets,
             partition_indices,
+            conditional_gait_weights=conditional_gait_weights,
             label_span_masks=arrays.get("label_span_masks"),
             augment_mirror=training.augment_mirror and partition == "train",
             temporal_shift_frames=(
@@ -980,13 +1015,16 @@ def train_gait_tcn(
     if training.freeze_encoder_epochs:
         _set_encoder_trainable(model, False)
     gait_train_indices = indices["train"]
+    gait_train_indices = gait_train_indices[
+        conditional_gait_weights[gait_train_indices] > 0
+    ]
     if use_walking_gate:
         gait_train_indices = gait_train_indices[
             walking_targets[gait_train_indices] == 1
         ]
     class_weights = compute_balanced_class_weights(
         labels,
-        sample_weights,
+        conditional_gait_weights,
         gait_train_indices,
     )
     criterion = nn.CrossEntropyLoss(
@@ -1313,15 +1351,24 @@ def _train_epoch(
     gait_loss_denominator = 0.0
     walking_loss_numerator = 0.0
     walking_loss_denominator = 0.0
-    for features, labels, walking_targets, sample_weights, label_span_masks, _ in loader:
+    for (
+        features,
+        labels,
+        walking_targets,
+        sample_weights,
+        conditional_gait_weights,
+        label_span_masks,
+        _,
+    ) in loader:
         features = features.to(device)
         labels = labels.to(device)
         walking_targets = walking_targets.to(device)
         sample_weights = sample_weights.to(device)
+        conditional_gait_weights = conditional_gait_weights.to(device)
         label_span_masks = label_span_masks.to(device)
         optimizer.zero_grad(set_to_none=True)
         gait_logits, walking_logits = model.forward_heads(features, label_span_masks)
-        gait_weights = sample_weights
+        gait_weights = conditional_gait_weights
         if walking_criterion is not None:
             gait_weights = gait_weights * (walking_targets == 1)
         gait_losses = criterion(gait_logits, labels)
@@ -1407,6 +1454,7 @@ def _evaluate(
             labels,
             walking_targets,
             sample_weights,
+            conditional_gait_weights,
             label_span_masks,
             source_indices,
         ) in loader:
@@ -1414,11 +1462,12 @@ def _evaluate(
             labels_device = labels.to(device)
             walking_targets_device = walking_targets.to(device)
             sample_weights_device = sample_weights.to(device)
+            conditional_gait_weights_device = conditional_gait_weights.to(device)
             label_span_masks_device = label_span_masks.to(device)
             gait_logits, walking_logits = model.forward_heads(
                 features, label_span_masks_device
             )
-            gait_weights = sample_weights_device
+            gait_weights = conditional_gait_weights_device
             if walking_criterion is not None:
                 gait_weights = gait_weights * (walking_targets_device == 1)
             gait_losses = criterion(gait_logits, labels_device)
@@ -1655,6 +1704,18 @@ def _apply_source_balance(
     for index in train_indices:
         output[index] *= factors[str(datasets[index])]
     return output, factors
+
+
+def _apply_source_balance_factors(
+    base_weights: np.ndarray,
+    datasets: np.ndarray,
+    train_indices: np.ndarray,
+    factors: Mapping[str, float],
+) -> np.ndarray:
+    output = base_weights.astype(np.float32, copy=True)
+    for index in train_indices:
+        output[index] *= factors.get(str(datasets[index]), 1.0)
+    return output
 
 
 def _roc_auc(labels: np.ndarray, scores: np.ndarray) -> float | None:

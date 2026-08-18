@@ -142,7 +142,7 @@ def build_sit_stand_event_split(
     assignments: list[dict[str, Any]] = []
     group_partitions: dict[str, str] = {}
     for group in sorted(protected_groups, key=lambda item: str(item["group_id"])):
-        partition = (
+        partition = "train" if group["train_only"] else (
             "validation" if str(group["group_id"]) in validation_ids else "train"
         )
         group_partitions[str(group["group_id"])] = partition
@@ -156,6 +156,9 @@ def build_sit_stand_event_split(
                     "split_group_id": str(group["group_id"]),
                     "partition": partition,
                     "features_materialized": partition in {"train", "validation"},
+                    "partition_policy": str(
+                        row.get("partition_policy", "rebalanced_development")
+                    ),
                 }
             )
     assignments.sort(key=lambda row: str(row["label_id"]))
@@ -198,6 +201,12 @@ def build_sit_stand_event_split(
             "protection_group_counts": dict(sorted(group_counts.items())),
             "locked_test_label_count": locked_test_label_count,
             "locked_test_protection_group_count": locked_test_group_count,
+            "train_only_label_count": sum(
+                len(group["rows"]) for group in protected_groups if group["train_only"]
+            ),
+            "train_only_protection_group_count": sum(
+                bool(group["train_only"]) for group in protected_groups
+            ),
             "protection_fields": list(PROTECTION_FIELDS)
             + ["source_action_label_ids", "adjacent_intervals_same_video"],
             "leakage_issues": [],
@@ -235,7 +244,9 @@ def _summarize_group(
     hard_negatives: set[str] = set()
     source_groups: set[str] = set()
     background_seconds = 0.0
+    train_only = False
     for row in rows:
+        train_only = train_only or row.get("partition_policy") == "train_only"
         if (
             materializable_label_ids is not None
             and str(row["label_id"]) not in materializable_label_ids
@@ -264,6 +275,7 @@ def _summarize_group(
         "hard_negatives": hard_negatives,
         "source_groups": source_groups,
         "background_seconds": background_seconds,
+        "train_only": train_only,
     }
 
 
@@ -274,6 +286,8 @@ def _select_validation_groups(groups: list[dict[str, Any]]) -> set[str]:
         totals.update(group["directions"])
 
     def can_select(group: Mapping[str, Any]) -> bool:
+        if group.get("train_only") is True:
+            return False
         return all(
             totals[direction]
             - sum(

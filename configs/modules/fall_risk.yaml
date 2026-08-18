@@ -90,7 +90,7 @@ pose:
 
 gait:
   primary_backend: lightweight_tcn
-  checkpoint: null
+  checkpoint: reports/fall_risk/gait_observable_context_v2/splitv3-3342705-scfaux-v1/pretrained-seed43/best_model.pt
   expected_task: gait_instability_vs_normal_activity
   input_format: t_v_c
   target_fps: 4.0

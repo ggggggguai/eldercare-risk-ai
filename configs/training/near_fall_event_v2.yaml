@@ -1,0 +1,38 @@
+schema_version: near-fall-event-training-config-v2
+task: near_fall_recovery_confirmation_v1
+status: development_provisional_test_locked
+
+dataset:
+  target_fps: 8.0
+  window_sec: 3.0
+  fallback_window_secs: [2.0]
+  stride_sec: 0.5
+  max_gap_sec: 0.2
+  min_observed_frames: 12
+  min_usable_frame_ratio: 0.6
+  min_joint_coverage: 0.7
+  min_mean_joint_quality: 0.3
+  max_windows_per_event: 4
+  seed: 42
+
+tcn_profiles:
+  pilot:
+    epochs: 40
+    batch_size: 32
+    hidden_channels: 24
+    kernel_size: 3
+    dilations: [1, 2, 4, 8]
+    dropout: 0.1
+    learning_rate: 0.001
+    weight_decay: 0.0001
+    patience: 8
+    threshold: 0.5
+    seed: 42
+    device: auto
+
+test_policy: not_read_not_evaluated_by_default
+notes:
+  - The dominant pose track is selected inside the reviewed interval, then causal context is read from that same full track.
+  - Three-second windows are preferred; two-second windows are an explicit fallback and are left-padded with invalid-mask frames.
+  - Positive windows end at recovery_frame and do not claim onset-time early warning.
+  - Test poses and test truth remain locked.

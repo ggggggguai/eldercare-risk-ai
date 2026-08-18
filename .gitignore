@@ -28,6 +28,7 @@ reports/**/*.jsonl
 reports/**/*.xlsx
 reports/**/*.png
 reports/**/*.mp4
+reports/**/*.npz
 tmp/
 
 # Local model weights.

@@ -59,16 +59,19 @@
 | 审计 | [训练标签 v3 校验报告](../reports/fall_risk/training-labels-v3-validation.json) | v3 结构与 split 合法；fall/near-fall 事件训练门禁通过，动作类型门禁仍未通过 |
 | 审计 | [跌倒事件训练 P0 审计](../reports/fall_risk/fall_event_training_audit.md) | 当前 hash、split、formal、连续背景、老人域、协议和 test 治理门禁；当前为 `infrastructure_only` |
 | 审计 | [跌倒事件训练阻塞清单](../reports/fall_risk/fall_event_blockers.md) | formal、样本规模、连续分母、老人域、冻结协议和保管人缺口 |
+| 审计 | [跌倒连续训练数据治理 v2](../reports/fall_risk/fall_event_continuous_governance_v2/README.md) | 当前 `splitv3_334...` 的 7,701 条显式监督、双姿态缓存覆盖、分层权重和 test 隔离 |
+| 评估 | [跌倒连续因果 TCN v2](../reports/fall_risk/fall_event_continuous_tcn_v2/README.md) | 7,504 个因果窗口、三 seed validation、分层误报和训练门禁 No-Go；运行配置另有 provisional 主评分开关 |
 | 复现 | [跌倒事件训练 manifest](../reports/reproducibility/fall_event_training_manifest.json) | P0 审计的机器可读输入 hash、门禁结果和执行授权边界 |
 | 审计 | [坐站训练 P0 审计](../reports/fall_risk/sit_stand_training_audit.md) | 连续坐站输入 hash、专项标签/背景、四类门禁和 test 隔离；当前为 `infrastructure_only` |
 | 审计 | [坐站训练阻塞清单](../reports/fall_risk/sit_stand_training_blockers.md) | 连续事件真值、显式背景、动作/相位/功能监督和冻结审批缺口 |
+| 评估 | [坐站训练数据 v2 治理与开发评估](../reports/fall_risk/sit_stand_event_v2/README.md) | SCF 发布后的专项标签、物化感知 split、多 cutoff 因果窗口、TCN/规则完整流对照和主链 No-Go 结论 |
 | 复现 | [坐站训练 manifest](../reports/reproducibility/sit_stand_training_manifest.json) | 坐站 P0 审计的机器可读 hash、事实、门禁和执行授权边界 |
 | 跌倒 | [个体化行为基线算法增强计划](modules/fall_risk/plans/个体化行为基线算法增强计划.md) | 因果周期契约、鲁棒统计、冷启动、防污染、纵向数据、消融评估和轻量模型晋级路线 |
 | 评估 | [工作流 A 合成烟测报告](../reports/fall_risk/workflow_a_synthetic_evaluation/bundle/report.md) | 事件评估 bundle 的开发链路证据；不是比赛指标或真实效果 |
 | 评估 | [步态 observable-context v2 TCN](../reports/fall_risk/gait_observable_context_v2/splitv3-e71a045/README.md) | 当前唯一保留的步态实验候选；validation-only，未接入主路径 |
 | 评估 | [步态 TCN v5 六 seed 集成实验](../reports/fall_risk/gait_window_v5_effect_first/development-20260803/README.md) | B01-B04 functional proxy 的六 seed 训练、集成结果和 test 隔离状态 |
 | 评估 | [坐站首轮 provisional 训练](../reports/fall_risk/sit_stand_event_v1/README.md) | 坐站训练前审计、clip-level E0/E2、候选双头 TCN smoke、test 隔离、预估偏差与正式事件定位阻塞 |
-| 评估 | [跌倒连续因果 TCN 阻塞清单](../reports/fall_risk/fall_event_blockers.md) | 当前唯一保留的跌倒模型方向；真实连续训练和晋级门禁未完成，规则仍是主路径 |
+| 评估 | [跌倒连续因果 TCN 阻塞清单](../reports/fall_risk/fall_event_blockers.md) | 当前模型方向的连续背景、老人域、冻结协议和正式晋级门禁；临时运行开关不等于门禁解除 |
 | 评估 | [近跌倒恢复确认 TCN pilot](../reports/fall_risk/near_fall_event_v1/README.md) | 当前 v3 split 的三 seed validation、窗口来源限制和 test 隔离状态；不是 onset-time 预警指标 |
 | 评估 | [SCF_MVP_V1 基线回放与近跌倒增强](../reports/fall_risk/self_collected_scf_mvp_v1/README.md) | 自采隔离 candidate、262 段四分支回放、E1-E3 九次训练与 P05 challenge；三组均 No-Go，未替换主路径 |
 | 评估 | [个体基线 Phase 2 状态报告](../reports/fall_risk/baseline_longitudinal_phase2.md) | 纵向 schema、前向 split、四组消融基础设施和真实空数据 blocker；不提供真实效果结论 |

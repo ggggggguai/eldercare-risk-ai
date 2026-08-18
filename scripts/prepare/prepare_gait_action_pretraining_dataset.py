@@ -42,6 +42,13 @@ def build_parser() -> argparse.ArgumentParser:
         default=Path("data/processed/fall_risk/pose_quality_y8n_v1/cleaned"),
     )
     parser.add_argument(
+        "--additional-pose-dir",
+        type=Path,
+        action="append",
+        default=[],
+        help="Additional cleaned-pose directory; repeat for multiple fallback roots.",
+    )
+    parser.add_argument(
         "--output-dir",
         type=Path,
         default=Path("data/processed/fall_risk/action_pretraining_v1"),
@@ -67,6 +74,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             manifest_path=args.manifest,
             assignments_path=args.assignments,
             split_report_path=args.split_report,
+            additional_pose_dirs=args.additional_pose_dir,
             config=ActionPretrainingPreparationConfig(
                 window_frames=args.window_frames,
                 stride_frames=args.stride_frames,

@@ -104,6 +104,49 @@ class FallRiskPipelineTest(unittest.TestCase):
 
         self.assertEqual(score, 0.4933)
 
+    def test_initial_personal_baseline_weight_is_respected(self) -> None:
+        full_weight = weighted_fall_risk_score(
+            {
+                "baseline_deviation_score": 0.8,
+                "baseline_fusion_weight": 1.0,
+                "fusion_mask": {"baseline_deviation_score": True},
+            }
+        )
+        initial_weight = weighted_fall_risk_score(
+            {
+                "baseline_deviation_score": 0.8,
+                "baseline_fusion_weight": 0.25,
+                "fusion_mask": {"baseline_deviation_score": True},
+            }
+        )
+
+        self.assertEqual(full_weight, 0.8)
+        self.assertEqual(initial_weight, 0.8)
+
+        mixed_full = weighted_fall_risk_score(
+            {
+                "gait_risk_score": 0.0,
+                "baseline_deviation_score": 0.8,
+                "baseline_fusion_weight": 1.0,
+                "fusion_mask": {
+                    "gait_risk_score": True,
+                    "baseline_deviation_score": True,
+                },
+            }
+        )
+        mixed_initial = weighted_fall_risk_score(
+            {
+                "gait_risk_score": 0.0,
+                "baseline_deviation_score": 0.8,
+                "baseline_fusion_weight": 0.25,
+                "fusion_mask": {
+                    "gait_risk_score": True,
+                    "baseline_deviation_score": True,
+                },
+            }
+        )
+        self.assertLess(mixed_initial, mixed_full)
+
     def test_event_metadata_preserves_epoch_and_branch_statuses(self) -> None:
         event = FallRiskPipeline().predict_from_features(
             {

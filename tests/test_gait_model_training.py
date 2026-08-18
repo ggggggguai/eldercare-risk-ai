@@ -180,6 +180,25 @@ def make_assignment(
 
 
 class GaitTensorTest(unittest.TestCase):
+    def test_dataset_falls_back_when_pose_augmentation_erases_label_span(self) -> None:
+        features = np.zeros((1, 4, 14, 5), dtype=np.float32)
+        features[0, 0, :, -1] = 1.0
+        dataset = _GaitWindowDataset(
+            features,
+            np.asarray([0], dtype=np.int64),
+            np.asarray([1.0], dtype=np.float32),
+            np.asarray([1], dtype=np.int64),
+            np.asarray([0], dtype=np.int64),
+            label_span_masks=np.asarray([[1, 0, 0, 0]], dtype=np.uint8),
+            augment_mirror=False,
+            keypoint_dropout_probability=0.999,
+        )
+
+        output = dataset[0]
+
+        self.assertGreater(float(output[5].sum()), 0.0)
+        self.assertGreater(float(output[0][..., -1].sum()), 0.0)
+
     def test_tcn_supervision_pooling_rejects_mask_without_observed_frames(self) -> None:
         model = LightweightGaitTCN(
             hidden_channels=8,
@@ -244,6 +263,7 @@ class GaitTensorTest(unittest.TestCase):
         labels = np.asarray([0, 0, 0, 1, 0, 1], dtype=np.int64)
         walking_targets = np.asarray([0, 0, 1, 1, 0, 1], dtype=np.int64)
         sample_weights = np.ones(6, dtype=np.float32)
+        conditional_gait_weights = np.ones(6, dtype=np.float32)
         indices = np.arange(6, dtype=np.int64)
         dataset = _GaitWindowDataset(
             features,
@@ -251,6 +271,7 @@ class GaitTensorTest(unittest.TestCase):
             sample_weights,
             walking_targets,
             indices,
+            conditional_gait_weights=conditional_gait_weights,
             augment_mirror=False,
         )
         model = LightweightGaitTCN(
@@ -668,8 +689,10 @@ class GaitDatasetPreparationTest(unittest.TestCase):
             assignments_path = root / "assignments.jsonl"
             split_report_path = root / "split.json"
             pose_dir = root / "poses"
+            additional_pose_dir = root / "additional_poses"
             output_dir = root / "prepared"
             pose_dir.mkdir()
+            additional_pose_dir.mkdir()
             labels = [
                 make_v3_label(index, positive=index % 2 == 0)
                 for index in range(1, 7)
@@ -701,8 +724,13 @@ class GaitDatasetPreparationTest(unittest.TestCase):
                 "\n".join(json.dumps(row) for row in labels) + "\n",
                 encoding="utf-8",
             )
+            manifests = [make_manifest(index) for index in range(1, 9)]
+            manifests[7]["dataset"] = "self_collected_scf"
+            manifests[7]["gait_training_role"] = (
+                "action_pretraining_and_walking_gate_only"
+            )
             manifest_path.write_text(
-                "\n".join(json.dumps(make_manifest(index)) for index in range(1, 9)) + "\n",
+                "\n".join(json.dumps(row) for row in manifests) + "\n",
                 encoding="utf-8",
             )
             assignments_path.write_text(
@@ -737,7 +765,8 @@ class GaitDatasetPreparationTest(unittest.TestCase):
                     make_pose_record(frame_id, unstable=index % 2 == 0)
                     for frame_id in range(80 if index == 1 else 40)
                 ]
-                (pose_dir / f"video_{index}.jsonl").write_text(
+                destination = additional_pose_dir if index == 8 else pose_dir
+                (destination / f"video_{index}.jsonl").write_text(
                     "\n".join(json.dumps(row) for row in records) + "\n",
                     encoding="utf-8",
                 )
@@ -749,6 +778,7 @@ class GaitDatasetPreparationTest(unittest.TestCase):
                 manifest_path=manifest_path,
                 assignments_path=assignments_path,
                 split_report_path=split_report_path,
+                additional_pose_dirs=[additional_pose_dir],
                 config=GaitWindowPreparationConfig(
                     window_frames=8,
                     stride_frames=4,
@@ -765,6 +795,8 @@ class GaitDatasetPreparationTest(unittest.TestCase):
                 output_partitions = dataset["partitions"].astype(str)
                 tiers = dataset["training_tiers"].astype(str)
                 weights = dataset["sample_weights"]
+                conditional_weights = dataset["conditional_gait_weights"]
+                datasets = dataset["datasets"].astype(str)
                 action_ids = dataset["action_ids"].astype(str)
                 walking_targets = dataset["walking_targets"]
             sample_rows = [
@@ -788,6 +820,10 @@ class GaitDatasetPreparationTest(unittest.TestCase):
             {1},
         )
         self.assertEqual(set(walking_targets[action_ids == "A04"]), {0})
+        self.assertTrue(np.all(weights[datasets == "self_collected_scf"] > 0))
+        self.assertTrue(
+            np.allclose(conditional_weights[datasets == "self_collected_scf"], 0.0)
+        )
         self.assertEqual(
             metadata["target_contract"],
             {

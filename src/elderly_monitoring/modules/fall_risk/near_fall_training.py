@@ -4,7 +4,7 @@ import hashlib
 import json
 import os
 from collections import Counter, defaultdict
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
 
@@ -61,6 +61,7 @@ _PRIMARY_TARGET_STATUSES = {"confirmed", "single_person_assumed"}
 class NearFallDatasetConfig:
     target_fps: float = 8.0
     window_sec: float = 3.0
+    fallback_window_secs: tuple[float, ...] = ()
     stride_sec: float = 0.5
     max_gap_sec: float = 0.20
     min_observed_frames: int = 12
@@ -88,10 +89,33 @@ class NearFallDatasetConfig:
                 raise ValueError(f"{name} must be within (0, 1]")
         if self.max_windows_per_event < 1:
             raise ValueError("max_windows_per_event must be positive")
+        fallback_window_secs = tuple(float(value) for value in self.fallback_window_secs)
+        if any(value <= 0 or value >= self.window_sec for value in fallback_window_secs):
+            raise ValueError(
+                "fallback_window_secs must be positive and shorter than window_sec"
+            )
+        if len(set(fallback_window_secs)) != len(fallback_window_secs):
+            raise ValueError("fallback_window_secs must not contain duplicates")
+        if any(
+            int(round(self.target_fps * value)) < self.min_observed_frames
+            for value in fallback_window_secs
+        ):
+            raise ValueError(
+                "fallback windows must contain at least min_observed_frames"
+            )
+        object.__setattr__(
+            self,
+            "fallback_window_secs",
+            tuple(sorted(fallback_window_secs, reverse=True)),
+        )
 
     @property
     def window_frames(self) -> int:
         return int(round(self.target_fps * self.window_sec))
+
+    @property
+    def context_window_secs(self) -> tuple[float, ...]:
+        return (self.window_sec, *self.fallback_window_secs)
 
 
 def build_near_fall_tensor(
@@ -350,6 +374,7 @@ def prepare_near_fall_event_dataset(
     split: str | Path,
     validation: str | Path,
     pose_dir: str | Path,
+    additional_pose_dirs: Sequence[str | Path] = (),
     output_dir: str | Path,
     config: NearFallDatasetConfig | None = None,
 ) -> dict[str, Any]:
@@ -361,12 +386,13 @@ def prepare_near_fall_event_dataset(
         "split": Path(split),
         "validation": Path(validation),
     }
-    pose_root = Path(pose_dir)
+    pose_roots = [Path(pose_dir), *(Path(path) for path in additional_pose_dirs)]
     for name, path in paths.items():
         if not path.is_file():
             raise FileNotFoundError(f"near-fall {name} input not found: {path}")
-    if not pose_root.is_dir():
-        raise FileNotFoundError(f"near-fall pose directory not found: {pose_root}")
+    for pose_root in pose_roots:
+        if not pose_root.is_dir():
+            raise FileNotFoundError(f"near-fall pose directory not found: {pose_root}")
 
     split_report = json.loads(paths["split"].read_text(encoding="utf-8"))
     validation_report = json.loads(paths["validation"].read_text(encoding="utf-8"))
@@ -394,6 +420,7 @@ def prepare_near_fall_event_dataset(
         "dataset": destination / "dataset.npz",
         "metadata": destination / "metadata.json",
         "samples": destination / "samples.jsonl",
+        "audit": destination / "audit.jsonl",
     }
     existing = [path for path in output_paths.values() if path.exists()]
     if existing:
@@ -401,6 +428,7 @@ def prepare_near_fall_event_dataset(
 
     tensors: list[np.ndarray] = []
     samples: list[dict[str, Any]] = []
+    label_audits: list[dict[str, Any]] = []
     rejected: Counter[str] = Counter()
     pose_paths: dict[str, Path] = {}
     locked_test_labels: list[dict[str, Any]] = []
@@ -415,8 +443,20 @@ def prepare_near_fall_event_dataset(
     ):
         assignment = assignment_index[str(label["label_id"])]
         partition = str(assignment["partition"])
+        audit = {
+            "label_id": str(label["label_id"]),
+            "video_id": str(label["video_id"]),
+            "partition": partition,
+            "label": int(label["label"]),
+            "status": "pending",
+            "materialized_window_count": 0,
+            "context_sec_counts": {},
+            "rejection_counts": {},
+        }
         if partition == "test":
             locked_test_labels.append(label)
+            audit["status"] = "locked_test_not_read"
+            label_audits.append(audit)
             continue
         manifest_row = manifest_index.get(str(label["video_id"]))
         if manifest_row is None:
@@ -425,7 +465,7 @@ def prepare_near_fall_event_dataset(
             )
         _validate_manifest_link(label, manifest_row)
         video_id = str(label["video_id"])
-        pose_path = _resolve_pose_path(pose_root, video_id)
+        pose_path = _resolve_pose_path(pose_roots, video_id)
         if pose_path is None:
             raise FileNotFoundError(
                 f"development near-fall pose JSONL not found for {video_id}"
@@ -434,6 +474,10 @@ def prepare_near_fall_event_dataset(
         track = _select_labeled_track(label, _read_jsonl(pose_path))
         if not track:
             rejected["no_matching_pose_track"] += 1
+            rejected["no_pose_track"] += 1
+            audit["status"] = "rejected"
+            audit["rejection_counts"] = {"no_pose_track": 1}
+            label_audits.append(audit)
             continue
         pose_track_ids = {
             str(record.get("track_id", record.get("person_id", "unknown")))
@@ -447,35 +491,84 @@ def prepare_near_fall_event_dataset(
         annotation_track_id = str(label.get("track_id") or "")
         anchors = _window_anchor_frames(label, track, preparation)
         if not anchors:
-            rejected["insufficient_causal_context"] += 1
+            if int(label["label"]) == 1:
+                reason = "recovery_frame_missing"
+            else:
+                reason = "insufficient_context"
+            rejected[reason] += 1
+            if reason == "insufficient_context":
+                rejected["insufficient_causal_context"] += 1
+            audit["status"] = "rejected"
+            audit["rejection_counts"] = {reason: 1}
+            label_audits.append(audit)
             continue
+        audit_rejections: Counter[str] = Counter()
+        audit_contexts: Counter[str] = Counter()
         for window_index, anchor_frame in enumerate(anchors):
             anchor_record = track[anchor_frame]
             anchor_time = float(anchor_record["timestamp_sec"])
-            slots = _resample_causal_window(
-                list(track.values()),
-                anchor_time_sec=anchor_time,
-                anchor_frame=anchor_frame,
-                config=preparation,
-            )
-            quality = _window_quality(slots, preparation.window_frames)
-            if quality["observed_frame_count"] < preparation.min_observed_frames:
-                rejected["insufficient_observed_frames"] += 1
+            selected_window: tuple[
+                float,
+                NearFallDatasetConfig,
+                list[dict[str, Any] | None],
+                dict[str, Any],
+                np.ndarray,
+            ] | None = None
+            attempted_quality = False
+            for context_sec in preparation.context_window_secs:
+                context_config = replace(
+                    preparation,
+                    window_sec=context_sec,
+                    fallback_window_secs=(),
+                )
+                if not _has_causal_context(
+                    track.values(),
+                    anchor_time_sec=anchor_time,
+                    window_frames=context_config.window_frames,
+                    target_fps=context_config.target_fps,
+                ):
+                    continue
+                slots = _resample_causal_window(
+                    list(track.values()),
+                    anchor_time_sec=anchor_time,
+                    anchor_frame=anchor_frame,
+                    config=context_config,
+                )
+                quality = _window_quality(slots, context_config.window_frames)
+                attempted_quality = True
+                if quality["observed_frame_count"] < preparation.min_observed_frames:
+                    continue
+                if (
+                    quality["usable_frame_ratio"] < preparation.min_usable_frame_ratio
+                    or quality["joint_coverage"] < preparation.min_joint_coverage
+                    or quality["mean_joint_quality"] < preparation.min_mean_joint_quality
+                ):
+                    continue
+                tensor = build_near_fall_tensor(
+                    slots,
+                    window_frames=context_config.window_frames,
+                    target_fps=context_config.target_fps,
+                )
+                tensor = _left_pad_causal_tensor(tensor, preparation.window_frames)
+                selected_window = (
+                    context_sec,
+                    context_config,
+                    slots,
+                    quality,
+                    tensor,
+                )
+                break
+            if selected_window is None:
+                reason = "insufficient_quality" if attempted_quality else "insufficient_context"
+                rejected[reason] += 1
+                if reason == "insufficient_context":
+                    rejected["insufficient_causal_context"] += 1
+                audit_rejections[reason] += 1
                 continue
-            if (
-                quality["usable_frame_ratio"] < preparation.min_usable_frame_ratio
-                or quality["joint_coverage"] < preparation.min_joint_coverage
-                or quality["mean_joint_quality"] < preparation.min_mean_joint_quality
-            ):
-                rejected["insufficient_quality"] += 1
-                continue
-            tensor = build_near_fall_tensor(
-                slots,
-                window_frames=preparation.window_frames,
-                target_fps=preparation.target_fps,
-            )
+            context_sec, context_config, slots, quality, tensor = selected_window
             if not np.any(tensor[..., 7] > 0):
                 rejected["empty_valid_mask"] += 1
+                audit_rejections["insufficient_quality"] += 1
                 continue
             source_frames = [
                 int(record["frame_id"]) for record in slots if record is not None
@@ -506,11 +599,23 @@ def prepare_near_fall_event_dataset(
                 "window_end_frame": anchor_frame,
                 "window_end_time_sec": anchor_time,
                 "max_source_frame": max(source_frames),
+                "context_sec": context_sec,
+                "context_frames": context_config.window_frames,
+                "context_length": quality["observed_frame_count"],
+                "window_frames": preparation.window_frames,
+                "padding_frames": preparation.window_frames
+                - context_config.window_frames,
                 "quality": quality,
                 "loss_eligible": True,
             }
             tensors.append(tensor)
             samples.append(sample)
+            audit_contexts[str(context_sec)] += 1
+        audit["materialized_window_count"] = sum(audit_contexts.values())
+        audit["context_sec_counts"] = dict(sorted(audit_contexts.items()))
+        audit["rejection_counts"] = dict(sorted(audit_rejections.items()))
+        audit["status"] = "materialized" if audit_contexts else "rejected"
+        label_audits.append(audit)
 
     if not samples:
         raise ValueError("no usable near-fall development windows were generated")
@@ -578,7 +683,7 @@ def prepare_near_fall_event_dataset(
         "normalization_std": normalization["std"],
     }
     metadata = {
-        "schema_version": "near-fall-event-dataset-v1",
+        "schema_version": "near-fall-event-dataset-v2",
         "task": "near_fall_recovery_confirmation_v1",
         "status": "development_provisional",
         "synthetic": False,
@@ -604,6 +709,11 @@ def prepare_near_fall_event_dataset(
         },
         "sample_count": len(samples),
         "event_count": len(event_counts),
+        "selected_label_count": len(selected),
+        "label_audit_count": len(label_audits),
+        "context_sec_counts": dict(
+            sorted(Counter(str(sample["context_sec"]) for sample in samples).items())
+        ),
         "partition_counts": dict(sorted(Counter(partitions.tolist()).items())),
         "locked_test_label_count": len(locked_test_labels),
         "test_pose_read": False,
@@ -639,13 +749,16 @@ def prepare_near_fall_event_dataset(
     destination.mkdir(parents=True, exist_ok=False)
     _write_npz_atomic(output_paths["dataset"], **arrays)
     _write_jsonl_atomic(output_paths["samples"], samples)
+    _write_jsonl_atomic(output_paths["audit"], label_audits)
     metadata["samples_sha256"] = _sha256_file(output_paths["samples"])
+    metadata["audit_sha256"] = _sha256_file(output_paths["audit"])
     metadata["dataset_sha256"] = _sha256_file(output_paths["dataset"])
     _write_json_atomic(output_paths["metadata"], metadata)
     return {
         "dataset_path": output_paths["dataset"].as_posix(),
         "metadata_path": output_paths["metadata"].as_posix(),
         "samples_path": output_paths["samples"].as_posix(),
+        "audit_path": output_paths["audit"].as_posix(),
         "sample_count": len(samples),
         "synthetic": False,
         "test_evaluated": False,
@@ -942,10 +1055,11 @@ def _validate_manifest_link(
         raise ValueError(f"near-fall label/manifest content SHA-256 mismatch: {video_id}")
 
 
-def _resolve_pose_path(root: Path, video_id: str) -> Path | None:
+def _resolve_pose_path(roots: Sequence[Path], video_id: str) -> Path | None:
     return next(
         (
             path
+            for root in roots
             for path in (
                 root / f"{video_id}.jsonl",
                 root / f"{video_id}_poses_cleaned.jsonl",
@@ -961,25 +1075,43 @@ def _select_labeled_track(
 ) -> dict[int, dict[str, Any]]:
     start = int(label["start_frame"])
     end = int(label["end_frame_exclusive"])
-    by_track: dict[str, dict[int, dict[str, Any]]] = defaultdict(dict)
+    interval_by_track: dict[str, dict[int, dict[str, Any]]] = defaultdict(dict)
     for source in records:
         frame_id = int(source.get("frame_id", -1))
         if not start <= frame_id < end:
             continue
         track_id = str(source.get("track_id", source.get("person_id", "unknown")))
         record = dict(source)
-        previous = by_track[track_id].get(frame_id)
+        previous = interval_by_track[track_id].get(frame_id)
         if previous is None or _record_confidence(record) > _record_confidence(previous):
-            by_track[track_id][frame_id] = record
-    if not by_track:
+            interval_by_track[track_id][frame_id] = record
+    if not interval_by_track:
         return {}
-    return max(
-        by_track.values(),
-        key=lambda track: (
-            len(track),
-            float(np.mean([_record_confidence(row) for row in track.values()])),
+    selected_track_id = max(
+        sorted(interval_by_track),
+        key=lambda track_id: (
+            len(interval_by_track[track_id]),
+            float(
+                np.mean(
+                    [
+                        _record_confidence(row)
+                        for row in interval_by_track[track_id].values()
+                    ]
+                )
+            ),
         ),
     )
+    full_track: dict[int, dict[str, Any]] = {}
+    for source in records:
+        track_id = str(source.get("track_id", source.get("person_id", "unknown")))
+        if track_id != selected_track_id:
+            continue
+        frame_id = int(source.get("frame_id", -1))
+        record = dict(source)
+        previous = full_track.get(frame_id)
+        if previous is None or _record_confidence(record) > _record_confidence(previous):
+            full_track[frame_id] = record
+    return dict(sorted(full_track.items()))
 
 
 def _record_confidence(record: Mapping[str, Any]) -> float:
@@ -1000,13 +1132,24 @@ def _window_anchor_frames(
             frame_id,
         )
         for frame_id, record in track.items()
+        if int(label["start_frame"]) <= frame_id < int(label["end_frame_exclusive"])
         if _optional_float(record.get("timestamp_sec")) is not None
     )
     if not ordered:
         return []
-    span = (config.window_frames - 1) / config.target_fps
-    first_time = ordered[0][0] + span
-    eligible = [(time_value, frame_id) for time_value, frame_id in ordered if time_value >= first_time - 1e-9]
+    span = (
+        int(round(config.target_fps * min(config.context_window_secs))) - 1
+    ) / config.target_fps
+    first_track_time = min(
+        float(record["timestamp_sec"])
+        for record in track.values()
+        if _optional_float(record.get("timestamp_sec")) is not None
+    )
+    eligible = [
+        (time_value, frame_id)
+        for time_value, frame_id in ordered
+        if time_value >= first_track_time + span - 1e-9
+    ]
     if not eligible:
         return []
     targets = list(
@@ -1023,6 +1166,41 @@ def _window_anchor_frames(
         indices = np.linspace(0, len(anchors) - 1, config.max_windows_per_event, dtype=np.int64)
         anchors = [anchors[index] for index in sorted(set(indices.tolist()))]
     return anchors
+
+
+def _has_causal_context(
+    records: Iterable[Mapping[str, Any]],
+    *,
+    anchor_time_sec: float,
+    window_frames: int,
+    target_fps: float,
+) -> bool:
+    timestamps = [
+        float(row["timestamp_sec"])
+        for row in records
+        if _optional_float(row.get("timestamp_sec")) is not None
+        and float(row["timestamp_sec"]) <= anchor_time_sec + 1e-9
+    ]
+    if not timestamps:
+        return False
+    required_start = anchor_time_sec - (window_frames - 1) / target_fps
+    return min(timestamps) <= required_start + 1e-9
+
+
+def _left_pad_causal_tensor(tensor: np.ndarray, window_frames: int) -> np.ndarray:
+    values = np.asarray(tensor, dtype=np.float32)
+    if values.ndim != 3 or values.shape[1:] != (
+        len(NEAR_FALL_JOINTS),
+        len(NEAR_FALL_CHANNELS),
+    ):
+        raise ValueError("near-fall tensor padding expects [T,10,8]")
+    if len(values) > window_frames:
+        raise ValueError("near-fall context exceeds model window")
+    if len(values) == window_frames:
+        return values
+    output = np.zeros((window_frames, *values.shape[1:]), dtype=np.float32)
+    output[-len(values) :] = values
+    return output
 
 
 def _resample_causal_window(
