@@ -4,6 +4,7 @@ from typing import Any, Mapping
 
 from elderly_monitoring.common.schemas import AlgorithmEvent, EvidenceWindow, action_for_level
 from elderly_monitoring.modules.fall_risk.features import (
+    environment_assist_contribution,
     feature_coverage,
     clamp_score,
     weighted_fall_risk_score,
@@ -19,8 +20,30 @@ class FallRiskPipeline:
 
     model_version = "fall-risk-v0.1"
 
+    def __init__(
+        self,
+        *,
+        environment_mode: str = "disabled",
+        environment_weight: float | None = None,
+        environment_min_behavior_anchor: float | None = None,
+        environment_policy_version: str | None = None,
+    ) -> None:
+        if environment_mode not in {"disabled", "shadow", "assist"}:
+            raise ValueError("environment_mode must be disabled, shadow or assist")
+        self.environment_mode = environment_mode
+        self.environment_weight = environment_weight
+        self.environment_min_behavior_anchor = environment_min_behavior_anchor
+        self.environment_policy_version = environment_policy_version
+
     def predict_from_features(self, sample: Mapping[str, Any]) -> AlgorithmEvent:
-        risk_score = weighted_fall_risk_score(sample)
+        base_risk_score = weighted_fall_risk_score(sample)
+        environment_contribution, environment_diagnostic = environment_assist_contribution(
+            sample,
+            mode=self.environment_mode,
+            weight=self.environment_weight,
+            min_behavior_anchor=self.environment_min_behavior_anchor,
+        )
+        risk_score = round(min(1.0, base_risk_score + environment_contribution), 4)
         near_fall_score = clamp_score(sample.get("near_fall_event_score"))
         fall_event_score = clamp_score(sample.get("fall_event_score"))
         long_static_score = clamp_score(sample.get("long_static_score"))
@@ -43,8 +66,12 @@ class FallRiskPipeline:
             risk_level = 0
             trigger_event = "normal"
 
-        factors = self._risk_factors(sample, risk_level)
-        confidence = self._confidence(sample, risk_score)
+        factors = self._risk_factors(
+            sample, risk_level, environment_contribution=environment_contribution
+        )
+        # Environment assist preserves base confidence by design; environment
+        # evidence is not a calibrated confidence signal.
+        confidence = self._confidence(sample, base_risk_score)
         branch_diagnostics = sample.get("branch_diagnostics")
         branch_statuses = {}
         if isinstance(branch_diagnostics, Mapping):
@@ -66,6 +93,17 @@ class FallRiskPipeline:
             else {},
             "branch_statuses": branch_statuses,
         }
+        if self.environment_mode != "disabled":
+            metadata["environment"] = {
+                **(
+                    dict(sample.get("environment_evidence", {}))
+                    if isinstance(sample.get("environment_evidence"), Mapping)
+                    else {}
+                ),
+                **environment_diagnostic,
+                "policy_version": self.environment_policy_version,
+                "base_risk_score": base_risk_score,
+            }
 
         return AlgorithmEvent(
             module="fall_risk",
@@ -83,11 +121,21 @@ class FallRiskPipeline:
                 start_time=sample.get("start_time"),
                 end_time=sample.get("end_time"),
             ),
-            model_version=self.model_version,
+            model_version=(
+                self.model_version
+                if self.environment_mode != "assist"
+                else f"{self.model_version}+environment-assist-{self.environment_policy_version or 'unversioned'}"
+            ),
             metadata=metadata,
         )
 
-    def _risk_factors(self, sample: Mapping[str, Any], risk_level: int) -> list[str]:
+    def _risk_factors(
+        self,
+        sample: Mapping[str, Any],
+        risk_level: int,
+        *,
+        environment_contribution: float = 0.0,
+    ) -> list[str]:
         # 解释因子保持机器可读。展示层可以把这些 code 映射成中文文案，
         # 不需要改动算法事件 schema。
         factors: list[str] = []
@@ -125,6 +173,22 @@ class FallRiskPipeline:
             factors.append("activity_rhythm_change")
         if clamp_score(sample.get("scene_risk_score")) >= 0.5:
             factors.append("high_risk_scene")
+        if self.environment_mode == "assist" and environment_contribution > 0:
+            light = clamp_score(sample.get("light_interaction_score")) > 0
+            water = clamp_score(sample.get("water_interaction_score")) > 0
+            gait = clamp_score(sample.get("gait_risk_score")) >= 0.5
+            sit = clamp_score(sample.get("sit_stand_risk_score")) >= 0.5
+            near = clamp_score(sample.get("near_fall_event_score")) >= 0.7
+            if light and gait:
+                factors.append("unstable_gait_under_low_light")
+            if light and sit:
+                factors.append("sit_stand_difficulty_under_low_light")
+            if light and near:
+                factors.append("near_fall_under_low_light")
+            if water and gait:
+                factors.append("unstable_gait_near_water")
+            if water and near:
+                factors.append("near_fall_near_water")
         if not factors and risk_level == 0:
             factors.append("no_obvious_risk")
         return list(dict.fromkeys(factors))

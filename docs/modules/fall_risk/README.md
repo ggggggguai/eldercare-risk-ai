@@ -1,12 +1,12 @@
 # 跌倒风险算法模块
 
-更新时间：2026-08-12
+更新时间：2026-08-18
 
 本模块承接 `docs/modules/fall_risk/plans/跌倒风险算法研发计划.md`。
 
 面向 2026 年挑战杯揭榜挂帅赛题 `XH-202617` 的冲奖优先级、七周里程碑和验收门槛，见[挑战杯揭榜挂帅冲奖增强计划](plans/挑战杯揭榜挂帅冲奖增强计划.md)。该计划只描述未来工作，不能作为当前能力或实测指标的证据。
 
-拟议的 ESP32-S3、照度与水浸传感接入，以及人-环境交互特征和受控实验，见[环境因素多模态增强实施计划](plans/环境因素多模态增强实施计划.md)。该计划不表示环境设备或融合逻辑已经接入当前主链。
+ESP32-S3 照度/水浸输入的 `EnvironmentStore`、因果快照、环境特征和 disabled/shadow/assist 三态已接入算法服务；默认仍为 `environment.mode=disabled`。现场标定、冻结评估和 assist 准入尚未完成，不能把环境分支当作已验证效果。设计与验收边界见[环境因素多模态增强实施计划](plans/环境因素多模态增强实施计划.md)。
 
 各任务的检测、跟踪、姿态、平滑、步态、坐站、近跌倒、个体基线和风险融合模型候选，见 `docs/modules/fall_risk/plans/跌倒风险各任务模型调研与选型矩阵.md`。该文档区分当前主线、短期对照和数据充足后的增强实验，不能把候选清单理解为已实现能力。
 
@@ -41,6 +41,13 @@
 - 实时主线使用 YOLOv8-Pose + ByteTrack；RTMPose 作为可选离线后端。
 - 实时演示路径优先稳定，复杂模型只做增强实验。
 - 输出是风险提示/预警事件，不是医疗诊断结果。
+
+### 环境因素分支（2026-08-18）
+
+- `POST /v1/environment/readings` 使用 `ALGORITHM_API_TOKEN` Bearer 鉴权，首次有效读数返回 `202 accepted`，完全相同的设备/boot/sequence 返回 `200 duplicate`；旧 boot、sequence 回退或同键不同载荷返回 `409`，非法字段返回 `422`。`environment.mode=disabled` 时返回 `503`。
+- `EnvironmentStore` 按环境设备保存有界缓存，并按服务端单调接收时间选择不晚于视频帧的因果快照。缺失、过期、时钟未同步、传输年龄超限和 ROI/标定缺失均为 `unavailable`，不会伪造零风险。
+- 环境特征位于现有行为分支之后，写入 `features.environment_features`、`features.environment_mask` 和 `branch_diagnostics.environment`。默认 `disabled` 不改变现有 `fusion_mask`、覆盖率、事件和置信度。
+- `shadow` 只写有界非阻塞 JSONL，不改变 `risk_score`、等级、置信度、触发类型、顶层风险因子或 episode；`assist` 只有在标定、权重、行为门槛和准入报告齐备时才可配置，且不能生成 4 级强触发。
 
 ## 实时链路阶段 0-3
 

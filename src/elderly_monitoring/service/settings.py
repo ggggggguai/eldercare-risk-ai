@@ -9,6 +9,97 @@ import yaml
 
 
 @dataclass(frozen=True)
+class EnvironmentSettings:
+    mode: str = "disabled"
+    max_age_sec: float = 3.0
+    max_transport_age_sec: float = 2.0
+    max_future_skew_sec: float = 0.5
+    store_capacity_per_device: int = 256
+    shadow_log_path: Path | None = None
+    roi_window_frames: int = 3
+    roi_min_usable_frames: int = 2
+    roi_min_hits: int = 2
+    roi_max_span_sec: float = 1.0
+    camera_bindings: Mapping[str, Any] = field(default_factory=dict)
+    assist_weight: float | None = None
+    assist_min_behavior_anchor: float | None = None
+    assist_policy_version: str | None = None
+    assist_acceptance_report: str | None = None
+
+    def __post_init__(self) -> None:
+        if self.mode not in {"disabled", "shadow", "assist"}:
+            raise ValueError("environment.mode must be disabled, shadow or assist")
+        if self.max_age_sec <= 0 or self.max_transport_age_sec < 0 or self.max_future_skew_sec < 0:
+            raise ValueError("environment age limits are invalid")
+        if self.store_capacity_per_device < 1:
+            raise ValueError("environment.store_capacity_per_device must be positive")
+        if self.roi_window_frames < 1 or self.roi_min_usable_frames < 1 or self.roi_min_hits < 1:
+            raise ValueError("environment ROI frame limits must be positive")
+        if self.roi_min_usable_frames > self.roi_window_frames or self.roi_min_hits > self.roi_window_frames:
+            raise ValueError("environment ROI limits cannot exceed roi_window_frames")
+        if self.roi_max_span_sec <= 0:
+            raise ValueError("environment.roi_max_span_sec must be positive")
+        if not isinstance(self.camera_bindings, Mapping):
+            raise ValueError("environment.camera_bindings must be a mapping")
+        if self.shadow_log_path is not None and not isinstance(self.shadow_log_path, Path):
+            object.__setattr__(self, "shadow_log_path", Path(self.shadow_log_path))
+        if self.mode in {"shadow", "assist"} and self.shadow_log_path is None:
+            raise ValueError("environment.shadow_log_path is required in shadow/assist mode")
+        if self.mode == "assist":
+            if self.assist_weight is None or not 0.0 <= float(self.assist_weight) <= 1.0:
+                raise ValueError("environment.assist.weight is required in assist mode")
+            if self.assist_min_behavior_anchor is None or not 0.0 <= float(self.assist_min_behavior_anchor) <= 1.0:
+                raise ValueError("environment.assist.min_behavior_anchor is required in assist mode")
+            if not self.assist_policy_version or not self.assist_acceptance_report:
+                raise ValueError("environment assist policy_version and acceptance_report are required")
+            if not self.camera_bindings:
+                raise ValueError("environment camera_bindings are required in assist mode")
+            for camera_id, binding in self.camera_bindings.items():
+                if not isinstance(binding, Mapping) or not binding.get("environment_device_id"):
+                    raise ValueError(f"environment binding {camera_id!r} is incomplete")
+                calibration = binding.get("calibration")
+                if not isinstance(calibration, Mapping):
+                    raise ValueError(f"environment calibration is required for {camera_id!r}")
+                severe = calibration.get("severe_low_lux")
+                normal = calibration.get("normal_lux")
+                if severe is None or normal is None or float(severe) >= float(normal) or not calibration.get("version"):
+                    raise ValueError(f"environment lux calibration is incomplete for {camera_id!r}")
+                for probe_id, roi in (binding.get("water_probe_rois") or {}).items():
+                    if not isinstance(roi, Mapping) or not roi.get("version") or not roi.get("polygon"):
+                        raise ValueError(f"environment ROI {probe_id!r} is incomplete for {camera_id!r}")
+
+    @classmethod
+    def from_mapping(cls, raw: Mapping[str, Any] | None) -> "EnvironmentSettings":
+        values = dict(raw or {})
+        assist = values.pop("assist", {})
+        if not isinstance(assist, Mapping):
+            raise ValueError("environment.assist must be a mapping")
+        values.update({
+            "assist_weight": assist.get("weight", values.get("assist_weight")),
+            "assist_min_behavior_anchor": assist.get(
+                "min_behavior_anchor", values.get("assist_min_behavior_anchor")
+            ),
+            "assist_policy_version": assist.get(
+                "policy_version", values.get("assist_policy_version")
+            ),
+            "assist_acceptance_report": assist.get(
+                "acceptance_report", values.get("assist_acceptance_report")
+            ),
+        })
+        if values.get("shadow_log_path"):
+            values["shadow_log_path"] = Path(values["shadow_log_path"])
+        allowed = {field.name for field in dataclass_fields(EnvironmentSettings)}
+        return cls(**{key: value for key, value in values.items() if key in allowed})
+
+
+def dataclass_fields(cls: Any) -> tuple[Any, ...]:
+    """Small local wrapper keeps the import list compact."""
+    from dataclasses import fields
+
+    return fields(cls)
+
+
+@dataclass(frozen=True)
 class ServiceSettings:
     model_path: Path = Path("models/yolov8n-pose.pt")
     gait_model_path: Path | None = None
@@ -49,6 +140,7 @@ class ServiceSettings:
     scene_risk_scores: Mapping[str, float] = field(default_factory=dict)
     branch_quality: Mapping[str, Any] = field(default_factory=dict)
     fall_state: Mapping[str, Any] = field(default_factory=dict)
+    environment: EnvironmentSettings = field(default_factory=EnvironmentSettings)
 
     def __post_init__(self) -> None:
         if not isinstance(self.model_path, Path):
@@ -64,6 +156,8 @@ class ServiceSettings:
             "fall_event_shadow_checkpoint_paths",
             tuple(Path(value) for value in self.fall_event_shadow_checkpoint_paths),
         )
+        if not isinstance(self.environment, EnvironmentSettings):
+            object.__setattr__(self, "environment", EnvironmentSettings.from_mapping(self.environment))
         if self.gait_model_window_frames < 2:
             raise ValueError("gait_model_window_frames must be at least 2")
         if self.sit_stand_runtime_mode not in {"rule_baseline", "experimental_tcn"}:
@@ -125,6 +219,9 @@ class ServiceSettings:
             if not isinstance(loaded, dict):
                 raise ValueError("fall risk service config must be a mapping")
             raw.update(loaded)
+        environment_raw = raw.pop("environment", None)
+        if environment_raw is not None:
+            raw["environment"] = EnvironmentSettings.from_mapping(environment_raw)
 
         overrides: dict[str, tuple[str, Any]] = {
             "MODEL_PATH": ("model_path", Path),
@@ -177,6 +274,17 @@ class ServiceSettings:
             raw["fall_event_shadow_checkpoint_paths"] = tuple(
                 Path(value) for value in raw["fall_event_shadow_checkpoint_paths"]
             )
+        if "ENVIRONMENT_MODE" in env or "ENVIRONMENT_SHADOW_LOG_PATH" in env:
+            current = raw.get("environment")
+            current_values = {
+                field.name: getattr(current, field.name)
+                for field in dataclass_fields(EnvironmentSettings)
+            } if isinstance(current, EnvironmentSettings) else dict(current or {})
+            if "ENVIRONMENT_MODE" in env:
+                current_values["mode"] = env["ENVIRONMENT_MODE"]
+            if "ENVIRONMENT_SHADOW_LOG_PATH" in env:
+                current_values["shadow_log_path"] = env["ENVIRONMENT_SHADOW_LOG_PATH"] or None
+            raw["environment"] = EnvironmentSettings.from_mapping(current_values)
         if "callback_retry_delays_sec" in raw:
             raw["callback_retry_delays_sec"] = tuple(float(value) for value in raw["callback_retry_delays_sec"])
         return cls(**raw)

@@ -21,12 +21,20 @@ from elderly_monitoring.modules.fall_risk.near_fall import (
     NEAR_FALL_KEYPOINT_NAMES,
     extract_near_fall_events,
 )
+from elderly_monitoring.modules.fall_risk.environment import (
+    behavior_anchor,
+    interaction_scores,
+    low_light_score,
+    water_exposure_score,
+)
 from elderly_monitoring.modules.fall_risk.pose_quality import CORE_KEYPOINT_NAMES, process_pose_records
 from elderly_monitoring.modules.fall_risk.sit_stand import (
     MODEL_VERSION as SIT_STAND_MODEL_VERSION,
     extract_sit_stand_events,
 )
 from elderly_monitoring.runtime.fall_state import FallStateConfig, FallStateDetector
+from elderly_monitoring.runtime.environment_store import EnvironmentStore
+from elderly_monitoring.service.settings import EnvironmentSettings
 
 
 @dataclass(frozen=True)
@@ -107,6 +115,8 @@ class FeatureAssembler:
         sit_stand_predictor: Any | None = None,
         fall_event_predictor: Any | None = None,
         fall_event_runtime_mode: str = "shadow",
+        environment_store: EnvironmentStore | None = None,
+        environment_settings: EnvironmentSettings | Mapping[str, Any] | None = None,
     ) -> None:
         self.person_id = person_id
         self.device_id = device_id
@@ -124,6 +134,12 @@ class FeatureAssembler:
                 "fall_event_runtime_mode must be shadow or experimental_tcn"
             )
         self._fall_event_runtime_mode = fall_event_runtime_mode
+        self._environment_store = environment_store
+        self._environment_settings = (
+            environment_settings
+            if isinstance(environment_settings, EnvironmentSettings)
+            else EnvironmentSettings.from_mapping(environment_settings)
+        )
         self._baselines = build_personal_baselines(baseline_history or []) if baseline_history else {}
         self._baseline_lock = threading.RLock()
         self._baseline_period_result: dict[str, Any] | None = None
@@ -133,6 +149,7 @@ class FeatureAssembler:
         self.last_reset_reason: str | None = None
         self._cached_signature: tuple[Any, ...] | None = None
         self._cached_snapshot: FeatureSnapshot | None = None
+        self._last_received_monotonic_sec: float | None = None
 
     def reset(self, *, reason: str = "manual_reset", stream_epoch: int | None = None) -> None:
         self.records.clear()
@@ -140,6 +157,7 @@ class FeatureAssembler:
         self._fall_state.reset()
         self._cached_signature = None
         self._cached_snapshot = None
+        self._last_received_monotonic_sec = None
         self.reset_count += 1
         self.last_reset_reason = reason
         if stream_epoch is not None:
@@ -179,6 +197,8 @@ class FeatureAssembler:
     def add_pose(self, record: Mapping[str, Any], *, monotonic_sec: float) -> FeatureSnapshot | None:
         item = dict(record)
         item["person_id"] = self.person_id
+        item["received_monotonic_sec"] = float(monotonic_sec)
+        self._last_received_monotonic_sec = float(monotonic_sec)
         self.records.append(item)
         timestamp = _number(item.get("timestamp_sec"), monotonic_sec)
         while self.records and timestamp - _number(self.records[0].get("timestamp_sec"), timestamp) > self.config.window_sec:
@@ -190,7 +210,7 @@ class FeatureAssembler:
 
     def _assemble(self) -> FeatureSnapshot:
         records = list(self.records)
-        signature = _window_signature(records)
+        signature = (*_window_signature(records), self._environment_cache_signature())
         if signature == self._cached_signature and self._cached_snapshot is not None:
             return self._cached_snapshot
         self.analysis_count += 1
@@ -224,6 +244,33 @@ class FeatureAssembler:
             )
             fall_event_tcn_diagnostic = branch_diagnostics["fall_event_tcn_shadow"]
         baseline_item, branch_diagnostics["baseline"] = self._run_baseline(cleaned)
+        try:
+            environment_item, branch_diagnostics["environment"] = self._run_environment(
+                cleaned,
+                gait_item=gait_item,
+                sit_stand_item=sit_item,
+                near_fall_item=near_item,
+                branch_diagnostics=branch_diagnostics,
+            )
+        except Exception as exc:
+            environment_item = {
+                "environment_mode": self._environment_settings.mode,
+                "environment_features": {},
+                "environment_mask": {},
+                "environment_evidence": {
+                    "status": "inference_error",
+                    "reason": "environment_feature_failed",
+                },
+            }
+            branch_diagnostics["environment"] = {
+                "status": "inference_error",
+                "score": None,
+                "reasons": ["environment_feature_failed"],
+                "error_type": type(exc).__name__,
+                "optional": True,
+                "model_version": "environment-v1",
+                "duration_ms": 0.0,
+            }
         scene_score = max(
             0.0,
             min(1.0, float(self.scene_risk_scores.get(self.scene_region, 0.0))),
@@ -318,6 +365,16 @@ class FeatureAssembler:
                 baseline_item.get("deviation_factors", [])
             ),
             "scene_risk_score": scene_score,
+            "environment_mode": self._environment_settings.mode,
+            "environment_features": dict(environment_item.get("environment_features", {})),
+            "environment_mask": dict(environment_item.get("environment_mask", {})),
+            "environment_evidence": dict(environment_item.get("environment_evidence", {})),
+            "low_light_score": environment_item.get("low_light_score"),
+            "water_exposure_score": environment_item.get("water_exposure_score"),
+            "behavior_anchor": environment_item.get("behavior_anchor"),
+            "light_interaction_score": environment_item.get("light_interaction_score"),
+            "water_interaction_score": environment_item.get("water_interaction_score"),
+            "environment_interaction_score": environment_item.get("environment_interaction_score"),
             "fall_event_score": fall_event_score,
             "fall_event_score_source": fall_event_score_source,
             "long_static_score": state.long_static_score if state else None,
@@ -368,6 +425,200 @@ class FeatureAssembler:
         self._cached_signature = signature
         self._cached_snapshot = snapshot
         return snapshot
+
+    def _environment_cache_signature(self) -> tuple[Any, ...]:
+        config = self._environment_settings
+        if config.mode == "disabled" or self._environment_store is None:
+            return (config.mode,)
+        binding = config.camera_bindings.get(self.device_id) if isinstance(config.camera_bindings, Mapping) else None
+        if not isinstance(binding, Mapping):
+            return (config.mode, "unbound")
+        environment_device_id = str(binding.get("environment_device_id", ""))
+        record = self._environment_store.latest(environment_device_id)
+        if record is None:
+            return (config.mode, environment_device_id, None)
+        calibration = binding.get("calibration") or {}
+        roi_versions = tuple(sorted(
+            (str(name), str(value.get("version")))
+            for name, value in (binding.get("water_probe_rois") or {}).items()
+            if isinstance(value, Mapping)
+        ))
+        return (
+            config.mode,
+            environment_device_id,
+            record.boot_id,
+            record.sequence,
+            record.clock_status,
+            record.illumination_status,
+            tuple(sorted((name, probe.get("state"), probe.get("sensor_status")) for name, probe in record.water_probes.items())),
+            calibration.get("version"),
+            roi_versions,
+        )
+
+    def _run_environment(
+        self,
+        cleaned: list[dict[str, Any]],
+        *,
+        gait_item: Mapping[str, Any],
+        sit_stand_item: Mapping[str, Any],
+        near_fall_item: Mapping[str, Any],
+        branch_diagnostics: Mapping[str, Mapping[str, Any]],
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
+        started = time.perf_counter()
+        config = self._environment_settings
+        field_names = (
+            "low_light_score",
+            "water_exposure_score",
+            "behavior_anchor",
+            "light_interaction_score",
+            "water_interaction_score",
+            "environment_interaction_score",
+        )
+        empty = {
+            "environment_mode": config.mode,
+            "environment_features": {},
+            "environment_mask": {name: False for name in field_names},
+            "environment_evidence": {
+                "status": "disabled" if config.mode == "disabled" else "unavailable"
+            },
+        }
+        def unavailable(reason: str, **extra: Any) -> tuple[dict[str, Any], dict[str, Any]]:
+            return empty, {
+                "status": "disabled" if config.mode == "disabled" else "unavailable",
+                "score": None,
+                "reasons": [reason],
+                "optional": True,
+                "model_version": "environment-v1",
+                **extra,
+                "duration_ms": _elapsed_ms(started),
+            }
+
+        if config.mode == "disabled":
+            return unavailable("environment_disabled")
+        bindings = config.camera_bindings
+        binding = bindings.get(self.device_id) if isinstance(bindings, Mapping) else None
+        if not isinstance(binding, Mapping):
+            return unavailable("environment_camera_binding_missing")
+        environment_device_id = str(binding.get("environment_device_id", "")).strip()
+        if not environment_device_id:
+            return unavailable("environment_device_binding_missing")
+        if self._environment_store is None:
+            return unavailable("environment_store_unavailable")
+        frame_received = self._last_received_monotonic_sec
+        if frame_received is None:
+            return unavailable("frame_receive_time_missing")
+        snapshot = self._environment_store.snapshot_for_frame(
+            environment_device_id,
+            frame_received_monotonic_sec=frame_received,
+            max_age_sec=config.max_age_sec,
+            max_transport_age_sec=config.max_transport_age_sec,
+            max_future_skew_sec=config.max_future_skew_sec,
+        )
+        evidence: dict[str, Any] = {
+            "status": snapshot.status,
+            "reason": snapshot.reason,
+            "environment_device_id": environment_device_id,
+            "snapshot_age_sec": snapshot.snapshot_age_sec,
+            "transport_age_sec": snapshot.transport_age_sec,
+        }
+        if not snapshot.valid:
+            empty["environment_evidence"] = evidence
+            return unavailable(
+                snapshot.reason or "environment_snapshot_unavailable",
+                environment_device_id=environment_device_id,
+                snapshot_age_sec=snapshot.snapshot_age_sec,
+            )
+
+        record = snapshot.record
+        assert record is not None
+        calibration = binding.get("calibration") or {}
+        evidence.update({
+            "device_id": record.device_id,
+            "boot_id": record.boot_id,
+            "sequence": record.sequence,
+            "clock_status": record.clock_status,
+            "illumination_lux": record.illumination_lux,
+            "illumination_status": record.illumination_status,
+            "water_states": {
+                name: probe.get("state") for name, probe in record.water_probes.items()
+            },
+            "calibration_version": calibration.get("version"),
+            "roi_versions": {
+                name: value.get("version")
+                for name, value in (binding.get("water_probe_rois") or {}).items()
+                if isinstance(value, Mapping)
+            },
+        })
+        light = low_light_score(
+            record.illumination_lux,
+            normal_lux=calibration.get("normal_lux"),
+            severe_low_lux=calibration.get("severe_low_lux"),
+            illumination_status=record.illumination_status,
+        )
+        water = water_exposure_score(
+            cleaned,
+            record.water_probes,
+            binding.get("water_probe_rois") or {},
+            window_frames=config.roi_window_frames,
+            min_usable_frames=config.roi_min_usable_frames,
+            min_hits=config.roi_min_hits,
+            max_span_sec=config.roi_max_span_sec,
+        )
+        behavior_scores = {
+            "gait_risk_score": _valid_score(
+                gait_item, "gait_risk_score", branch_diagnostics["gait"]
+            ),
+            "sit_stand_risk_score": _valid_score(
+                sit_stand_item, "sit_stand_risk_score", branch_diagnostics["sit_stand"]
+            ),
+            "near_fall_event_score": _valid_score(
+                near_fall_item, "near_fall_event_score", branch_diagnostics["near_fall"]
+            ),
+            "environment_behavior_mask": {
+                "gait_risk_score": branch_diagnostics["gait"].get("status") == "valid",
+                "sit_stand_risk_score": branch_diagnostics["sit_stand"].get("status") == "valid",
+                "near_fall_event_score": branch_diagnostics["near_fall"].get("status") == "valid",
+            },
+        }
+        anchor = behavior_anchor(behavior_scores)
+        values = {
+            "low_light_score": light,
+            "water_exposure_score": water.score,
+            **interaction_scores(low_light=light, water_exposure=water.score, anchor=anchor),
+        }
+        masks = {name: value is not None for name, value in values.items()}
+        status = "valid" if any(masks.values()) else "unavailable"
+        reason = None if status == "valid" else (water.reason or "environment_calibration_unavailable")
+        evidence.update({
+            "status": status,
+            "reason": reason,
+            "water_roi_status": water.status,
+            "water_roi_reason": water.reason,
+            "water_active_probes": list(water.active_probe_names),
+            "water_usable_frames": water.usable_frame_count,
+            "water_hits": water.hit_count,
+        })
+        item = {
+            **values,
+            "environment_mode": config.mode,
+            "environment_features": values,
+            "environment_mask": masks,
+            "environment_evidence": evidence,
+        }
+        return item, {
+            "status": status,
+            "score": values.get("environment_interaction_score"),
+            "reasons": [] if status == "valid" else [reason or "environment_unavailable"],
+            "optional": True,
+            "model_version": "environment-v1",
+            "environment_device_id": environment_device_id,
+            "sequence": record.sequence,
+            "snapshot_age_sec": snapshot.snapshot_age_sec,
+            "transport_age_sec": snapshot.transport_age_sec,
+            "calibration_version": evidence.get("calibration_version"),
+            "roi_versions": evidence.get("roi_versions", {}),
+            "duration_ms": _elapsed_ms(started),
+        }
 
     def _run_gait(self, cleaned: list[dict[str, Any]]) -> tuple[dict[str, Any], dict[str, Any]]:
         return self._run_scored_branch(
@@ -689,7 +940,7 @@ class FeatureAssembler:
         }
         branches = {
             name: dict(diagnostic)
-            for name in ("gait", "sit_stand", "near_fall", "fall_state", "baseline")
+            for name in ("gait", "sit_stand", "near_fall", "fall_state", "baseline", "environment")
         }
         features = {
             "person_id": self.person_id,
@@ -698,6 +949,10 @@ class FeatureAssembler:
             "stream_epoch": self.stream_epoch,
             "feature_coverage": 0.0,
             "fusion_mask": {},
+            "environment_mode": self._environment_settings.mode,
+            "environment_features": {},
+            "environment_mask": {},
+            "environment_evidence": {"status": "unavailable", "reason": "pose_quality_failed"},
             "branch_diagnostics": branches,
         }
         return FeatureSnapshot(
@@ -833,9 +1088,11 @@ def _window_signature(records: list[dict[str, Any]]) -> tuple[Any, ...]:
         first.get("frame_id"),
         first.get("timestamp_sec"),
         first.get("track_id"),
+        first.get("received_monotonic_sec"),
         last.get("frame_id"),
         last.get("timestamp_sec"),
         last.get("track_id"),
+        last.get("received_monotonic_sec"),
     )
 
 
