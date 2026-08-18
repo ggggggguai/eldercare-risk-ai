@@ -9,6 +9,31 @@ NonEmptyString = Annotated[str, StringConstraints(strip_whitespace=True, min_len
 SessionStatus = Literal["starting", "running", "reconnecting", "stopping", "stopped", "failed"]
 
 
+class WaterProbeReading(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    state: Literal["dry", "water", "unknown"]
+    sensor_status: NonEmptyString = "ok"
+
+
+class EnvironmentReadingRequest(BaseModel):
+    """ESP32/environment bridge payload accepted by the algorithm service."""
+
+    model_config = ConfigDict(extra="allow")
+
+    schema_version: str = "1.0"
+    device_id: NonEmptyString
+    boot_id: NonEmptyString
+    boot_started_at: datetime
+    sequence: int = Field(ge=1)
+    observed_at: datetime
+    clock_status: Literal["synced", "unsynced"]
+    illumination_lux: float | None = Field(default=None, ge=0)
+    illumination_status: Literal["ok", "degraded", "fault"]
+    water_probes: dict[str, WaterProbeReading] = Field(min_length=1)
+    sensor_status: NonEmptyString = "ok"
+
+
 def _validate_url(value: str, schemes: set[str]) -> str:
     value = value.strip()
     scheme, separator, remainder = value.partition("://")

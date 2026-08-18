@@ -44,6 +44,53 @@ ALL_FALL_RISK_INPUT_FEATURES = (
     "long_static_score",
 )
 
+ENVIRONMENT_FEATURES = (
+    "low_light_score",
+    "water_exposure_score",
+    "behavior_anchor",
+    "light_interaction_score",
+    "water_interaction_score",
+    "environment_interaction_score",
+)
+
+
+def environment_assist_contribution(
+    features: Mapping[str, Any],
+    *,
+    mode: str,
+    weight: float | None,
+    min_behavior_anchor: float | None,
+) -> tuple[float, dict[str, Any]]:
+    """Return the bounded assist contribution without touching base features."""
+    diagnostics = {
+        "mode": mode,
+        "contribution": 0.0,
+        "status": "disabled" if mode != "assist" else "unavailable",
+        "reason": None,
+    }
+    if mode != "assist":
+        return 0.0, diagnostics
+    mask = features.get("environment_mask")
+    environment_score = features.get("environment_interaction_score")
+    anchor = features.get("behavior_anchor")
+    if not isinstance(mask, Mapping) or mask.get("environment_interaction_score") is not True:
+        diagnostics["reason"] = "environment_interaction_unavailable"
+        return 0.0, diagnostics
+    if anchor is None or float(anchor) < float(min_behavior_anchor or 1.0):
+        diagnostics["reason"] = "behavior_anchor_below_threshold"
+        return 0.0, diagnostics
+    if environment_score is None or weight is None:
+        diagnostics["reason"] = "assist_policy_unconfigured"
+        return 0.0, diagnostics
+    contribution = clamp_score(float(weight) * clamp_score(environment_score))
+    diagnostics.update({
+        "status": "valid",
+        "contribution": round(contribution, 4),
+        "environment_interaction_score": clamp_score(environment_score),
+        "behavior_anchor": clamp_score(anchor),
+    })
+    return round(contribution, 4), diagnostics
+
 
 def clamp_score(value: float | int | None) -> float:
     if value is None:

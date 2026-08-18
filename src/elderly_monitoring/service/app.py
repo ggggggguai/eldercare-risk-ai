@@ -2,14 +2,15 @@ from __future__ import annotations
 
 from functools import partial
 import shutil
-from typing import Any
+from typing import Any, Mapping
 
-from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi import Depends, FastAPI, HTTPException, Query, Request, status
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from elderly_monitoring.service.schemas import (
     BaselinePeriodUpdate,
+    EnvironmentReadingRequest,
     SessionAccepted,
     SessionStatusResponse,
     StartSessionRequest,
@@ -18,6 +19,11 @@ from elderly_monitoring.service.schemas import (
 from elderly_monitoring.service.session import SessionManager, SessionStatus
 from elderly_monitoring.service.settings import ServiceSettings
 from elderly_monitoring.service.stream_reader import FFmpegStreamReader, StreamReader
+from elderly_monitoring.runtime.environment_store import (
+    EnvironmentConflictError,
+    EnvironmentStore,
+    EnvironmentStoreError,
+)
 
 
 def reader_factory_for(settings: ServiceSettings) -> Any:
@@ -32,6 +38,9 @@ def reader_factory_for(settings: ServiceSettings) -> Any:
 
 def create_app(*, settings: ServiceSettings | None = None, session_manager: SessionManager | None = None) -> FastAPI:
     service_settings = settings or ServiceSettings.load()
+    environment_store = EnvironmentStore(
+        capacity_per_device=service_settings.environment.store_capacity_per_device
+    )
     manager = session_manager or SessionManager(
         reader_factory=reader_factory_for(service_settings),
         model_path=str(service_settings.model_path),
@@ -70,6 +79,8 @@ def create_app(*, settings: ServiceSettings | None = None, session_manager: Sess
         max_inference_fps=service_settings.max_inference_fps,
         pose_inference_size=service_settings.pose_inference_size,
         fall_state=service_settings.fall_state,
+        environment_store=environment_store,
+        environment_settings=service_settings.environment,
     )
     app = FastAPI(title="Elderly Monitoring Fall Risk Service", version="0.2.0")
     bearer = HTTPBearer(auto_error=False)
@@ -121,6 +132,57 @@ def create_app(*, settings: ServiceSettings | None = None, session_manager: Sess
                 status_code=503, detail="ffmpeg backend is not available"
             )
         return {"status": "ready"}
+
+    @app.post(
+        "/v1/environment/readings",
+        status_code=202,
+        dependencies=[Depends(require_token)],
+    )
+    def ingest_environment_reading(
+        reading: EnvironmentReadingRequest,
+        request: Request,
+    ) -> JSONResponse:
+        if service_settings.environment.mode == "disabled":
+            raise HTTPException(status_code=503, detail="environment input is disabled")
+        configured_devices = {
+            str(binding.get("environment_device_id"))
+            for binding in service_settings.environment.camera_bindings.values()
+            if isinstance(binding, Mapping) and binding.get("environment_device_id")
+        }
+        if reading.device_id not in configured_devices:
+            raise HTTPException(status_code=422, detail="unknown environment device")
+        try:
+            _, result = environment_store.ingest(reading.model_dump(mode="json"))
+        except EnvironmentConflictError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        except EnvironmentStoreError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        return JSONResponse(
+            status_code=200 if result == "duplicate" else 202,
+            content={"status": result, "device_id": reading.device_id, "sequence": reading.sequence},
+        )
+
+    @app.get("/v1/environment/readings")
+    def list_environment_readings(
+        device_id: str | None = Query(default=None),
+        limit: int = Query(default=100, ge=1, le=1000),
+        order: str = Query(default="desc"),
+    ) -> dict[str, Any]:
+        if order not in {"asc", "desc"}:
+            raise HTTPException(status_code=422, detail="order must be asc or desc")
+        records = environment_store.readings(device_id=device_id, limit=limit, order=order)
+        return {
+            "items": [record.to_dict() for record in records],
+            "total": len(records),
+            "limit": limit,
+            "order": order,
+            "has_more": False,
+        }
+
+    @app.get("/v1/environment/readings/latest")
+    def latest_environment_reading(device_id: str | None = Query(default=None)) -> dict[str, Any]:
+        record = environment_store.latest(device_id=device_id)
+        return {"item": record.to_dict() if record else None}
 
     @app.post("/v1/monitoring/sessions", response_model=SessionAccepted, status_code=202, dependencies=[Depends(require_token)])
     def start(request: StartSessionRequest) -> SessionAccepted:
@@ -176,6 +238,7 @@ def create_app(*, settings: ServiceSettings | None = None, session_manager: Sess
 
     app.state.settings = service_settings
     app.state.session_manager = manager
+    app.state.environment_store = environment_store
     return app
 
 

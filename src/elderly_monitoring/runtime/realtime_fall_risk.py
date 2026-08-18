@@ -22,23 +22,39 @@ from elderly_monitoring.runtime.fall_state import (
 from elderly_monitoring.runtime.feature_assembly import FeatureAssembler, FeatureAssemblyConfig
 from elderly_monitoring.runtime.sampling import SamplingMonitor
 from elderly_monitoring.runtime.streaming_pose import StreamingPoseTracker
+from elderly_monitoring.runtime.shadow_log import ShadowJsonlLogger
 from elderly_monitoring.service.callback import CallbackSender
 from elderly_monitoring.service.outbox import CallbackOutbox
+from elderly_monitoring.service.settings import EnvironmentSettings
 
 
 class RealtimeFallRiskEngine:
-    def __init__(self, *, assembler: Any, fusion_interval_sec: float = 2.0, pipeline: FallRiskPipeline | None = None) -> None:
+    def __init__(self, *, assembler: Any, fusion_interval_sec: float = 2.0, pipeline: FallRiskPipeline | None = None, shadow_logger: ShadowJsonlLogger | None = None) -> None:
         self.assembler = assembler
         self.fusion_interval_sec = fusion_interval_sec
         self.pipeline = pipeline or FallRiskPipeline()
         self._last_fusion: float | None = None
         self.last_snapshot: Any | None = None
         self.last_fusion_duration_ms: float | None = None
+        self.shadow_logger = shadow_logger
 
     def process_pose(self, record: Mapping[str, Any], *, monotonic_sec: float) -> AlgorithmEvent | None:
         snapshot = self.assembler.add_pose(record, monotonic_sec=monotonic_sec)
         self.last_snapshot = snapshot
-        if snapshot is None or not snapshot.usable:
+        if snapshot is None:
+            return None
+        if self.shadow_logger is not None:
+            self.shadow_logger.log({
+                "timestamp": snapshot.features.get("timestamp"),
+                "person_id": snapshot.features.get("person_id"),
+                "device_id": snapshot.features.get("device_id"),
+                "stream_epoch": snapshot.features.get("stream_epoch"),
+                "environment": snapshot.features.get("environment_features", {}),
+                "environment_mask": snapshot.features.get("environment_mask", {}),
+                "environment_evidence": snapshot.features.get("environment_evidence", {}),
+                "branch_diagnostics": snapshot.branch_diagnostics.get("environment", {}),
+            })
+        if not snapshot.usable:
             return None
         if self._last_fusion is not None and monotonic_sec - self._last_fusion < self.fusion_interval_sec and not snapshot.urgent:
             return None
@@ -152,8 +168,29 @@ class FallRiskSessionEngine:
             sit_stand_predictor=sit_stand_predictor,
             fall_event_predictor=fall_event_predictor,
             fall_event_runtime_mode=fall_event_runtime_mode,
+            environment_store=kwargs.get("environment_store"),
+            environment_settings=kwargs.get("environment_settings"),
         )
-        self.engine = RealtimeFallRiskEngine(assembler=self.assembler, fusion_interval_sec=float(kwargs.get("fusion_interval_sec", 2.0)))
+        environment_settings = kwargs.get("environment_settings")
+        if not isinstance(environment_settings, EnvironmentSettings):
+            environment_settings = EnvironmentSettings.from_mapping(environment_settings)
+        self.environment_shadow_logger = (
+            ShadowJsonlLogger(environment_settings.shadow_log_path)
+            if environment_settings.mode == "shadow" and environment_settings.shadow_log_path is not None
+            else None
+        )
+        pipeline = FallRiskPipeline(
+            environment_mode=environment_settings.mode,
+            environment_weight=environment_settings.assist_weight,
+            environment_min_behavior_anchor=environment_settings.assist_min_behavior_anchor,
+            environment_policy_version=environment_settings.assist_policy_version,
+        )
+        self.engine = RealtimeFallRiskEngine(
+            assembler=self.assembler,
+            fusion_interval_sec=float(kwargs.get("fusion_interval_sec", 2.0)),
+            pipeline=pipeline,
+            shadow_logger=self.environment_shadow_logger,
+        )
         self.policy = EventPolicy(cooldown_sec=float(kwargs.get("event_cooldown_sec", 30.0)))
         configured_outbox = kwargs.get("callback_outbox")
         if configured_outbox is not None:
@@ -387,6 +424,8 @@ class FallRiskSessionEngine:
             "outbox_drain": drain_result,
         }
         self.tracker.close()
+        if self.environment_shadow_logger is not None:
+            self.environment_shadow_logger.close()
 
     def _process_algorithm_event(
         self,
@@ -567,6 +606,11 @@ class FallRiskSessionEngine:
             "close": self.close_diagnostics,
             "episode": self.episode.snapshot(),
             "outbox": self.outbox.snapshot(),
+            "environment_shadow_log": (
+                self.environment_shadow_logger.snapshot()
+                if self.environment_shadow_logger is not None
+                else {"status": "disabled"}
+            ),
         }
 
 
