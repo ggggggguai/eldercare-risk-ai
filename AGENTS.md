@@ -43,7 +43,7 @@ conda run -n eldercare-ai python -m pip show elderly-monitoring-algorithms
 conda run -n eldercare-ai python -m pip install -e ".[vision,service]"
 ```
 
-以下例外只适用于心理健康徘徊专项，不改变跌倒模块、其他目录或其他协作者的开发规则。徘徊的常规开发、监督性能实验和 pytest 继续使用 `eldercare-ai`；执行 AI 可以在徘徊范围内自主修复命令、路径、timeout、局部代码和测试问题，使用独立实验目录反复验证，并以最终 validation 性能和证据链为准，不为普通失败逐次请示。依赖兼容只限徘徊专用配置或独立可回滚环境；未经单独授权，不修改 `environment.yml`、共享依赖锁，也不升级或卸载共用环境中的包。M0-R 的 Release-Prep、candidate manifest、推理打包和 synthetic/validation 验证仍属普通徘徊开发，不等于进入受限发布。只有改变标签/split/人工裁决/科学目标、拟对固定 WP public holdout 计分但当前任务尚未取得明确授权、访问 sealed test/official、覆盖或删除既有证据、修改其他模块、push 或对外发布时才停止；已有明确计分授权时应按冻结候选连续完成，不为阶段切换再次请示。现行唯一路线见 `docs/modules/mental_health/plans/徘徊识别技术文档2.md`，当前任务只看 `docs/tasks/README.md`。
+以下例外只适用于心理健康徘徊专项，不改变跌倒模块、其他目录或其他协作者的开发规则。徘徊的常规开发、监督性能实验和 pytest 继续使用 `eldercare-ai`；执行 AI 可以在徘徊范围内自主修复命令、路径、timeout、局部代码和测试问题，使用独立实验目录反复验证，并以最终 development 性能和可运行闭环为准，不为普通失败逐次请示。B01 与 B02 当前统一为可反复使用的 camera development 数据，可用于分段器、边界 refinement、送模策略、camera preprocessing、binary threshold 和必要的轻量 camera 模型调整；旧 B02 holdout 仅保留历史证据，不再限制当前开发。负责人后续提供的居家视频用于补充真实场景 truth-free smoke，继续据其调参时记录为 development；居家视频或人工标签暂缺不阻塞 input-independent context、日报、基线和 handoff，当前以 B01+B02/fixture 推进。全部当前和后续视频、截图、标注及内部研发使用默认完整授权，不以 consent、receipt 或隐私审批阻塞开发；仍保留匿名 ID、原视频不进 Git、输出不覆盖等技术约束。依赖兼容只限徘徊专用配置或独立可回滚环境；未经单独授权，不修改 `environment.yml`、共享依赖锁，也不升级或卸载共用环境中的包。只有改变人工标签/裁决/类别定义、访问 sealed test/official、覆盖或删除既有证据、修改其他模块、push 或对外发布时才停止。现行路线见 `docs/modules/mental_health/plans/徘徊识别技术文档2.md`，五日交付见 `docs/modules/mental_health/plans/M0-CAM-5D快速交付总任务书.md`，当前状态只看 `docs/tasks/README.md`。
 
 ## 开发流程
 
@@ -146,7 +146,7 @@ configs/modules/mental_health.yaml
 
 当前 v3 训练标签的 fall/near-fall 事件监督门禁通过，动作类型门禁仍未通过，且所有 split 尚未冻结。模型候选只有在来源完整的标注、无泄漏且冻结的 train/validation/test split、连续背景与老人域验证、冻结评估协议和延迟/稳定性证据具备后，才能替换主路径。个体行为基线和最终风险融合仍需对应的连续个人数据或 `risk_labels` 真值；在这些条件满足前，保留统计/规则 fallback。
 
-心理健康徘徊专项采用性能优先的 TCN + Transformer 路线。当前模型任务和摄像头数据任务以 `docs/tasks/README.md` 为唯一状态源，模型结构、95% 指标口径、Windows/WSL 执行方式和摄像头采集路线以 `docs/modules/mental_health/plans/徘徊识别技术文档2.md` 为准。旧 Step9/10 字节级协议只用于历史追溯，或在明确要求复放/发布 Step10-A 自监督预训练 bundle 时使用；它不适用于 M0-R 监督候选，也不阻塞常规模型开发。
+心理健康徘徊专项采用 TCN + Transformer 轨迹 shape 主模型；B01+B02 automatic episode+shape development、W5D-03A 三帧多模态 context core、W5D-04 真实 development 日报/个人滚动基线和 W5D-05 后端可消费 JSON/JSONL handoff/E2E 均已完成。当前没有在途五日代码任务；居家视频到位后执行 W5D-03B truth-free 补充 smoke。当前任务以 `docs/tasks/README.md` 为唯一状态源，执行顺序以 `docs/modules/mental_health/plans/M0-CAM-5D快速交付总任务书.md` 为准，技术语义以 `docs/modules/mental_health/plans/徘徊识别技术文档2.md` 为准。后端和前端不在本轮实现；居家输入或标签暂缺、独立 participant/setup、C4 sealed、PORTABLE 和长期临床验证均不阻塞当前闭环。旧 Step9/10、EP1B/EP2A/MVP/PORTABLE 任务书和报告只用于历史追溯或复用已实现原语，不得用其中已被 superseded 的门禁暂停当前任务。
 
 ## 文档维护规则
 

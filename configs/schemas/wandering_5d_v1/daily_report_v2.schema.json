@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "wandering-handoff-daily-report-v2",
+  "title": "Real person-day wandering evidence report with coverage and readiness",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "module", "record_id", "person_id", "session_id",
+    "source_video_id", "local_date", "timezone", "status", "presence_seconds",
+    "tracking_coverage_seconds", "tracking_coverage", "qc_coverage", "episode_counts",
+    "episode_duration_seconds", "confidence_tiers", "rates_per_presence_hour",
+    "night_wandering_like_ratio", "context_counts", "unavailable_count", "error_count",
+    "baseline_readiness", "quality_flags", "identity", "source_refs"
+  ],
+  "properties": {
+    "schema_version": {"const": "wandering-handoff-daily-report-v2"},
+    "module": {"const": "mental_health"},
+    "record_id": {"type": "string", "minLength": 1},
+    "person_id": {"type": "string", "minLength": 1},
+    "session_id": {"type": ["string", "null"]},
+    "source_video_id": {"type": ["string", "null"]},
+    "local_date": {"type": "string", "format": "date"},
+    "timezone": {"type": "string", "minLength": 1},
+    "status": {"enum": ["ready", "uncertain", "unavailable", "error"]},
+    "presence_seconds": {"type": ["number", "null"], "minimum": 0},
+    "tracking_coverage_seconds": {"type": ["number", "null"], "minimum": 0},
+    "tracking_coverage": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+    "qc_coverage": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+    "episode_counts": {"$ref": "#/$defs/shape_counts"},
+    "episode_duration_seconds": {"$ref": "#/$defs/shape_durations"},
+    "confidence_tiers": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["high_confidence", "uncertain", "unavailable", "error"],
+      "properties": {
+        "high_confidence": {"$ref": "#/$defs/tier"},
+        "uncertain": {"$ref": "#/$defs/tier"},
+        "unavailable": {"$ref": "#/$defs/tier"},
+        "error": {"$ref": "#/$defs/tier"}
+      }
+    },
+    "rates_per_presence_hour": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["wandering_like_count", "wandering_like_duration_seconds"],
+      "properties": {
+        "wandering_like_count": {"type": ["number", "null"], "minimum": 0},
+        "wandering_like_duration_seconds": {"type": ["number", "null"], "minimum": 0}
+      }
+    },
+    "night_wandering_like_ratio": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+    "context_counts": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}},
+    "unavailable_count": {"type": "integer", "minimum": 0},
+    "error_count": {"type": "integer", "minimum": 0},
+    "baseline_readiness": {"enum": ["warming_up", "initial_ready", "stable_ready", "unavailable"]},
+    "quality_flags": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "identity": {"$ref": "#/$defs/identity"},
+    "source_refs": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/source_ref"}}
+  },
+  "$defs": {
+    "shape_counts": {
+      "type": "object", "additionalProperties": false,
+      "required": ["direct", "pacing", "lapping", "random", "wandering_like"],
+      "properties": {
+        "direct": {"type": "integer", "minimum": 0},
+        "pacing": {"type": "integer", "minimum": 0},
+        "lapping": {"type": "integer", "minimum": 0},
+        "random": {"type": "integer", "minimum": 0},
+        "wandering_like": {"type": "integer", "minimum": 0}
+      }
+    },
+    "shape_durations": {
+      "type": "object", "additionalProperties": false,
+      "required": ["direct", "pacing", "lapping", "random", "wandering_like"],
+      "properties": {
+        "direct": {"type": "number", "minimum": 0},
+        "pacing": {"type": "number", "minimum": 0},
+        "lapping": {"type": "number", "minimum": 0},
+        "random": {"type": "number", "minimum": 0},
+        "wandering_like": {"type": "number", "minimum": 0}
+      }
+    },
+    "tier": {
+      "type": "object", "additionalProperties": false,
+      "required": ["count", "duration_seconds"],
+      "properties": {
+        "count": {"type": "integer", "minimum": 0},
+        "duration_seconds": {"type": "number", "minimum": 0}
+      }
+    },
+    "identity": {
+      "type": "object", "additionalProperties": false,
+      "required": ["model_id", "model_sha256", "config_id", "config_sha256", "policy_id", "policy_sha256"],
+      "properties": {
+        "model_id": {"type": ["string", "null"]},
+        "model_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+        "config_id": {"type": "string", "minLength": 1},
+        "config_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "policy_id": {"type": "string", "minLength": 1},
+        "policy_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "source_ref": {
+      "type": "object", "additionalProperties": false,
+      "required": ["ref_type", "ref_id", "artifact_path", "sha256"],
+      "properties": {
+        "ref_type": {"type": "string", "minLength": 1},
+        "ref_id": {"type": "string", "minLength": 1},
+        "artifact_path": {"type": ["string", "null"]},
+        "sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"}
+      }
+    }
+  }
+}

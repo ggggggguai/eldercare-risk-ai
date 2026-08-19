@@ -1,0 +1,61 @@
+schema_version: wandering-camera-context-review-config-v1
+context_review_id: w5d03a-b01-b02-context-core-v1
+
+inputs:
+  episode_results:
+    path: reports/mental_health/wandering_camera_episode_pipeline_w5d02_v4/episode_results.jsonl
+    sha256: 7ae2024a182b1ffe6f1626033533508ceace5866949b58df292b8f4b0e31187a
+    schema_version: wandering-handoff-episode-result-v1
+  development_index:
+    path: reports/mental_health/wandering_camera_5d_contract_v3/development_index.jsonl
+    sha256: bd29c218cdd78c054955c7ac51ab195003a9a5533d84c2efc7f9cc3dd01b82f8
+    schema_version: wandering-camera-development-index-v1
+    expected_batch_counts: {B01: 36, B02: 12}
+  context_schema:
+    path: configs/schemas/wandering_5d_v1/context_review_v2.schema.json
+    sha256: 3cc0146bfbee63ab3a58bf01a0de2309b338896e7de97dea722c0e7356eb1c3f
+    schema_version: wandering-handoff-context-review-v2
+
+home_input_status: awaiting_input
+home_annotation_status: not_provided
+home_smoke_status: not_run_input_unavailable
+validation_scope: b01_b02_development
+
+trigger:
+  policy_id: w5d03a-wandering-or-uncertain-v1
+  binary_labels: [wandering_like]
+  episode_statuses: [uncertain]
+  explicit_episode_ids: []
+
+frames:
+  positions: [start, middle, end]
+  jpeg_quality: 85
+  bbox_max_gap_seconds: 0.75
+  crop_padding_ratio: 0.12
+
+provider:
+  default_mode: fake
+  allowed_modes: [disabled, fake, openai-compatible]
+  disabled:
+    provider_id: provider-disabled
+  fake:
+    provider_id: deterministic-fake
+    model_id: wandering-context-fake-v1
+  openai_compatible:
+    provider_id: openai-compatible
+    endpoint_env: WANDERING_CONTEXT_API_URL
+    api_key_env: WANDERING_CONTEXT_API_KEY
+    model_env: WANDERING_CONTEXT_MODEL
+    default_model: gpt-4.1-mini
+    timeout_seconds: 30.0
+
+outputs:
+  required_files:
+    - context_reviews.jsonl
+    - run_summary.json
+    - handoff_manifest.partial.json
+    - README.md
+    - VERIFICATION.md
+  frame_artifact_dir: frame_artifacts
+  fresh_output_directory_must_not_exist: true
+  algorithm_event_emitted: false

@@ -27,6 +27,8 @@ reports/**/*.json
 reports/**/*.jsonl
 reports/**/*.xlsx
 reports/**/*.png
+reports/**/*.jpg
+reports/**/*.jpeg
 reports/**/*.mp4
 reports/mental_health/wandering_performance/**/*.sha256
 reports/mental_health/wandering_performance/**/*.zip
@@ -54,6 +56,9 @@ tmp/
 # Local environment files.
 .env
 .DS_Store
+
+# Local wandering visualizer (do not upload).
+可视化/
 
 # Local draft docs (do not commit).
 徘徊行为检测模块开发交接说明.md

@@ -1,0 +1,19 @@
+schema_version: wandering-camera-episode-eval-config-v1
+evaluation_name: oracle-boundary shape classification
+class_order: [direct, pacing, lapping, random]
+binary_mapping:
+  direct: direct_or_non_wandering
+  pacing: wandering_like
+  lapping: wandering_like
+  random: wandering_like
+shape_eligibility:
+  explicit_exclusion_statuses: [excluded]
+  explicit_exclusion_roles: [excluded]
+  explicit_exclusion_tracking_issues: [wrong_target]
+runtime_statuses: [ready, unavailable, boundary_uncertain, inference_error, abstention]
+pipeline_miss_statuses: [unavailable, boundary_uncertain, inference_error, abstention]
+duration_bands:
+  - {name: short, minimum_sec: 0.0, maximum_sec_exclusive: 15.0}
+  - {name: medium, minimum_sec: 15.0, maximum_sec_exclusive: 40.0}
+  - {name: long, minimum_sec: 40.0, maximum_sec_exclusive: null}
+identity_time_tolerance_sec: 0.000001

@@ -13,6 +13,7 @@ import math
 import os
 import re
 import tempfile
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -185,8 +186,13 @@ def build_authorized_camera_tracking_pair(
         timezone=timezone,
     )
 
+    # PORTABLE is deliberately imported and inspected only after the owner
+    # receipt/collection/source/output/operator gates.  Passing a basename to
+    # Ultralytics would re-enable its implicit weight download behavior.
+    detector_identity = _resolve_portable_detector(root)
+
     # Protected media and optional vision imports remain unreachable until all
-    # receipt/collection/source/output and operator-metadata checks pass.
+    # receipt/collection/source/output/operator and detector-asset checks pass.
     try:
         video_candidate = _require_external_file(input_video_path, root, "input video")
         video = _resolve_video(video_candidate)
@@ -200,17 +206,19 @@ def build_authorized_camera_tracking_pair(
     with tempfile.TemporaryDirectory(prefix="wandering-camera-c1-raw-") as raw_dir:
         raw_root = Path(raw_dir)
         raw_tracking = raw_root / "tracking.jsonl"
-        observation_count = runtime.run(
-            video_path=video,
-            output_path=raw_tracking,
-            model_name=DETECTOR_MODEL,
-            scene_region=SCENE_REGION,
-            person_id_prefix=PERSON_ID_PREFIX,
-            confidence_threshold=DETECTOR_CONFIDENCE,
-            iou_threshold=DETECTOR_IOU,
-            tracker_config=TRACKER_CONFIG,
-            max_frames=MAX_FRAMES,
-        )
+        detector_model_path = _verify_portable_detector(root, detector_identity)
+        with _portable_network_guard():
+            observation_count = runtime.run(
+                video_path=video,
+                output_path=raw_tracking,
+                model_name=str(detector_model_path),
+                scene_region=SCENE_REGION,
+                person_id_prefix=PERSON_ID_PREFIX,
+                confidence_threshold=DETECTOR_CONFIDENCE,
+                iou_threshold=DETECTOR_IOU,
+                tracker_config=TRACKER_CONFIG,
+                max_frames=MAX_FRAMES,
+            )
         if (
             isinstance(observation_count, bool)
             or not isinstance(observation_count, int)
@@ -299,6 +307,65 @@ def build_authorized_camera_tracking_pair(
             raise CameraCollectionPreparationError(str(exc)) from exc
 
     return result
+
+
+def _resolve_portable_detector(root: Path) -> Any:
+    try:
+        from elderly_monitoring.modules.mental_health.wandering.camera_portability import (
+            PortableAssetBlockedError,
+            PortableContractError,
+            resolve_verified_detector_asset,
+        )
+    except ImportError as exc:
+        raise CameraCollectionPreparationError(
+            "portable detector asset is unavailable"
+        ) from exc
+    try:
+        return resolve_verified_detector_asset(root)
+    except (PortableAssetBlockedError, PortableContractError, OSError, ValueError) as exc:
+        raise CameraCollectionPreparationError(
+            "portable detector asset is unavailable"
+        ) from exc
+
+
+def _verify_portable_detector(root: Path, detector_identity: Any) -> Path:
+    try:
+        from elderly_monitoring.modules.mental_health.wandering.camera_portability import (
+            PortableAssetBlockedError,
+            PortableContractError,
+            verify_detector_asset_again,
+        )
+    except ImportError as exc:
+        raise CameraCollectionPreparationError(
+            "portable detector asset changed before tracking"
+        ) from exc
+    try:
+        return verify_detector_asset_again(root, detector_identity)
+    except (PortableAssetBlockedError, PortableContractError, OSError, ValueError) as exc:
+        raise CameraCollectionPreparationError(
+            "portable detector asset changed before tracking"
+        ) from exc
+
+
+@contextmanager
+def _portable_network_guard():
+    try:
+        from elderly_monitoring.modules.mental_health.wandering.camera_portability import (
+            NetworkAccessDeniedError,
+            PortableAssetBlockedError,
+            deny_network_access,
+        )
+    except ImportError as exc:
+        raise CameraCollectionPreparationError(
+            "portable detector network guard is unavailable"
+        ) from exc
+    try:
+        with deny_network_access():
+            yield
+    except (NetworkAccessDeniedError, PortableAssetBlockedError) as exc:
+        raise CameraCollectionPreparationError(
+            "portable detector network guard is unavailable"
+        ) from exc
 
 
 def _read_json_object(path: Path, role: str) -> dict[str, Any]:

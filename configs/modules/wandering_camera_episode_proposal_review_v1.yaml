@@ -1,0 +1,15 @@
+schema_version: wandering-camera-episode-proposal-review-config-v1
+purpose: topowander_proposal_shape_truth_free_review_pack
+camera_config_path: configs/modules/wandering_camera_v1.yaml
+proposal_schema_version: wandering-camera-episode-boundary-proposal-v1
+proposal_shape_prediction_schema_version: wandering-camera-episode-proposal-shape-prediction-v1
+proposal_shape_summary_schema_version: wandering-camera-episode-proposal-shape-summary-v1
+review_index_schema_version: wandering-camera-episode-proposal-review-index-v1
+trajectory_plot_format: svg
+human_review_fields:
+  - human_boundary_decision
+  - corrected_start_sec
+  - corrected_end_sec
+  - observable_pattern
+  - purpose_context
+  - review_notes

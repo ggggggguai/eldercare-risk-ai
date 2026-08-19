@@ -1,6 +1,6 @@
 # 当前任务
 
-更新时间：2026-08-13
+更新时间：2026-08-18
 
 本文件只记录尚未完成的工作。已经落地的能力写入模块 README；阶段结论和旧待办移入 `docs/archive/`。当前跌倒风险模块处于模型化增强阶段：规则 baseline 仍作为对照和安全 fallback，新增时序模型必须经过数据、split、评估和部署门禁后才能替换主路径。
 
@@ -8,18 +8,33 @@
 
 工作流 A 已实现统一 manifest、v2 标注导入/发布、模型训练标签 v3 迁移/统一 split/校验、四任务 split builder 和事件评估器，并用合成数据跑通 bundle。项目负责人于 2026-08-04 裁决现有规范动作标签可用于任务级正负样本：当前 v3 有 9,314 条动作、9,498 条事件和 18,812 条 split assignment，fall/near-fall hard negative 类型覆盖完整，962 条 C03 已转为 near-fall positive，446 条当前 NTU 全片跌倒按首帧/尾帧生成精确边界；校验 `valid=true`、事件任务 `training_ready=true`。fall 和 near-fall 已在锁定 test 的前提下完成三 seed train/validation 开发实验。当前剩余工作是处理 v2 formal blocker、冻结事件标签与评估协议、补充连续背景/老人域/跨来源证据并建立一次性 test 发布流程；动作类型任务因稀有类别分区覆盖不足仍为 `training_ready=false`。
 
-TopoWander-MPT 的 `M0-CAM-RD-F/RD-F2` 软件加固和 synthetic/test-fixture 验证已完成：三个 RD CLI 均 receipt-first；C3、session-aware person-hours、evaluator 语义和最大基数 matching 已加固；非 fixture Python 调用会在任何 output/config/receipt/受保护读取之前拒绝 hooks/fake loader；公开逐窗 predictor 固定为 synthetic-only，authorized scope 只由 receipt-gated controller 的未导出内部路径产生。RD-F2 完成时的阶段状态为 `wandering_m0cam_development_entry_hardened_waiting_c0_c1`；后续现行状态以下段和任务表为准。证据仍为 `synthetic_schema_contract_only`、`readiness_status=not_ready`，没有读取授权 camera 数据，也没有启动 M0-CAM-D。见 [M0-CAM-RD-F 报告](../../reports/mental_health/wandering_camera_rd_f_v1/README.md)。
+### 徘徊后续条件任务：W5D-03B 居家 smoke
 
-`M0-CAM-C01-F2` 已关闭 active checkout/samefile 边界、receipt-first resolver 顺序、pair-only/video-direct source SHA basis 和 component portable metadata 四组缺口。现行状态为 `wandering_m0cam_c0_c1_handoff_hardened_waiting_owner_inputs`，`c01_f_complete=true`、`c01_f2_complete=true`；证据仍为 `synthetic_schema_contract_only`，`C0=false/C1=false`、`authorized_camera_data_consumed=false`、`m0cam_d_started=false`。当前徘徊 camera 主线等待负责人提供真实 C0、授权外部视频和匿名 collection；在 C0+C1 合法前不得启动 M0-CAM-D。见 [C01-F2 报告](../../reports/mental_health/wandering_camera_c01_f2_v1/README.md)。
+`current_code_task=none`，`current_delivery_status=M0-CAM-5D algorithm_ready_with_home_smoke_pending`，`next_conditional_task=W5D-03B home smoke (awaiting_input)`。W5D-00 至 W5D-05 已完成 contract、segmenter fallback、automatic episode→shape、context core、真实 development 日报/个人基线、严格 8 文件 handoff 和单命令 cached-tracking E2E。正式包原样包含 129 条 episode、82 条 context、2 条 daily、2 条 profile 和 2 条 deviation；95 条可用 shape、34 条 unavailable、0 条 error、19 条 wandering-like 和 617.8 秒 duration 守恒。两个真实 profile/deviation 均为 `warming_up`；15 日 replay 只验证 3/7/14 readiness 和最新 14 日窗口。现行任务书为 [M0-CAM-5D 快速交付总任务书](../modules/mental_health/plans/M0-CAM-5D快速交付总任务书.md)。
 
-### 当前可独立执行（不需要视频）
+负责人最新决定：B01 和 B02 统一作为可反复使用的 camera development 数据，可持续用于分段器、边界 refinement、送模策略、camera 预处理、binary 识别和必要的轻量模型调整。旧 B02 holdout/v1/v2 结果只保留为历史快照，不再阻止当前开发。当前没有可用于定量验收的已标注居家视频，因此 W5D-03 拆为 A/B：A 立即用 B01+B02/fixture 完成 input-independent context core，B 在居家 MP4 到位后补 truth-free smoke；人工标签只在需要计算 development 指标时补。居家输入或标签暂缺不阻塞 W5D-03A、W5D-04、W5D-05。
 
-视频采集暂不阻塞工程治理。RD-F2、C01-PREP/F/F2 的本地 Git 集成已经闭环；当前唯一无视频软件任务是尚未启动的 `M0-CAM-PORTABLE`：
+全部当前及后续提供的视频、截图、标注和内部研发使用默认已经完整授权；consent、receipt 和隐私审批不再是当前任务门禁。仍保留匿名 person/session/setup/video binding、原视频不进 Git和输出不覆盖等工程约束。
 
-1. 完成 `M0-CAM-PORTABLE`：让固定 candidate、预处理资产和 detector 权重在 fresh clone/隔离 checkout 中可确定性恢复与校验，并提供不读取视频的 runtime preflight；这是首次真实 M0-CAM-D 前的软件硬门；
-2. 之后可按需要完成 `M0-CAM-OPS`：拍摄 AI 交接、C2 标注手册、C2/C3 空模板和未填数值的 evaluation-policy 操作模板；它是可选操作包，不阻塞 C0/C1 或无标签 smoke。
+主路线为：
 
-这两项都不能把 `C0/C1` 改为 true，也不能产生 camera 性能证据。视频准备好后再按 [C0/C1 operator checklist](../../reports/mental_health/wandering_camera_c01_prep_v1/OPERATOR_CHECKLIST.md)恢复真实数据线。
+```text
+video/tracking
+  → technical tracklet QC
+  → episode boundary
+  → complete episode arc-length resample to 80
+  → TopoWander shape classification
+  → optional three-frame multimodal purpose/context
+  → real session/day aggregation
+  → rolling personal baseline
+  → backend-facing JSON/JSONL handoff
+```
+
+轨迹模型只判断 shape。电话、找东西、清洁、锻炼等困难行为不单独建立轨迹模型，由多模态 context reviewer 补充；reviewer 失败输出 `unknown/unavailable`，不阻塞轨迹、日报或基线。后端和前端不在本轮实现，算法只交付可对接契约。
+
+五日核心代码任务已经完成。`W5D-03B` 仅在居家素材到位后启动补充复放；当前素材状态是 `awaiting_input`，不是算法阻塞。没有居家视频时交付状态保持 `algorithm_ready_with_home_smoke_pending`，不得伪装成 `home_validated`。
+
+40 秒路径、C4 sealed、跨 participant/setup、PORTABLE 和长期临床验证均为后续增强，不是五日门禁。最低不可省规则是：人工标签不能根据预测修改；shape 与 purpose/context 分离；technical hard break 不跨越；原视频不进 Git；输出不覆盖；模型/配置/数据身份可追溯；局部改动先跑窄测。
 
 | 任务 | 完成标准 |
 |---|---|
@@ -28,16 +43,7 @@ TopoWander-MPT 的 `M0-CAM-RD-F/RD-F2` 软件加固和 synthetic/test-fixture �
 | 冻结四个跌倒任务 split | 当前 v2 根事件的 fall/near-fall split 仅为 provisional ready，v3 统一 split 也未冻结；四任务分别取得合格样本、稳定 `split_id`、无泄漏报告和冻结记录。没有真实参考终点的功能/纵向任务继续明确阻塞，不制造空壳正式 split |
 | 完成跌倒风险正式评估 | 预注册并冻结事件匹配与统计协议，指定测试集保管人与一次性发布流程；在真实冻结 split 上输出 Precision、Recall、F1、PR-AUC、合法分母下的误报指标、提前量、95% CI 和失败案例 bundle |
 | 解除 Workflow A 数据阻断 | 完成 CVAT 身份元数据处置、人员或保守源组说明、功能与纵向参考终点确认；解除证据写入 `reports/fall_risk/workflow_a_blockers.md` |
-| M0-CAM-PORTABLE：fresh-clone 运行资产与零视频 preflight | **当前唯一无视频软件任务，尚未开始。** 作为首次真实 M0-CAM-D 前的软件硬门，冻结 candidate、preprocessing manifest/feature stats 和 YOLO detector 资产必须有不可变、SHA 绑定的恢复方式；新增零视频 preflight，并在 clean checkout 或 `git archive` 等价环境中真实 safe-load candidate。缺资产必须明确 blocked，不能依赖未知本机缓存或静默下载。 |
-| M0-CAM-OPS：无视频拍摄/标注操作包（可选） | 在 portability 闭环后按需执行，但不作为 C0/C1 或无标签 M0-CAM-D 的科学门。只完善拍摄 AI 角色交接、C2 人类标注手册、C2/C3 deliberately-invalid 空模板和未填数值的 matching/uncertain/merge policy 操作模板；不得填写真值、提前冻结阈值或改变现有 validator 语义。 |
-| C0+C1：授权与合法工程输入（等待有授权权力的人类负责人） | **现在等待负责人提供真实外部授权事实与数据。** 负责人/R5 提供 approved、active、未过期、`purpose=camera_development` 且覆盖 `prepare_session` 与 `run_development`、participant/session/setup/source-group 的真实 receipt，并建立匿名 development collection/session manifest；原视频和直接身份不进 Git。R2 只能在 C0 生效后使用 PREP/F/F2 链复用共享 tracker，形成可 round-trip 且带原子 safe binding 的 `TrackObservation JSONL + wandering-media-v1 sidecar + preparation_summary`，供 M0-CAM-D 后续执行 QC。执行 AI 只校验 receipt、collection、sidecar、tracking 的 scope/hash；不得生成或签署 receipt，不得用 synthetic/test fixture 顶替。见 [C01-PREP operator checklist](../../reports/mental_health/wandering_camera_c01_prep_v1/OPERATOR_CHECKLIST.md)和[技术文档2第 10 节](../modules/mental_health/plans/徘徊识别技术文档2.md)。 |
-| C2+C3：有标签 development 输入 | R5 在不查看模型预测的前提下交付 C2 episode annotation（含 `uncertain/excluded` 与 purpose context）和 C3 的唯一 participant/session/setup/clock binding、presence 区间与可计算分母；R1/R7 在不查看评估结果前预注册带非空 ID 的 development matching/uncertain/episode-merge policy，必要时由负责人裁决。C2+C3 不是无标签 smoke 的门，只是 labeled evaluation 的门；不能从轨迹形状推断 purpose，也不能按模型错误回改标签。 |
-| M0-CAM-D：授权目标机位 development 基线与误差分析 | **M0-CAM-PORTABLE、C01-F2 与 C0+C1 均通过后，执行 AI 才运行一次拒绝覆盖的 engineering smoke；只有 C2+C3 再到位才运行 labeled evaluation。** 复用同一冻结 primary，通过独立 authorized-development 入口验证 tracking/QC coverage、逐窗与 shape-episode 指标、purposeful hard negatives、eligible negative person-hours、端到端延迟和域差异。无标签 smoke 只报告 tracking/QC/coverage/forward/工程 timing，不输出 accuracy/F1、不调阈值；只有有标签 development 才能显式形成 provisional uncertain/episode/matching policy。不得把 public-shape、synthetic 或 test fixture 写成 camera 性能，真正独立泛化结论留给 C4 sealed camera。 |
-| 建立心理健康评估口径 | 固定日级验证样本、人工复核标签和分层一致性指标，不使用医学诊断表述 |
-| 完成真实萤石链路联调 | 使用真实设备或开放平台直播地址启动会话，后端收到并验收风险回调 |
-| 固定接口契约 | 后端确认字段、鉴权、时间格式、幂等规则和风险动作编码，并保存联调记录 |
-| 完成数据合规材料 | 在采集真人数据前准备知情同意、脱敏编号、访问控制、保留周期和退出删除流程 |
-| 固化开发环境与数据版本证据 | 保持 `eldercare-ai` 的 editable 安装指向当前仓库；记录环境、代码、manifest、标签、split 和配置 hash，并用文档中的 conda 命令完成全量复现 |
+| `W5D-03B`：居家视频补充 smoke | MP4 到位后直接 truth-free 运行 tracking -> segment -> shape -> context；未标注不计算性能，有独立标签后再补 development 复核。 |
 
 ## P1：提高实时可靠性
 
@@ -49,8 +55,8 @@ TopoWander-MPT 的 `M0-CAM-RD-F/RD-F2` 软件加固和 synthetic/test-fixture �
 | 完成实时窗口增量计算与资源验收 | 相同窗口 memoization 已完成；仍需对新增姿态后的质量平滑和分支分析做逐层 golden 等价的增量计算，并在固定硬件上给出连续运行、分段延迟、资源峰值和吞吐测试 |
 | 校准近跌倒误报 | 增加弯腰、快速坐下、转身、遮挡和多人场景负样本，报告阈值曲线与失败案例 |
 | 完善个体基线冷启动 | 明确无历史、初始基线和稳定基线阶段的分数上限、置信度和更新策略 |
-| 建立心理健康运行调度 | 明确日级任务由谁触发、输入从何处读取、结果如何交付和重跑 |
-| 接入摄像头徘徊证据 | 完成授权 development 数据、目标机位误差分析和独立 sealed session 评估；报告 episode 指标、eligible negative person-hours、延迟和覆盖率。只有证据等级和能力边界齐全后才接入 `routine_irregularity_score` |
+| 建立心理健康运行调度 | W5D-05 已交付可重复运行的徘徊算法 runner、日级 JSONL、严格 handoff 和重跑说明；定时触发、HTTP 服务和业务调度仍由后端团队后续实现 |
+| 接入摄像头徘徊证据 | W5D-00 至 W5D-05 的 B01+B02 development 算法包已完成；后续由后端消费独立 wandering evidence，并单独决定是否映射到 `routine_irregularity_score`。居家视频到位后补 smoke，不阻塞现有算法包 |
 
 ## P2：数据和模型增强
 

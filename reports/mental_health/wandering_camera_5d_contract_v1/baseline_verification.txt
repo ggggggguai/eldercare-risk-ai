@@ -1,0 +1,16 @@
+contract_id=m0cam-5d-w5d00-v1
+editable_module_path=/mnt/c/Users/lenovo/Desktop/心理算法/src/elderly_monitoring/__init__.py
+module_under_project_root=true
+candidate_id=topowander-m0s-seed20260731-epoch0005
+candidate_cpu_load=passed
+runtime_device=cpu
+model_mode=eval
+input_point_count=80
+binary_decision_threshold=0.5
+development_record_count=48
+batch_counts=B01:36,B02:12
+schema_count=9
+all_input_paths_resolved=passed
+all_input_hashes_verified=passed
+fresh_output_policy=passed
+non_overwrite_policy=passed

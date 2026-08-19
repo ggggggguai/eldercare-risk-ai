@@ -1,0 +1,15 @@
+schema_version: wandering-camera-episode-proposal-shape-config-v1
+purpose: topowander_automatic_boundary_proposal_shape
+episode_inference_path: configs/modules/wandering_camera_episode_v1.yaml
+primary_inference_path: configs/modules/wandering_camera_primary_v1.yaml
+candidate_manifest_path: reports/mental_health/wandering_performance/m0r_score_entry_hardening_v1/artifacts/topowander_m0r_candidate_v3/candidate_manifest.json
+candidate_manifest_sha256: 3a1e56c37b9b43e340dcd67a3163454da1d37f24b01d8677935f63a069d97ac7
+input_boundary_kind: automatic_proposal
+quality_flag: automatic_boundary_proposal
+shape_inference_policy_id: m0cam-ep2a-s2a-proposed-plus-uncertain-development-v2
+forward_proposal_statuses: [proposed, uncertain]
+skip_proposal_statuses: [rejected_by_qc]
+uncertain_shape_output_role: boundary_uncertain_candidate_diagnostic
+proposal_schema_version: wandering-camera-episode-boundary-proposal-v1
+output_prediction_schema_version: wandering-camera-episode-proposal-shape-prediction-v1
+output_summary_schema_version: wandering-camera-episode-proposal-shape-summary-v1

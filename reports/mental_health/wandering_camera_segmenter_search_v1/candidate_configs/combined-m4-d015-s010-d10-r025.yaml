@@ -1,0 +1,38 @@
+schema_version: wandering-camera-episode-boundary-development-profile-v1
+purpose: b01_b02_development_parameter_search
+camera_chain:
+  path: configs/modules/wandering_camera_v1.yaml
+sampling:
+  bucket_seconds: 0.5
+  minimum_track_confidence: 0.25
+  maximum_internal_gap_buckets: 3
+state_machine:
+  movement_start_min_buckets: 4
+  movement_start_min_displacement_body_heights: 0.15
+  stationary_max_displacement_body_heights: 0.1
+  stationary_dwell_candidate_seconds: 10.0
+  minimum_episode_duration_seconds: 2.0
+protocol:
+  movement_start_candidate_basis: w5d01_movement_stationary_refinement_combined-m4-d015-s010-d10-r025
+  movement_start_candidate_validated: false
+  stationary_dwell_candidate_basis: w5d01_movement_stationary_refinement_combined-m4-d015-s010-d10-r025
+  stationary_dwell_candidate_validated: false
+output_schemas:
+  proposal: wandering-camera-episode-boundary-proposal-v1
+  summary: wandering-camera-episode-boundary-proposal-summary-v1
+  diagnostic: wandering-camera-episode-boundary-proposal-diagnostic-v1
+data_access:
+  shape_truth: false
+  purpose_truth: false
+  frozen_model: false
+  training: false
+  sealed_camera: false
+profile_id: combined-m4-d015-s010-d10-r025
+base_producer_config_id: m0cam-ep2a-s0-b01-development-frozen-v1
+boundary_refinement:
+  enabled: true
+  bucket_seconds: 0.25
+  search_radius_seconds: 0.5
+  movement_step_min_body_heights: 0.03
+  stationary_step_max_body_heights: 0.02
+  stationary_confirmation_buckets: 2
