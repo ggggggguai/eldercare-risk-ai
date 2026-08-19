@@ -1,0 +1,107 @@
+schema_version: wandering-camera-5d-delivery-contract-config-v1
+contract_id: m0cam-5d-w5d00-v1
+
+development_index:
+  schema_version: wandering-camera-development-index-v1
+  dataset_role: development
+  default_source_root: D:/徘徊数据集/自采数据
+  batches:
+    - batch_id: B01
+      participant_id: P-OFFICE-01
+      session_id: S-20260814
+      camera_setup_id: C6C-OFFICE-01
+      clock_domain_id: CLOCK-OFFICE-01
+      expected_development_video_count: 36
+      accepted_legacy_setup_ids: []
+    - batch_id: B02
+      participant_id: P-OFFICE-01
+      session_id: S-20260816
+      camera_setup_id: C6C-OFFICE-01
+      clock_domain_id: CLOCK-OFFICE-01
+      expected_development_video_count: 12
+      accepted_legacy_setup_ids: [office-setup-01]
+  artifact_sets:
+    - batch_id: B01
+      tracking_root: tmp/m0cam_b01_development_baseline_20260817_v1/tracking
+      truth_root: tmp/m0cam_b01_development_baseline_20260817_v1/imported
+      historical_role: b01_development_baseline_v1
+    - batch_id: B01
+      tracking_root: tmp/m0cam_b01_development_baseline_20260817_v2/tracking
+      truth_root: tmp/m0cam_b01_development_baseline_20260817_v2/imported
+      historical_role: b01_development_baseline_v2
+    - batch_id: B01
+      tracking_root: tmp/m0cam_b01_remaining_development_20260817_v1/tracking
+      truth_root: tmp/m0cam_b01_remaining_development_20260817_v1/imported
+      historical_role: b01_remaining_development_v1
+    - batch_id: B02
+      tracking_root: tmp/m0cam_b01_b02_intake_20260817_v1/tracking_full
+      truth_root: tmp/m0cam_b01_b02_intake_20260817_v1/imported
+      historical_role: exposed_development_diagnostic
+    - batch_id: B02
+      tracking_root: tmp/m0cam_b02_frozen_video_heldout_20260817_v1/tracking
+      truth_root: tmp/m0cam_b02_frozen_video_heldout_20260817_v1/imported
+      historical_role: historical_v1_holdout_now_reused_development
+  excluded_inputs:
+    - batch_id: B01
+      filename: VID-B01-0001_frame-check.mp4
+      reason: frame_check_excluded_by_manual_cvat
+    - batch_id: B02
+      filename: VID-B02-0001_frame-check-R01.mp4
+      reason: frame_check_excluded_by_manual_cvat
+
+home_acceptance_input:
+  status: awaiting_input
+  role: real_scene_acceptance_then_development_if_tuned
+
+fixed_primary:
+  candidate_id: topowander-m0s-seed20260731-epoch0005
+  candidate_manifest:
+    path: reports/mental_health/wandering_performance/m0r_score_entry_hardening_v1/artifacts/topowander_m0r_candidate_v3/candidate_manifest.json
+    sha256: 3a1e56c37b9b43e340dcd67a3163454da1d37f24b01d8677935f63a069d97ac7
+  model_state_sha256: 94c3c22d4caa38ece347d6a10f440b9fb3f7067b6c791ac1f259ce7efe69c031
+  primary_config:
+    path: configs/modules/wandering_camera_primary_v1.yaml
+    sha256: 79f8e06e57ca355da926044828fc7a8a4c7d0e123d59767a2c86ef6c620ca2f5
+  camera_preprocessing:
+    input_point_count: 80
+    model_feature_count: 14
+    shape_coordinate_count: 2
+    binary_decision_threshold: 0.5
+    files:
+      - path: configs/modules/wandering_camera_v1.yaml
+        sha256: 08bbec6ef263dd45fef3262c407ce675107f87ea584584f7ab61142cd734ae8e
+      - path: configs/modules/wandering_camera_episode_v1.yaml
+        sha256: 4300bbced198b0fc631bf39e23926aad3499a56b82da4fc22239dbb36f76cc4e
+      - path: configs/data/wandering_preprocessing_v1.yaml
+        sha256: 5b69243337cddeeec8beed4f081330b06c47eadeaee06dc3b3e4ba026f36ff45
+
+runtime:
+  device: cpu
+  intra_op_threads: 8
+  inter_op_threads: 1
+  maximum_batch_size: 64
+
+output_contract:
+  document_path: docs/interfaces/徘徊五日算法交付契约.md
+  fresh_output_root: tmp/wandering_camera_5d_runs
+  freshness_policy: final_output_directory_must_not_exist
+  statuses: [ready, uncertain, unavailable, error]
+  required_files:
+    - episode_results.jsonl
+    - context_reviews.jsonl
+    - daily_reports.jsonl
+    - baseline_profiles.jsonl
+    - baseline_deviations.jsonl
+    - handoff_manifest.json
+    - run_summary.json
+    - README.md
+  schemas:
+    development_index: configs/schemas/wandering_5d_v1/development_index.schema.json
+    contract_manifest: configs/schemas/wandering_5d_v1/contract_manifest.schema.json
+    episode_results: configs/schemas/wandering_5d_v1/episode_result.schema.json
+    context_reviews: configs/schemas/wandering_5d_v1/context_review.schema.json
+    daily_reports: configs/schemas/wandering_5d_v1/daily_report.schema.json
+    baseline_profiles: configs/schemas/wandering_5d_v1/baseline_profile.schema.json
+    baseline_deviations: configs/schemas/wandering_5d_v1/baseline_deviation.schema.json
+    handoff_manifest: configs/schemas/wandering_5d_v1/handoff_manifest.schema.json
+    run_summary: configs/schemas/wandering_5d_v1/run_summary.schema.json

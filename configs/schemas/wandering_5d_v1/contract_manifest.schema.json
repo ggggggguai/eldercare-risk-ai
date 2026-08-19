@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "wandering-camera-5d-contract-manifest-v1",
+  "title": "W5D-00 contract build manifest",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "contract_id",
+    "status",
+    "dataset_role",
+    "contract_config",
+    "development_index",
+    "fixed_primary",
+    "runtime",
+    "primary_runtime_verification",
+    "fresh_output_policy",
+    "home_acceptance_input",
+    "output_contract",
+    "artifacts"
+  ],
+  "properties": {
+    "schema_version": {"const": "wandering-camera-5d-contract-manifest-v1"},
+    "contract_id": {"type": "string", "minLength": 1},
+    "status": {"const": "ready"},
+    "dataset_role": {"const": "development"},
+    "contract_config": {"type": "object"},
+    "development_index": {"type": "object"},
+    "fixed_primary": {"type": "object"},
+    "runtime": {"type": "object"},
+    "primary_runtime_verification": {"type": "object"},
+    "fresh_output_policy": {"type": "object"},
+    "home_acceptance_input": {"type": "object"},
+    "output_contract": {"type": "object"},
+    "artifacts": {"type": "object"}
+  }
+}

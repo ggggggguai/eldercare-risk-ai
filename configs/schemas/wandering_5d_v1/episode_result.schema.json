@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "wandering-handoff-episode-result-v1",
+  "title": "Wandering episode shape result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "module",
+    "record_id",
+    "episode_id",
+    "person_id",
+    "session_id",
+    "source_video_id",
+    "start_time",
+    "end_time",
+    "technical_segment_index",
+    "start_sec",
+    "end_sec_exclusive",
+    "duration_seconds",
+    "status",
+    "proposal_status",
+    "run_status",
+    "qc_status",
+    "reason_codes",
+    "binary",
+    "four_class",
+    "quality_flags",
+    "identity",
+    "source_refs"
+  ],
+  "properties": {
+    "schema_version": {"const": "wandering-handoff-episode-result-v1"},
+    "module": {"const": "mental_health"},
+    "record_id": {"type": "string", "minLength": 1},
+    "episode_id": {"type": "string", "minLength": 1},
+    "person_id": {"type": "string", "minLength": 1},
+    "session_id": {"type": "string", "minLength": 1},
+    "source_video_id": {"type": "string", "minLength": 1},
+    "start_time": {"type": ["string", "null"], "format": "date-time"},
+    "end_time": {"type": ["string", "null"], "format": "date-time"},
+    "technical_segment_index": {"type": "integer", "minimum": 0},
+    "start_sec": {"type": "number", "minimum": 0},
+    "end_sec_exclusive": {"type": "number", "exclusiveMinimum": 0},
+    "duration_seconds": {"type": "number", "exclusiveMinimum": 0},
+    "status": {"$ref": "#/$defs/status"},
+    "proposal_status": {"enum": ["proposed", "uncertain", "rejected_by_qc", "error"]},
+    "run_status": {"enum": ["auto_accepted", "uncertain", "rejected"]},
+    "qc_status": {"$ref": "#/$defs/status"},
+    "reason_codes": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "binary": {"oneOf": [{"$ref": "#/$defs/prediction"}, {"type": "null"}]},
+    "four_class": {"oneOf": [{"$ref": "#/$defs/prediction"}, {"type": "null"}]},
+    "quality_flags": {"$ref": "#/$defs/quality_flags"},
+    "identity": {"$ref": "#/$defs/identity"},
+    "source_refs": {"$ref": "#/$defs/source_refs"}
+  },
+  "$defs": {
+    "status": {"enum": ["ready", "uncertain", "unavailable", "error"]},
+    "prediction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["class_order", "probabilities", "predicted_label", "decision_threshold"],
+      "properties": {
+        "class_order": {"type": "array", "minItems": 2, "items": {"type": "string"}},
+        "probabilities": {"type": "array", "minItems": 2, "items": {"type": "number", "minimum": 0, "maximum": 1}},
+        "predicted_label": {"type": "string", "minLength": 1},
+        "decision_threshold": {"type": ["number", "null"], "minimum": 0, "maximum": 1}
+      }
+    },
+    "quality_flags": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "identity": {
+      "type": "object",
+      "required": ["model_id", "model_sha256", "config_id", "config_sha256", "policy_id", "policy_sha256"],
+      "properties": {
+        "model_id": {"type": ["string", "null"]},
+        "model_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+        "config_id": {"type": "string", "minLength": 1},
+        "config_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "policy_id": {"type": "string", "minLength": 1},
+        "policy_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "source_refs": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/source_ref"}},
+    "source_ref": {
+      "type": "object",
+      "required": ["ref_type", "ref_id", "artifact_path", "sha256"],
+      "properties": {
+        "ref_type": {"type": "string", "minLength": 1},
+        "ref_id": {"type": "string", "minLength": 1},
+        "artifact_path": {"type": ["string", "null"]},
+        "sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"}
+      }
+    }
+  }
+}

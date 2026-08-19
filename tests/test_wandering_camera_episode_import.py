@@ -11,8 +11,10 @@ from elderly_monitoring.modules.mental_health.wandering.camera_episode_import im
     CAMERA_EPISODE_BOUNDARY_SCHEMA_VERSION,
     CAMERA_EPISODE_TRUTH_SCHEMA_VERSION,
     CameraEpisodeImportError,
+    build_cvat_episode_import_bundle,
     import_cvat_episode_xml,
     load_episode_boundaries,
+    load_episode_truth,
 )
 
 
@@ -161,6 +163,30 @@ def test_simplified_boundary_loader_is_exact_truth_free_and_fail_closed(
         load_episode_boundaries(path, _media())
 
 
+@pytest.mark.parametrize("field", ["boundary_source", "boundary_status"])
+def test_simplified_boundary_loader_rejects_non_string_enums_as_domain_errors(
+    tmp_path: Path, field: str
+) -> None:
+    invalid = {
+        "schema_version": CAMERA_EPISODE_BOUNDARY_SCHEMA_VERSION,
+        "episode_id": "episode-001",
+        "source_video_id": "s00-01",
+        "target_track_id": 1,
+        "start_sec": 0.0,
+        "end_sec_exclusive": 5.0,
+        "boundary_source": "simplified_jsonl",
+        "boundary_status": "ready",
+        "boundary_reason_codes": [],
+        "cvat_track_id": None,
+    }
+    invalid[field] = []
+    path = tmp_path / "boundaries.jsonl"
+    path.write_text(json.dumps(invalid) + "\n", encoding="utf-8")
+
+    with pytest.raises(CameraEpisodeImportError, match=field):
+        load_episode_boundaries(path, _media())
+
+
 def test_cvat_rejects_inconsistent_attributes_and_visible_frames_after_outside(
     tmp_path: Path,
 ) -> None:
@@ -176,6 +202,35 @@ def test_cvat_rejects_inconsistent_attributes_and_visible_frames_after_outside(
     path.write_text(xml, encoding="utf-8")
     with pytest.raises(CameraEpisodeImportError, match="outside"):
         import_cvat_episode_xml(path, _media(), target_track_id=1)
+
+
+def test_import_builder_writes_loadable_truth_and_refuses_overwrite(
+    tmp_path: Path,
+) -> None:
+    xml_path = tmp_path / "annotations.xml"
+    _write_xml(xml_path)
+    output = tmp_path / "import-bundle"
+
+    result = build_cvat_episode_import_bundle(
+        cvat_xml_path=xml_path,
+        media=_media(),
+        target_track_id=7,
+        output_dir=output,
+    )
+
+    assert len(result.boundaries) == 3
+    assert load_episode_truth(output / "episode_truth.jsonl") == list(
+        result.truth_records
+    )
+    boundary_bytes = (output / "episode_boundaries.jsonl").read_bytes()
+    assert b"observable_pattern" not in boundary_bytes
+    with pytest.raises(FileExistsError):
+        build_cvat_episode_import_bundle(
+            cvat_xml_path=xml_path,
+            media=_media(),
+            target_track_id=7,
+            output_dir=output,
+        )
 
 
 @pytest.mark.parametrize(

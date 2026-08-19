@@ -1,10 +1,14 @@
 # M0-CAM-EP1B 执行任务书
 
-日期：2026-08-15
+> 历史执行记录：本任务的实现和指标继续有效，但其后继“等待独立 participant/setup”门禁已被 [M0-CAM-5D 快速交付总任务书](M0-CAM-5D快速交付总任务书.md)取代。B01+B02 现在可反复用于 development。
 
-状态：`ready_to_execute`
+日期：2026-08-15；研究语义修订：2026-08-16；完成记录：2026-08-17
 
-当前代码任务：`M0-CAM-EP1B`
+状态：`completed_manual_cvat_oracle_boundary_descriptive_pilot`
+
+历史后继记录：`closed; old_next=M0-CAM-EP2A independent participant/setup validation`
+
+现行任务：`M0-CAM-5D W5D-00 -> W5D-05`
 
 推荐执行模型：`GPT-5.6 Codex / gpt-5.6-sol`
 
@@ -12,18 +16,20 @@
 
 ## 1. 本阶段只完成什么
 
-把 EP1A 已经跑通的单视频 oracle-boundary 推理，整理成一条可批量复跑、可正确计算分母的摄像头四类小样本评估线：
+把 EP1A 已经跑通的单视频 oracle-boundary 推理，整理成一条可批量复跑、可正确计算分母的摄像头 shape 小样本评估线。摄像头侧以独立 binary head 的 wandering-like shape 为主要结果，四分类保留为 subtype diagnostic：
 
 ```text
 EP1A prediction bundle + 独立 truth view + 匿名分组信息
   → 一对一连接并检查边界身份
   → 全部 shape-eligible episode 为主分母
-  → 四分类与二分类指标
+  → 主要 shape-binary 指标 + 四分类 subtype diagnostic
   → QC coverage、时长分层、目的性困难负例诊断
   → 失败清单与下一轮补拍建议
 ```
 
 完成标准是“工具、测试和真实标注小样报告可以复跑”，不是达到某个分数。当前样本量只支持 descriptive development pilot，不能宣称 camera 95%、自动边界、最终告警、真实老人或临床效果。
+
+本阶段只评价 Martino-Saltzman 层面的可观察轨迹形态，不评价 Algase 层面的临床徘徊综合征。`wandering_like` 只能解释为 shape binary，不能直接改名为 wandering/alert。目的、持续性和告警继续分层。
 
 ## 2. 已确认的起点
 
@@ -39,7 +45,11 @@ EP1A 已完成并可作为本阶段稳定底座：
 
 EP1A 可以维持 `completed`，但证据范围仅是 **oracle-boundary engineering scope**。当前 HEAD 尚未包含这些 untracked 新文件；这是版本交接风险，不是重新审计 EP1A 的理由。没有 commit/push 授权时保持工作树，不擅自提交。
 
-截至 2026-08-15，本机现有原始剪辑库存为：D01 12 条、P01 4 条、L01 3 条、R01 3 条、H01–H05 共 9 条、N01 1 条、Q01–Q03 共 3 条，另有 S00 1 条及其 XML。当前只发现 S00 具备 XML；P/L/R/H/N/Q 还没有正式 tracking、truth 和 EP1A prediction bundle。下一步应先消费这些已有视频，不要在没有看过和标注它们之前盲目补拍。
+截至 2026-08-16，本机现有原始剪辑库存仍为：D01 12 条、P01 4 条、L01 3 条、R01 3 条、H01–H05 共 9 条、N01 1 条、Q01–Q03 共 3 条，另有 S00 1 条及其 XML。P01/L01/R01/H01/H04/H05 的 tracking、whole-clip boundary 和 EP1A prediction bundle 已形成；但对应 15 条标签是执行 AI 根据原始画面、contact sheet 和 truth-free 轨迹生成的预标注，未经人工标注者确认，不能称为独立 truth。S00 三条 direct 来自既有 CVAT XML。
+
+2026-08-17 确认 `D:\徘徊数据集\自采数据\B01/B02` 有 50 条真实视频和 80 条 `source=manual` CVAT track，raw D/P/L/R=`46/12/5/14`。负责人随后确认 participant/session/setup/clock、CVAT 盲标事实和 development/held-out，并裁决 B01 out-of-frame track 56；裁决只应用于派生 reviewed XML。B01 development 与 B02 一次性 frozen-video holdout 已完成，详见 [intake/cohort freeze](../../../../reports/mental_health/wandering_camera_b01_b02_intake_v1/README.md)和[正式结果](../../../../reports/mental_health/wandering_camera_b01_development_v1/README.md)。
+
+当前 `0.260417/0.756410` 只是一份 AI-preannotation provisional diagnostic。它证明 evaluator、分母和失败清单可工作，也暴露 pacing/random 在当前机位的 subtype 坍缩；它不构成真实 camera 性能。下一步必须先完成人工 truth 复核，不按现有预测或 AI 建议回改标签。
 
 目录名和拍摄脚本不是正式真值。尤其 D01 中若实际出现明显折返、回到起点或混合行为，必须按画面复核并重新定 episode；不能因为文件位于 `D01` 就批量写成 direct。
 
@@ -50,11 +60,11 @@ EP1A 可以维持 `completed`，但证据范围仅是 **oracle-boundary engineer
 1. 实现轻量的多 bundle oracle-boundary 评估入口；
 2. 复用 EP1A 输出，不复制 tracker、Camera QC、预处理或冻结模型 forward；
 3. prediction 与 truth 只在推理完成后连接；
-4. 输出四分类/二分类 precision、recall、F1、support、confusion 和原始计数；
+4. 输出主要 shape-binary 与四分类 subtype diagnostic 的 precision、recall、F1、support、confusion 和原始计数；
 5. 主指标保留全部 shape-eligible truth，不通过删除 unavailable/error 美化成绩；
 6. 另报 ready-only 条件指标、QC coverage、时长分层和失败案例；
 7. purposeful hard negative 保留实际形态，在 shape 指标中仍按 pacing/lapping/random 计；
-8. 用 D01/S00 做回归，并在真实 P/L/R 小样到位后形成首份四类 pilot 报告。
+8. 用 D01/S00 做回归，并在人工确认的真实 P/L/R 小样到位后形成首份 shape pilot 报告；不要求高四分类分数作为完成门。
 
 ### 3.2 明确不做
 
@@ -66,7 +76,7 @@ EP1A 可以维持 `completed`，但证据范围仅是 **oracle-boundary engineer
 - 不把 purposeful pacing/lapping/random 改成 direct；
 - 不输出风险、告警或 `AlgorithmEvent`；
 - 不扩展 receipt、PORTABLE、逐文件 hash、字节对齐、source anchor 或 exact-schema 攻击审计；
-- 不因数据不足提前启动 EP2。
+- 不因数据不足降低 EP1B 的人工 truth 与完成门；独立的 EP2A-S0 implementation-only 可以并行，但不能借此计算无真值成绩或宣称 EP1B/EP2A 完成。
 
 ## 4. 最小代码线
 
@@ -144,6 +154,21 @@ EP1B evaluator 必须派生独立的 `shape_truth_status`，但不得改写 XML 
 
 评估结果必须同时保留原始 `annotation_status/evaluation_role` 和派生 `shape_truth_status/reason`，不能偷偷改变人工标签。
 
+### 6.1 人工 episode 边界协议
+
+EP1B 使用 oracle boundary，因此边界本身必须先有统一人工协议：
+
+- 先完整观看视频，不看模型预测，不把目录名、拍摄脚本或 AI 预标注当答案；
+- 大约连续迈出三步、行走已经成立时开始；入场、站位和准备动作不计入；
+- 数秒停顿、犹豫、转向、折返和闭环仍属于同一 locomotion episode，不在这些位置切段；
+- 同一地点持续停留约 15 秒、坐下或明确开始另一活动时结束；
+- track end、出画、长 gap、ID switch 和 session end 是硬边界；持续静止或活动改变是软边界；
+- 若 A→B 后立即返回且没有可观察停留或任务切换，不能为了得到两个 direct 强行切开；保留完整 episode，目的另标；
+- 起终点接近只是形态特征之一，不能单独决定 lapping、wandering-like 或告警；
+- 边界不可可靠判定时标 `boundary_uncertain`，不伪造精确边界。
+
+三步和约 15 秒是人工协议锚点，不是冻结模型输入、类别定义或自动 producer 的既定阈值。EP2A 只能在 development 标注上另行验证自动状态机。
+
 ## 7. 指标分母
 
 ### 7.1 主指标：all shape-eligible episodes
@@ -155,7 +180,7 @@ EP1B evaluator 必须派生独立的 `shape_truth_status`，但不得改写 XML 
 - confusion 可以增加 `pipeline_miss` 列，但它不是第五种行为标签；
 - 不允许把非 ready episode 从主 support 中删除。
 
-四类：`direct/pacing/lapping/random`。
+四类：`direct/pacing/lapping/random`，用于 subtype diagnostic。
 
 二类映射：
 
@@ -163,6 +188,15 @@ EP1B evaluator 必须派生独立的 `shape_truth_status`，但不得改写 XML 
 direct → direct_or_non_wandering
 pacing/lapping/random → wandering_like
 ```
+
+摄像头侧报告优先级固定为：
+
+1. all-shape-eligible shape-binary precision/recall/F1、macro-F1、support 和 confusion；
+2. ready-only shape-binary conditional diagnostic；
+3. all-eligible 与 ready-only 四分类 subtype diagnostic；
+4. QC、coverage、duration、group、purposeful 和 failure 分层。
+
+四分类仍必须完整输出，但 pacing/lapping/random 互混不再单独阻止 camera binary 工具线完成。公开 WP 的四分类目标和冻结类别定义保持不变。
 
 ### 7.2 次指标：ready-only conditional metrics
 
@@ -218,23 +252,32 @@ README.md
 ### Pilot 1：先跑整链
 
 - 复用现有 D01/S00；
-- pacing/lapping/random 各约 2 条自然完整 episode；
+- 先对现有 P01/L01/R01/H01/H04/H05 共 15 条 AI 预标注进行盲于模型预测的人工复核；
+- pacing/lapping/random 至少各保留一批边界和形态清楚的人工确认 episode；
 - 每条实际完成就结束，不强凑 40 秒；
 - 先检查 importer、identity join、QC、指标和失败输出。
 
 ### Pilot 2：形成 EP1B 小样
 
-- pacing/lapping/random 各逐步扩到约 10 条可评分完整 episode；
+- 若人工复核后 D/P/L/R 均有清楚支持，先形成 binary-primary、four-class-diagnostic 的 descriptive pilot；
+- pacing/lapping/random 各逐步扩到约 10 条可评分完整 episode，作为 subtype 诊断与采集质量目标，不作为 binary 工具线的硬完成门；
 - direct 复用已有合格样本，必要时补少量不同起终点和速度；
-- 同时积累打电话、找东西、清洁、锻炼、搬运等 purposeful hard negatives，但不要求它们阻塞第一版四类 shape 报告；
+- 同时积累打电话、找东西、清洁、锻炼、搬运等 purposeful hard negatives，但不要求它们阻塞第一版 binary-primary shape 报告；
 - 单人、单办公室、单机位仍只能称 descriptive development pilot。
 
 不要过分规定人物怎样走。脚本只给大致形态和活动目的，最终标签按画面实际形成的轨迹，不按计划动作硬贴。
 
+为得到清楚的 camera subtype 诊断样本，拍摄提示可以比自然场景更明确，但不能变成标签规则：
+
+- pacing 优先让往返轴横跨画面，并形成约 3 次清楚方向反转；
+- lapping 围绕可见参照物完成约 2 圈；
+- random 访问至少 3 个分离区域并多次改变方向，避免退化成单轴往返或固定绕圈；
+- 正式标签仍按实际画面；动作未形成时改标实际类别或 unknown，不按脚本硬贴。
+
 现有视频的用途必须分开：
 
-- P01/L01/R01：优先形成人工 truth、共享 tracker 输出和 EP1A bundle，进入 core shape pilot；
-- H01–H05：只把人工划出的清楚 P/L/R episode 纳入 shape 指标，并单列 purposeful-hard-negative subgroup；
+- P01/L01/R01：现有 tracking/bundle 保留，先独立人工复核 AI 预标注；清楚样本进入 core shape pilot，不清楚样本保留 uncertain；
+- H01–H05：只把人工划出的清楚 P/L/R episode 纳入 shape 指标，并单列 purposeful-hard-negative subgroup；现有 H01/H04/H05 也仍需人工确认；
 - N01：坐、站、办公等非行走时间不能伪标 direct。它留给 EP2 automatic producer 后的 continuous-negative/person-hour 评价；
 - Q01–Q03：用于 QC/质量失败诊断，不混入清晰样本主 F1；
 - D01：逐条看实际画面后才决定 shape 与边界，不能由文件夹名或既有预测批量生成真值。
@@ -277,7 +320,7 @@ README.md
 - 删除/覆盖既有视频、标注、报告或证据；
 - 修改跌倒或其他模块；
 - commit、push、发布或对外传输；
-- 数据缺失到无法形成真实四类报告时，先交付 `implementation_complete + data_pending`，不要伪造样本或自动启动 EP2。
+- EP1B 冻结模型、阈值、类别和人工 truth 不得根据 B02 prediction 回调，也不得把 oracle-boundary EP1B 成绩写成 automatic shape。2026-08-17 负责人只授权了独立版本的 S2A 非模型送模门禁调整；它不授权修改 EP1B。
 
 ## 13. 完成判定
 
@@ -286,56 +329,25 @@ README.md
 - 批量 evaluator、CLI 和测试已落地；
 - 两个 EP1A P1 回归已关闭；
 - 至少一批真实、独立标注的 D/P/L/R episode 从 EP1A bundle 进入 evaluator；
-- 当前任务表计划的 pacing/lapping/random 各约 10 条已形成可评分库存，或负责人明确接受更小的 descriptive pilot 作为本阶段终点；
-- 主/条件指标、coverage、duration、group support、purposeful diagnostics 和 failures 均输出；
+- 旧 AI 预标注若进入正式 cohort，必须由人工逐条确认/修改；否则明确排除在正式 batch 之外，不得覆盖原预标注或 XML；
+- all-eligible shape-binary 主要指标、ready-only 条件指标、四分类 subtype diagnostic、coverage、duration、group support、purposeful diagnostics 和 failures 均输出；
 - 报告准确限制结论，不写 95%、FAR、自动边界或告警；
 - D01/S00 相邻回归没有退化。
 
-只有工具完成但真实 P/L/R 数据不足时，状态写：
+用户已明确把目标摄像头的四分类降为 subtype diagnostic，因此“每个 pacing/lapping/random 约 10 条”保留为后续扩样目标，不再单独阻塞 EP1B 完成。若人工复核后某一类没有任何清楚样本，则仍不满足真实 D/P/L/R 门，应继续 data pending。
+
+2026-08-17 完成状态：
 
 ```text
 m0cam_ep1b_implementation_status=completed
-m0cam_ep1b_data_status=pending
-m0cam_ep1b_status=not_completed
+m0cam_ep1b_human_truth_status=reviewed_manual_cvat
+m0cam_ep1b_evaluation_status=completed_descriptive_pilot
+m0cam_ep1b_data_status=manual_cvat_b01_development_plus_b02_video_holdout
+m0cam_ep1b_status=completed
 ```
 
-## 14. 可直接交给 Codex 的目标提示词
+B01 development 的 D/P/L/R support 为 `36/9/3/9`，binary all-eligible accuracy/macro-F1=`0.807018/0.817375`；B02 frozen-video holdout support 为 `9/2/2/5`，binary=`1.0/1.0`。旧 15 条 AI 预标注没有进入正式成绩。该完成状态只覆盖人工 CVAT、oracle-boundary、shape-only descriptive pilot，不覆盖 automatic boundary/shape、alert、跨 participant/setup、老人域或临床效果。完整结果见 [B01 development / B02 frozen-video holdout](../../../../reports/mental_health/wandering_camera_b01_development_v1/README.md)。
 
-```text
-你是本项目 M0-CAM-EP1B 的主开发 AI。请在当前仓库持续完成“摄像头完整 episode 的四类小样本评估线”，以实现可用的徘徊模块为最高优先级。
+## 14. 后续执行入口
 
-AI 设置：
-- 模型：优先 GPT-5.6 Codex / gpt-5.6-sol
-- 智商（推理强度）：最高（max）
-- 工作方式：质量优先、可长时持续执行；可并行做只读审查和测试分析，但主代理必须亲自核对关键代码与结果。
-
-开始前必须完整阅读：
-1. AGENTS.md
-2. docs/tasks/README.md
-3. docs/modules/mental_health/plans/徘徊识别技术文档2.md
-4. docs/modules/mental_health/plans/M0-CAM-EP1B执行任务书.md
-5. docs/modules/mental_health/README.md
-6. reports/mental_health/wandering_camera_episode_v1/README.md
-7. reports/mental_health/wandering_camera_episode_v1/VERIFICATION.md
-8. EP1A 的 config/importer/inference/CLI/tests 实际源码
-
-当前事实：M0-CAM-EP1A 已完成，且只证明 oracle-boundary engineering scope。D01 12 条 whole-clip 与 S00 三条 CVAT episode 均由正式入口得到 ready/direct；S00 0–40 秒 legacy 结果仍为 lapping-like，但不得用于覆盖三个 direct episode 真值。当前唯一代码任务是 M0-CAM-EP1B，不要重开 EP1A、PORTABLE、receipt、hash 或 exact-schema 审计。
-
-你的目标：
-1. 先独立核对当前工作树和 EP1A 输出，保护所有既有 dirty/untracked 改动，不 reset/checkout/clean/stash，不覆盖输出。
-2. 以测试驱动实现轻量批量 oracle-boundary evaluator：读取多个 EP1A prediction bundle、独立 truth view 和匿名 participant/session/setup 索引；推理阶段永远看不到 truth。
-3. prediction 与 truth 按 episode/video/track/start/end 一对一连接；重复、缺失或漂移明确失败。
-4. 派生独立 shape_truth_status：清楚的 D/P/L/R 即使 purpose unknown、role/status uncertain，仍可进入 shape-only 指标；unknown shape 和明确 excluded 不进入。不要改原 XML/truth。
-5. 主指标以全部 shape-eligible episode 为分母。unavailable、boundary_uncertain、inference_error、abstention 分别报告并作为 pipeline miss 影响 recall；另报 ready-only 条件指标，但不能把它当主成绩。
-6. 输出四类/二类 precision、recall、F1、support、confusion、raw counts、QC coverage、15/40 秒时长分层、participant/session/setup support、purposeful-hard-negative 形态诊断和逐 episode failures。类别缺失时完整 macro-F1 必须 not_computable。
-7. 复用 EP1A 和已有简单 metric 原语，不复制 tracker/QC/preprocessing/model。必要时新建轻量 eval config/module/CLI/test；不要增加文件 SHA、字节对齐、授权收据或攻击型 exact-schema 工程。
-8. 顺手关闭两个 P1：为两个 EP1A bundle builder 补真正端到端的 synthetic/non-overwrite 测试；补低置信度边缘 observation 测试并让 raw detection/boundary-gap QC 与 accepted observation/bucket 口径一致。改动必须小，并回归 D01/S00。
-9. 先用 D01/S00 加现有真实 P/L/R 小样运行；如果 P/L/R 尚未到位，完成工具与可复跑的 direct-only smoke，准确报告 implementation_complete + data_pending，列出最少缺什么，不伪造标签、不自动开始 EP2。
-10. 更新任务表、技术路线、mental-health README、docs 索引和本阶段 report；只有真实四类小样到位并满足任务书完成门，才把 EP1B 标为 completed。
-
-硬边界：不训练、不调参、不改冻结候选/0.5 阈值/类别定义，不按模型结果改标签，不实现 automatic boundary/告警/AlgorithmEvent，不访问 sealed 或未授权数据，不修改其他模块，不 commit/push。普通本地代码、路径、测试和可回滚实现问题由你自主解决，不要逐步请示。
-
-环境与验证：所有 Python 和 pytest 必须使用 WSL 项目 conda 环境 eldercare-ai；先确认 editable 安装指向当前仓库。修改 Python 后先跑最窄相关测试，再跑 EP1A 与相邻 camera 回归；不要用裸 python/pytest。真实视频只使用负责人已经提供的本地 development 数据，原视频不进 Git，输出使用全新目录。
-
-最终交付必须包含：实现文件、测试命令与实际结果、真实数据覆盖表、主指标与 ready-only 指标、失败案例、未解决的数据缺口、准确的证据范围、下一步建议。先讲是否真正完成；不能用测试通过冒充真实四类数据完成，不能用 oracle-boundary 成绩冒充自动端到端效果。
-```
+EP1B 不再是当前开发任务。后续 AI 的完整目标提示词维护在 [M0-CAM EP1B / EP2A 证据交接](M0-CAM-EP1B-EP2A-S1B人工证据交接.md)，实时状态只看 [任务表](../../../tasks/README.md)。任何复跑必须保留 B01/B02 历史结果；负责人授权的 B02 复用只覆盖版本化 S2A v2 送模策略，不覆盖 EP1B 模型/阈值/类别/truth。不得把 oracle-boundary shape 成绩冒充 automatic pipeline 性能。

@@ -1,15 +1,21 @@
 # Windows 本地部署 CVAT 徘徊识别视频标注教程
 
-版本：v1.1｜更新时间：2026-08-15｜适用工具：与跌倒标注相同版本的本地 CVAT Community
+版本：v1.3｜更新时间：2026-08-16｜适用工具：与跌倒标注相同版本的本地 CVAT Community
 
 本教程面向已经做过跌倒视频标注的同学。操作方式与跌倒标注相似，但标签含义不同：跌倒标注关注动作和事件，徘徊标注关注一段时间内实际走出的轨迹形态。
 
-## 1. 先记住四句话
+本教程默认当前批次视频、出镜和内部研发使用均已接受。标注员不重复审核隐私、授权、receipt 或文件 hash，只负责把原视频中的人物、episode 边界、shape、purpose 和可用性准确写入 CVAT。
+
+当前五日快速交付中，B01+B02 均可反复用于 development，旧 holdout 身份不再限制调参。负责人后续提供的居家视频可以先跑 truth-free 自动链，再按失败案例补 CVAT；没有居家视频或尚未完成标注都不阻塞算法 core、日报、基线或 handoff。只有需要量化误差时才等待独立人工标签，标注仍不能根据模型预测改写。全部视频和标注默认已获内部研发授权，不增加合规审批步骤。现行任务见 [M0-CAM-5D 快速交付总任务书](../plans/M0-CAM-5D快速交付总任务书.md)。
+
+## 1. 先记住六句话
 
 ```text
 一个视频 = 一个 CVAT task
 一个语义不变的行为时间段 = 一个 wandering_episode Rectangle Track
 矩形框只用来指出“这段时间标的是画面中的谁”
+先切完整 locomotion episode，再判断轨迹形态
+CVAT XML 是人工标注来源，Markdown 复核队列不是标签文件
 只按实际画面标注，不按拍摄计划或模型预测改标签
 ```
 
@@ -23,6 +29,8 @@ random
 unknown
 ```
 
+口头说的 `lap` 在项目中的正式标签名是 `lapping`。不要在 CVAT 中新增 `lap`、`looping`、`mixed` 或其他同义标签。
+
 标注时还要分开填写：
 
 - 人物走出了什么轨迹形态；
@@ -33,6 +41,42 @@ unknown
 不要把“为什么这样走”混进轨迹形态。例如，打电话时来回走仍然是 `pacing`，同时填写 `purposeful`。
 
 `wandering_like_positive` 只表示“徘徊样轨迹评价类别”，不是医学诊断，也不表示人物一定存在健康问题。
+
+当前摄像头评估以 `direct` 对 `pacing/lapping/random` 的 shape-binary 为主要结果，四分类用于诊断 subtype 混淆。因此不能因为 pacing 和 random 容易被模型预测成 lapping 就修改人工标签；标注员仍必须按真实画面保留四类区别。
+
+### 1.1 标注员最终产出什么
+
+标注员最终交付：
+
+```text
+CVAT for video 1.1 导出 ZIP
+  └─ annotations.xml
+视频编号清单
+无法判断、遮挡、出画或目标人物问题说明
+```
+
+后续 importer 才会把 XML 转换成 truth-free boundary 和独立 truth JSONL。标注员不手写 JSONL，不填写机器 `track_id`，也不需要把 CVAT 内容再抄到 Markdown 表格。
+
+项目中的人工复核队列只用于记录：视频是否已分配、XML 是否已导出、import 是否成功、是否需要二次裁决。队列中即使存在“人工 boundary/shape/purpose”列，也不能代替 CVAT Track 和 XML。
+
+### 1.2 第一遍标注可以看什么
+
+第一遍人工标注可以看：
+
+- 原始完整视频；
+- 匿名 `video_id`；
+- 本教程和拍摄手册；
+- 为判断 purpose 所必需的真实拍摄任务说明，例如 phone call、carrying、exercise；
+- 必要时在看完完整视频后查看 truth-free 轨迹图，辅助理解透视和遮挡。
+
+第一遍不得看：
+
+- 模型四分类或 binary 预测；
+- 模型概率、失败清单或 confusion；
+- AI preannotation；
+- 以 `P01/L01/R01` 文件夹名作为形态答案。
+
+拍摄脚本可以证明 purpose 或 `script_type`，但不能决定 `observable_pattern`。例如文件名写 pacing，实际形成闭环，仍应按 lapping 或实际画面标注。
 
 ## 2. 与跌倒 CVAT 标注的相同和不同
 
@@ -401,17 +445,40 @@ Submit 5 tasks
 
 ## 8. 标注一条视频的顺序
 
-每条视频按下面顺序操作：
+每条视频按四遍完成：
 
-1. 完整播放一次，不创建任何框；
-2. 确认本视频要标的目标人物；
-3. 第二遍观察轨迹形态、目的和大致切换位置；
-4. 第三遍创建 `wandering_episode` Rectangle Track；
-5. 为每个 track 填写全部属性；
-6. 从头回看，检查边界、漏标、重叠和属性组合；
-7. 使用 `Ctrl + S` 保存。
+### 第一遍：只看完整视频
 
-不要第一次播放时边看边猜。pacing、lapping 和 random 都需要结合前后轨迹判断。
+1. 从头到尾播放，不创建框、不暂停猜类别；
+2. 确认目标人物；
+3. 了解人物什么时候开始连续行走、什么时候停留、坐下、出画或改变任务；
+4. 不看 AI preannotation 和模型预测。
+
+### 第二遍：只确定 episode
+
+1. 找到每次 locomotion bout；
+2. 用“大约三步确认行走成立，再回退到第一帧”的方法找开始；
+3. 用持续停留、活动切换、出画或 session end 找结束；
+4. 暂时不因一次转身、折返或经过起点切段；
+5. 先在时间轴上记下候选边界。
+
+### 第三遍：判断 shape 与 purpose
+
+1. 对每个完整候选 episode 单独回看；
+2. 先判断 direct/pacing/lapping/random/unknown；
+3. 再独立判断 purposeful/nonpurposeful/unknown 和证据；
+4. shape 或 purpose 清楚改变时，把候选 episode 拆成两个 Track；
+5. 不按文件名或拍摄计划修改 shape。
+
+### 第四遍：建 Track、自检并保存
+
+1. 创建 `wandering_episode` Rectangle Track；
+2. 设置开始、结束前最后一个非 outside keyframe 和下一帧 outside；
+3. 填写全部属性，清除所有 `not_set`；
+4. 从头回看边界、漏标、重叠、人物身份和属性组合；
+5. 使用 `Ctrl + S` 保存。
+
+不要第一遍播放时边看边猜。pacing、lapping 和 random 都必须根据完整路径关系判断，单看某一帧、某一次转身或起终点位置都不够。
 
 完成一条 track 后，检查属性中没有遗留 `not_set`。
 
@@ -490,24 +557,42 @@ CVAT 本身会在 keyframe 之间插值，开始帧 `outside=false`、第一个�
 
 ## 11. Episode 怎样切分
 
+episode 是一次连续的 locomotion bout。它回答“这一次连续行走从哪里开始、到哪里结束”，不回答“模型要看多少秒”。一条 episode 可以只有几秒，也可以超过 40 秒；模型后续会对完整路径做空间弧长重采样，不要求人工凑固定长度。
+
 ### 11.1 开始
 
-从当前轨迹形态已经能够明确成立的第一帧开始。
+使用下面的回看方法：
+
+1. 正向播放，直到人物已经连续迈出大约三步，确认这是一段持续行走，而不是挪脚、站位或单步取物；
+2. 暂停并向前逐帧回退；
+3. 找到这次连续行走真正启动的第一帧；
+4. 将该帧设为 Track 的第一个 `outside=false` keyframe。
+
+三步用于确认 locomotion 已成立，不是从第三步才开始标，也不是模型阈值。
 
 - 入场和站位通常不算；
-- 自然停留后重新开始走动，从重新走动的位置判断；
+- 原地转身、调整脚步或只走一两步又停下通常不单独建 episode；
+- 自然停留后重新开始持续走动，从新一段行走的第一帧判断；
 - 对 pacing、lapping、random，应先看完整段，再回到第一段有效轨迹设置开始帧。
+
+短 `EPISODE` 视频如果开头已经在走，Track 可以从视频第一帧开始，并在 note 说明 `episode starts before/at clip boundary`；不要伪造更早边界。
 
 ### 11.2 结束
 
-以下任一情况出现时，在第一个不再属于原 episode 的帧结束：
+以下任一情况出现时，在“第一个不再属于原 episode 的帧”设置 `outside=true`：
 
-- 轨迹形态改变；
-- 行为目的改变；
+- 同一地点持续停留约 15 秒；
+- 坐下或明确开始另一活动；
+- 轨迹形态或行为目的发生清楚改变；
 - 目标人物改变；
-- 人物停止当前行为；
-- 长时间遮挡或出画，无法继续判断；
+- track end、出画、长 gap 或 ID switch，无法继续判断；
 - 画面进入无法可靠判断的过渡区间。
+
+约 15 秒是人工标注锚点，不是当前 automatic boundary 的既定阈值。判断停留是否达到约 15 秒时，可以先粗看时间轴，再逐帧确定停止行走后的第一帧是否应作为 episode 外部；不要把 15 秒静止本身包含在 locomotion Track 中。
+
+数秒停顿、犹豫、观察、转向、折返和闭环通常仍属于同一 locomotion episode，不在这些位置结束。如果短暂停顿后 purpose 已清楚改变，例如停止 pacing 后开始寻找文件，即使不足 15 秒，也应在活动改变处结束原 Track并建立新 Track。
+
+视频结束是硬边界。若人物一直走到最后一帧，最后一帧保持 `outside=false`，不需要虚构 outside 帧；在 note 中说明 episode 到达 clip end。
 
 ### 11.3 相邻和重叠
 
@@ -516,6 +601,80 @@ CVAT 本身会在 keyframe 之间插值，开始帧 `outside=false`、第一个�
 - 形态切换模糊时，缩短两边清楚区间，把中间标成 `uncertain`；
 - 短暂自然停顿后仍明显延续同一形态时，可以保留为同一 episode；
 - 目的已经改变时，即使形态相同，也要新建 track，因为属性已经变化。
+
+若人物 A→B 后立即返回，期间没有可观察的持续停留或任务切换，不要为了得到两个 direct 强行切开。保留完整 episode，再按实际轨迹标 shape；目的单独填写。起终点接近只能作为形态证据之一，不能单独决定 lapping 或 wandering-like。
+
+同一连续 episode 中发生的 pacing 端点反转、lapping 回到起点、random 改变方向，都不是新的 episode。它们是 shape 的内部结构。
+
+### 11.4 什么时候因为 shape 或 purpose 切分
+
+出现下面情况时建立新 Track：
+
+- direct 到达目的地后，人物开始持续 pacing；
+- pacing 停止后，人物围绕中心区域连续 lapping；
+- 原本无任务的来回走动结束，人物拿起电话后继续有目的走动；
+- 同一人物从普通行走转入清洁、搬运、寻找等明确活动；
+- 画面中间有一段无法可靠判断，清楚区间应分开保存。
+
+不要仅因为下面情况切分：
+
+- pacing 在端点转身；
+- lapping 完成一圈；
+- random 每次改变方向；
+- 路径穿过之前的位置；
+- 模型旧流程使用 40 秒窗口。
+
+### 11.5 五个常见边界例子
+
+**例 1：短 direct 文件**
+
+```text
+00–03 秒  站定
+03–09 秒  A→B
+09–13 秒  站定，视频结束
+```
+
+只建立 `03–09 秒 direct`。不需要为了达到 15 秒把结束站立包含进 episode。
+
+**例 2：pacing 中短暂停顿**
+
+```text
+05–20 秒  A↔B
+20–25 秒  在 B 端停 5 秒
+25–42 秒  继续同一 A↔B
+```
+
+如果任务和形态未改变，建立一个 `05–42 秒 pacing`，不在 20/25 秒切开。
+
+**例 3：持续停留后重新开始**
+
+```text
+08–30 秒  pacing
+30–47 秒  同地停留
+47–65 秒  direct 去门口
+```
+
+建立两个 Track：`08–30 pacing` 和 `47–65 direct`。
+
+**例 4：purpose 改变但 shape 相同**
+
+```text
+10–28 秒  无任务 pacing
+28–31 秒  接起电话
+31–55 秒  通话 pacing
+```
+
+建立两个 pacing Track。前者可为 `nonpurposeful`，后者为 `purposeful`；不要合成一个 purpose 不一致的 Track。
+
+**例 5：出画后重新进入**
+
+```text
+06–24 秒  random，随后出画
+24–33 秒  人物不可见
+33–52 秒  重新进入后继续走动
+```
+
+24 秒结束第一条。33 秒重新判断新的 episode、人物和 shape，不跨出画区间连接。
 
 不要按模型使用的固定窗口长度切段。人工标注单位是实际 episode，不是重复的 40 秒窗口。
 
@@ -590,6 +749,66 @@ D:\徘徊数据集\徘徊模块数据集\WanderingPatterns-四类轨迹\raw\patt
 - random 看“持续多方向不规则”，不是随便走几步；
 - 计划拍什么不等于实际标签；
 - 速度快慢、是否停顿、动作是否有目的，都不能单独决定形态。
+
+### 12.5 摄像头画面中的判定顺序
+
+对一个边界已经确定的完整 episode，按下面顺序判断：
+
+1. **是否整体从一个区域推进到另一个区域，并且没有显著返回或重复？** 是则优先 `direct`。
+2. **是否存在一条稳定主轴、相似的两个端点，并沿该轴发生方向反转？** 是则优先 `pacing`。
+3. **是否围绕一个相对稳定的中心，连续经过不同侧面并重复回到起始区域？** 是则优先 `lapping`。
+4. **是否持续访问多个分散区域、多次改变方向，但既没有稳定主轴也没有重复环路？** 是则优先 `random`。
+5. 四个问题都不能稳定回答，或画面/边界不足，则使用 `unknown + uncertain`。
+
+不要先问“起点和终点近不近”。起终点接近可以出现在 pacing、lapping、random，甚至一条弯曲 direct 中，不能单独决定类别。
+
+### 12.6 pacing、lapping、random 的关键区别
+
+| 观察关系 | pacing | lapping | random |
+|---|---|---|---|
+| 主要空间结构 | 一条主轴或窄带 | 一个被轨迹包围的中心区域 | 多个分散区域 |
+| 时间顺序 | 到端点后反向返回 | 沿环路继续前进，重复经过不同侧面 | 访问顺序不规则、非周期 |
+| 路径复用 | 往程和返程大量复用同一路径 | 每圈复用同一环路或近似环路 | 局部可复用，但无稳定轴/环 |
+| 典型方向变化 | 约 180° 反转 | 连续转弯，方向逐渐绕回 | 不同大小和方向的多次转向 |
+| 是否有稳定中心 | 通常没有 | 有 | 没有或不断变化 |
+| 是否有稳定两端 | 有 | 通常没有 | 没有 |
+
+#### pacing 与 lapping
+
+摄像头透视最容易让这两类混淆。不要只看轨迹线最后是否闭合，要看人物怎样经过场景：
+
+- 人物到左端后转身，沿刚才的通道返回右端，这是 pacing；
+- 人物经过近侧、右侧、远侧、左侧后回到原区域，并继续相同绕行，这是 lapping；
+- pacing 的宽 U 形可能让起终点靠近，但如果核心关系仍是“出去后沿主轴返回”，仍标 pacing；
+- lapping 被透视压扁后可能像往返线，但如果人物确实连续经过中心区域的不同侧面并重复环绕，仍标 lapping；
+- 只有一次 U 形折返，没有完整环绕，不要标 lapping。
+
+#### random 与 lapping
+
+- lapping 通常重复相似的区域顺序，例如近侧→右侧→远侧→左侧→近侧；
+- random 的区域访问顺序不稳定，转向尺度和方向变化，不能指出重复的圈；
+- random 可以回访某个位置或出现局部小环，但不能持续围绕同一中心；
+- 人物一直沿房间外圈走，即使每圈不完全一样，通常仍更接近 lapping；
+- 找东西时走出不规则路线，shape 可以是 random，但 purpose 另填 purposeful。
+
+#### random 与 tracking 错误
+
+检测框抖动、轨迹断裂、ID switch 或错跟其他人都不是 random 的行为证据。先看原视频中的真实人物移动：
+
+- 人物实际沿单一路线前进，但 truth-free 轨迹图抖动，shape 仍按原视频判断；
+- 人物身份中途不确定，使用 `wrong_target/uncertain/excluded`，不要把混乱轨迹标 random；
+- 只有在人物真实持续多方向移动时才标 random。
+
+### 12.7 truth-free 轨迹图怎样使用
+
+truth-free 轨迹图只显示 detector/tracker 输出的时间顺序、起点和终点，不包含人工标签或模型分类。使用顺序固定为：
+
+1. 先看完整原视频并形成初步判断；
+2. 再看轨迹图，检查透视、路径重叠和 tracking 断裂；
+3. 轨迹图与视频冲突时，以可观察原视频为主，并在 `tracking_issue/note` 记录问题；
+4. 不得查看带 AI preannotation、预测类别或概率的页面来决定标签。
+
+轨迹图可以帮助确认“是否有主轴、是否包围区域、是否访问多个区域”，但不能代替 episode 边界和人工观看。
 
 ## 13. Purpose 与证据怎样填
 
@@ -761,9 +980,9 @@ multiple_issues
 ```text
 00-08 秒   入场并站定
 08-44 秒   无任务地持续来回走
-44-51 秒   停留
-51-78 秒   一边找物品一边多方向走动
-78-90 秒   站定并离场
+44-62 秒   同地停留
+62-82 秒   一边找物品一边多方向走动
+82-90 秒   站定并离场
 ```
 
 创建两个 Rectangle Track：
@@ -784,7 +1003,7 @@ tracking_issue=not_checked
 ### Track 2
 
 ```text
-时间：51-78 秒
+时间：62-82 秒
 observable_pattern=random
 purpose_context=purposeful
 purpose_evidence=observed_context
@@ -794,7 +1013,7 @@ visibility_quality=good
 tracking_issue=not_checked
 ```
 
-00-08、44-51 和 78-90 秒不需要硬贴四类轨迹标签。
+00-08、44-62 和 82-90 秒不需要硬贴四类轨迹标签。
 
 ## 19. 遮挡、出画和多人怎样处理
 
@@ -842,11 +1061,14 @@ Ctrl + S
 - [ ] 下一帧正确设置 outside；
 - [ ] 所有属性都已主动确认，没有遗留 `not_set`；
 - [ ] pattern 按实际画面填写，不是按文件名或脚本填写；
+- [ ] pacing 有稳定主轴/端点，lapping 有重复环路，random 有多区域非周期关系；
 - [ ] purpose 与 evidence 配套；
 - [ ] purposeful pacing/lapping/random 没有被改成 direct；
 - [ ] unknown 没有被当作 accepted 正负样本；
 - [ ] uncertain、excluded 和 other 都有 note；
 - [ ] 没有把未标注时间自动当 negative；
+- [ ] 没有在人工标注完成前查看 AI preannotation、模型预测、概率或失败清单；
+- [ ] 没有把 Markdown 复核队列当作标签来源；
 - [ ] 没有参考模型预测回改标签；
 - [ ] 已保存。
 
@@ -894,6 +1116,8 @@ VID-B01-0012，frame 940 后无法确认目标人物，已标 excluded。
 ## 23. CVAT 导出与正式数据的关系
 
 CVAT ZIP 是人工 episode 标注来源，不是已经完成的模型输入。标注员只负责画面中的 episode、轨迹形态、行为目的和质量属性，不需要填写机器 tracking ID、session、机位、时钟或秒数，也不要猜这些字段。
+
+拍摄记录、文件名、人工复核队列、AI preannotation 和预测输出都不能替代 XML。标注完成状态应以“对应视频的 CVAT task 已保存并成功导出 `annotations.xml`”为准，而不是以 Markdown 表格是否填满为准。
 
 后续数据整理会：
 
@@ -982,15 +1206,17 @@ docker compose logs -f cvat_server
 2. 打开独立 wandering Project
 3. 确认只有 wandering_episode 标签及 8 个属性
 4. 确认一个视频一个 task
-5. 第一遍完整观看
-6. 第二遍确定 episode 和目标人物
-7. 第三遍创建 Rectangle Track
-8. 设置开始 keyframe、最后可见 keyframe、下一帧 outside
-9. 填 pattern、purpose、evidence、role、script、quality、tracking、note，清除所有 not_set
-10. 从头回看并完成自检
-11. Ctrl+S 保存
-12. 导出 CVAT for video 1.1 ZIP
-13. 连同视频清单、拍摄记录和问题说明一起交付
+5. 确认未加载 AI preannotation 或模型预测
+6. 第一遍完整观看并确认目标人物
+7. 第二遍只确定完整 episode 边界
+8. 第三遍按主轴/闭环/多区域关系判断 shape，再独立判断 purpose
+9. 第四遍创建 Rectangle Track
+10. 设置开始 keyframe、最后可见 keyframe、下一帧 outside
+11. 填 pattern、purpose、evidence、role、script、quality、tracking、note，清除所有 not_set
+12. 从头回看并完成自检
+13. Ctrl+S 保存
+14. 导出 CVAT for video 1.1 ZIP
+15. 连同视频清单、拍摄记录和问题说明一起交付
 ```
 
 ## 26. 参考资料

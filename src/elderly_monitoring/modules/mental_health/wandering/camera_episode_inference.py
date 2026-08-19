@@ -66,6 +66,29 @@ CAMERA_EPISODE_PREDICTION_SCHEMA_VERSION = "wandering-camera-episode-prediction-
 CAMERA_EPISODE_RUN_SUMMARY_SCHEMA_VERSION = "wandering-camera-episode-run-summary-v1"
 ORACLE_BOUNDARY_EVALUATION_NAME = "oracle-boundary shape classification"
 _CONFIG_RELATIVE = Path("configs/modules/wandering_camera_episode_v1.yaml")
+_INTERVAL_INPUT_QUALITY_FLAGS = {
+    "accepted_boundary": "oracle_boundary",
+    "automatic_proposal": "automatic_boundary_proposal",
+}
+_INTERVAL_PREPARATION_FIELDS = (
+    "source_observation_count",
+    "accepted_observation_count",
+    "source_bucket_count",
+    "observed_bucket_count",
+    "interpolated_bucket_count",
+    "observed_coverage_ratio",
+    "interpolated_coverage_ratio",
+    "maximum_gap_seconds",
+    "motion_extent_body_heights",
+    "qc_status",
+    "qc_reason_codes",
+    "quality_flags",
+    "model_features",
+    "shape_normalized_points",
+    "point_mask",
+    "raw_features",
+    "topology",
+)
 
 
 class CameraEpisodeInferenceError(ValueError):
@@ -129,7 +152,7 @@ def prepare_camera_episode(
     preprocessing_config: Mapping[str, Any],
     feature_stats: Mapping[str, Any],
 ) -> dict[str, Any]:
-    """Apply track isolation and episode-internal QC before 80-point preprocessing."""
+    """Validate an accepted boundary, then apply the shared interval preparation."""
 
     if not isinstance(adapter_input, CameraAdapterInput):
         raise CameraEpisodeInferenceError("prepare_camera_episode expects CameraAdapterInput")
@@ -147,14 +170,82 @@ def prepare_camera_episode(
             status="boundary_uncertain",
             reason_codes=normalized_boundary["boundary_reason_codes"],
         )
+    prepared_interval = prepare_camera_interval(
+        adapter_input,
+        interval_id=str(normalized_boundary["episode_id"]),
+        source_video_id=str(normalized_boundary["source_video_id"]),
+        target_track_id=int(normalized_boundary["target_track_id"]),
+        start_sec=float(normalized_boundary["start_sec"]),
+        end_sec_exclusive=float(normalized_boundary["end_sec_exclusive"]),
+        input_kind="accepted_boundary",
+        camera_config=camera_config,
+        episode_config=episode_config,
+        preprocessing_config=preprocessing_config,
+        feature_stats=feature_stats,
+    )
+    return {
+        **base,
+        **{
+            name: prepared_interval[name]
+            for name in _INTERVAL_PREPARATION_FIELDS
+        },
+    }
+
+
+def prepare_camera_interval(
+    adapter_input: CameraAdapterInput,
+    *,
+    interval_id: str,
+    source_video_id: str,
+    target_track_id: int,
+    start_sec: float,
+    end_sec_exclusive: float,
+    input_kind: str,
+    camera_config: Mapping[str, Any],
+    episode_config: Mapping[str, Any],
+    preprocessing_config: Mapping[str, Any],
+    feature_stats: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Prepare one validated interval without assigning boundary acceptance semantics."""
+
+    if not isinstance(adapter_input, CameraAdapterInput):
+        raise CameraEpisodeInferenceError("prepare_camera_interval expects CameraAdapterInput")
+    _validate_config_bindings(camera_config, episode_config)
+    if input_kind not in _INTERVAL_INPUT_QUALITY_FLAGS:
+        raise CameraEpisodeInferenceError("camera episode interval input kind is invalid")
+    if not isinstance(interval_id, str) or not interval_id:
+        raise CameraEpisodeInferenceError("camera episode interval ID is invalid")
+    if (
+        not isinstance(source_video_id, str)
+        or source_video_id != adapter_input.media_sidecar["source_video_id"]
+    ):
+        raise CameraEpisodeInferenceError("camera episode interval source video differs")
+    if not isinstance(target_track_id, int) or isinstance(target_track_id, bool):
+        raise CameraEpisodeInferenceError("camera episode interval track ID is invalid")
+    start = float(start_sec)
+    end = float(end_sec_exclusive)
+    duration = float(adapter_input.media_sidecar["duration_sec"])
+    if (
+        not np.isfinite(start + end)
+        or start < 0.0
+        or start >= end
+        or end > duration + 1e-9
+    ):
+        raise CameraEpisodeInferenceError("camera episode interval endpoints are invalid")
 
     target_scope = (
         str(adapter_input.media_sidecar["source_group_id"]),
-        str(adapter_input.media_sidecar["source_video_id"]),
+        source_video_id,
         str(adapter_input.media_sidecar["device_id"]),
         str(adapter_input.media_sidecar["setup_id"]),
         str(adapter_input.media_sidecar["stream_epoch"]),
-        int(normalized_boundary["target_track_id"]),
+        target_track_id,
+    )
+    base = _interval_prepared_base(
+        interval_id=interval_id,
+        target_scope=target_scope,
+        start=start,
+        end=end,
     )
     observations = group_observations(adapter_input.observations).get(target_scope)
     if observations is None:
@@ -163,8 +254,6 @@ def prepare_camera_episode(
             status="unavailable",
             reason_codes=["target_track_not_found"],
         )
-    start = float(normalized_boundary["start_sec"])
-    end = float(normalized_boundary["end_sec_exclusive"])
     selected = tuple(item for item in observations if start <= item.timestamp_sec < end)
     base["source_observation_count"] = len(selected)
     if not selected:
@@ -173,11 +262,28 @@ def prepare_camera_episode(
             status="unavailable",
             reason_codes=["no_target_observations_in_boundary"],
         )
+    minimum_track_confidence = float(
+        episode_config["sampling"]["minimum_track_confidence"]
+    )
+    accepted = tuple(
+        item for item in selected if item.track_confidence >= minimum_track_confidence
+    )
+    base["accepted_observation_count"] = len(accepted)
+    if not accepted:
+        return _unavailable_preparation(
+            base,
+            status="unavailable",
+            reason_codes=[
+                "too_few_raw_detections",
+                "too_few_observed_buckets",
+                "boundary_tracking_gap",
+            ],
+        )
 
     reasons: list[str] = []
     try:
         segments = _split_observations(
-            selected,
+            accepted,
             sampling=camera_config["sampling"],
             qc=camera_config["camera_qc"],
         )
@@ -197,8 +303,8 @@ def prepare_camera_episode(
     qc = episode_config["episode_qc"]
     bucket_seconds = float(sampling["bucket_seconds"])
     buckets = weighted_bucket_observations(
-        selected,
-        minimum_track_confidence=float(sampling["minimum_track_confidence"]),
+        accepted,
+        minimum_track_confidence=minimum_track_confidence,
         bucket_seconds=bucket_seconds,
     )
     base["observed_bucket_count"] = len(buckets)
@@ -232,7 +338,7 @@ def prepare_camera_episode(
     )
     if adapter_input.media_sidecar["camera_motion_state"] == "moved":
         reasons.append("camera_moved")
-    if len(selected) < int(qc["minimum_raw_detections"]):
+    if len(accepted) < int(qc["minimum_raw_detections"]):
         reasons.append("too_few_raw_detections")
     if observed_count < int(qc["minimum_observed_buckets"]):
         reasons.append("too_few_observed_buckets")
@@ -240,8 +346,8 @@ def prepare_camera_episode(
         reasons.append("insufficient_observed_ratio")
     if longest_gap > int(qc["maximum_internal_gap_buckets"]):
         reasons.append("long_internal_gap")
-    leading_gap = max(0.0, float(selected[0].timestamp_sec) - start)
-    trailing_gap = max(0.0, end - float(selected[-1].timestamp_sec))
+    leading_gap = max(0.0, float(accepted[0].timestamp_sec) - start)
+    trailing_gap = max(0.0, end - float(accepted[-1].timestamp_sec))
     if max(leading_gap, trailing_gap) > float(qc["maximum_boundary_gap_seconds"]):
         reasons.append("boundary_tracking_gap")
     if reasons:
@@ -281,15 +387,15 @@ def prepare_camera_episode(
             reason_codes=["insufficient_motion"],
         )
 
-    quality_flags = ["episode_first", "oracle_boundary"]
+    quality_flags = ["episode_first", _INTERVAL_INPUT_QUALITY_FLAGS[input_kind]]
     if adapter_input.media_sidecar["camera_motion_state"] == "not_checked":
         quality_flags.append("camera_motion_not_verified")
     window_record = {
         "schema_version": "wandering-camera-window-v1",
-        "window_id": f"episode-input-{normalized_boundary['episode_id']}",
+        "window_id": f"episode-input-{interval_id}",
         "parent_tracklet_id": (
-            f"episode-track-{normalized_boundary['source_video_id']}-"
-            f"{normalized_boundary['target_track_id']}"
+            f"episode-track-{source_video_id}-"
+            f"{target_track_id}"
         ),
         "source_group_id": target_scope[0],
         "source_video_id": target_scope[1],
@@ -361,26 +467,58 @@ def predict_camera_episode(
             prediction_reason_codes=list(prepared_episode["qc_reason_codes"]),
             prediction=None,
         )
+    prediction = predict_camera_interval(
+        {
+            **prepared_episode,
+            "interval_id": prepared_episode["episode_id"],
+        },
+        runtime,
+        validation_scope=validation_scope,
+        evidence_scope=evidence_scope,
+    )
+    return _prediction_output(
+        prepared_episode,
+        runtime,
+        prediction_status=str(prediction["window_status"]),
+        prediction_reason_codes=list(prediction["reason_codes"]),
+        prediction=prediction,
+    )
+
+
+def predict_camera_interval(
+    prepared_interval: Mapping[str, Any],
+    runtime: Any,
+    *,
+    validation_scope: str,
+    evidence_scope: str,
+) -> dict[str, Any]:
+    """Run the existing trusted frozen forward for one ready prepared interval."""
+
+    if prepared_interval.get("qc_status") != "ready":
+        raise CameraEpisodeInferenceError("only ready camera intervals may invoke the model")
+    interval_id = prepared_interval.get("interval_id")
+    if not isinstance(interval_id, str) or not interval_id:
+        raise CameraEpisodeInferenceError("prepared camera interval ID is invalid")
     window_record = {
-        "window_id": f"episode-input-{prepared_episode['episode_id']}",
+        "window_id": f"episode-input-{interval_id}",
         "window_status": "ready",
         "parent_tracklet_id": (
-            f"episode-track-{prepared_episode['source_video_id']}-"
-            f"{prepared_episode['track_id']}"
+            f"episode-track-{prepared_interval['source_video_id']}-"
+            f"{prepared_interval['track_id']}"
         ),
-        "source_group_id": prepared_episode["source_group_id"],
-        "source_video_id": prepared_episode["source_video_id"],
-        "device_id": prepared_episode["device_id"],
-        "setup_id": prepared_episode["setup_id"],
-        "stream_epoch": prepared_episode["stream_epoch"],
-        "track_id": prepared_episode["track_id"],
-        "window_start_sec": prepared_episode["start_sec"],
-        "window_end_sec": prepared_episode["end_sec_exclusive"],
+        "source_group_id": prepared_interval["source_group_id"],
+        "source_video_id": prepared_interval["source_video_id"],
+        "device_id": prepared_interval["device_id"],
+        "setup_id": prepared_interval["setup_id"],
+        "stream_epoch": prepared_interval["stream_epoch"],
+        "track_id": prepared_interval["track_id"],
+        "window_start_sec": prepared_interval["start_sec"],
+        "window_end_sec": prepared_interval["end_sec_exclusive"],
         "reason_codes": [],
-        "quality_flags": prepared_episode["quality_flags"],
-        "model_features": prepared_episode["model_features"],
-        "shape_normalized_points": prepared_episode["shape_normalized_points"],
-        "point_mask": prepared_episode["point_mask"],
+        "quality_flags": prepared_interval["quality_flags"],
+        "model_features": prepared_interval["model_features"],
+        "shape_normalized_points": prepared_interval["shape_normalized_points"],
+        "point_mask": prepared_interval["point_mask"],
     }
     try:
         prediction, _latency_ms = _predict_primary_camera_window_with_provenance(
@@ -391,13 +529,7 @@ def predict_camera_episode(
         )
     except PrimaryCameraInferenceError as exc:
         raise CameraEpisodeInferenceError("fixed episode model forward failed closed") from exc
-    return _prediction_output(
-        prepared_episode,
-        runtime,
-        prediction_status=str(prediction["window_status"]),
-        prediction_reason_codes=list(prediction["reason_codes"]),
-        prediction=prediction,
-    )
+    return prediction
 
 
 def build_camera_episode_inference_bundle(
@@ -564,6 +696,44 @@ def build_camera_episode_inference_bundle(
     )
 
 
+def _interval_prepared_base(
+    *,
+    interval_id: str,
+    target_scope: tuple[str, str, str, str, str, int],
+    start: float,
+    end: float,
+) -> dict[str, Any]:
+    return {
+        "interval_id": interval_id,
+        "source_group_id": target_scope[0],
+        "source_video_id": target_scope[1],
+        "device_id": target_scope[2],
+        "setup_id": target_scope[3],
+        "stream_epoch": target_scope[4],
+        "track_id": target_scope[5],
+        "start_sec": start,
+        "end_sec_exclusive": end,
+        "duration_sec": end - start,
+        "source_observation_count": 0,
+        "accepted_observation_count": 0,
+        "source_bucket_count": 0,
+        "observed_bucket_count": 0,
+        "interpolated_bucket_count": 0,
+        "observed_coverage_ratio": 0.0,
+        "interpolated_coverage_ratio": 0.0,
+        "maximum_gap_seconds": 0.0,
+        "motion_extent_body_heights": None,
+        "qc_status": None,
+        "qc_reason_codes": [],
+        "quality_flags": [],
+        "model_features": None,
+        "shape_normalized_points": None,
+        "point_mask": None,
+        "raw_features": None,
+        "topology": None,
+    }
+
+
 def _prepared_base(
     boundary: Mapping[str, Any], media: Mapping[str, Any]
 ) -> dict[str, Any]:
@@ -584,6 +754,7 @@ def _prepared_base(
         "boundary_status": boundary["boundary_status"],
         "boundary_reason_codes": list(boundary["boundary_reason_codes"]),
         "source_observation_count": 0,
+        "accepted_observation_count": 0,
         "source_bucket_count": 0,
         "observed_bucket_count": 0,
         "interpolated_bucket_count": 0,
@@ -651,6 +822,7 @@ def _prediction_output(
                 "boundary_status",
                 "boundary_reason_codes",
                 "source_observation_count",
+                "accepted_observation_count",
                 "source_bucket_count",
                 "observed_bucket_count",
                 "interpolated_bucket_count",
@@ -836,6 +1008,8 @@ __all__ = [
     "build_camera_episode_inference_bundle",
     "build_whole_clip_boundary",
     "load_camera_episode_config",
+    "predict_camera_interval",
     "predict_camera_episode",
+    "prepare_camera_interval",
     "prepare_camera_episode",
 ]

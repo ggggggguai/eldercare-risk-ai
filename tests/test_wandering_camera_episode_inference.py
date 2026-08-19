@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 from pathlib import Path
@@ -16,10 +17,13 @@ from elderly_monitoring.modules.mental_health.wandering import (
 from elderly_monitoring.modules.mental_health.wandering.camera_adapter import (
     CameraAdapterInput,
     CameraObservation,
+    canonical_json_bytes,
+    canonical_jsonl_bytes,
 )
 from elderly_monitoring.modules.mental_health.wandering.camera_episode_inference import (
     CAMERA_EPISODE_CONFIG_SCHEMA_VERSION,
     CameraEpisodeInferenceError,
+    build_camera_episode_inference_bundle,
     build_whole_clip_boundary,
     load_camera_episode_config,
     predict_camera_episode,
@@ -94,6 +98,7 @@ def _observation(
     track_id: int = 1,
     static: bool = False,
     jump: bool = False,
+    confidence: float = 0.9,
 ) -> CameraObservation:
     phase = index / max(1, count - 1)
     x = 0.2 if static else 0.2 + 0.55 * phase
@@ -121,7 +126,7 @@ def _observation(
         bbox_xyxy_norm=(0.15625, 0.208333, 0.28125, 0.75),
         bbox_bottom_point=(x, 0.75),
         bbox_height=0.25,
-        track_confidence=0.9,
+        track_confidence=confidence,
     )
 
 
@@ -132,15 +137,18 @@ def _adapter(
     static: bool = False,
     second_track: bool = False,
     jump_index: int | None = None,
+    low_confidence: set[int] | None = None,
 ) -> CameraAdapterInput:
     count = int(round(duration_sec / 0.5))
     missing = missing or set()
+    low_confidence = low_confidence or set()
     observations = [
         _observation(
             index=index,
             count=count,
             static=static,
             jump=index == jump_index,
+            confidence=0.1 if index in low_confidence else 0.9,
         )
         for index in range(count)
         if index not in missing
@@ -266,6 +274,26 @@ def test_short_gap_interpolates_but_long_gap_and_static_episode_are_unavailable(
         assert result["qc_status"] == "unavailable"
         assert expected_reason in result["qc_reason_codes"]
         assert result["model_features"] is None
+
+
+def test_low_confidence_edge_observations_do_not_satisfy_episode_qc() -> None:
+    camera, episode, preprocessing, stats = _configs()
+    adapter = _adapter(5.0, low_confidence={0, 1, 2, 3, 8, 9})
+
+    result = prepare_camera_episode(
+        adapter,
+        _boundary(adapter),
+        camera_config=camera,
+        episode_config=episode,
+        preprocessing_config=preprocessing,
+        feature_stats=stats,
+    )
+
+    assert result["source_observation_count"] == 10
+    assert result["accepted_observation_count"] == 4
+    assert result["qc_status"] == "unavailable"
+    assert "too_few_raw_detections" in result["qc_reason_codes"]
+    assert "boundary_tracking_gap" in result["qc_reason_codes"]
 
 
 def test_target_track_is_explicit_and_track_break_or_switch_is_never_spliced() -> None:
@@ -444,3 +472,78 @@ def test_episode_config_does_not_change_legacy_window_or_frozen_candidate() -> N
     assert legacy["sampling"]["window_seconds"] == 40.0
     assert legacy["sampling"]["stride_seconds"] == 20.0
 
+
+def test_inference_builder_writes_fresh_bundle_and_refuses_overwrite(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    adapter = _adapter(5.0)
+    rows = [
+        {
+            "frame_id": item.frame_id,
+            "person_id": "anonymous_001",
+            "track_id": item.track_id,
+            "bbox": [
+                item.bbox_bottom_point[0] * 640.0 - 40.0,
+                100.0,
+                item.bbox_bottom_point[0] * 640.0 + 40.0,
+                360.0,
+            ],
+            "scene_region": "office",
+            "track_confidence": item.track_confidence,
+            "center": [
+                item.bbox_bottom_point[0] * 640.0,
+                230.0,
+            ],
+            "speed_px_per_sec": None,
+            "timestamp_sec": item.timestamp_sec,
+        }
+        for item in adapter.observations
+    ]
+    tracking_bytes = canonical_jsonl_bytes(rows)
+    tracking_path = tmp_path / "tracking.jsonl"
+    tracking_path.write_bytes(tracking_bytes)
+    media = dict(adapter.media_sidecar)
+    media["tracking_jsonl_sha256"] = hashlib.sha256(tracking_bytes).hexdigest()
+    sidecar_path = tmp_path / "media_sidecar.json"
+    sidecar_path.write_bytes(canonical_json_bytes(media))
+    monkeypatch.setattr(
+        episode_inference_module,
+        "load_primary_camera_runtime",
+        lambda **_kwargs: _runtime(_FakeModel()),
+    )
+    output = tmp_path / "episode-inference"
+
+    result = build_camera_episode_inference_bundle(
+        project_root=ROOT,
+        episode_config_path=EPISODE_CONFIG_PATH,
+        tracking_jsonl_path=tracking_path,
+        media_sidecar_path=sidecar_path,
+        candidate_manifest_path=ROOT
+        / "reports/mental_health/wandering_performance/m0r_score_entry_hardening_v1/artifacts/topowander_m0r_candidate_v3/candidate_manifest.json",
+        expected_manifest_sha256=EXPECTED_CANDIDATE_MANIFEST_SHA256,
+        output_dir=output,
+        whole_clip_episode_id="episode-builder-001",
+        target_track_id=1,
+    )
+
+    assert result.episode_count == 1
+    assert result.ready_count == 1, (output / "episode_predictions.jsonl").read_text(
+        encoding="utf-8"
+    )
+    summary = json.loads((output / "summary.json").read_text(encoding="utf-8"))
+    assert summary["truth_labels_consumed_by_inference"] is False
+    assert summary["automatic_boundary_inference"] is False
+    with pytest.raises(FileExistsError):
+        build_camera_episode_inference_bundle(
+            project_root=ROOT,
+            episode_config_path=EPISODE_CONFIG_PATH,
+            tracking_jsonl_path=tracking_path,
+            media_sidecar_path=sidecar_path,
+            candidate_manifest_path=ROOT
+            / "reports/mental_health/wandering_performance/m0r_score_entry_hardening_v1/artifacts/topowander_m0r_candidate_v3/candidate_manifest.json",
+            expected_manifest_sha256=EXPECTED_CANDIDATE_MANIFEST_SHA256,
+            output_dir=output,
+            whole_clip_episode_id="episode-builder-001",
+            target_track_id=1,
+        )

@@ -1,5 +1,7 @@
 # M0-CAM-MVP-2S 执行任务书
 
+> 历史软件契约：本任务的 synthetic 日级 producer/loader 继续作为复用底座；当前真实 person/day adapter 见 [M0-CAM-5D-T4](M0-CAM-5D-T4真实日报与个人基线.md)。
+
 版本：1.0
 
 更新时间：2026-08-14

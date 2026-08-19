@@ -1,5 +1,7 @@
 # M0-CAM-MVP-1 执行任务书
 
+> 历史软件契约：本任务的 synthetic session evidence 接受记录保持不变；其 synthetic-only 范围不阻塞当前真实 camera adapter。现行闭环见 [M0-CAM-5D 总任务书](M0-CAM-5D快速交付总任务书.md)。
+
 版本：1.2
 
 更新时间：2026-08-14

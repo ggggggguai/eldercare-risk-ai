@@ -1,6 +1,6 @@
 # 当前任务
 
-更新时间：2026-08-15
+更新时间：2026-08-18
 
 本文件只记录尚未完成的工作。已经落地的能力写入模块 README；阶段结论和旧待办移入 `docs/archive/`。当前跌倒风险模块处于模型化增强阶段：规则 baseline 仍作为对照和安全 fallback，新增时序模型必须经过数据、split、评估和部署门禁后才能替换主路径。
 
@@ -8,27 +8,33 @@
 
 工作流 A 已实现统一 manifest、v2 标注导入/发布、模型训练标签 v3 迁移/统一 split/校验、四任务 split builder 和事件评估器，并用合成数据跑通 bundle。项目负责人于 2026-08-04 裁决现有规范动作标签可用于任务级正负样本：当前 v3 有 9,314 条动作、9,498 条事件和 18,812 条 split assignment，fall/near-fall hard negative 类型覆盖完整，962 条 C03 已转为 near-fall positive，446 条当前 NTU 全片跌倒按首帧/尾帧生成精确边界；校验 `valid=true`、事件任务 `training_ready=true`。fall 和 near-fall 已在锁定 test 的前提下完成三 seed train/validation 开发实验。当前剩余工作是处理 v2 formal blocker、冻结事件标签与评估协议、补充连续背景/老人域/跨来源证据并建立一次性 test 发布流程；动作类型任务因稀有类别分区覆盖不足仍为 `training_ready=false`。
 
-### 徘徊当前主任务：M0-CAM-EP1B
+### 徘徊后续条件任务：W5D-03B 居家 smoke
 
-`current_code_task=M0-CAM-EP1B`。公开轨迹模型、冻结候选、tracking、Camera QC、弧长重采样、camera forward、evaluation primitives 和 synthetic 日级/baseline preview 都已存在，不推倒重来。EP1A 已把完整 episode 路径提升为正式 config/module/importer/CLI，并由 D01/S00 回归确认。EP1B 的代码、指标分母和停止条件见 [执行任务书](../modules/mental_health/plans/M0-CAM-EP1B执行任务书.md)。
+`current_code_task=none`，`current_delivery_status=M0-CAM-5D algorithm_ready_with_home_smoke_pending`，`next_conditional_task=W5D-03B home smoke (awaiting_input)`。W5D-00 至 W5D-05 已完成 contract、segmenter fallback、automatic episode→shape、context core、真实 development 日报/个人基线、严格 8 文件 handoff 和单命令 cached-tracking E2E。正式包原样包含 129 条 episode、82 条 context、2 条 daily、2 条 profile 和 2 条 deviation；95 条可用 shape、34 条 unavailable、0 条 error、19 条 wandering-like 和 617.8 秒 duration 守恒。两个真实 profile/deviation 均为 `warming_up`；15 日 replay 只验证 3/7/14 readiness 和最新 14 日窗口。现行任务书为 [M0-CAM-5D 快速交付总任务书](../modules/mental_health/plans/M0-CAM-5D快速交付总任务书.md)。
 
-当前同时保留两条明确分层的路径：EP1A 正式入口执行 **人工/CVAT/whole-clip 边界 → episode 内 QC → 弧长 80 点 → frozen shape forward**；旧 `camera_episode.py` 仍执行 **40 秒滑窗预测 → 相邻同预测类别窗口合并**，只作 legacy long-context diagnostic。D01 12 条 whole-clip 与 S00 三条 XML episode 已从正式入口复现 direct；S00 合并的 0–40 秒仍为 lapping-like。本机已有 P01 4 条、L01 3 条、R01 3 条、H01–H05 共 9 条、N01 1 条和 Q01–Q03 共 3 条剪辑，但除 S00 外尚未形成 XML/tracking/正式 episode 输出。下一缺口是先标注、跟踪并评价这些现有样片，再按有效 support 补拍，不是先调模型和阈值。
+负责人最新决定：B01 和 B02 统一作为可反复使用的 camera development 数据，可持续用于分段器、边界 refinement、送模策略、camera 预处理、binary 识别和必要的轻量模型调整。旧 B02 holdout/v1/v2 结果只保留为历史快照，不再阻止当前开发。当前没有可用于定量验收的已标注居家视频，因此 W5D-03 拆为 A/B：A 立即用 B01+B02/fixture 完成 input-independent context core，B 在居家 MP4 到位后补 truth-free smoke；人工标签只在需要计算 development 指标时补。居家输入或标签暂缺不阻塞 W5D-03A、W5D-04、W5D-05。
 
-主路线固定为：
+全部当前及后续提供的视频、截图、标注和内部研发使用默认已经完整授权；consent、receipt 和隐私审批不再是当前任务门禁。仍保留匿名 person/session/setup/video binding、原视频不进 Git和输出不覆盖等工程约束。
+
+主路线为：
 
 ```text
 video/tracking
   → technical tracklet QC
   → episode boundary
   → complete episode arc-length resample to 80
-  → frozen TopoWander shape classification
-  → episode sequence duration/repetition + observable purpose/context
-  → alert candidate（后续）
+  → TopoWander shape classification
+  → optional three-frame multimodal purpose/context
+  → real session/day aggregation
+  → rolling personal baseline
+  → backend-facing JSON/JSONL handoff
 ```
 
-40 秒路径保留为 `legacy long-context shape diagnostic`，不覆盖 episode 真值，不直接作为告警。PORTABLE/F1、逐文件 hash、source anchor 和重复 exact-schema 审计均降为跨机部署/正式发布前债务，不阻塞本机 EP1/EP2 开发。
+轨迹模型只判断 shape。电话、找东西、清洁、锻炼等困难行为不单独建立轨迹模型，由多模态 context reviewer 补充；reviewer 失败输出 `unknown/unavailable`，不阻塞轨迹、日报或基线。后端和前端不在本轮实现，算法只交付可对接契约。
 
-最低不可省规则只有：人工标签不能根据预测修改；participant/session/setup 先分组再派生 episode；原视频不进 Git；冻结模型/阈值作为基线保留；输出不覆盖；局部改动跑窄测并回归 D01/S00。
+五日核心代码任务已经完成。`W5D-03B` 仅在居家素材到位后启动补充复放；当前素材状态是 `awaiting_input`，不是算法阻塞。没有居家视频时交付状态保持 `algorithm_ready_with_home_smoke_pending`，不得伪装成 `home_validated`。
+
+40 秒路径、C4 sealed、跨 participant/setup、PORTABLE 和长期临床验证均为后续增强，不是五日门禁。最低不可省规则是：人工标签不能根据预测修改；shape 与 purpose/context 分离；technical hard break 不跨越；原视频不进 Git；输出不覆盖；模型/配置/数据身份可追溯；局部改动先跑窄测。
 
 | 任务 | 完成标准 |
 |---|---|
@@ -37,28 +43,7 @@ video/tracking
 | 冻结四个跌倒任务 split | 当前 v2 根事件的 fall/near-fall split 仅为 provisional ready，v3 统一 split 也未冻结；四任务分别取得合格样本、稳定 `split_id`、无泄漏报告和冻结记录。没有真实参考终点的功能/纵向任务继续明确阻塞，不制造空壳正式 split |
 | 完成跌倒风险正式评估 | 预注册并冻结事件匹配与统计协议，指定测试集保管人与一次性发布流程；在真实冻结 split 上输出 Precision、Recall、F1、PR-AUC、合法分母下的误报指标、提前量、95% CI 和失败案例 bundle |
 | 解除 Workflow A 数据阻断 | 完成 CVAT 身份元数据处置、人员或保守源组说明、功能与纵向参考终点确认；解除证据写入 `reports/fall_risk/workflow_a_blockers.md` |
-| `M0-CAM-EP1B`：摄像头 shape 小样本 | 先实现轻量批量 evaluator，并标注/跟踪现有 P01/L01/R01；prediction 与独立 truth 一对一连接，以全部 shape-eligible truth 为主分母，非 ready 不得静默删除。先用每类约 2 条跑通，再把 pacing/lapping/random 补到各约 10 个有效 episode；报告四分类/shape-binary precision、recall、F1、support、QC coverage、时长分层、分组支持和 purposeful 诊断。该规模只用于路线选择，不宣称现实 95%。详见 [EP1B 任务书](../modules/mental_health/plans/M0-CAM-EP1B执行任务书.md)。 |
-| `M0-CAM-EP2A`：连续视频自动/半自动边界 | 用 track start/end、出画重入、长 gap、持续停留后活动切换等信号产生 boundary；一次转向/折返/闭环不能直接切段。报告 boundary tIoU、起止误差、漏切、多切，以及自动切段后的端到端 shape F1；不拿 oracle-boundary 成绩冒充自动识别。 |
-| 自然负例与困难负例 | 先收集 30–60 分钟自然活动，再逐步扩充多小时、多 participant/setup。坐、站、办公等非行走时段进入独立 `continuous_negative_timeline`，不能伪标 direct。先报 shape-candidate false activations / eligible negative person-hour；最终 alert FAR 等告警决策层实现后再报。 |
-| `M0-CAM-EP2B/EP3`：长上下文与时间/上下文增强 | 比较 episode-only 与 episode + legacy 40 秒诊断。先把 duration、dwell、重复 episode、回访和 purpose/context 作为模型外证据；只有留出 development 数据证明冻结模型或决策层不足时，才新建时间感知/域适配候选并重训，不直接翻开当前禁用的时间通道。 |
-| 正式数据与发布债务 | 日常 EP1/EP2 只需匿名编号、独立标签、分组防泄漏、非覆盖输出和真实样片回归。现有 collection/receipt/exact-schema/hash/PORTABLE 工具只在跨机交接、数据/模型冻结、sealed 评估或正式发布时集中启用；没有实际失败时不继续扩展审计。 |
-| 建立心理健康评估口径 | 固定日级验证样本、人工复核标签和分层一致性指标，不使用医学诊断表述 |
-| 完成真实萤石链路联调 | 使用真实设备或开放平台直播地址启动会话，后端收到并验收风险回调 |
-| 固定接口契约 | 后端确认字段、鉴权、时间格式、幂等规则和风险动作编码，并保存联调记录 |
-| 完成数据合规材料 | 在采集真人数据前准备知情同意、脱敏编号、访问控制、保留周期和退出删除流程 |
-| 固化开发环境与数据版本证据 | 保持 `eldercare-ai` 的 editable 安装指向当前仓库；记录环境、代码、manifest、标签、split 和配置 hash，并用文档中的 conda 命令完成全量复现 |
-
-### 徘徊连续执行队列
-
-| 顺序 | 当前事务 | 完成标志 |
-|---|---|---|
-| W1 | EP1B 四类 camera episode 小样本 | 先消费现有 P/L/R/H 视频并完成批量 evaluator；每类有可评分完整 episode，输出 all-eligible 主指标、ready-only 条件指标、QC coverage、时长/分组支持和失败案例。工具完成但数据不足时只写 `implementation_complete + data_pending`。 |
-| W2 | EP2A 连续混合视频与 automatic boundary | 报 boundary tIoU/onset-offset、漏切/多切和自动端到端 shape 指标；与 oracle 上限分开。 |
-| W3 | 自然活动和 purposeful hard negatives | 建立 continuous-negative timeline；报告 candidate false activations/person-hour、QC coverage 和主要误触发。 |
-| W4 | EP2B/EP3 决策 | 只有留出数据证明 episode-only 不足时才采用 40 秒辅助、外部 duration/dwell/repetition/context 或新训练候选；每次只验证一个主要变化。 |
-| W5 | Development freeze 与 C4 | 冻结 episode producer、shape candidate、boundary/uncertain/matching 和告警决策；最后在独立 participant/session/setup 上评价，sealed 结果不回调同一版本。 |
-| W6 | 产品接入 | 复用已有 session/day/baseline preview，将稳定 episode 序列接入日级 evidence；真实 person binding、风险策略和 `AlgorithmEvent` 分别验证。 |
-| R | 发布/跨机债务 | 仅在实际部署或正式交付前集中关闭 PORTABLE、资产恢复和必要 hash；不在 W1–W5 期间继续扩展 synthetic 审计。 |
+| `W5D-03B`：居家视频补充 smoke | MP4 到位后直接 truth-free 运行 tracking -> segment -> shape -> context；未标注不计算性能，有独立标签后再补 development 复核。 |
 
 ## P1：提高实时可靠性
 
@@ -70,8 +55,8 @@ video/tracking
 | 完成实时窗口增量计算与资源验收 | 相同窗口 memoization 已完成；仍需对新增姿态后的质量平滑和分支分析做逐层 golden 等价的增量计算，并在固定硬件上给出连续运行、分段延迟、资源峰值和吞吐测试 |
 | 校准近跌倒误报 | 增加弯腰、快速坐下、转身、遮挡和多人场景负样本，报告阈值曲线与失败案例 |
 | 完善个体基线冷启动 | 明确无历史、初始基线和稳定基线阶段的分数上限、置信度和更新策略 |
-| 建立心理健康运行调度 | 明确日级任务由谁触发、输入从何处读取、结果如何交付和重跑 |
-| 接入摄像头徘徊证据 | 先完成 episode-first runner，并分别报告 oracle-boundary shape、automatic boundary+shape、legacy 40 秒诊断、candidate false activations/person-hour、延迟和覆盖率。只有 episode producer、目的/持续性决策和独立 sealed session 证据齐全后才接入 `routine_irregularity_score` |
+| 建立心理健康运行调度 | W5D-05 已交付可重复运行的徘徊算法 runner、日级 JSONL、严格 handoff 和重跑说明；定时触发、HTTP 服务和业务调度仍由后端团队后续实现 |
+| 接入摄像头徘徊证据 | W5D-00 至 W5D-05 的 B01+B02 development 算法包已完成；后续由后端消费独立 wandering evidence，并单独决定是否映射到 `routine_irregularity_score`。居家视频到位后补 smoke，不阻塞现有算法包 |
 
 ## P2：数据和模型增强
 

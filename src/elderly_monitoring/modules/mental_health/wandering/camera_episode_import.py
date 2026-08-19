@@ -138,9 +138,13 @@ def validate_episode_boundary(
     if not row["start_sec"] < row["end_sec_exclusive"] <= duration + 1e-9:
         raise CameraEpisodeImportError("episode boundary interval is outside the video")
     row["end_sec_exclusive"] = min(row["end_sec_exclusive"], duration)
-    if row["boundary_source"] not in BOUNDARY_SOURCES:
+    if not isinstance(row["boundary_source"], str) or row[
+        "boundary_source"
+    ] not in BOUNDARY_SOURCES:
         raise CameraEpisodeImportError("episode boundary_source is invalid")
-    if row["boundary_status"] not in BOUNDARY_STATUSES:
+    if not isinstance(row["boundary_status"], str) or row[
+        "boundary_status"
+    ] not in BOUNDARY_STATUSES:
         raise CameraEpisodeImportError("episode boundary_status is invalid")
     reasons = row["boundary_reason_codes"]
     if not isinstance(reasons, list) or any(
@@ -185,6 +189,91 @@ def load_episode_boundaries(
     if not rows:
         raise CameraEpisodeImportError("episode boundary JSONL is empty")
     _validate_boundary_collection(rows)
+    return sorted(
+        rows,
+        key=lambda row: (
+            str(row["source_video_id"]),
+            int(row["target_track_id"]),
+            float(row["start_sec"]),
+            str(row["episode_id"]),
+        ),
+    )
+
+
+def validate_episode_truth(value: Mapping[str, Any]) -> dict[str, Any]:
+    """Validate one independent v1 truth row without consulting predictions."""
+
+    if not isinstance(value, Mapping) or frozenset(value) != TRUTH_FIELDS:
+        raise CameraEpisodeImportError("episode truth fields must match the exact v1 set")
+    row = dict(value)
+    if row["schema_version"] != CAMERA_EPISODE_TRUTH_SCHEMA_VERSION:
+        raise CameraEpisodeImportError("episode truth schema_version is invalid")
+    row["episode_id"] = _nonempty_text(row["episode_id"], "episode_id")
+    row["source_video_id"] = _nonempty_text(
+        row["source_video_id"], "source_video_id"
+    )
+    row["target_track_id"] = _nonnegative_int(
+        row["target_track_id"], "target_track_id"
+    )
+    if row["cvat_track_id"] is not None:
+        row["cvat_track_id"] = _nonempty_text(
+            row["cvat_track_id"], "cvat_track_id"
+        )
+    row["start_sec"] = _finite_nonnegative(row["start_sec"], "start_sec")
+    row["end_sec_exclusive"] = _finite_nonnegative(
+        row["end_sec_exclusive"], "end_sec_exclusive"
+    )
+    if row["start_sec"] >= row["end_sec_exclusive"]:
+        raise CameraEpisodeImportError("episode truth interval must be positive")
+    _validate_truth_attributes(
+        {name: row[name] for name in _CVAT_ATTRIBUTES}
+    )
+    if not isinstance(row["annotation_status"], str) or row[
+        "annotation_status"
+    ] not in {"accepted", "uncertain", "excluded"}:
+        raise CameraEpisodeImportError("episode truth annotation_status is invalid")
+    expected_status = {
+        "uncertain": "uncertain",
+        "excluded": "excluded",
+    }.get(row["evaluation_role"], "accepted")
+    if row["annotation_status"] != expected_status:
+        raise CameraEpisodeImportError(
+            "episode truth annotation_status/evaluation_role are inconsistent"
+        )
+    for field in ("script_type", "note"):
+        if not isinstance(row[field], str) or any(
+            char in row[field] for char in "\r\n\0"
+        ):
+            raise CameraEpisodeImportError(f"episode truth {field} is invalid")
+    return row
+
+
+def load_episode_truth(path: str | Path) -> list[dict[str, Any]]:
+    """Load independent episode truth while preserving human-entered semantics."""
+
+    truth_path = Path(path)
+    try:
+        lines = truth_path.read_text(encoding="utf-8").splitlines()
+    except (OSError, UnicodeError) as exc:
+        raise CameraEpisodeImportError("cannot read episode truth JSONL") from exc
+    rows: list[dict[str, Any]] = []
+    episode_ids: set[str] = set()
+    for line_number, line in enumerate(lines, start=1):
+        if not line.strip():
+            continue
+        try:
+            value = json.loads(line, parse_constant=_reject_json_constant)
+            row = validate_episode_truth(value)
+        except (json.JSONDecodeError, CameraEpisodeImportError) as exc:
+            raise CameraEpisodeImportError(
+                f"invalid episode truth JSON at line {line_number}"
+            ) from exc
+        if row["episode_id"] in episode_ids:
+            raise CameraEpisodeImportError("duplicate episode_id in episode truth")
+        episode_ids.add(row["episode_id"])
+        rows.append(row)
+    if not rows:
+        raise CameraEpisodeImportError("episode truth JSONL is empty")
     return sorted(
         rows,
         key=lambda row: (
@@ -299,7 +388,7 @@ def import_cvat_episode_xml(
             "uncertain": "uncertain",
             "excluded": "excluded",
         }.get(attributes["evaluation_role"], "accepted")
-        truth = {
+        truth = validate_episode_truth({
             "schema_version": CAMERA_EPISODE_TRUTH_SCHEMA_VERSION,
             "episode_id": episode_id,
             "source_video_id": source_video_id,
@@ -309,9 +398,7 @@ def import_cvat_episode_xml(
             "end_sec_exclusive": end_sec,
             **attributes,
             "annotation_status": annotation_status,
-        }
-        if frozenset(truth) != TRUTH_FIELDS:
-            raise CameraEpisodeImportError("episode truth fields have drifted")
+        })
         boundaries.append(boundary)
         truths.append(truth)
     _validate_boundary_collection(boundaries)
@@ -386,6 +473,8 @@ def _validate_boundary_collection(rows: Sequence[Mapping[str, Any]]) -> None:
 def _validate_truth_attributes(value: Mapping[str, str]) -> None:
     if frozenset(value) != _CVAT_ATTRIBUTES:
         raise CameraEpisodeImportError("CVAT episode attributes must match the v1 set")
+    if any(not isinstance(value[name], str) for name in _CVAT_ATTRIBUTES):
+        raise CameraEpisodeImportError("CVAT episode attributes must be strings")
     if any(item == "not_set" for item in value.values()):
         raise CameraEpisodeImportError("CVAT episode has an unconfirmed not_set attribute")
     if value["observable_pattern"] not in _PATTERNS:
@@ -504,5 +593,7 @@ __all__ = [
     "build_cvat_episode_import_bundle",
     "import_cvat_episode_xml",
     "load_episode_boundaries",
+    "load_episode_truth",
     "validate_episode_boundary",
+    "validate_episode_truth",
 ]

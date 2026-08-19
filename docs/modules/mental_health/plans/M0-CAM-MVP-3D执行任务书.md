@@ -1,5 +1,7 @@
 # M0-CAM-MVP-3D 执行任务书
 
+> 历史软件契约：本任务的 synthetic deviation preview 及 risk/event 空值边界保持历史有效；当前真实日报、baseline readiness 和 deviation 交付见 [M0-CAM-5D-T4](M0-CAM-5D-T4真实日报与个人基线.md)。
+
 版本：1.1
 
 更新时间：2026-08-14

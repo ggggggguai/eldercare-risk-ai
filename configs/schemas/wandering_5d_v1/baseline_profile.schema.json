@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "wandering-handoff-baseline-profile-v1",
+  "title": "Rolling personal wandering baseline profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "module",
+    "record_id",
+    "profile_id",
+    "person_id",
+    "session_id",
+    "source_video_id",
+    "local_date",
+    "timezone",
+    "status",
+    "readiness_status",
+    "usable_day_count",
+    "reference_window_days",
+    "reference_first_local_date",
+    "reference_last_local_date",
+    "metrics",
+    "quality_flags",
+    "identity",
+    "source_refs"
+  ],
+  "properties": {
+    "schema_version": {"const": "wandering-handoff-baseline-profile-v1"},
+    "module": {"const": "mental_health"},
+    "record_id": {"type": "string", "minLength": 1},
+    "profile_id": {"type": "string", "minLength": 1},
+    "person_id": {"type": "string", "minLength": 1},
+    "session_id": {"type": ["string", "null"]},
+    "source_video_id": {"type": ["string", "null"]},
+    "local_date": {"type": "string", "format": "date"},
+    "timezone": {"type": "string", "minLength": 1},
+    "status": {"enum": ["ready", "uncertain", "unavailable", "error"]},
+    "readiness_status": {"enum": ["warming_up", "initial_ready", "stable_ready", "unavailable"]},
+    "usable_day_count": {"type": "integer", "minimum": 0},
+    "reference_window_days": {"const": 14},
+    "reference_first_local_date": {"type": ["string", "null"], "format": "date"},
+    "reference_last_local_date": {"type": ["string", "null"], "format": "date"},
+    "metrics": {"type": "object", "additionalProperties": {"$ref": "#/$defs/metric"}},
+    "quality_flags": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "identity": {"$ref": "#/$defs/identity"},
+    "source_refs": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/source_ref"}}
+  },
+  "$defs": {
+    "metric": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["count", "median", "p90"],
+      "properties": {
+        "count": {"type": "integer", "minimum": 0},
+        "median": {"type": ["number", "null"]},
+        "p90": {"type": ["number", "null"]}
+      }
+    },
+    "identity": {
+      "type": "object",
+      "required": ["model_id", "model_sha256", "config_id", "config_sha256", "policy_id", "policy_sha256"],
+      "properties": {
+        "model_id": {"type": ["string", "null"]},
+        "model_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+        "config_id": {"type": "string", "minLength": 1},
+        "config_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "policy_id": {"type": "string", "minLength": 1},
+        "policy_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "source_ref": {
+      "type": "object",
+      "required": ["ref_type", "ref_id", "artifact_path", "sha256"],
+      "properties": {
+        "ref_type": {"type": "string", "minLength": 1},
+        "ref_id": {"type": "string", "minLength": 1},
+        "artifact_path": {"type": ["string", "null"]},
+        "sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"}
+      }
+    }
+  }
+}

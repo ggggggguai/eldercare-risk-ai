@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "wandering-handoff-manifest-v1",
+  "title": "Backend-consumable wandering algorithm handoff manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "module",
+    "handoff_id",
+    "created_at",
+    "person_id",
+    "session_id",
+    "source_video_id",
+    "status",
+    "algorithm_event_emitted",
+    "artifacts",
+    "quality_flags",
+    "identity",
+    "source_refs"
+  ],
+  "properties": {
+    "schema_version": {"const": "wandering-handoff-manifest-v1"},
+    "module": {"const": "mental_health"},
+    "handoff_id": {"type": "string", "minLength": 1},
+    "created_at": {"type": "string", "format": "date-time"},
+    "person_id": {"type": ["string", "null"]},
+    "session_id": {"type": ["string", "null"]},
+    "source_video_id": {"type": ["string", "null"]},
+    "status": {"enum": ["ready", "uncertain", "unavailable", "error"]},
+    "algorithm_event_emitted": {"const": false},
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "episode_results.jsonl",
+        "context_reviews.jsonl",
+        "daily_reports.jsonl",
+        "baseline_profiles.jsonl",
+        "baseline_deviations.jsonl",
+        "run_summary.json",
+        "README.md"
+      ],
+      "properties": {
+        "episode_results.jsonl": {"$ref": "#/$defs/artifact"},
+        "context_reviews.jsonl": {"$ref": "#/$defs/artifact"},
+        "daily_reports.jsonl": {"$ref": "#/$defs/artifact"},
+        "baseline_profiles.jsonl": {"$ref": "#/$defs/artifact"},
+        "baseline_deviations.jsonl": {"$ref": "#/$defs/artifact"},
+        "run_summary.json": {"$ref": "#/$defs/artifact"},
+        "README.md": {"$ref": "#/$defs/artifact"}
+      }
+    },
+    "quality_flags": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "identity": {"$ref": "#/$defs/identity"},
+    "source_refs": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/source_ref"}}
+  },
+  "$defs": {
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "record_count", "byte_count", "sha256"],
+      "properties": {
+        "schema_version": {"type": ["string", "null"]},
+        "record_count": {"type": ["integer", "null"], "minimum": 0},
+        "byte_count": {"type": "integer", "minimum": 0},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "identity": {
+      "type": "object",
+      "required": ["model_id", "model_sha256", "config_id", "config_sha256", "policy_id", "policy_sha256"],
+      "properties": {
+        "model_id": {"type": ["string", "null"]},
+        "model_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+        "config_id": {"type": "string", "minLength": 1},
+        "config_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "policy_id": {"type": "string", "minLength": 1},
+        "policy_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "source_ref": {
+      "type": "object",
+      "required": ["ref_type", "ref_id", "artifact_path", "sha256"],
+      "properties": {
+        "ref_type": {"type": "string", "minLength": 1},
+        "ref_id": {"type": "string", "minLength": 1},
+        "artifact_path": {"type": ["string", "null"]},
+        "sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"}
+      }
+    }
+  }
+}

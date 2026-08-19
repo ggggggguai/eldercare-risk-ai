@@ -1,0 +1,74 @@
+schema_version: wandering-camera-handoff-config-v1
+handoff_id: w5d05-b01-b02-algorithm-handoff-v1
+delivery_status: algorithm_ready_with_home_smoke_pending
+validation_scope: b01_b02_development
+home_input_status: awaiting_input
+home_annotation_status: not_provided
+home_smoke_status: not_run_input_unavailable
+
+inputs:
+  episode:
+    bundle_path: reports/mental_health/wandering_camera_episode_pipeline_w5d02_v4
+    manifest_sha256: d99cd3dcf53797287027f6dbe8a3b006114eff0df73acc3600b136355d9f7981
+  context:
+    bundle_path: reports/mental_health/wandering_camera_context_core_w5d03a_v2
+    manifest_sha256: b031a4d5160e1ac62f931bec2786e5011cd7165d39c4d65bf3978a04bb761dea
+  daily:
+    bundle_path: reports/mental_health/wandering_camera_daily_baseline_w5d04_v1
+    manifest_sha256: fd10bc695c09b73fb7fcd1bcafd0d9b2b024a82dd5b8fe33f564107cbb16a06d
+
+schemas:
+  episode_results.jsonl:
+    path: configs/schemas/wandering_5d_v1/episode_result.schema.json
+    sha256: 7daea2e5102803165812e1069507c682ffa850b71484017a5ac097f452cea484
+    schema_version: wandering-handoff-episode-result-v1
+  context_reviews.jsonl:
+    path: configs/schemas/wandering_5d_v1/context_review_v2.schema.json
+    sha256: 3cc0146bfbee63ab3a58bf01a0de2309b338896e7de97dea722c0e7356eb1c3f
+    schema_version: wandering-handoff-context-review-v2
+  daily_reports.jsonl:
+    path: configs/schemas/wandering_5d_v1/daily_report_v2.schema.json
+    sha256: dd174df7cada1f9192ea7effbe71955ebe443c7fe72ea6984ed214fc490bafa0
+    schema_version: wandering-handoff-daily-report-v2
+  baseline_profiles.jsonl:
+    path: configs/schemas/wandering_5d_v1/baseline_profile.schema.json
+    sha256: 370f58faa2ff4324b796be2f71c9391010a92e0cc6c153315ea53d1c5ad4f0d8
+    schema_version: wandering-handoff-baseline-profile-v1
+  baseline_deviations.jsonl:
+    path: configs/schemas/wandering_5d_v1/baseline_deviation.schema.json
+    sha256: 0e7836d8bd72959268b972b29ad4fc6b6189238e8152df663000b013d8b4616e
+    schema_version: wandering-handoff-baseline-deviation-v1
+  handoff_manifest.json:
+    path: configs/schemas/wandering_5d_v1/handoff_manifest_v2.schema.json
+    sha256: b8037a50c074ce8dbbb187ca4800f2b86f983776a3353e9cea2616597f31947c
+    schema_version: wandering-handoff-manifest-v2
+  run_summary.json:
+    path: configs/schemas/wandering_5d_v1/run_summary_v2.schema.json
+    sha256: 14749bb555b88c1e241252afabd16ae475ed6647836c36ce06b95945be9935ff
+    schema_version: wandering-handoff-run-summary-v2
+
+identity:
+  config_id: w5d05-b01-b02-algorithm-handoff-v1
+  policy_id: w5d05-verified-lossless-three-stage-assembly-v1
+
+policy:
+  passthrough_rows_without_mutation: true
+  validate_cross_stage_identity: true
+  preserve_uncertain_unavailable_error: true
+  provider_failure_nonblocking: true
+  algorithm_event_emitted: false
+  medical_diagnosis_emitted: false
+  backend_or_frontend_implemented: false
+
+output:
+  required_files:
+    - handoff_manifest.json
+    - episode_results.jsonl
+    - context_reviews.jsonl
+    - daily_reports.jsonl
+    - baseline_profiles.jsonl
+    - baseline_deviations.jsonl
+    - run_summary.json
+    - README.md
+  fresh_output_directory_must_not_exist: true
+  atomic_commit: true
