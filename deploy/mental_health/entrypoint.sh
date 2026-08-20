@@ -17,5 +17,5 @@ python /app/scripts/deploy/verify_mental_health_assets.py \
 
 exec uvicorn elderly_monitoring.service.mental_health_app:app \
   --host 0.0.0.0 \
-  --port "${PORT:-8081}" \
+  --port "${PORT:-8082}" \
   --workers 1
