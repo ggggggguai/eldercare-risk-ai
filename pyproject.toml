@@ -1,0 +1,12 @@
+[project]
+name = "elderly-monitoring-asr-service"
+version = "1.0.0"
+description = "Offline Chinese ASR service for the YingLingAnJu cognitive task pipeline."
+requires-python = ">=3.11,<3.12"
+dependencies = [
+  "pydantic==2.13.4",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

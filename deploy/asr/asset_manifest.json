@@ -1,0 +1,188 @@
+{
+  "assets": [
+    {
+      "component": "ct_punc",
+      "path": "models/asr/asr-paraformer-zh-v1.0/ct-punc/.gitattributes",
+      "sha256": "bc7177460104c4a1b762899a2c158fed192e0c4db70c974f169b5136cdf17acc",
+      "size_bytes": 1458
+    },
+    {
+      "component": "ct_punc",
+      "path": "models/asr/asr-paraformer-zh-v1.0/ct-punc/README.md",
+      "sha256": "d1f2f3c30db716fb995208608d4305b045f6ef7b7b46a84e7e2d200160df50e0",
+      "size_bytes": 11561
+    },
+    {
+      "component": "ct_punc",
+      "path": "models/asr/asr-paraformer-zh-v1.0/ct-punc/config.yaml",
+      "sha256": "c5ffb25cd063ed366cb26283908dca05a08ecfef8e90bef1d498ef9ffacd7552",
+      "size_bytes": 812
+    },
+    {
+      "component": "ct_punc",
+      "path": "models/asr/asr-paraformer-zh-v1.0/ct-punc/configuration.json",
+      "sha256": "7043245e6264cea789404e498a6f55a330a18585a4690d35dfe71741e6982237",
+      "size_bytes": 450
+    },
+    {
+      "component": "ct_punc",
+      "path": "models/asr/asr-paraformer-zh-v1.0/ct-punc/example/punc_example.txt",
+      "sha256": "1905542a6e78e344504a3b56cbc772eb391a20eb7eac71830f837852b558dd0c",
+      "size_bytes": 863
+    },
+    {
+      "component": "ct_punc",
+      "path": "models/asr/asr-paraformer-zh-v1.0/ct-punc/fig/struct.png",
+      "sha256": "90e5bdca14b00d4bbcafcbb1e9e2ca0e3905afb2b3b3129e5fd85d49b059812c",
+      "size_bytes": 154534
+    },
+    {
+      "component": "ct_punc",
+      "path": "models/asr/asr-paraformer-zh-v1.0/ct-punc/jieba.c.dict",
+      "sha256": "eb0a68f8bfa65e6956d59e8f9652b49f5c91952273e24737bc9a8c5e23055221",
+      "size_bytes": 41536866
+    },
+    {
+      "component": "ct_punc",
+      "path": "models/asr/asr-paraformer-zh-v1.0/ct-punc/jieba_usr_dict",
+      "sha256": "059aa2af152734d5fd011a4d69cbab171f62347074db0db5157c17b5649010f5",
+      "size_bytes": 11280857
+    },
+    {
+      "component": "ct_punc",
+      "path": "models/asr/asr-paraformer-zh-v1.0/ct-punc/model.pt",
+      "sha256": "7176cae922a872e130e6b88aef9a1153581711baf79c9124c7c95be383cd6f81",
+      "size_bytes": 1125507622
+    },
+    {
+      "component": "ct_punc",
+      "path": "models/asr/asr-paraformer-zh-v1.0/ct-punc/tokens.json",
+      "sha256": "89951fe0669380ed33298ee048c4a2b0ebcaaf6ee8f332d85c281c41d0f38392",
+      "size_bytes": 8280697
+    },
+    {
+      "component": "fsmn_vad",
+      "path": "models/asr/asr-paraformer-zh-v1.0/fsmn-vad/.gitattributes",
+      "sha256": "f3d04437c926962476701a7939d22f21400b4eb0bdd31a15f0012576f2d00932",
+      "size_bytes": 1414
+    },
+    {
+      "component": "fsmn_vad",
+      "path": "models/asr/asr-paraformer-zh-v1.0/fsmn-vad/README.md",
+      "sha256": "42377011603a186fc2bae41a5cc5e548ebf98d8ec307bbae9dd405f82567f543",
+      "size_bytes": 11567
+    },
+    {
+      "component": "fsmn_vad",
+      "path": "models/asr/asr-paraformer-zh-v1.0/fsmn-vad/am.mvn",
+      "sha256": "6820fef9687708c4fc3fab2530179c8fcea6262daa25514380056cd8f6eb1754",
+      "size_bytes": 8040
+    },
+    {
+      "component": "fsmn_vad",
+      "path": "models/asr/asr-paraformer-zh-v1.0/fsmn-vad/config.yaml",
+      "sha256": "486861ca26ddb79081663b6179cb204c6bfae71c52f04aafc48a9e9d8dde1e93",
+      "size_bytes": 1215
+    },
+    {
+      "component": "fsmn_vad",
+      "path": "models/asr/asr-paraformer-zh-v1.0/fsmn-vad/configuration.json",
+      "sha256": "7bce8867e37d55c3dd8f672695ced18077a2be199ea529a5d432d5350fc0acba",
+      "size_bytes": 365
+    },
+    {
+      "component": "fsmn_vad",
+      "path": "models/asr/asr-paraformer-zh-v1.0/fsmn-vad/example/vad_example.wav",
+      "sha256": "a7431f0169ef76ef630c945a1d2c3675d8c8c2df2ae4a6b16f8a88ba1bccfbbb",
+      "size_bytes": 2261722
+    },
+    {
+      "component": "fsmn_vad",
+      "path": "models/asr/asr-paraformer-zh-v1.0/fsmn-vad/fig/struct.png",
+      "sha256": "c745bcc2fd4952fb1fe5a0f7f9fdabda510c3771e7a47dd22be605e26db4ee2c",
+      "size_bytes": 27914
+    },
+    {
+      "component": "fsmn_vad",
+      "path": "models/asr/asr-paraformer-zh-v1.0/fsmn-vad/model.pt",
+      "sha256": "b3be75be477f0780277f3bae0fe489f48718f585f3a6e45d7dd1fbb1a4255fc5",
+      "size_bytes": 1721366
+    },
+    {
+      "component": "paraformer",
+      "path": "models/asr/asr-paraformer-zh-v1.0/paraformer/.gitattributes",
+      "sha256": "add805e08e8143963fdf431296858f87fdd1fb0828f05f6914323ab750ed4574",
+      "size_bytes": 1546
+    },
+    {
+      "component": "paraformer",
+      "path": "models/asr/asr-paraformer-zh-v1.0/paraformer/README.md",
+      "sha256": "efd38df06f3f37e337d54bbdb19ba0d1eeaefe7de84e7a0a2acbec213c8ab79c",
+      "size_bytes": 20405
+    },
+    {
+      "component": "paraformer",
+      "path": "models/asr/asr-paraformer-zh-v1.0/paraformer/am.mvn",
+      "sha256": "29b3c740a2c0cfc6b308126d31d7f265fa2be74f3bb095cd2f143ea970896ae5",
+      "size_bytes": 11203
+    },
+    {
+      "component": "paraformer",
+      "path": "models/asr/asr-paraformer-zh-v1.0/paraformer/config.yaml",
+      "sha256": "bfd424b9f61846aac63591e96fe24d66b35f4643bddcb4b9bb759db8f987ab79",
+      "size_bytes": 2509
+    },
+    {
+      "component": "paraformer",
+      "path": "models/asr/asr-paraformer-zh-v1.0/paraformer/configuration.json",
+      "sha256": "b7d2917954fc547e43ad61486a5248596738cf5909907eade11e71c56f446f34",
+      "size_bytes": 472
+    },
+    {
+      "component": "paraformer",
+      "path": "models/asr/asr-paraformer-zh-v1.0/paraformer/example/asr_example.wav",
+      "sha256": "a1bd32dc78493c123f9625a66deee562aed2895f53fbc39f2cca3be7e6f4f20f",
+      "size_bytes": 177572
+    },
+    {
+      "component": "paraformer",
+      "path": "models/asr/asr-paraformer-zh-v1.0/paraformer/fig/struct.png",
+      "sha256": "bf0244c008d8e49e6c78f1d37820255d4b0690ef6aded9ddbc4afb3a12f0344b",
+      "size_bytes": 49870
+    },
+    {
+      "component": "paraformer",
+      "path": "models/asr/asr-paraformer-zh-v1.0/paraformer/model.pt",
+      "sha256": "5bba782a5e9196166233b9ab12ba04cadff9ef9212b4ff6153ed9290ff679025",
+      "size_bytes": 880502012
+    },
+    {
+      "component": "paraformer",
+      "path": "models/asr/asr-paraformer-zh-v1.0/paraformer/seg_dict",
+      "sha256": "59a2ef803a3f1648ad03a2e1480db1c1ee0c0d7dc4ef4dbd16cea33944329022",
+      "size_bytes": 8287834
+    },
+    {
+      "component": "paraformer",
+      "path": "models/asr/asr-paraformer-zh-v1.0/paraformer/tokens.json",
+      "sha256": "2b20c2b12572d682afff84ce1c8d560f67b8b32a4c1f21567411d141ed352127",
+      "size_bytes": 93676
+    },
+    {
+      "component": "package_integrity",
+      "path": "models/asr/asr-paraformer-zh-v1.0/sha256sums.txt",
+      "sha256": "5f3d9fc1bd67db333e60d993cec281744a5f0bfc3798c2e3dc70d925f8705b37",
+      "size_bytes": 2498
+    }
+  ],
+  "manifest_version": "2026-08-20.1",
+  "model_version": "asr-paraformer-zh-v1.0",
+  "package_manifest_sha256": "5f3d9fc1bd67db333e60d993cec281744a5f0bfc3798c2e3dc70d925f8705b37",
+  "package_root": "models/asr/asr-paraformer-zh-v1.0",
+  "schema_version": "asr-external-assets-v1",
+  "storage_policy": {
+    "credentials_in_repository": false,
+    "deployment_source": "tencent-cloud-read-only-mount-or-download",
+    "git_contains_assets": false
+  }
+}

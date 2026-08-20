@@ -1,0 +1,18 @@
+--index-url https://pypi.org/simple
+--extra-index-url https://download.pytorch.org/whl/cu128
+
+fastapi==0.116.1
+httpx==0.28.1
+uvicorn==0.35.0
+pydantic==2.13.4
+numpy==2.4.6
+scipy==1.17.1
+librosa==0.11.0
+soundfile==0.14.0
+funasr==1.4.0
+modelscope==1.39.0
+jieba==0.42.1
+sentencepiece==0.2.2
+torch==2.11.0+cu128
+torchaudio==2.11.0+cu128
+torchvision==0.26.0+cu128
