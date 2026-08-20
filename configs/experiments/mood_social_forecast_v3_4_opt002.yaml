@@ -1,0 +1,82 @@
+schema_version: mood-social-forecast-v3.4-opt002-config-v1
+task_id: FORECAST-OPT-002A
+optimization_version: mood-social-forecast-v3.4-opt002-v1
+status: planned
+run_id: null
+formal_baseline_run_id: MH-20260805-FCAST-001
+secondary_audit_run_id: MH-20260807-FOPT-002
+dataset_id: psyche_d
+task_ids:
+- forecast_1m
+- forecast_2m
+raw_feature_count: 27
+source_root_relative: 数据集/心理/PSYCHE-D
+source_artifact_hashes:
+  anon_processed_df_parquet: 4bf1d7622d947f5bb62067c91789e1ef5de0411f439a772b8a7941282cc1cd78
+  p0_feature_mapping_v1.yaml: 6aa7c562def0b9b4dabc0c1ad14fbbb3fdde7b47b6540d45810fa954e4a7caff
+  split_manifest.json: e9915dbc590a6ea454c34d26558ac5866c57ee8a8e78f44cdcc79c859df77ee3
+  v3_4_baseline_manifest.json: b00fa78907f9a4d009ff6c000fe5e2ce778b305ebbc499efbc04033dc56d2843
+history_contract:
+  time_unit: nominal_month_slot
+  cutoff_rule: c=t-h
+  day_level_windows_allowed: false
+  cross_cutoff_fill: false
+  sequence_model_go_no_go:
+    decision: deferred_from_primary_search
+    forecast_1m_sequence_ge_3_rate: 0.5842648781007133
+    forecast_2m_sequence_ge_3_rate: 0.5801724137931035
+    reason: insufficient uniform three-month history coverage
+target_contract:
+  primary: original_v3_4_future_binary_target
+  auxiliary:
+  - phq9_score_regression
+  - phq9_ordinal_level
+  - phq9_worsening_direction
+  - shared_horizon_representation
+  auxiliary_as_input: false
+  evaluation_labels: original_hard_labels
+models:
+  p0:
+  - elasticnet_logistic
+  - lightgbm
+  - catboost
+  - xgboost_if_environment_frozen
+  conditional:
+  - small_shared_multitask_tabular_model
+  deferred_from_primary_search:
+  - tcn
+  - transformer_encoder
+  selection_scope: outer_train inner OOF only
+weighting:
+  participant_equal_weight: true
+  inner_fold_class_weight: true
+  recency_weight: strict_history_interval_only
+  ordinary_smote: false
+promotion:
+  horizon_auprc_min_delta: 0.005
+  auroc_allowed_drop: 0.005
+  brier_allowed_increase: 0.002
+  folds_min_non_decrease: 3
+  fold_max_auprc_drop: 0.02
+  bootstrap_replicates: 2000
+  package_requires_both_horizons: true
+environment_lock: configs/experiments/mood_social_forecast_v3_4_opt_environment.lock
+environment_lock_sha256: 5398cb27f4f0c232a0a3463cd08117c25a523cc417ae2664137c90eb724c869d
+coverage_summary:
+  forecast_1m:
+    sample_count: 9393
+    participant_count: 3635
+    sequence_ge_3_rate: 0.5842648781007133
+  forecast_2m:
+    sample_count: 9280
+    participant_count: 3593
+    sequence_ge_3_rate: 0.5801724137931035
+execution_boundary:
+  release_status: experimental
+  execution_mode: offline_only
+  decision_authority: shadow_only
+  product_visible: false
+  backend_change: false
+  api_change: false
+  v3_3_package_change: false
+  v3_3_physiology_change: false

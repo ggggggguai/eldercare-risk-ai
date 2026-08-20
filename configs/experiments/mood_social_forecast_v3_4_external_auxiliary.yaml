@@ -1,0 +1,34 @@
+schema_version: mood-social-forecast-v3.4-external-auxiliary-config-v1
+task_id: FORECAST-OPT-001E
+run_id: MH-20260807-FOPT-AUX-001
+upstream_run_id: MH-20260807-FOPT-002
+upstream_selection_manifest_sha256: b1c7ff8c3c855ae3ae84bbb21e2dca44b460a0a933a0d7a0948b08b0384c65ac
+upstream_fusion_manifest_sha256: d28113346e699660e3f55a2d86fdfe545e16c0647fd4d733760d533ed00ed6f9
+sources:
+  conscious_root: 数据集/心理/Conscious Wearable
+  obf_root: 数据集/心理/OBF-Psychiatric/OBF-Psychiatric Dataset
+conscious:
+  expected_participants: 49
+  expected_windows: 98
+  window_policy: diary_days_1_14_to_mid_and_15_28_to_final
+  tasks: [phq9_score, phq9_change]
+  variants: [sleep_only, activity_only, shared_combined]
+  proxy_variant: shared_combined
+  psyche_proxy_policy: fixed_external_model_without_psyche_labels
+obf:
+  expected_participants: 162
+  expected_paired_madrs: 23
+  task: madrs_change
+  batch_sensitivity: leave_collection_start_year_out
+  psyche_transfer_policy: stop_unless_strict_same_semantic_activity_features_exist
+corona_health:
+  status: deferred_p2
+  blocks_001f: false
+release_status: experimental
+execution_mode: offline_only
+decision_authority: shadow_only
+product_visible: false
+backend_change: false
+api_change: false
+v3_3_package_change: false
+physiology_in_scope: false

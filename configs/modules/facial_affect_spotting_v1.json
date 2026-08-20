@@ -1,0 +1,13 @@
+{
+  "version": "s10_aligned_roi_motion_strain_v1",
+  "analysis_size": 96,
+  "smoothing_frames": 3,
+  "minimum_duration_ms": 80,
+  "maximum_duration_ms": 1000,
+  "minimum_peak_score": 0.3,
+  "minimum_peak_z": 2.5,
+  "boundary_fraction": 0.3,
+  "merge_distance_ms": 160,
+  "maximum_head_translation_ratio": 0.08,
+  "maximum_illumination_delta": 0.18
+}

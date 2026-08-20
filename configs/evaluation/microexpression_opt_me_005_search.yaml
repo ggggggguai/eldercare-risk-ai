@@ -1,0 +1,121 @@
+schema_version: opt_me_005_search_v1
+task_id: OPT-ME-005
+dataset_scope: CASME II exposed development benchmark
+selection_scope: subject-group inner-OOF only
+outer_test_access_allowed: false
+model:
+  architecture: reduced_causalnet
+  parameters: 623963
+  input_shape: [4, 3, 28, 28]
+  dim: 64
+  heads: 2
+  block_repeats: [1, 1, 1]
+  mlp_mult: 2
+  cross_heads: 4
+  cross_depth: 2
+  dropout: 0.1
+  head_hidden_dim: 256
+training:
+  optimizer: Adam
+  learning_rate: 0.0001
+  weight_decay: 0.0001
+  batch_size: 64
+  gradient_clip_norm: 1.0
+  screening_epochs: 12
+  screening_min_epochs: 1
+  screening_patience: 12
+  rescreen_epochs: 25
+  rescreen_min_epochs: 8
+  rescreen_patience: 6
+  final_seeds: [20260806, 20260817, 20260829]
+development_splits:
+  source: data/manifests/microexpression/opt_me_003/development_subject_splits_v1.json
+  source_sha256: 957fe54ba12f5cd669f8b00521f141565f5284da9f87d4eb965914b03f6698cd
+  repeat_seeds: [1900122016, 497039249, 2045744886]
+  screening_repeat_indices: [0, 1]
+  rescreen_repeat_indices: [0, 1, 2]
+  fold_count: 5
+candidates:
+  screening: [B0, C1, C2, C3, C4, C5]
+  experimental_pool: [C1, C2, C3, C4, C5]
+  experimental_finalist_limit: 2
+  B0: {loss: ldam_drw, ssl: none, positive_margin: false}
+  C1: {loss: ldam_drw, ssl: uniform_route_consistency, positive_margin: false}
+  C2: {loss: ldam_drw, ssl: positive_preserving_route_consistency, positive_margin: false}
+  C3: {loss: ldam_drw, ssl: positive_preserving_route_consistency_ramp, positive_margin: false}
+  C4: {loss: ldam_drw, ssl: none, positive_margin: true}
+  C5: {loss: ldam_drw, ssl: positive_preserving_route_consistency_ramp, positive_margin: true}
+ssl:
+  flow_magnitude_gain: [0.9, 1.1]
+  gaussian_noise_sigma: 0.01
+  consistency_weight_by_class:
+    C1: [0.10, 0.10, 0.10]
+    C2: [0.10, 0.03, 0.10]
+    C3: [0.10, 0.03, 0.10]
+    C5: [0.10, 0.03, 0.10]
+  route_dropout_probability_by_class:
+    C1: [0.10, 0.10, 0.10]
+    C2: [0.10, 0.00, 0.10]
+    C3: [0.10, 0.00, 0.10]
+    C5: [0.10, 0.00, 0.10]
+  maximum_dropped_routes_per_sample: 1
+  ramp_fraction: 0.40
+  reverse_time_allowed: false
+  swap_keyframes_allowed: false
+positive_margin:
+  margin: 0.20
+  weight: 0.05
+  positive_label: 1
+calibration:
+  primary: temperature
+  audit_control: identity
+  fitting: cross_fitted_by_held_development_fold
+ranking:
+  order: [min_UF1_UAR, positive_recall, positive_f1, worst_quartile_subject_score, ECE, complexity, candidate_id]
+screen_gate:
+  maximum_uf1_decline: 0.005
+  maximum_uar_decline: 0.005
+  maximum_positive_f1_decline: 0.010
+  zero_score_subject_increase_allowed: 0
+  maximum_worst_quartile_decline: 0.005
+  maximum_ece_increase: 0.015
+  route_a_minimum_selection_improvement: 0.015
+  route_a_maximum_positive_recall_decline: 0.035
+  route_b_minimum_positive_recall_improvement: 0.030
+  route_b_minimum_primary_delta: -0.005
+freeze_gate:
+  minimum_one_primary_improvement: 0.010
+  minimum_other_primary_delta: -0.005
+  paired_selection_score_ci_lower_bound: -0.005
+  normal_positive_f1_delta: 0.0
+  normal_positive_recall_delta: 0.0
+  conditional_positive_recall_minimum_delta: -0.035
+  conditional_minimum_each_primary_improvement: 0.010
+  conditional_minimum_positive_f1_improvement: 0.020
+  maximum_seed_std: 0.025
+  zero_score_subject_increase_allowed: 0
+  persistent_zero_set_expansion_allowed: false
+  maximum_worst_quartile_decline: 0.005
+  minimum_positive_leave_one_subject_out_count: 18
+  maximum_single_subject_delta_shift: 0.015
+  maximum_brier_increase: 0.005
+  maximum_nll_increase: 0.01
+  maximum_ece_increase: 0.01
+  high_confidence_threshold: 0.70
+  maximum_high_confidence_error_rate_increase: 0.01
+bootstrap: {iterations: 2000, seed: 20260810}
+budget:
+  screening_semantic_runs: 60
+  rescreen_one_finalist_semantic_runs: 90
+  rescreen_two_finalists_semantic_runs: 135
+  total_semantic_runs_maximum: 195
+recovery:
+  maximum_same_hash_retries: 1
+  completed_result_reuse_requires_matching_run_lock: true
+reporting:
+  retain_all_failures: true
+  retain_all_checkpoints: true
+  retain_epoch_logs: true
+  retain_sample_logits_and_probabilities: true
+  best_seed_as_main_result_allowed: false
+  casme2_scope: exposed development estimate, not independent confirmation

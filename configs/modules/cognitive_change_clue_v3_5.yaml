@@ -1,0 +1,56 @@
+schema_version: cognitive_change_clue_config_v3_5
+model_version: cognitive-mm-v3.5.0
+feature_version: cognitive_features_v3.5.0
+seed: 20260808
+
+dataset:
+  name: CogPic
+  source_scope: official_train_only
+  source_manifest: data/processed/cognitive_change_clue/v3.3.0/cogpic_manifest.parquet
+  source_split: data/processed/cognitive_change_clue/v3.3.0/cogpic_subject_split_v33.json
+  source_feature_root: data/processed/cognitive_change_clue/v3.3.0/features
+  source_lightweight_root: data/processed/cognitive_change_clue/v3.4.0/lightweight_features
+  source_pooling_root: data/processed/cognitive_change_clue/v3.4.0/pooling_features
+  processed_root: data/processed/cognitive_change_clue/v3.5.0
+  expected_official_train_subjects: 459
+  expected_official_test_subjects: 115
+  expected_tasks: 1377
+  expected_tasks_per_subject: 3
+  label_order: [HC, MCI, AD]
+
+cross_validation:
+  outer_folds: 5
+  development_seed: 20260808
+  confirmation_seeds: [20260818, 20260828, 20260908]
+  inner_calibration_fraction: 0.15
+  inner_selection_folds: 4
+  calibration_seed_offset: 1000
+  inner_seed_offset: 2000
+  subject_sort: unicode_codepoint_ascending
+
+subject_bag:
+  task_slots: [1, 2, 3]
+  modalities: [audio, text, face]
+  dimensions:
+    audio: 768
+    text: 768
+    face: 512
+  identifier_policy: metadata_only_not_model_input
+  require_at_least_one_audio_task: true
+
+evaluation:
+  primary_task: hc_vs_non_hc
+  primary_metric: subject_roc_auc
+  target_sensitivity: 0.80
+  auc_tie_tolerance: 0.005
+  official_test_enabled: false
+  official_test_labels_enabled: false
+  official_test_media_enabled: false
+
+outputs:
+  split_manifest: data/processed/cognitive_change_clue/v3.5.0/cogpic_subject_nested_cv_v35.json
+  split_audit: data/processed/cognitive_change_clue/v3.5.0/cogpic_subject_nested_cv_v35_audit.json
+  subject_bag_index: data/processed/cognitive_change_clue/v3.5.0/cogpic_subject_bags_v35.jsonl
+  data_audit: data/processed/cognitive_change_clue/v3.5.0/cogpic_v35_data_audit.json
+  report_root: reports/cognitive_change_clue/v3.5.0
+  model_root: models/mental_health/cognitive_change_clue/v3.5.0

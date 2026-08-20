@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "wandering-handoff-context-review-v1",
+  "title": "Optional multimodal purpose and context review",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "module",
+    "record_id",
+    "context_review_id",
+    "episode_id",
+    "person_id",
+    "session_id",
+    "source_video_id",
+    "start_time",
+    "end_time",
+    "status",
+    "context_label",
+    "confidence",
+    "rationale",
+    "provider",
+    "provider_model",
+    "frame_refs",
+    "quality_flags",
+    "identity",
+    "source_refs"
+  ],
+  "properties": {
+    "schema_version": {"const": "wandering-handoff-context-review-v1"},
+    "module": {"const": "mental_health"},
+    "record_id": {"type": "string", "minLength": 1},
+    "context_review_id": {"type": "string", "minLength": 1},
+    "episode_id": {"type": "string", "minLength": 1},
+    "person_id": {"type": "string", "minLength": 1},
+    "session_id": {"type": "string", "minLength": 1},
+    "source_video_id": {"type": "string", "minLength": 1},
+    "start_time": {"type": ["string", "null"], "format": "date-time"},
+    "end_time": {"type": ["string", "null"], "format": "date-time"},
+    "status": {"enum": ["ready", "uncertain", "unavailable", "error"]},
+    "context_label": {"enum": ["phone_call", "searching", "cleaning", "exercise", "social", "other", "unknown"]},
+    "confidence": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+    "rationale": {"type": ["string", "null"]},
+    "provider": {"type": ["string", "null"]},
+    "provider_model": {"type": ["string", "null"]},
+    "frame_refs": {"type": "array", "maxItems": 3, "items": {"$ref": "#/$defs/source_ref"}},
+    "quality_flags": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "identity": {"$ref": "#/$defs/identity"},
+    "source_refs": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/source_ref"}}
+  },
+  "$defs": {
+    "identity": {
+      "type": "object",
+      "required": ["model_id", "model_sha256", "config_id", "config_sha256", "policy_id", "policy_sha256"],
+      "properties": {
+        "model_id": {"type": ["string", "null"]},
+        "model_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+        "config_id": {"type": "string", "minLength": 1},
+        "config_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "policy_id": {"type": "string", "minLength": 1},
+        "policy_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "source_ref": {
+      "type": "object",
+      "required": ["ref_type", "ref_id", "artifact_path", "sha256"],
+      "properties": {
+        "ref_type": {"type": "string", "minLength": 1},
+        "ref_id": {"type": "string", "minLength": 1},
+        "artifact_path": {"type": ["string", "null"]},
+        "sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"}
+      }
+    }
+  }
+}

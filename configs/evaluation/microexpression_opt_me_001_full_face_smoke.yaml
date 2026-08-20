@@ -1,0 +1,74 @@
+schema_version: opt_me_001_full_face_smoke_config_v1
+task_id: EVAL-ME-005
+run_id: OPT-ME-001-FULL-FACE-SMOKE
+
+inputs:
+  casme2_manifest: data/manifests/microexpression/opt_me_001/full_face/evaluation/casme2_eval_manifest_v1.jsonl
+  smic_manifest: data/manifests/microexpression/opt_me_001/full_face/evaluation/smic_eval_manifest_v1.jsonl
+  merged_manifest: data/manifests/microexpression/opt_me_001/full_face/evaluation/merged_eval_manifest_v1.jsonl
+  split_manifest: data/manifests/microexpression/opt_me_001/full_face/evaluation/eval_me_005_subject_protocols_v1.json
+  input_audit: data/manifests/microexpression/opt_me_001/full_face/evaluation/eval_me_005_input_audit_v1.json
+  casme_crosswalk: data/manifests/microexpression/opt_me_001/full_face/evaluation/casme2_three_class_crosswalk_v1.json
+  casme_preprocessing_config: configs/preprocessing/microexpression_casme2_official_causalnet_v1.yaml
+  smic_preprocessing_config: configs/preprocessing/microexpression_causalnet_v1.yaml
+  environment_lock: environment-microexpression.lock.yml
+
+model:
+  image_size: 28
+  patch_size: 7
+  dim: 64
+  heads: 2
+  num_hierarchies: 3
+  block_repeats: [1, 1, 1]
+  num_classes: 3
+  gamma: 0.5
+  channels: 3
+  mlp_mult: 2
+  dropout: 0.1
+  cross_heads: 4
+  cross_depth: 2
+  head_hidden_dim: 256
+
+training:
+  optimizer: adam
+  learning_rate: 0.0001
+  max_epochs: 3
+  min_epochs: 1
+  patience: 2
+  batch_size: 64
+  weight_decay: 0.0001
+  gradient_clip_norm: 1.0
+  num_workers: 0
+  loss: weighted_cross_entropy
+  lr_step_epochs: 20
+  lr_gamma: 0.5
+  sampler: random
+  label_smoothing: 0.0
+  focal_gamma: 2.0
+  domain_alignment: none
+  domain_alignment_weight: 0.0
+  augmentation:
+    enabled: false
+
+protocol:
+  required_protocols:
+    - cross_casme2_to_smic
+  final_seeds: [20260806]
+  bootstrap_iterations: 20
+  test_evaluations_per_seed_sample: 1
+  configuration_selection: frozen_before_outer_test
+  checkpoint_selection: validation_uf1_uar_harmonic_then_loss
+  test_used_for_selection: false
+  dataset_name_used_as_model_feature: false
+
+release_thresholds:
+  rejected_if_either_below: 0.55
+  research_baseline_both_at_least: 0.60
+  candidate_both_at_least: 0.70
+  candidate_max_seed_std: 0.05
+  require_no_zero_score_folds: true
+
+runtime:
+  require_cuda: true
+  expected_gpu: NVIDIA GeForce RTX 4060 Laptop GPU
+  deterministic: true

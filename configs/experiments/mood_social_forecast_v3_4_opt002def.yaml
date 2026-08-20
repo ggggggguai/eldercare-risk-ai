@@ -1,0 +1,44 @@
+schema_version: mood-social-forecast-v3.4-opt002def-config-v1
+task_ids: [forecast_1m, forecast_2m]
+input_run_id: MH-20260807-FOPT-003
+run_id: MH-20260807-FOPT-004
+formal_baseline_run_id: MH-20260805-FCAST-001
+secondary_audit_run_id: MH-20260807-FOPT-002
+random_seed: 20260728
+inner_fold_manifest: data/processed/mental_health/mood_social/v3.3.3/splits/split_manifest.json
+environment_lock: configs/experiments/mood_social_forecast_v3_4_opt_environment.lock
+feature_groups: [anchor, horizon_core, full]
+model_families: [elasticnet_logistic, lightgbm, catboost]
+weight_schemes:
+  - participant_equal
+  - inner_fold_class_balanced
+  - strict_history_recency
+  - threshold_near_downweight
+auxiliary_modes: [none, phq9_score, phq9_ordinal, phq9_direction]
+shared_multitask:
+  enabled: true
+  hidden_units: 16
+  epochs: 32
+  learning_rate: 0.01
+xgboost:
+  enabled: false
+  reason: package absent from the frozen eldercare-ai environment
+bootstrap_replicates: 2000
+promotion:
+  horizon_auprc_min_delta: 0.005
+  auroc_allowed_drop: 0.005
+  brier_allowed_increase: 0.002
+  ece_absolute_max: 0.03
+  ece_allowed_increase: 0.005
+  folds_min_non_decrease: 3
+  fold_max_auprc_drop: 0.02
+  package_requires_both_horizons: true
+execution_boundary:
+  release_status: experimental
+  execution_mode: offline_only
+  decision_authority: shadow_only
+  product_visible: false
+  backend_change: false
+  api_change: false
+  v3_3_package_change: false
+  v3_3_physiology_change: false

@@ -1,0 +1,132 @@
+schema_version: cognitive_change_clue_config_v3_8
+research_version: cognitive-v38-safe-residual-internal-research
+release_model_version: null
+release_eligible: false
+status: preregistered_before_any_v38_training_or_metric
+run_ids:
+  protocol: v38-protocol-20260810-r1
+  development: v38-development-20260810-r1
+  internal_stress: v38-internal-stress-20260810-r1
+
+dataset:
+  name: CogPic
+  source_scope: official_train_only_adaptive_reuse_internal_research
+  expected_subjects: 459
+  expected_tasks: 1377
+  expected_tasks_per_subject: 3
+  source_manifest: data/processed/cognitive_change_clue/v3.3.0/cogpic_manifest.parquet
+  v37_split: data/processed/cognitive_change_clue/v3.7.0/cogpic_subject_nested_cv_v37.json
+  v37_split_audit: data/processed/cognitive_change_clue/v3.7.0/cogpic_subject_nested_cv_v37_audit.json
+  v37_structured_root: data/processed/cognitive_change_clue/v3.7.0/structured_features
+  processed_root: data/processed/cognitive_change_clue/v3.8.0
+  official_test_access_allowed: false
+  v37_outer_selection_access_allowed: false
+
+cross_validation:
+  outer_folds: 5
+  inner_selection_folds: 4
+  development_split_seed: 20270118
+  model_training_seeds: [20270118, 20270128, 20270218]
+  internal_stress_split_seeds: [20270208, 20270218, 20270308]
+  seed_selection_allowed: false
+  repeated_numeric_seed_roles_must_be_separate: true
+
+model:
+  base: weighted_logit|P0|LOSS-3
+  structured_task_dimension: 48
+  structured_subject_dimension: 64
+  subject_aggregation: 48 task means plus first 16 within-subject population standard deviations
+  ridge_alpha: 10.0
+  residual_target: label_minus_base_probability
+  residual_application: add_to_base_raw_logit
+  clip_values: [0.25, 0.50]
+  uncertainty_lambdas: [0.5, 1.0]
+  ood_lambdas: [0.5, 1.0]
+  uncertainty_normalization:
+    method: one_sided_robust_z
+    fit_scope: corresponding_inner_train_only
+    mad_scale: 1.4826
+    epsilon: 1.0e-8
+    clip: [0.0, 5.0]
+  ood_distance:
+    method: diagonal_median_mad_rms
+    fit_scope: corresponding_inner_train_only
+    mad_scale: 1.4826
+    epsilon: 1.0e-8
+    per_dimension_clip: [-10.0, 10.0]
+    distance_clip: [0.0, 5.0]
+  model_input_allowlist: [features, quality, missing_mask, task_mask, valid_task_count, hc_vs_non_hc, ad_mci_hc, moca, moca_mask]
+  gate_input_allowlist: [structured_vector, seed_residual_variance]
+  forbidden_inference_fields: [age, age_band, sex_code, education_code, diagnosis, diagnosis_label, subject_id, sample_id, path, audio_path, face_path, original_text_path, official_split, split_role]
+
+candidates:
+  S0: {id: V38-S0, clip: [0.25, 0.50]}
+  S1: {id: V38-S1, common_clip_from_S0: true, lambda_u: [0.5, 1.0]}
+  S2: {id: V38-S2, common_clip_from_S0: true, lambda_d: [0.5, 1.0]}
+  S3: {id: V38-S3, maximum_states: 1, requires_S1_and_S2_pass: true}
+  fixed_pareto_order: [pooled_auc_gain, hc_mci_auc_gain, lt65_auc_gain, ece, brier]
+
+budget:
+  maximum_base_families: 3
+  maximum_base_hyperparameter_states: 6
+  maximum_conditional_combinations: 1
+  maximum_development_candidate_fold_units: 160
+  model_seed_subruns_are_all_retained: true
+  residual_predictions_may_be_hash_shared: true
+
+gates:
+  red_line:
+    maximum_in_fold_predictions: 0
+    minimum_full_coverage: 1.0
+    minimum_abstention_coverage: 0.85
+    old_artifact_hash_change_allowed: false
+  inner_exploration:
+    minimum_pooled_auc_gain: 0.003
+    minimum_positive_blocks: 3
+    minimum_hc_mci_auc_gain: -0.010
+    minimum_lt65_auc_gain: -0.015
+    minimum_lt65_sensitivity_gain: -0.030
+    minimum_major_group_auc_gain: -0.015
+    maximum_brier_increase: 0.010
+    maximum_ece_increase: 0.010
+    maximum_model_seed_gain_sample_std: 0.015
+  internal_stress:
+    minimum_mean_auc_gain: 0.005
+    minimum_positive_repeats: 2
+    maximum_repeat_gain_sample_std: 0.015
+    minimum_hc_mci_mean_auc_gain: -0.005
+    minimum_lt65_mean_auc_gain: -0.010
+    minimum_lt65_mean_sensitivity_gain: -0.020
+    minimum_major_group_mean_auc_gain: -0.015
+    maximum_mean_ece: 0.060
+    maximum_ece_increase: 0.010
+    maximum_brier_increase: 0.010
+
+calibration:
+  method: ridge_platt
+  logistic_C: 1.0
+  fit_scope: inner_calibration_cross_fit_only
+  target_sensitivity: 0.80
+  threshold_grid_step: 0.001
+  threshold_tie_break: highest
+
+path_firewall:
+  denied_selection_roots:
+    - reports/cognitive_change_clue/v3.7.0
+    - data/external/cognitive_change_clue/CogPic/Test
+  denied_selection_fragments: [CogPic/Test, CogPic\\Test, official_test, outer_evaluation, subject_oof, task_oof, calibrated_subject_oof]
+  allowed_read_only_roots:
+    - data/processed/cognitive_change_clue/v3.7.0/structured_features
+  allowed_read_only_files:
+    - data/processed/cognitive_change_clue/v3.7.0/cogpic_subject_nested_cv_v37.json
+    - data/processed/cognitive_change_clue/v3.7.0/cogpic_subject_nested_cv_v37_audit.json
+
+reporting:
+  evidence_label: V3.8_adaptive_reuse_data_internal_research
+  legal_final_states: [rejected_no_inner_candidate, rejected_after_internal_stress, frozen_internal_research_only]
+  medical_diagnosis_output: false
+  external_confirmation: false
+  backend_changed: false
+  api_changed: false
+  default_model_changed: false
+  s10_changed: false

@@ -1,0 +1,112 @@
+schema_version: wandering-rf-config-v1
+purpose: comparison_only
+
+inputs:
+  preprocessing_config:
+    path: configs/data/wandering_preprocessing_v1.yaml
+    sha256: 5b69243337cddeeec8beed4f081330b06c47eadeaee06dc3b3e4ba026f36ff45
+  preprocessing_samples:
+    path: data/processed/wandering/preprocessing/v1/samples.jsonl
+    sha256: 323ec1258a03ed2daab1e84e3291edc62644c68b1c292dc93a332c01faa08cda
+  preprocessing_feature_stats:
+    path: data/processed/wandering/preprocessing/v1/feature_stats.json
+    sha256: 249ad8383043dba1d95452533ddc6004dfecc2c9e99be43f788dcfcbfb434c8d
+  preprocessing_report:
+    path: data/processed/wandering/preprocessing/v1/preprocessing_report.json
+    sha256: d600fbd16efdc8c2b6e89db8c35c965fbb8322f099c464e67600abff5d8804e8
+  preprocessing_manifest:
+    path: data/processed/wandering/preprocessing/v1/manifest.json
+    sha256: 242072bdfe4b969d320a091ecc499aff445c30a937dfb1e6739ad869aa938593
+  split_json:
+    path: data/splits/mental_health/wandering/v1/split.json
+    sha256: 7fa934c8041f538ff033260d722c21f5a4dc0e6cd8d23fa42836aa2e24ed808f
+  split_sha256_file:
+    path: data/splits/mental_health/wandering/v1/split.sha256
+    sha256: 426175e2c5a7f822706f91445b2bd80c37704fb4b9943891a5fcfcd1b1efb96f
+  assignments:
+    path: data/splits/mental_health/wandering/v1/assignments.jsonl
+    sha256: 993307c13cb30484dba9fa1359c9c4fce714bb45b7d776e9a36ac6dcbee6eac6
+  split_config:
+    path: configs/data/wandering_split_v1.yaml
+    sha256: 579ad16e13b72f2914c5a2d14dfa73ef4a10a9a50f7ecc13bc20a67380a2e8ca
+  near_neighbor_audit:
+    path: data/splits/mental_health/wandering/v1/near_neighbor_audit.json
+    sha256: 72d6f9f10f092fcadcd81f71e424d51f3b26938d6bfccbdcecced5852f851d10
+  human_review:
+    path: reports/mental_health/wandering_step4/HUMAN_REVIEW.md
+    sha256: f017f207053fb8948e217bd5b72d6bdf13d19a31ccd635f48b1f48915d60aa8c
+    required_status: human_review_passed
+
+split_sha256: 4ac4a3877a056809066562cb09e4d30aa1d38baafcb4600f1f8a8a672776adbf
+feature_schema: wandering-handcrafted-features-v1
+feature_count: 26
+epsilon: 1.0e-8
+quantile_method: linear
+std_ddof: 0
+revisit_index_gap: 8
+nearest_far_distance_clip: 0.10
+
+tasks:
+  four_class:
+    class_names:
+      - direct
+      - pacing
+      - lapping
+      - random
+    threshold: argmax
+  binary:
+    class_names:
+      - direct_or_non_wandering
+      - wandering_like
+    threshold: 0.5
+    weighting: equal_source_x_class_total
+
+random_forest:
+  n_estimators: 500
+  criterion: gini
+  max_depth: null
+  min_samples_split: 2
+  min_samples_leaf: 2
+  max_features: sqrt
+  bootstrap: true
+  class_weight: null
+  n_jobs: 1
+  oob_score: false
+  max_samples: null
+
+seeds:
+  - 20260731
+  - 20260801
+  - 20260802
+  - 20260803
+  - 20260804
+primary_seed: 20260731
+permutation_importance:
+  n_repeats: 20
+  scoring: macro_f1
+runtime_benchmark:
+  warmup_iterations: 20
+  measurement_iterations: 200
+
+expected_counts:
+  total_records: 1790
+  ready: 1775
+  unavailable: 15
+  ready_by_split:
+    train: 1257
+    validation: 278
+    test: 240
+  four_class:
+    train: 1120
+    validation: 240
+    test: 240
+  binary:
+    train: 1257
+    validation: 278
+    test: 240
+
+output_schemas:
+  feature_table: wandering-rf-feature-table-row-v1
+  data_index: wandering-rf-data-index-v1
+  development_manifest: wandering-rf-development-manifest-v1
+  public_shape_benchmark_manifest: wandering-rf-public-shape-benchmark-manifest-v1

@@ -1,0 +1,121 @@
+schema_version: mood-social-forecast-v3.4-opt005-contract-v1
+task_id: FORECAST-OPT-005A
+status: frozen
+formal_baseline_run_id: MH-20260805-FCAST-001
+development_reference_run_id: MH-20260809-FOPT-026
+outer_prediction_source_run_id: MH-20260809-FOPT-025
+environment_lock: configs/experiments/mood_social_forecast_v3_4_opt_environment.lock
+
+evidence:
+  opt004_outer: development_reference
+  primary: nested_group_cv
+  independent_external_available: false
+  independent_recalculation_is_external_validation: false
+
+inputs:
+  source_parquet: 数据集/心理/PSYCHE-D/anon_processed_df_parquet
+  baseline_root: artifacts/mental_health/mood_social/forecast_v3.4
+  inner_split_manifest: artifacts/mental_health/mood_social/forecast_v3.4/inner_split_manifest.json
+  opt004_inner_fusion: artifacts/mental_health/mood_social/forecast_v3.4/optimization_candidates/MH-20260808-FOPT-018/selected_inner_oof.parquet
+  opt004_state_inner: artifacts/mental_health/mood_social/forecast_v3.4/optimization_candidates/MH-20260809-FOPT-023/inner_oof_predictions.parquet
+  opt004_outer: artifacts/mental_health/mood_social/forecast_v3.4/optimization_candidates/MH-20260809-FOPT-025/outer_oof_predictions.parquet
+  opt004_corrected_outer: artifacts/mental_health/mood_social/forecast_v3.4/optimization_candidates/MH-20260809-FOPT-026/outer_oof_predictions.parquet
+  feature_contexts:
+    forecast_1m: artifacts/mental_health/mood_social/forecast_v3.4/optimization_candidates/MH-20260808-FOPT-005/context_forecast_1m.parquet
+    forecast_2m: artifacts/mental_health/mood_social/forecast_v3.4/optimization_candidates/MH-20260808-FOPT-005/context_forecast_2m.parquet
+  expected_sha256:
+    source_parquet: 4bf1d7622d947f5bb62067c91789e1ef5de0411f439a772b8a7941282cc1cd78
+    inner_split_manifest: 64f9e4a8d548f9c5152275b9d1fc8933814bbc9730ca74af5557284657a4e4ef
+    opt004_inner_fusion: 0cf0051a0648ae1f8b981d7bdbfec9c044997148ad56fc2f98b0428e124ff1b8
+    opt004_state_inner: 84d927af405e733769d86e99c41a1cdca92697a65203261e81f61876fa83c767
+    opt004_outer: 35595b02e792784420ab898a36d68858499def57853a2dd69e60a2c4b8d5f2d8
+    opt004_corrected_outer: d5ca84bfedf87a5dc3a88e7bb08a7f45d701aae45391736fb4c9ed234470b07a
+
+data_contract:
+  task_ids: [forecast_1m, forecast_2m]
+  expected_rows: {forecast_1m: 9393, forecast_2m: 9280}
+  expected_participants: {forecast_1m: 3635, forecast_2m: 3593}
+  outer_folds: 5
+  inner_folds: 5
+  split_group: global_participant_id
+  cross_horizon_join_key: [global_participant_id, target_window_id]
+  history_rule: historical_assessment_slot < feature_month_slot
+  same_or_future_assessment_allowed: false
+
+metrics:
+  participant_equal_row_weight: 1/n_rows_for_participant
+  auprc: sklearn.metrics.average_precision_score
+  auroc: sklearn.metrics.roc_auc_score
+  ece_bins: 10
+  ece_binning: equal_width
+  top_k: [0.05, 0.10, 0.20]
+  fixed_specificity: [0.80, 0.90]
+  threshold_objective: participant_equal_macro_f1
+  threshold_tie_break: higher_threshold
+  bootstrap_replicates: 2000
+  bootstrap_seed: 20260809
+  float_tolerance: 1.0e-12
+
+calibration:
+  horizon: forecast_2m
+  candidates: [temperature, platt_positive, beta_monotonic, baseline_blend, grouped_shrinkage]
+  blend_weights: [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+  group_minimums: {rows: 200, participants: 50, positives: 30, negatives: 30}
+  ece_max: 0.014360
+  auprc_hard_min: 0.491916
+  auprc_preferred_min: 0.503082
+  monotonic_tolerance: 1.0e-12
+
+distillation:
+  candidates: [S0-hard, S1-soft, S2-blend]
+  seeds: [20260728, 20260729, 20260730]
+  catboost: {iterations: 100, depth: 4, learning_rate: 0.045, l2_leaf_reg: 6.0, thread_count: 1}
+  alpha: [0.1, 0.25, 0.5]
+  gamma: [0.25, 0.5, 0.75]
+  probability_clip: [1.0e-6, 0.999999]
+  reliability: history_available * min(history_count/3,1) * exp(-history_age_months/3)
+  min_auprc_delta: 0.005
+  min_non_decrease_folds: 3
+  max_fold_drop: 0.02
+
+state_trajectory:
+  candidates: [D0, D1, D2]
+  half_lives: [1, 2, 3, 6]
+  beta: [0.5, 0.75, 1.0]
+  min_auprc_delta: 0.003
+  min_non_decrease_folds: 3
+  max_fold_drop: 0.02
+  max_brier_increase: 0.005
+  max_ece_increase: 0.005
+  reliability: availability * min(count/3,1) * exp(-ln(2)*age/half_life)
+
+fusion:
+  two_component_weights: [0.0, 0.25, 0.5, 0.75, 1.0]
+  three_component_step: 0.25
+  spearman_duplicate_threshold: 0.995
+  min_auprc_gain: 0.001
+  max_brier_increase: 0.002
+  max_ece_increase: 0.002
+  meta_learner_allowed: false
+
+promotion:
+  horizon_auprc_min_delta: 0.005
+  auroc_allowed_drop: 0.005
+  brier_allowed_increase: 0.002
+  ece_absolute_max: 0.03
+  ece_allowed_increase: 0.005
+  folds_min_non_decrease: 3
+  fold_max_auprc_drop: 0.02
+  bootstrap_auprc_delta_median_positive: true
+  package_requires_both_horizons: true
+  opt004_ranking_preference: {forecast_1m: 0.503838, forecast_2m: 0.503082}
+
+execution_boundary:
+  release_status: experimental
+  execution_mode: offline_only
+  decision_authority: shadow_only
+  product_visible: false
+  backend_change: false
+  api_change: false
+  v3_3_package_change: false
+  v3_3_physiology_change: false

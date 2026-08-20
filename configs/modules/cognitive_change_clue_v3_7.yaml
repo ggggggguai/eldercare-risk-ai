@@ -1,0 +1,109 @@
+schema_version: cognitive_change_clue_config_v3_7
+research_version: cognitive-v37-internal-research
+release_model_version: cognitive-mm-v3.7.0
+status: preregistered_before_candidate_training
+seed: 20270118
+
+dataset:
+  name: CogPic
+  source_scope: official_train_only_adaptive_reuse_internal_research
+  source_manifest: data/processed/cognitive_change_clue/v3.3.0/cogpic_manifest.parquet
+  source_split: data/processed/cognitive_change_clue/v3.3.0/cogpic_subject_split_v33.json
+  source_feature_root: data/processed/cognitive_change_clue/v3.3.0/features
+  source_lightweight_root: data/processed/cognitive_change_clue/v3.4.0/lightweight_features
+  processed_root: data/processed/cognitive_change_clue/v3.7.0
+  expected_official_train_subjects: 459
+  expected_official_train_tasks: 1377
+  expected_tasks_per_subject: 3
+  official_test_access_allowed: false
+
+cross_validation:
+  outer_folds: 5
+  inner_selection_folds: 4
+  inner_calibration_fraction: 0.15
+  development_seed: 20270118
+  internal_robustness_seeds: [20270208, 20270218, 20270308]
+  calibration_seed_offset: 1000
+  inner_seed_offset: 2000
+  stratification:
+    preferred: diagnosis_x_age_band_x_sex_code
+    fallback: diagnosis_x_age_band
+    collapse_entire_layer_when_any_sex_cell_below: 10
+    age_bands: [lt65, 65_74, ge75]
+    metric_dependent_restratification_allowed: false
+
+training:
+  optimizer: AdamW
+  learning_rate: 0.0003
+  weight_decay: 0.0001
+  max_epochs: 16
+  patience: 4
+  batch_mode: full_subject_fold
+  gradient_clip_norm: 1.0
+  loss: LOSS-3
+  development_inner_job_budget: 220
+
+candidates:
+  baseline: {id: V37-A0, implementation: weighted_logit, protocol: P0, loss: LOSS-3}
+  F1: {ridge_alpha: [1.0, 10.0], maximum_structured_dimension: 64}
+  G1: {group_definition: diagnosis_x_age_band, dro_step_size: [0.01, 0.05]}
+  G2: {method: class_conditional_age_nuisance_subspace, ridge: [0.01, 0.10]}
+  T1:
+    residual_scale: [0.05, 0.10]
+    low_rank: 8
+    maximum_parameter_increase_fraction: 0.05
+    zero_mean_penalty: 0.10
+    l2_penalty: 0.001
+  G1_G2_mutually_exclusive: true
+  maximum_controlled_combinations: 1
+  seed_ensemble: [20270118, 20270128, 20270218]
+  seed_selection_allowed: false
+
+development_gate:
+  minimum_pooled_auc_gain: 0.005
+  minimum_positive_outer_folds: 3
+  hc_mci_auc_must_not_decrease: true
+  maximum_lt65_auc_drop: 0.01
+  maximum_lt65_sensitivity_drop: 0.03
+  maximum_major_group_auc_drop: 0.02
+  maximum_brier_increase: 0.01
+  maximum_ece_increase: 0.01
+  maximum_fold_auc_sample_std_increase: 0.005
+  tie_auc: 0.003
+
+internal_final_gate:
+  minimum_four_repeat_mean_auc_gain: 0.008
+  minimum_positive_repeats: 3
+  maximum_repeat_auc_sample_std: 0.010
+  paired_bootstrap_auc_difference_ci_lower_must_exceed: 0.0
+  minimum_hc_mci_mean_auc_gain: 0.012
+  lt65_auc_must_not_decrease: true
+  minimum_lt65_sensitivity_gain: 0.05
+  hc_ad_auc_must_not_decrease: true
+  maximum_major_group_auc_drop: 0.02
+  minimum_mean_sensitivity: 0.80
+  maximum_mean_ece: 0.06
+  brier_must_not_worsen: true
+
+calibration:
+  method: ridge_platt
+  logistic_C: 1.0
+  fit_scope: inner_calibration_only
+  target_sensitivity: 0.80
+  threshold_grid_step: 0.001
+  threshold_tie_break: highest
+
+outputs:
+  split: data/processed/cognitive_change_clue/v3.7.0/cogpic_subject_nested_cv_v37.json
+  split_audit: data/processed/cognitive_change_clue/v3.7.0/cogpic_subject_nested_cv_v37_audit.json
+  feature_root: data/processed/cognitive_change_clue/v3.7.0/structured_features
+  report_root: reports/cognitive_change_clue/v3.7.0
+  release_model_root_condition: only_if_OPT_COG_027_new_cohort_gate_passes
+
+reporting:
+  evidence_label: V3.7_adaptive_reuse_data_internal_research
+  medical_diagnosis_output: false
+  backend_changed: false
+  api_changed: false
+  default_model_changed: false
+  s10_changed: false

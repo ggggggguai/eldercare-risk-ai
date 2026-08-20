@@ -1,0 +1,39 @@
+schema_version: microexpression_casme2_official_causalnet_preprocess_v1
+task_id: FLOW-ME-003
+
+image_size: 28
+crop_size: 14
+flow_width: 32
+flow_height: 32
+spatial_variant: source_compatible_roi
+flow_estimator: farneback
+pyr_scale: 0.5
+levels: 3
+winsize: 15
+iterations: 3
+poly_n: 5
+poly_sigma: 1.2
+flags: 0
+magnitude_quantile: 0.995
+
+source:
+  manifest_schema: casme2_official_manifest_v1
+  canonical_frames: CASME2_RAW/CASME2-RAW
+  require_flow_ready_with_official_apex: true
+  expected_source_samples: 255
+  expected_flow_samples: 249
+  project_label_during_flow: null
+
+route_order:
+  - onset_to_apex_flow
+  - apex_to_offset_flow
+  - onset_to_apex_direction
+  - apex_to_offset_direction
+
+method_boundary:
+  upstream_repository: https://github.com/tony19980810/CausalNet
+  upstream_commit: 7bdf163face030eeae4358fc7638cf538305acce
+  upstream_license: MIT
+  upstream_bit_exact: false
+  paper_reproduction_claim: false
+  deployment_eligible: false

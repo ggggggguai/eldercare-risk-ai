@@ -1,0 +1,96 @@
+schema_version: opt_me_007_calibration_v1
+task_id: OPT-ME-007
+dataset_scope: CASME II exposed development benchmark
+selection_scope: subject-group OOF and held-subject cross-fitted calibration only
+outer_test_access_allowed: false
+model:
+  architecture: reduced_causalnet
+  parameters: 623963
+  training_candidates: [B0, P0]
+  B0: {source: OPT-ME-006 B0 exact replay, loss: ldam_drw}
+  P0: {source: OPT-ME-006 P0 exact replay, loss: ldam_drw_plus_static_positive_margin}
+training:
+  optimizer: Adam
+  learning_rate: 0.0001
+  weight_decay: 0.0001
+  batch_size: 64
+  gradient_clip_norm: 1.0
+  max_epochs: 25
+  min_epochs: 8
+  patience: 6
+  final_seeds: [20260831, 20260911, 20260923]
+development_splits:
+  source: data/manifests/microexpression/opt_me_003/development_subject_splits_v1.json
+  source_sha256: 957fe54ba12f5cd669f8b00521f141565f5284da9f87d4eb965914b03f6698cd
+  repeat_indices: [0, 1, 2]
+  screening_repeat_indices: [0, 1]
+  fold_count: 5
+calibration_groups:
+  source: data/manifests/microexpression/opt_me_007/calibration_groups_v1.json
+  group_count: 5
+  assignment: deterministic_sample_count_balanced_subject_groups
+calibration:
+  order: after_repeat_average_and_after_seed_ensemble
+  candidates: [C0, C1, C2, C3]
+  experimental_pool: [C1, C2, C3]
+  finalist_limit: 2
+  C0: {mode: fixed_scalar_power_temperature, temperature: 1.0, complexity_rank: 0}
+  C1: {mode: fixed_scalar_power_temperature, temperature: 1.05, complexity_rank: 0}
+  C2: {mode: fixed_scalar_power_temperature, temperature: 1.10, complexity_rank: 0}
+  C3:
+    mode: held_subject_crossfit_scalar_power_temperature
+    temperature_grid: [1.000, 1.025, 1.050, 1.075, 1.100, 1.125, 1.150]
+    selection_order: [ECE, NLL, Brier, abs_temperature_from_one, temperature]
+    maximum_brier_increase_vs_control_fit: 0.005
+    maximum_nll_increase_vs_control_fit: 0.010
+    maximum_high_confidence_error_increase_vs_control_fit: 0.010
+    complexity_rank: 1
+screen_gate:
+  require_exact_hard_prediction_identity: true
+  require_exact_hard_metric_identity: true
+  minimum_ece_reduction_vs_C0: 0.008
+  maximum_ece_increase_vs_B0: 0.010
+  maximum_brier_increase_vs_B0: 0.005
+  maximum_nll_increase_vs_B0: 0.010
+  maximum_high_confidence_error_increase_vs_B0: 0.010
+freeze_gate:
+  minimum_one_primary_improvement: 0.010
+  minimum_other_primary_delta: -0.005
+  minimum_positive_f1_delta: 0.0
+  minimum_positive_recall_delta: 0.0
+  paired_selection_score_ci_lower_bound: -0.005
+  maximum_seed_std: 0.025
+  maximum_ensemble_worst_quartile_decline: 0.005
+  minimum_seed_worst_quartile_delta: -0.010
+  minimum_seed_worst_quartile_pass_count: 2
+  zero_score_subject_increase_allowed: 0
+  persistent_zero_set_expansion_allowed: false
+  minimum_positive_leave_one_subject_out_count: 18
+  maximum_single_subject_delta_shift: 0.015
+  maximum_brier_increase: 0.005
+  maximum_nll_increase: 0.010
+  maximum_ece_increase: 0.010
+  high_confidence_threshold: 0.70
+  maximum_high_confidence_error_rate_increase: 0.010
+  require_exact_hard_prediction_identity: true
+  minimum_ensemble_ece_reduction_vs_C0: 0.010
+  minimum_seed_ece_improvement_count: 2
+  minimum_subject_bootstrap_ece_improvement_probability: 0.80
+ranking:
+  order: [ECE, NLL, Brier, high_confidence_error_rate, calibrator_complexity, candidate_id]
+bootstrap: {iterations: 2000, seed: 20260810}
+budget:
+  screening_unique_model_runs: 20
+  final_total_unique_model_runs: 90
+  additional_runs_after_screen: 70
+recovery:
+  maximum_same_hash_retries: 1
+  completed_result_reuse_requires_matching_run_lock: true
+reporting:
+  retain_all_failures: true
+  retain_all_checkpoints: true
+  retain_epoch_logs: true
+  retain_sample_logits_and_probabilities: true
+  best_seed_as_main_result_allowed: false
+  diagnostic_values_are_formal_results: false
+  casme2_scope: exposed development estimate, not independent confirmation

@@ -1,0 +1,195 @@
+schema_version: mood-social-forecast-v3.4-opt004-contract-v1
+task_id: FORECAST-OPT-004A
+status: fully_frozen
+formal_baseline_run_id: MH-20260805-FCAST-001
+rejected_candidate_run_id: MH-20260808-FOPT-013
+dataset_id: psyche_d
+task_ids: [forecast_1m, forecast_2m]
+environment_lock: configs/experiments/mood_social_forecast_v3_4_opt_environment.lock
+
+inputs:
+  source_root: 数据集/心理/PSYCHE-D
+  source_parquet: anon_processed_df_parquet
+  feature_mapping: p0_feature_mapping_v1.yaml
+  feature_explanations: Feature explanations - anonymized data - Sheet1.tsv
+  split_manifest: data/processed/mental_health/mood_social/v3.3.3/splits/split_manifest.json
+  baseline_root: artifacts/mental_health/mood_social/forecast_v3.4
+  expected_sha256:
+    source_parquet: 4bf1d7622d947f5bb62067c91789e1ef5de0411f439a772b8a7941282cc1cd78
+    feature_mapping: 6aa7c562def0b9b4dabc0c1ad14fbbb3fdde7b47b6540d45810fa954e4a7caff
+    feature_explanations: e346b57eb81c8c7d22a6ff0bda71214e527d8bed72eef1c2218d7e5826612e3e
+    split_manifest: e9915dbc590a6ea454c34d26558ac5866c57ee8a8e78f44cdcc79c859df77ee3
+    baseline_manifest: b00fa78907f9a4d009ff6c000fe5e2ce778b305ebbc499efbc04033dc56d2843
+    sample_manifest: 4c465c6b40ba421d3bee61bcb384d5483269dc69a0b9918a8839a2da84e2a375
+    inner_split_manifest: 64f9e4a8d548f9c5152275b9d1fc8933814bbc9730ca74af5557284657a4e4ef
+    split_manifest_reference: c7c3f05b8f368ddfadc5e4b552da41750048ba68917e654876ed352134104154
+    baseline_metrics: 2a6487e6fcf469b866c5a05bbee2644b4fcc36f033907825b0db8d10dc881084
+
+data_contract:
+  raw_row_count: 35694
+  raw_feature_count: 27
+  expected_rows:
+    forecast_1m: 9393
+    forecast_2m: 9280
+  expected_participants:
+    forecast_1m: 3635
+    forecast_2m: 3593
+  expected_common_target_windows: 8494
+  time_unit: nominal_month_slot
+  timing_evidence: design_level
+  natural_dates_available: false
+  cutoff_rule:
+    forecast_1m: feature_month_slot == label_month_slot - 1
+    forecast_2m: feature_month_slot == label_month_slot - 2
+  cross_horizon_join_key: [global_participant_id, target_window_id]
+  cross_horizon_fallback: stack_available=0 and use frozen 1m base expert
+
+targets:
+  primary: future_binary_target == (future PHQ-9 >= 10)
+  continuous: future PHQ-9 score in [0, 27]
+  ordinal_bins: [[0, 4], [5, 9], [10, 14], [15, 19], [20, 27]]
+  cumulative_thresholds: [5, 10, 15, 20]
+  direction: sign(current future score - previous valid score strictly before label month)
+  auxiliary_targets_are_inference_inputs: false
+  state_aware_history_rule: historical_assessment_slot < feature_month_slot
+  same_month_assessment_allowed: false
+  synthetic_s10_data_allowed: false
+
+features:
+  passive_allow:
+    - frozen_27_activity_sleep_fields
+    - anchor
+    - delta
+    - rolling
+    - local_slope
+    - variability
+    - direction_persistence
+    - change_point_distance
+    - shrunk_personal_baseline
+    - history_quality
+    - explicit_missing_mask
+    - nominal_month_or_season_if_inner_stable
+  passive_deny:
+    - current_or_future_phq9
+    - target_or_future_month_sensor_values
+    - outer_fold_id
+    - inner_fold_id
+    - participant_identity_encoding
+    - heldout_outer_statistics
+    - ordinary_smote
+    - cross_participant_synthetic_samples
+  shrunk_baseline:
+    formula: n/(n+lambda)*personal_baseline + lambda/(n+lambda)*cohort_reference
+    lambda_candidates: [1.0, 3.0, 6.0, 12.0]
+    cohort_reference_scope: outer-train rows strictly before cutoff only
+
+splits:
+  outer_folds: 5
+  inner_folds: 5
+  participant_isolated: true
+  preserve_existing_assignment: true
+  random_seed: 20260728
+  outer_test_selection_access: forbidden
+  source_model_excludes_target_participant_complete_history: true
+
+search:
+  random_seeds: [20260728, 20260729, 20260730]
+  seed_aggregation: arithmetic_mean
+  threads_per_model: 1
+  candidate_workers: 4
+  early_stopping_rounds: 50
+  max_boosting_rounds: 600
+  ordinal:
+    model_families:
+      - cumulative_logistic
+      - lightgbm_cumulative_thresholds
+      - catboost_regression
+      - lightgbm_regression_tail_mapping
+    max_candidates_per_family_per_horizon: 4
+  experts:
+    names: [cold_start, warm_history, recent_trend]
+    gates: [single_model, hard_gate, soft_gate]
+    max_gate_candidates_per_horizon: 12
+  ranking:
+    scopes: [same_label_month, global_inner_train]
+    max_opposite_pairs_per_anchor: 32
+    fusion_weight_grid: [0.0, 0.25, 0.5, 0.75, 1.0]
+    nonnegative_fusion: true
+  stacking:
+    join_key: [global_participant_id, target_window_id]
+    expected_available_rows: 8494
+    structures: [probability_prior, residual, ordinal_plus_residual]
+  sequence:
+    minimum_sequence_ge3_rate: 0.55
+    maximum_parameters: 250000
+    maximum_epochs: 80
+    models: [masked_gru, small_tcn, controlled_transformer]
+  stop_after_two_structural_no_gain_families: true
+
+evaluation:
+  evaluation_weight: 1/(N_participants*n_rows_for_participant)
+  ranking_score_is_uncalibrated: true
+  auprc:
+    implementation: sklearn.metrics.average_precision_score
+    sample_weight: participant_equal
+  auroc:
+    implementation: sklearn.metrics.roc_auc_score
+    sample_weight: participant_equal
+  brier:
+    formula: sum(w_i*(calibrated_probability_i-y_i)^2)
+  ece:
+    bins: 10
+    binning: equal_width_[0,0.1)...[0.9,1.0]
+    weighted: participant_equal
+  macro_f1_threshold:
+    source: inner_cross_fitted_calibrated_probability_only
+    candidates: unique_probabilities_plus_0_and_1
+    maximize: participant_equal_macro_f1
+    tie_break: higher_sensitivity_then_lower_threshold
+    comparison: probability >= threshold
+  fixed_specificity:
+    targets: [0.8, 0.9]
+    source: inner_cross_fitted_calibrated_probability_only
+    maximize: recall
+    tie_break: higher_specificity_then_higher_threshold
+    outer_reselection: forbidden
+  top_k:
+    q: [0.05, 0.1, 0.2]
+    partition: label_month_slot
+    order: ranking_score_desc_then_target_window_id_asc
+    count: ceil(q*N_month)
+  bootstrap:
+    unit: participant
+    replicates: 2000
+    seed: 20260728
+    paired_candidate_baseline_multiplicity: true
+    row_weight: m_i/(N_draws*n_i)
+    confidence_interval: percentile_[0.025,0.975]
+
+promotion:
+  horizon_auprc_min_delta: 0.005
+  auroc_allowed_drop: 0.005
+  brier_allowed_increase: 0.002
+  ece_absolute_max: 0.03
+  ece_allowed_increase: 0.005
+  folds_min_non_decrease: 3
+  fold_max_auprc_drop: 0.02
+  bootstrap_auprc_delta_median_must_be_positive: true
+  package_requires_both_horizons: true
+
+run_lifecycle:
+  sealed_run_is_immutable: true
+  changed_retry_requires_new_run_id: true
+  no_valid_inner_candidate_result: stopped_no_valid_candidate
+  no_valid_inner_candidate_reads_outer_test: false
+
+execution_boundary:
+  release_status: experimental
+  execution_mode: offline_only
+  decision_authority: shadow_only
+  product_visible: false
+  backend_change: false
+  api_change: false
+  mood_social_pipeline_change: false
+  v3_3_package_change: false
+  v3_3_physiology_change: false

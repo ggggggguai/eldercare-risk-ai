@@ -1,0 +1,49 @@
+# OPT-RUNTIME-001 workpoints are for offline replay and competition demos only.
+# They are not deployment-calibrated production thresholds.
+policy:
+  policy_version: mood-social-runtime-policy-v1
+  scope: offline_demo
+  deployment_status: not_production_validated
+  expected_model_version: mood-fusion-v3.3.3
+
+workpoints:
+  - level: 0
+    lower_bound_inclusive: 0.0
+    upper_bound_exclusive: 0.25
+    scope: offline_demo
+  - level: 1
+    lower_bound_inclusive: 0.25
+    upper_bound_exclusive: 0.45
+    scope: offline_demo
+  - level: 2
+    lower_bound_inclusive: 0.45
+    upper_bound_exclusive: 0.65
+    scope: offline_demo
+  - level: 3
+    lower_bound_inclusive: 0.65
+    upper_bound_exclusive: null
+    scope: offline_demo
+
+smoothing:
+  method: trailing_arithmetic_mean
+  window_calendar_days: 3
+  minimum_available_days: 3
+  require_contiguous_days: true
+
+escalation:
+  consecutive_qualifying_days: 2
+  allow_level_skips: true
+
+hysteresis:
+  upgrade_margin: 0.03
+  downgrade_margin: 0.05
+
+strong_rules:
+  passthrough_enabled: true
+  allowed_target_levels: [2, 3]
+  require_reason_code: true
+
+evidence:
+  missing_day_breaks_sequence: true
+  unavailable_day_breaks_sequence: true
+  same_model_version_only: true

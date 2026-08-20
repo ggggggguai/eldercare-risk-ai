@@ -1,0 +1,287 @@
+{
+  "calibration_registry": [
+    "identity",
+    "temperature",
+    "vector_scaling"
+  ],
+  "calibration_rule": "cross-fitted inner-OOF minimum multiclass Brier, then NLL, then registry order",
+  "candidate_registry": [
+    {
+      "augmentation": "none",
+      "aux_weight": 0.0,
+      "candidate_id": "C0_random_ce_tcn",
+      "enabled_routes": [
+        "appearance",
+        "motion",
+        "local_roi",
+        "landmark"
+      ],
+      "loss_kind": "ce",
+      "sampler": "random",
+      "ssl": "none",
+      "supcon_weight": 0.0,
+      "temporal": "tcn"
+    },
+    {
+      "augmentation": "none",
+      "aux_weight": 0.2,
+      "candidate_id": "C1_class_weighted_tcn",
+      "enabled_routes": [
+        "appearance",
+        "motion",
+        "local_roi",
+        "landmark"
+      ],
+      "loss_kind": "weighted_ce",
+      "sampler": "class",
+      "ssl": "none",
+      "supcon_weight": 0.0,
+      "temporal": "tcn"
+    },
+    {
+      "augmentation": "none",
+      "aux_weight": 0.2,
+      "candidate_id": "C2_subject_balanced_tcn",
+      "enabled_routes": [
+        "appearance",
+        "motion",
+        "local_roi",
+        "landmark"
+      ],
+      "loss_kind": "balanced_softmax",
+      "sampler": "subject",
+      "ssl": "none",
+      "supcon_weight": 0.0,
+      "temporal": "tcn"
+    },
+    {
+      "augmentation": "none",
+      "aux_weight": 0.2,
+      "candidate_id": "C3_twolevel_focal_tcn",
+      "enabled_routes": [
+        "appearance",
+        "motion",
+        "local_roi",
+        "landmark"
+      ],
+      "loss_kind": "cb_focal",
+      "sampler": "two_level",
+      "ssl": "none",
+      "supcon_weight": 0.05,
+      "temporal": "tcn"
+    },
+    {
+      "augmentation": "none",
+      "aux_weight": 0.2,
+      "candidate_id": "C4_twolevel_ldam_tcn",
+      "enabled_routes": [
+        "appearance",
+        "motion",
+        "local_roi",
+        "landmark"
+      ],
+      "loss_kind": "ldam",
+      "sampler": "two_level",
+      "ssl": "none",
+      "supcon_weight": 0.05,
+      "temporal": "tcn"
+    },
+    {
+      "augmentation": "none",
+      "aux_weight": 0.2,
+      "candidate_id": "C5_twolevel_gru",
+      "enabled_routes": [
+        "appearance",
+        "motion",
+        "local_roi",
+        "landmark"
+      ],
+      "loss_kind": "balanced_softmax",
+      "sampler": "two_level",
+      "ssl": "none",
+      "supcon_weight": 0.0,
+      "temporal": "gru"
+    },
+    {
+      "augmentation": "none",
+      "aux_weight": 0.2,
+      "candidate_id": "C6_twolevel_transformer",
+      "enabled_routes": [
+        "appearance",
+        "motion",
+        "local_roi",
+        "landmark"
+      ],
+      "loss_kind": "balanced_softmax",
+      "sampler": "two_level",
+      "ssl": "none",
+      "supcon_weight": 0.0,
+      "temporal": "transformer"
+    },
+    {
+      "augmentation": "none",
+      "aux_weight": 0.2,
+      "candidate_id": "C7_motion_landmark",
+      "enabled_routes": [
+        "motion",
+        "landmark"
+      ],
+      "loss_kind": "balanced_softmax",
+      "sampler": "two_level",
+      "ssl": "none",
+      "supcon_weight": 0.0,
+      "temporal": "tcn"
+    },
+    {
+      "augmentation": "mild_noise",
+      "aux_weight": 0.2,
+      "candidate_id": "C8_noise_augmented_tcn",
+      "enabled_routes": [
+        "appearance",
+        "motion",
+        "local_roi",
+        "landmark"
+      ],
+      "loss_kind": "balanced_softmax",
+      "sampler": "two_level",
+      "ssl": "none",
+      "supcon_weight": 0.0,
+      "temporal": "tcn"
+    },
+    {
+      "augmentation": "none",
+      "aux_weight": 0.2,
+      "candidate_id": "C9_ssl_temporal_order",
+      "enabled_routes": [
+        "appearance",
+        "motion",
+        "local_roi",
+        "landmark"
+      ],
+      "loss_kind": "balanced_softmax",
+      "sampler": "two_level",
+      "ssl": "temporal_order",
+      "supcon_weight": 0.0,
+      "temporal": "tcn"
+    },
+    {
+      "augmentation": "none",
+      "aux_weight": 0.2,
+      "candidate_id": "C10_ssl_masked_consistency",
+      "enabled_routes": [
+        "appearance",
+        "motion",
+        "local_roi",
+        "landmark"
+      ],
+      "loss_kind": "balanced_softmax",
+      "sampler": "two_level",
+      "ssl": "masked_consistency",
+      "supcon_weight": 0.0,
+      "temporal": "tcn"
+    }
+  ],
+  "checkpoint_rule": "best inner validation selection score; fixed training budget contract before outer forward",
+  "dataset": "CASME II official only",
+  "decision_rule": "argmax calibrated/fused three-class probability",
+  "final_seeds": [
+    20260806,
+    20260817,
+    20260829
+  ],
+  "formal_evaluation_started": false,
+  "formal_samples": 143,
+  "formal_subjects": 24,
+  "fusion_rule": "cross-fitted inner-OOF selection score; no outer-test labels",
+  "fusion_weight_grid": [
+    0.0,
+    0.25,
+    0.5,
+    0.75,
+    1.0
+  ],
+  "inner_cv": "5-fold StratifiedGroupKFold by subject",
+  "inner_split_seed": 20260808,
+  "outer_test_forward": "exactly once per sample per seed during future EVAL-ME2-001 only",
+  "per_outer_selection_rule": "inner pooled OOF harmonic(UF1,UAR), then positive F1, positive recall, complexity",
+  "post_test_changes_allowed": false,
+  "protocol": "24-subject strict Nested-LOSO",
+  "three_seed_ensemble": "equal_probability_mean",
+  "traditional_registry": [
+    {
+      "candidate_id": "T0_hoof_lbp_linear",
+      "feature_groups": [
+        "hoof",
+        "lbp_top"
+      ],
+      "kernel": "linear"
+    },
+    {
+      "candidate_id": "T1_hog_linear",
+      "feature_groups": [
+        "hog"
+      ],
+      "kernel": "linear"
+    },
+    {
+      "candidate_id": "T2_landmark_motion_rbf",
+      "feature_groups": [
+        "landmark_features",
+        "motion_stats"
+      ],
+      "kernel": "rbf"
+    },
+    {
+      "candidate_id": "T3_all_linear",
+      "feature_groups": [
+        "hoof",
+        "lbp_top",
+        "hog",
+        "landmark_features",
+        "motion_stats"
+      ],
+      "kernel": "linear"
+    },
+    {
+      "candidate_id": "T4_all_rbf",
+      "feature_groups": [
+        "hoof",
+        "lbp_top",
+        "hog",
+        "landmark_features",
+        "motion_stats"
+      ],
+      "kernel": "rbf"
+    },
+    {
+      "candidate_id": "T5_dense_motion_linear",
+      "feature_groups": [
+        "dense_motion"
+      ],
+      "kernel": "linear"
+    },
+    {
+      "candidate_id": "T6_dense_motion_rbf",
+      "feature_groups": [
+        "dense_motion"
+      ],
+      "kernel": "rbf"
+    },
+    {
+      "candidate_id": "T7_dense_motion_landmark_rbf",
+      "feature_groups": [
+        "dense_motion",
+        "landmark_features"
+      ],
+      "kernel": "rbf"
+    }
+  ],
+  "training_budget": {
+    "batch_size": 16,
+    "checkpoint_tie_break": "earliest epoch at equal selection score",
+    "gradient_clip_norm": 1.0,
+    "optimizer": "AdamW(lr=3e-4,weight_decay=1e-4)",
+    "ssl_epochs": 1,
+    "supervised_epochs": 4
+  }
+}

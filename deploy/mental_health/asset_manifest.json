@@ -1,0 +1,582 @@
+{
+  "assets": [
+    {
+      "component": "wandering_preprocessing",
+      "path": "data/processed/wandering/preprocessing/v1/feature_stats.json",
+      "sha256": "249ad8383043dba1d95452533ddc6004dfecc2c9e99be43f788dcfcbfb434c8d",
+      "size_bytes": 2844
+    },
+    {
+      "component": "wandering_preprocessing",
+      "path": "data/processed/wandering/preprocessing/v1/manifest.json",
+      "sha256": "242072bdfe4b969d320a091ecc499aff445c30a937dfb1e6739ad869aa938593",
+      "size_bytes": 1278
+    },
+    {
+      "component": "cognitive_encoder_v3_3",
+      "path": "models/mental_health/cognitive_change_clue/v3.3.0/asr_package_ref.json",
+      "sha256": "711362750461f01166bcfc63180d70f10596ab9bc35f1e4040dfe5072dab5b76",
+      "size_bytes": 244
+    },
+    {
+      "component": "cognitive_encoder_v3_3",
+      "path": "models/mental_health/cognitive_change_clue/v3.3.0/asset_manifest.json",
+      "sha256": "35e5d378c0fb0c71270fe8843c6d0d9b15da7b190fa75a1e021d6b7431688bab",
+      "size_bytes": 3141
+    },
+    {
+      "component": "cognitive_encoder_v3_3",
+      "path": "models/mental_health/cognitive_change_clue/v3.3.0/calibration.json",
+      "sha256": "f7a673e0063e53304b66d9337870a27ba32514f357acd4f3aead84f70e072914",
+      "size_bytes": 262
+    },
+    {
+      "component": "cognitive_encoder_v3_3",
+      "path": "models/mental_health/cognitive_change_clue/v3.3.0/cogpic_subject_split_v33.json",
+      "sha256": "05ee63247c721c10e355408c98218df86fae74a19be7eb735e8510d7d7b48e86",
+      "size_bytes": 13267
+    },
+    {
+      "component": "cognitive_encoder_v3_3",
+      "path": "models/mental_health/cognitive_change_clue/v3.3.0/config_snapshot.yaml",
+      "sha256": "0e52f4f7c2d35c21dc7c5fdb3c5b37475b22388beac095268c8a2a53d024fe91",
+      "size_bytes": 2298
+    },
+    {
+      "component": "cognitive_encoder_v3_3",
+      "path": "models/mental_health/cognitive_change_clue/v3.3.0/detectors/mediapipe_face_detection_short_range.tflite",
+      "sha256": "bbff11cebd1eb27a1e004cae0b0e63ec8c551cbf34a4451148b4908b8db3eca8",
+      "size_bytes": 229714
+    },
+    {
+      "component": "cognitive_encoder_v3_3",
+      "path": "models/mental_health/cognitive_change_clue/v3.3.0/encoders/resnet18_imagenet1k_v1.pth",
+      "sha256": "f37072fd47e89c5e827621c5baffa7500819f7896bbacec160b1a16c560e07ec",
+      "size_bytes": 46830571
+    },
+    {
+      "component": "cognitive_encoder_v3_3",
+      "path": "models/mental_health/cognitive_change_clue/v3.3.0/encoders/roberta/added_tokens.json",
+      "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "size_bytes": 2
+    },
+    {
+      "component": "cognitive_encoder_v3_3",
+      "path": "models/mental_health/cognitive_change_clue/v3.3.0/encoders/roberta/config.json",
+      "sha256": "1e14cacefddbdf696eb841224998c308c7032c5a8a33d7d39b207bed79337090",
+      "size_bytes": 913
+    },
+    {
+      "component": "cognitive_encoder_v3_3",
+      "path": "models/mental_health/cognitive_change_clue/v3.3.0/encoders/roberta/model.safetensors",
+      "sha256": "44700f899a006118a76882165fdc91b2485465b0b2e5467e44922dcc29487a4f",
+      "size_bytes": 409092920
+    },
+    {
+      "component": "cognitive_encoder_v3_3",
+      "path": "models/mental_health/cognitive_change_clue/v3.3.0/encoders/roberta/special_tokens_map.json",
+      "sha256": "303df45a03609e4ead04bc3dc1536d0ab19b5358db685b6f3da123d05ec200e3",
+      "size_bytes": 112
+    },
+    {
+      "component": "cognitive_encoder_v3_3",
+      "path": "models/mental_health/cognitive_change_clue/v3.3.0/encoders/roberta/tokenizer.json",
+      "sha256": "48cea5d44424912a6fd1ea647bf4fe50b55ab8b1e5879c3275f80e339e8fae26",
+      "size_bytes": 439125
+    },
+    {
+      "component": "cognitive_encoder_v3_3",
+      "path": "models/mental_health/cognitive_change_clue/v3.3.0/encoders/roberta/tokenizer_config.json",
+      "sha256": "63899dfd1291d7a6e82ac18bbcb4b3a54ed823e00f63d58bb987a38f256cb4f7",
+      "size_bytes": 393
+    },
+    {
+      "component": "cognitive_encoder_v3_3",
+      "path": "models/mental_health/cognitive_change_clue/v3.3.0/encoders/roberta/vocab.txt",
+      "sha256": "45bbac6b341c319adc98a532532882e91a9cefc0329aa57bac9ae761c27b291c",
+      "size_bytes": 109540
+    },
+    {
+      "component": "cognitive_encoder_v3_3",
+      "path": "models/mental_health/cognitive_change_clue/v3.3.0/encoders/wavlm_base_plus.pth",
+      "sha256": "136a3e720c04f2c77bf7a4dc6a3868b14d5a2c145a988114b733cb1a8428be98",
+      "size_bytes": 377604347
+    },
+    {
+      "component": "cognitive_encoder_v3_3",
+      "path": "models/mental_health/cognitive_change_clue/v3.3.0/feature_stats.json",
+      "sha256": "48d82738a6b1059ac3359b12edf397939a09632c14585523c6393841690b16d2",
+      "size_bytes": 417
+    },
+    {
+      "component": "cognitive_encoder_v3_3",
+      "path": "models/mental_health/cognitive_change_clue/v3.3.0/fusion.pt",
+      "sha256": "b7077898ebb56218dd2a1b0a975efa7b9ca3422e1711ab62223598c5c06b73f8",
+      "size_bytes": 6882187
+    },
+    {
+      "component": "cognitive_encoder_v3_3",
+      "path": "models/mental_health/cognitive_change_clue/v3.3.0/manifest.json",
+      "sha256": "50011abeefd49bc0a73ff41b4985c2e6ddcb621106fed4c0017e633416050780",
+      "size_bytes": 3781
+    },
+    {
+      "component": "cognitive_encoder_v3_3",
+      "path": "models/mental_health/cognitive_change_clue/v3.3.0/requirements-cognitive-v3.3.lock",
+      "sha256": "2d11f260869ae09ae92c78bc68f5ba4b018138e395e9c927f70fa8cea72d01e0",
+      "size_bytes": 2347
+    },
+    {
+      "component": "cognitive_encoder_v3_3",
+      "path": "models/mental_health/cognitive_change_clue/v3.3.0/sha256sums.txt",
+      "sha256": "59f0b7477c925101ba6c56ca4daef385ece411c3f3246f7efd1001aaadcbbd70",
+      "size_bytes": 1815
+    },
+    {
+      "component": "cognitive_subject_v3_5",
+      "path": "models/mental_health/cognitive_change_clue/v3.5.0/calibration.json",
+      "sha256": "d97b213902a858983aeed1a6b907a21589fdf803e77ec66033a0906ce85d24d5",
+      "size_bytes": 408
+    },
+    {
+      "component": "cognitive_subject_v3_5",
+      "path": "models/mental_health/cognitive_change_clue/v3.5.0/candidate_config.json",
+      "sha256": "48d5e5c9891839320ca6617830338a0580f548db8cb86ccf16604fac6cc65d25",
+      "size_bytes": 449
+    },
+    {
+      "component": "cognitive_subject_v3_5",
+      "path": "models/mental_health/cognitive_change_clue/v3.5.0/confirmation_evidence.json",
+      "sha256": "6002c1c9137ac3123c8037ea56b49ca19b5d330baee78005c54720b3fe189ba5",
+      "size_bytes": 326128
+    },
+    {
+      "component": "cognitive_subject_v3_5",
+      "path": "models/mental_health/cognitive_change_clue/v3.5.0/manifest.json",
+      "sha256": "16cb3a7450b8710997394d0cff0e0403e3c761033140a13bb6ca5f173dc5b58f",
+      "size_bytes": 4928
+    },
+    {
+      "component": "cognitive_subject_v3_5",
+      "path": "models/mental_health/cognitive_change_clue/v3.5.0/model_seed_20260818.pt",
+      "sha256": "15eb78e77bc9d00f5ea3379e9806bbdeccb91a489d7aceb36f53fffca8cb7ef0",
+      "size_bytes": 1268541
+    },
+    {
+      "component": "cognitive_subject_v3_5",
+      "path": "models/mental_health/cognitive_change_clue/v3.5.0/model_seed_20260828.pt",
+      "sha256": "309645979ae01c291c415e28dd20b6f606b169891a296d8fd409cda007d783a3",
+      "size_bytes": 1268541
+    },
+    {
+      "component": "cognitive_subject_v3_5",
+      "path": "models/mental_health/cognitive_change_clue/v3.5.0/model_seed_20260908.pt",
+      "sha256": "385941a35f4d818d89331ee131f1724a3a158a3fc24403c03e25fb054814ddac",
+      "size_bytes": 1268541
+    },
+    {
+      "component": "cognitive_subject_v3_5",
+      "path": "models/mental_health/cognitive_change_clue/v3.5.0/probe_expected.json",
+      "sha256": "a08be535f8501baa025cc8e2dbe33b92e788a8d1918b95b5648f27a52af48bb1",
+      "size_bytes": 375
+    },
+    {
+      "component": "cognitive_subject_v3_5",
+      "path": "models/mental_health/cognitive_change_clue/v3.5.0/probe_input.pt",
+      "sha256": "64c807921ad99f94f0420920a35679517af70eed67fc0389e5cfae2e66184042",
+      "size_bytes": 51989
+    },
+    {
+      "component": "cognitive_subject_v3_5",
+      "path": "models/mental_health/cognitive_change_clue/v3.5.0/sha256sums.txt",
+      "sha256": "fb233e29a04f902d37936031e8ffc534084b47e6abd12a908c49e6e0b420372b",
+      "size_bytes": 787
+    },
+    {
+      "component": "facial_affect_b0",
+      "path": "models/mental_health/facial_affect/b0_opt_me_008_deployment_v1/checkpoints/seed_28081101_repeat_0_fold_0.pt",
+      "sha256": "948fdfbee647455a416641fb2d87a8484687b9c3b0ed289e592f4b1eeaacc44e",
+      "size_bytes": 10185069
+    },
+    {
+      "component": "facial_affect_b0",
+      "path": "models/mental_health/facial_affect/b0_opt_me_008_deployment_v1/checkpoints/seed_28081101_repeat_0_fold_1.pt",
+      "sha256": "36df586316622c9af9c4a31210d82b3c7a0310a98fc421f3f0ec96bd9bf39cb0",
+      "size_bytes": 10185069
+    },
+    {
+      "component": "facial_affect_b0",
+      "path": "models/mental_health/facial_affect/b0_opt_me_008_deployment_v1/checkpoints/seed_28081101_repeat_0_fold_2.pt",
+      "sha256": "37675d33dc8cbe0af3941ab10b488f2ead318baa3c6675d22a6173e303b60b6f",
+      "size_bytes": 10185069
+    },
+    {
+      "component": "facial_affect_b0",
+      "path": "models/mental_health/facial_affect/b0_opt_me_008_deployment_v1/checkpoints/seed_28081101_repeat_0_fold_3.pt",
+      "sha256": "fa0869be5e4991388a37870ebdec5aea21ee670e6dbc140ad13168b7f1de0408",
+      "size_bytes": 10185069
+    },
+    {
+      "component": "facial_affect_b0",
+      "path": "models/mental_health/facial_affect/b0_opt_me_008_deployment_v1/checkpoints/seed_28081101_repeat_0_fold_4.pt",
+      "sha256": "0f2a2d5eee3184c1f40520bea1e6bc055e67b8c1b5b1998ad3393fa9fff9128c",
+      "size_bytes": 10185069
+    },
+    {
+      "component": "facial_affect_b0",
+      "path": "models/mental_health/facial_affect/b0_opt_me_008_deployment_v1/checkpoints/seed_28081101_repeat_1_fold_0.pt",
+      "sha256": "ae53911524499a3032154724d6eec9b875deb9d6870d49bd1f3382c29071c4c3",
+      "size_bytes": 10185069
+    },
+    {
+      "component": "facial_affect_b0",
+      "path": "models/mental_health/facial_affect/b0_opt_me_008_deployment_v1/checkpoints/seed_28081101_repeat_1_fold_1.pt",
+      "sha256": "6382aa926c5ad4223f44e344e39517c4f77af5e9424665ffdf4961256a85bbd2",
+      "size_bytes": 10185069
+    },
+    {
+      "component": "facial_affect_b0",
+      "path": "models/mental_health/facial_affect/b0_opt_me_008_deployment_v1/checkpoints/seed_28081101_repeat_1_fold_2.pt",
+      "sha256": "9296f1cd39cd9cc2b1ce6c47061dd3c5f8beb4c3cdd0402e0540a3139a9afc96",
+      "size_bytes": 10185069
+    },
+    {
+      "component": "facial_affect_b0",
+      "path": "models/mental_health/facial_affect/b0_opt_me_008_deployment_v1/checkpoints/seed_28081101_repeat_1_fold_3.pt",
+      "sha256": "6f6bac8d8f17bca33662b6151b4f34ebc4b74abd1d771c8eb340ee58918984d9",
+      "size_bytes": 10185069
+    },
+    {
+      "component": "facial_affect_b0",
+      "path": "models/mental_health/facial_affect/b0_opt_me_008_deployment_v1/checkpoints/seed_28081101_repeat_1_fold_4.pt",
+      "sha256": "d7caf6538b7642439451bf3fdf1dffe97c78936a4647358da5083732c438f60c",
+      "size_bytes": 10185069
+    },
+    {
+      "component": "facial_affect_b0",
+      "path": "models/mental_health/facial_affect/b0_opt_me_008_deployment_v1/checkpoints/seed_28081119_repeat_0_fold_0.pt",
+      "sha256": "e89c8eeb4a5eb24841fe86d0ca411ac49ba658398d2f404f0954db3da42e8837",
+      "size_bytes": 10185005
+    },
+    {
+      "component": "facial_affect_b0",
+      "path": "models/mental_health/facial_affect/b0_opt_me_008_deployment_v1/checkpoints/seed_28081119_repeat_0_fold_1.pt",
+      "sha256": "3621bee60bdcb89fc9ed78c974a38be094b7ca38f3eb9f60db15923695a0c7ee",
+      "size_bytes": 10185005
+    },
+    {
+      "component": "facial_affect_b0",
+      "path": "models/mental_health/facial_affect/b0_opt_me_008_deployment_v1/checkpoints/seed_28081119_repeat_0_fold_2.pt",
+      "sha256": "ac2198c884ba8d927d3ed61d63757e448c68001b643b58be0c25a185aaa19089",
+      "size_bytes": 10185005
+    },
+    {
+      "component": "facial_affect_b0",
+      "path": "models/mental_health/facial_affect/b0_opt_me_008_deployment_v1/checkpoints/seed_28081119_repeat_0_fold_3.pt",
+      "sha256": "1262a2ad7d1251da6359942388820c34bdb87bb63b4dbb9997f6053ad89eaa09",
+      "size_bytes": 10185005
+    },
+    {
+      "component": "facial_affect_b0",
+      "path": "models/mental_health/facial_affect/b0_opt_me_008_deployment_v1/checkpoints/seed_28081119_repeat_0_fold_4.pt",
+      "sha256": "19a057c74810b488f3b7c83a21bc44b0ad58ee3aa180b14fd254fe96ac1a76a2",
+      "size_bytes": 10185005
+    },
+    {
+      "component": "facial_affect_b0",
+      "path": "models/mental_health/facial_affect/b0_opt_me_008_deployment_v1/checkpoints/seed_28081119_repeat_1_fold_0.pt",
+      "sha256": "165f74ad13cf1f1caad1a9840e5126f3625250fd1191da4bbac17e1d2b242d4a",
+      "size_bytes": 10185005
+    },
+    {
+      "component": "facial_affect_b0",
+      "path": "models/mental_health/facial_affect/b0_opt_me_008_deployment_v1/checkpoints/seed_28081119_repeat_1_fold_1.pt",
+      "sha256": "322e0b4e3e397d262cd1feb192490a1a3783000c1ce43f78d8d42b183fbca9b6",
+      "size_bytes": 10185005
+    },
+    {
+      "component": "facial_affect_b0",
+      "path": "models/mental_health/facial_affect/b0_opt_me_008_deployment_v1/checkpoints/seed_28081119_repeat_1_fold_2.pt",
+      "sha256": "f6da3523bdaa9c31e61f4124dad6951704b7ce58792bc4482659dfb895dbe8d6",
+      "size_bytes": 10185005
+    },
+    {
+      "component": "facial_affect_b0",
+      "path": "models/mental_health/facial_affect/b0_opt_me_008_deployment_v1/checkpoints/seed_28081119_repeat_1_fold_3.pt",
+      "sha256": "3c38ee2539cd0eda44a28a71a197de99f6290a7ffe024b832304b759f16bceb1",
+      "size_bytes": 10185005
+    },
+    {
+      "component": "facial_affect_b0",
+      "path": "models/mental_health/facial_affect/b0_opt_me_008_deployment_v1/checkpoints/seed_28081119_repeat_1_fold_4.pt",
+      "sha256": "e67c75da5e6d7f840a7557e78e83bbd1653aadf6dd068b3006203fee7414bc33",
+      "size_bytes": 10185005
+    },
+    {
+      "component": "facial_affect_b0",
+      "path": "models/mental_health/facial_affect/b0_opt_me_008_deployment_v1/freeze_audit.json",
+      "sha256": "c2e0513e6e1d1bd167ecbed0d25b77a728435d3783eb7c932ef74f0e4e9ae494",
+      "size_bytes": 677
+    },
+    {
+      "component": "facial_affect_b0",
+      "path": "models/mental_health/facial_affect/b0_opt_me_008_deployment_v1/manifest.json",
+      "sha256": "bc19c469016fcafb2266e0c2a574cce2c844a0513ef8f75fd46dc2a5db0db886",
+      "size_bytes": 13685
+    },
+    {
+      "component": "mood_social_r11",
+      "path": "models/mental_health/mood_social/v3.3.3-r11/packages/MH-20260814-R11-001/SHA256SUMS",
+      "sha256": "c66f9c826e8926ffe70b951c5e85dbe7186931adc2d93c189133fccf9af42a15",
+      "size_bytes": 338
+    },
+    {
+      "component": "mood_social_r11",
+      "path": "models/mental_health/mood_social/v3.3.3-r11/packages/MH-20260814-R11-001/contracts.json",
+      "sha256": "6688b5ec01b91d07bb7a5fc2352d694efb11081ae4cdc76e9ef920b6031811ce",
+      "size_bytes": 549
+    },
+    {
+      "component": "mood_social_r11",
+      "path": "models/mental_health/mood_social/v3.3.3-r11/packages/MH-20260814-R11-001/manifest.json",
+      "sha256": "8bc2fb9c6999b45cd3bd9da7b9af4c9d3b9227d25d3ac2c91089a9de4c7898a5",
+      "size_bytes": 1851
+    },
+    {
+      "component": "mood_social_r11",
+      "path": "models/mental_health/mood_social/v3.3.3-r11/packages/MH-20260814-R11-001/request_schema.json",
+      "sha256": "841a472c3c6bc424a66cbc4b51a10ff14e80b1f50763b55897ffc898748fbe03",
+      "size_bytes": 28696
+    },
+    {
+      "component": "mood_social_r11",
+      "path": "models/mental_health/mood_social/v3.3.3-r11/packages/MH-20260814-R11-001/response_schema.json",
+      "sha256": "c4e8d6a21208eb5f3457f82682f7e08c33453045f5d1fa7f89561f37c113e3f8",
+      "size_bytes": 6930
+    },
+    {
+      "component": "mood_social_r7",
+      "path": "models/mental_health/mood_social/v3.3.3-r7/packages/MH-20260813-R7-001/SHA256SUMS",
+      "sha256": "0d70a2f5dc986d9de53fed3e0ffb614395f11f9e6f40d9364c4d99f450179e3f",
+      "size_bytes": 258
+    },
+    {
+      "component": "mood_social_r7",
+      "path": "models/mental_health/mood_social/v3.3.3-r7/packages/MH-20260813-R7-001/device_input_schema.json",
+      "sha256": "8caebc3be0e34b5e69fdb43bbf0b43f41a0d48c503e14baf71e772981b3eb284",
+      "size_bytes": 22526
+    },
+    {
+      "component": "mood_social_r7",
+      "path": "models/mental_health/mood_social/v3.3.3-r7/packages/MH-20260813-R7-001/manifest.json",
+      "sha256": "747557139fcced456772aa91246601e3d54ad2bcbac673db4d7b5a55dbe49665",
+      "size_bytes": 3562
+    },
+    {
+      "component": "mood_social_r7",
+      "path": "models/mental_health/mood_social/v3.3.3-r7/packages/MH-20260813-R7-001/r7_experts.joblib",
+      "sha256": "e60f3812725388c187b989be48015788863a47e1ebbd872d78201e9a1ffb2121",
+      "size_bytes": 113926
+    },
+    {
+      "component": "mood_social_r8",
+      "path": "models/mental_health/mood_social/v3.3.3-r8/packages/MH-20260814-R8-001/SHA256SUMS",
+      "sha256": "4a16de5db8f3524ed212b14a49a6bf0d4390b0dac3ce6236c08b9b36169a7682",
+      "size_bytes": 352
+    },
+    {
+      "component": "mood_social_r8",
+      "path": "models/mental_health/mood_social/v3.3.3-r8/packages/MH-20260814-R8-001/manifest.json",
+      "sha256": "0f4d74237f4ca6748f30ddf8402708401d0464b69b3fe03041813b19d7201fd4",
+      "size_bytes": 2701
+    },
+    {
+      "component": "mood_social_r8",
+      "path": "models/mental_health/mood_social/v3.3.3-r8/packages/MH-20260814-R8-001/request_schema.json",
+      "sha256": "a3148e26db93cb008442f12639f22bf4cbd81fa5dfe1cb9c0c47b006a4839bbf",
+      "size_bytes": 28693
+    },
+    {
+      "component": "mood_social_r8",
+      "path": "models/mental_health/mood_social/v3.3.3-r8/packages/MH-20260814-R8-001/rule_truth_table.json",
+      "sha256": "34524f356057b28e1bfbebb0c0623fb588aeac361ef45fa8f9c9b5cd8213325c",
+      "size_bytes": 111404
+    },
+    {
+      "component": "mood_social_r8",
+      "path": "models/mental_health/mood_social/v3.3.3-r8/packages/MH-20260814-R8-001/rule_truth_table_audit.json",
+      "sha256": "4427d10dfcd14c50c6dc6b4e8690d7bcbe52ac8d02f17f0653c190b1d838c120",
+      "size_bytes": 380
+    },
+    {
+      "component": "mood_social_r9",
+      "path": "models/mental_health/mood_social/v3.3.3-r9/packages/MH-20260814-R9-001/SHA256SUMS",
+      "sha256": "48a23bfe0e4bc8a19fb21ca37f1bd9669fb89c6ea93185f44540a2b251ac3fd7",
+      "size_bytes": 350
+    },
+    {
+      "component": "mood_social_r9",
+      "path": "models/mental_health/mood_social/v3.3.3-r9/packages/MH-20260814-R9-001/manifest.json",
+      "sha256": "262486152bb327bb4e57d7fa0dfd45a7e1928d799b9d5d2b8210868fab892235",
+      "size_bytes": 4993
+    },
+    {
+      "component": "mood_social_r9",
+      "path": "models/mental_health/mood_social/v3.3.3-r9/packages/MH-20260814-R9-001/r9_promoted_experts.joblib",
+      "sha256": "1421224f0216c92e31732c5c363f466a6de2e91e0b5ecc97b0efd3609f832772",
+      "size_bytes": 5443
+    },
+    {
+      "component": "mood_social_r9",
+      "path": "models/mental_health/mood_social/v3.3.3-r9/packages/MH-20260814-R9-001/request_schema.json",
+      "sha256": "7dc03a508fbab04197ce60e8274a8af3b47a25fef9f52484c7ac66ce409a2122",
+      "size_bytes": 28693
+    },
+    {
+      "component": "mood_social_r9",
+      "path": "models/mental_health/mood_social/v3.3.3-r9/packages/MH-20260814-R9-001/response_schema.json",
+      "sha256": "6cdfbf4d2aac426c5e256781181e0437f9ce796b90e19f16ba73214dea630318",
+      "size_bytes": 12807
+    },
+    {
+      "component": "mood_social_forecast_v3_4",
+      "path": "models/mental_health/mood_social/v3.4.0/packages/MH-20260810-FDEP-001/MODEL_CARD.md",
+      "sha256": "fdab1ffcc175f22f419251602924a7d37ff8859668f599c2f95070c31aa13c68",
+      "size_bytes": 637
+    },
+    {
+      "component": "mood_social_forecast_v3_4",
+      "path": "models/mental_health/mood_social/v3.4.0/packages/MH-20260810-FDEP-001/SHA256SUMS",
+      "sha256": "7c45b6c71bc4b4daf5eb32e3456c6c025612c8a149f3a2ce93f5cac19a76a4d5",
+      "size_bytes": 1584
+    },
+    {
+      "component": "mood_social_forecast_v3_4",
+      "path": "models/mental_health/mood_social/v3.4.0/packages/MH-20260810-FDEP-001/manifest.json",
+      "sha256": "2e70fad31f4feed4899ad2752de5a2e248acc9db3d654b4a4125e9c7a8f35d04",
+      "size_bytes": 37392
+    },
+    {
+      "component": "mood_social_forecast_v3_4",
+      "path": "models/mental_health/mood_social/v3.4.0/packages/MH-20260810-FDEP-001/models/forecast_1m/passive_fallback_seed_20260728.cbm",
+      "sha256": "99b1a924c2c0a5310d035827bb90ad8c66260780723c1c81e19ae9d50005d3b6",
+      "size_bytes": 45768
+    },
+    {
+      "component": "mood_social_forecast_v3_4",
+      "path": "models/mental_health/mood_social/v3.4.0/packages/MH-20260810-FDEP-001/models/forecast_1m/passive_fallback_seed_20260729.cbm",
+      "sha256": "63473d451eb0ed979c321ea2fca363dfe66273dc9e8bd09b89c167dd06d8c475",
+      "size_bytes": 45800
+    },
+    {
+      "component": "mood_social_forecast_v3_4",
+      "path": "models/mental_health/mood_social/v3.4.0/packages/MH-20260810-FDEP-001/models/forecast_1m/passive_fallback_seed_20260730.cbm",
+      "sha256": "ae6f4fbf211127de07aca03e5ec055c8e82e45f26b26cff6912bd8cb18febbff",
+      "size_bytes": 45760
+    },
+    {
+      "component": "mood_social_forecast_v3_4",
+      "path": "models/mental_health/mood_social/v3.4.0/packages/MH-20260810-FDEP-001/models/forecast_1m/state_aware_seed_20260728.cbm",
+      "sha256": "5d0a6e290fb0a70a59124a1e97a99471b984a71b2daff7b1c799a19f1f5016a4",
+      "size_bytes": 46408
+    },
+    {
+      "component": "mood_social_forecast_v3_4",
+      "path": "models/mental_health/mood_social/v3.4.0/packages/MH-20260810-FDEP-001/models/forecast_1m/state_aware_seed_20260729.cbm",
+      "sha256": "3127f5f441bff8f6b4ea7915298254334cbca918b0a2998e0bce456fb5ac8701",
+      "size_bytes": 46376
+    },
+    {
+      "component": "mood_social_forecast_v3_4",
+      "path": "models/mental_health/mood_social/v3.4.0/packages/MH-20260810-FDEP-001/models/forecast_1m/state_aware_seed_20260730.cbm",
+      "sha256": "17bc40fe1708cfdc891b7d6e14a5ca6e2fa8c5c70025c96ac8423ec0c90df142",
+      "size_bytes": 46368
+    },
+    {
+      "component": "mood_social_forecast_v3_4",
+      "path": "models/mental_health/mood_social/v3.4.0/packages/MH-20260810-FDEP-001/models/forecast_2m/passive_fallback_seed_20260728.cbm",
+      "sha256": "8e61b1bde0307e8c511f8e9abd23bd203710ad1a4086102c90e7c3bd5608ef78",
+      "size_bytes": 45808
+    },
+    {
+      "component": "mood_social_forecast_v3_4",
+      "path": "models/mental_health/mood_social/v3.4.0/packages/MH-20260810-FDEP-001/models/forecast_2m/passive_fallback_seed_20260729.cbm",
+      "sha256": "680bcd99c54c001f7cb687bd43d7bca41efe8b06be55c3754846f1162e7bec8a",
+      "size_bytes": 45744
+    },
+    {
+      "component": "mood_social_forecast_v3_4",
+      "path": "models/mental_health/mood_social/v3.4.0/packages/MH-20260810-FDEP-001/models/forecast_2m/passive_fallback_seed_20260730.cbm",
+      "sha256": "6fe7a437fe076017539a579ec43cdab127f9b13502c3be067e5463991d88127e",
+      "size_bytes": 45752
+    },
+    {
+      "component": "mood_social_forecast_v3_4",
+      "path": "models/mental_health/mood_social/v3.4.0/packages/MH-20260810-FDEP-001/models/forecast_2m/state_aware_seed_20260728.cbm",
+      "sha256": "f68382bea8301916481dc58a97c0e1308f702e5463b5a5cdd798121f7917018a",
+      "size_bytes": 46360
+    },
+    {
+      "component": "mood_social_forecast_v3_4",
+      "path": "models/mental_health/mood_social/v3.4.0/packages/MH-20260810-FDEP-001/models/forecast_2m/state_aware_seed_20260729.cbm",
+      "sha256": "3beaed97649536ff1b80bd9e86e4dc16f1b715c3bdf0ddf917fb6e0d49b0d1e2",
+      "size_bytes": 46368
+    },
+    {
+      "component": "mood_social_forecast_v3_4",
+      "path": "models/mental_health/mood_social/v3.4.0/packages/MH-20260810-FDEP-001/models/forecast_2m/state_aware_seed_20260730.cbm",
+      "sha256": "6ee3841a1e97321433a0d36e6c7cb8fb8804343723538cf9939104b3366b2091",
+      "size_bytes": 46360
+    },
+    {
+      "component": "wandering_tracker",
+      "path": "models/shared/yolov8n-pose.pt",
+      "sha256": "c6fa93dd1ee4a2c18c900a45c1d864a1c6f7aba75d84f91648a30b7fb641d212",
+      "size_bytes": 6832633
+    },
+    {
+      "component": "wandering_primary_candidate",
+      "path": "reports/mental_health/wandering_performance/m0r_score_entry_hardening_v1/artifacts/topowander_m0r_candidate_v3/candidate_manifest.json",
+      "sha256": "3a1e56c37b9b43e340dcd67a3163454da1d37f24b01d8677935f63a069d97ac7",
+      "size_bytes": 12642
+    },
+    {
+      "component": "wandering_primary_candidate",
+      "path": "reports/mental_health/wandering_performance/m0r_score_entry_hardening_v1/artifacts/topowander_m0r_candidate_v3/forward_config.yaml",
+      "sha256": "debd3adcf0c84d266ca594fd9ba2716a5a854e074e6e2092570b1ec656ed80f7",
+      "size_bytes": 4469
+    },
+    {
+      "component": "wandering_primary_candidate",
+      "path": "reports/mental_health/wandering_performance/m0r_score_entry_hardening_v1/artifacts/topowander_m0r_candidate_v3/frozen_wp_rf_config.yaml",
+      "sha256": "d29db531f42ae5d7cf4ed540a85681ddab78e483695633ccc8b382d98e745e35",
+      "size_bytes": 3398
+    },
+    {
+      "component": "wandering_primary_candidate",
+      "path": "reports/mental_health/wandering_performance/m0r_score_entry_hardening_v1/artifacts/topowander_m0r_candidate_v3/model_state.npz",
+      "sha256": "94c3c22d4caa38ece347d6a10f440b9fb3f7067b6c791ac1f259ce7efe69c031",
+      "size_bytes": 838934
+    },
+    {
+      "component": "wandering_primary_candidate",
+      "path": "reports/mental_health/wandering_performance/m0r_score_entry_hardening_v1/artifacts/topowander_m0r_candidate_v3/performance_config.yaml",
+      "sha256": "ecc4c5a00dc9c30b1a4a16b943d39d9de85cce27077c8ccba1ba223c529de5f2",
+      "size_bytes": 1840
+    }
+  ],
+  "known_external_blockers": [
+    {
+      "component": "wandering_primary_candidate",
+      "required_before_wandering_runtime_ready": true,
+      "status": "source_files_not_present_in_received_step5_step6_bundle"
+    }
+  ],
+  "manifest_version": "2026-08-20.1",
+  "schema_version": "mental-health-external-assets-v1",
+  "storage_policy": {
+    "credentials_in_repository": false,
+    "deployment_source": "tencent-cloud-read-only-mount-or-download",
+    "git_contains_assets": false
+  }
+}

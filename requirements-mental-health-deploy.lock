@@ -1,0 +1,31 @@
+--index-url https://pypi.org/simple
+--extra-index-url https://download.pytorch.org/whl/cu128
+
+fastapi==0.116.1
+httpx==0.28.1
+uvicorn==0.35.0
+pydantic==2.13.4
+PyYAML==6.0.3
+numpy==1.26.4
+scipy==1.17.1
+pandas==3.0.3
+joblib==1.5.3
+scikit-learn==1.9.0
+lightgbm==4.6.0
+catboost==1.2.10
+Pillow==12.3.0
+opencv-contrib-python-headless==4.11.0.86
+mediapipe==0.10.21
+librosa==0.11.0
+soundfile==0.14.0
+numba==0.66.0
+transformers==5.14.1
+tokenizers==0.22.2
+safetensors==0.8.0
+sentencepiece==0.2.2
+einops==0.8.1
+requests==2.34.2
+lap==0.5.13
+torch==2.11.0+cu128
+torchaudio==2.11.0+cu128
+torchvision==0.26.0+cu128

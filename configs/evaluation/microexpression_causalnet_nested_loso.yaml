@@ -1,0 +1,63 @@
+schema_version: causalnet_strict_nested_loso_config_v1
+task_id: EVAL-ME-004
+run_id: EVAL-ME-004-SMIC-STRICT-NESTED-LOSO-20260807
+
+inputs:
+  artifact_manifest: data/manifests/microexpression/causalnet_v1/causalnet_artifact_manifest_smic_hs_source_compatible_roi_v1.jsonl
+  split_manifest: data/manifests/microexpression/smic_subject_loso_splits_v1.json
+  preprocessing_config: configs/preprocessing/microexpression_causalnet_v1.yaml
+  completion_audit: data/manifests/microexpression/causalnet_v1/causalnet_flow_model_completion_audit_v1.json
+  environment_lock: environment-microexpression.lock.yml
+
+model:
+  image_size: 28
+  patch_size: 7
+  dim: 256
+  heads: 3
+  num_hierarchies: 3
+  block_repeats: [3, 3, 9]
+  num_classes: 3
+  gamma: 0.5
+  channels: 3
+  mlp_mult: 4
+  dropout: 0.0
+  cross_heads: 8
+  cross_depth: 9
+
+training:
+  optimizer: adam
+  learning_rate: 0.00005
+  max_epochs: 100
+  min_epochs: 20
+  patience: 10
+  batch_size: 256
+  weight_decay: 0.0
+  gradient_clip_norm: 1.0
+  num_workers: 0
+  loss: weighted_cross_entropy
+  lr_step_epochs: 50
+  lr_gamma: 0.5
+
+protocol:
+  outer: subject_level_loso
+  fold_count: 16
+  inner_validation: frozen_training_side_subjects
+  configuration_selection: frozen_before_outer_test
+  checkpoint_selection: validation_uf1_uar_harmonic_then_loss
+  final_seeds: [20260806, 20260817, 20260829]
+  test_evaluations_per_seed_sample: 1
+  bootstrap_iterations: 2000
+  spatial_variant: source_compatible_roi
+  test_used_for_selection: false
+
+release_thresholds:
+  rejected_if_either_below: 0.55
+  research_baseline_both_at_least: 0.60
+  candidate_both_at_least: 0.70
+  candidate_max_seed_std: 0.05
+  require_no_zero_score_folds: true
+
+runtime:
+  require_cuda: true
+  expected_gpu: NVIDIA GeForce RTX 4060 Laptop GPU
+  deterministic: true

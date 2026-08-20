@@ -1,0 +1,52 @@
+* text=auto eol=lf
+
+# Frozen wandering text artifacts are hashed by raw bytes and must remain LF.
+configs/data/wandering_*.yaml text eol=lf
+configs/modules/wandering_rf_v1.yaml text eol=lf
+configs/modules/wandering_tcn_v1.yaml text eol=lf
+configs/modules/wandering_camera_v1.yaml text eol=lf
+configs/modules/wandering_camera_primary_v1.yaml text eol=lf
+configs/modules/wandering_camera_development_v1.yaml text eol=lf
+configs/modules/wandering_performance_v1.yaml text eol=lf
+configs/modules/wandering_topowander_mpt_v1.yaml text eol=lf
+configs/modules/wandering_topowander_pretrain_v1.yaml text eol=lf
+configs/runtime/wandering_step10_runtime_v1.yml text eol=lf
+src/elderly_monitoring/__init__.py text eol=lf
+src/elderly_monitoring/common/__init__.py text eol=lf
+src/elderly_monitoring/common/config.py text eol=lf
+src/elderly_monitoring/common/schemas.py text eol=lf
+src/elderly_monitoring/modules/__init__.py text eol=lf
+src/elderly_monitoring/modules/mental_health/__init__.py text eol=lf
+src/elderly_monitoring/modules/mental_health/adapters.py text eol=lf
+src/elderly_monitoring/modules/mental_health/baseline.py text eol=lf
+src/elderly_monitoring/modules/mental_health/config.py text eol=lf
+src/elderly_monitoring/modules/mental_health/daily_aggregation.py text eol=lf
+src/elderly_monitoring/modules/mental_health/features.py text eol=lf
+src/elderly_monitoring/modules/mental_health/pipeline.py text eol=lf
+reports/mental_health/wandering_step8/visual_review/v3/HUMAN_REVIEW.md text eol=lf
+data/splits/mental_health/wandering/v1/*.json text eol=lf
+data/splits/mental_health/wandering/v1/*.jsonl text eol=lf
+data/splits/mental_health/wandering/v1/*.sha256 text eol=lf
+reports/mental_health/wandering_step2/*.md text eol=lf
+reports/mental_health/wandering_step3/*.md text eol=lf
+reports/mental_health/wandering_step4/*.md text eol=lf
+reports/mental_health/wandering_step5/*.md text eol=lf
+reports/mental_health/wandering_step6/*.md text eol=lf
+reports/mental_health/wandering_step7/*.md text eol=lf
+scripts/wandering/*.py text eol=lf
+src/elderly_monitoring/modules/mental_health/wandering/*.py text eol=lf
+tests/test_wandering_*.py text eol=lf
+
+# Cognitive/wandering fusion policy and code are hash-bound and remain LF.
+configs/modules/cognitive_wandering_rule_fusion_v1.yaml text eol=lf
+src/elderly_monitoring/modules/mental_health/submodules/cognitive_wandering_fusion/*.py text eol=lf
+tests/test_cognitive_wandering_rule_fusion.py text eol=lf
+reports/mental_health/cognitive_wandering_fusion_v1/* text eol=lf
+
+# Frozen cognitive V3.5 manifests hash raw JSON bytes.
+models/mental_health/cognitive_change_clue/v3.5.0/*.json text eol=lf
+models/mental_health/cognitive_change_clue/v3.5.0/sha256sums.txt text eol=lf
+
+# Versioned mood-social package manifests are protected by raw-byte hashes.
+models/mental_health/mood_social/v3.3.3/packages/**/*.json text eol=lf
+models/mental_health/mood_social/v3.3.3/packages/**/SHA256SUMS text eol=lf

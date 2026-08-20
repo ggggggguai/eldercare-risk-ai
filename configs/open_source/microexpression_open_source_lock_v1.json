@@ -1,0 +1,157 @@
+{
+  "schema_version": "microexpression_open_source_lock_v1",
+  "task_id": "OSS-ME-001",
+  "created_at": "2026-08-07",
+  "reference_snapshots_executable": false,
+  "projects": [
+    {
+      "id": "causalnet",
+      "name": "CausalNet",
+      "repository": "https://github.com/tony19980810/CausalNet",
+      "commit": "7bdf163face030eeae4358fc7638cf538305acce",
+      "license": {
+        "spdx": "MIT",
+        "path": "third_party/microexpression/CausalNet/LICENSE",
+        "sha256": "f1c5e181963e914a1a7d4c1191bfc859527c0e18de93c92b819b1e64c6e73a2a"
+      },
+      "usage_scope": "Architecture reference for a project-owned, audited three-class recognition implementation.",
+      "forbidden_usage": [
+        "Do not execute or import the reference snapshot as production code.",
+        "Do not reuse upstream test-every-epoch checkpoint selection.",
+        "Do not report upstream metrics as strict project results.",
+        "Do not claim a bit-exact or paper-exact reproduction after correcting the public tensor mismatch."
+      ],
+      "reference_files": [
+        {
+          "path": "third_party/microexpression/CausalNet/reference/Models.py",
+          "sha256": "351d8c0823b40b7550b2d3c9f129cf38b50c9a64f130ca3504436dc2f21f4472",
+          "purpose": "Architecture and public tensor-contract audit"
+        },
+        {
+          "path": "third_party/microexpression/CausalNet/reference/main_train.py",
+          "sha256": "eee8f172eecd00b9a3328256106316846151fb4a87e9b9867c5da310dd1a2e8c",
+          "purpose": "Training-protocol leakage audit"
+        },
+        {
+          "path": "third_party/microexpression/CausalNet/reference/requirements.txt",
+          "sha256": "43a9b7e1a8dee93d8f691cabc27aae13a46c2467f8e60220f8f88a341779195a",
+          "purpose": "Upstream environment record only"
+        },
+        {
+          "path": "third_party/microexpression/CausalNet/reference/README.md",
+          "sha256": "fc9a5b455a14291eab895ad8c21fcff490bb80014fedcaeee59236dc88000bba",
+          "purpose": "Repository usage and citation record"
+        }
+      ],
+      "evidence_checks": [
+        {
+          "path": "third_party/microexpression/CausalNet/reference/main_train.py",
+          "required_patterns": [
+            "test_dl = DataLoader",
+            "for batch in test_dl",
+            "best_accuracy_for_each_subject < val_acc",
+            "if val_acc>=1"
+          ],
+          "finding": "The public script evaluates the held-out subject every epoch and uses that result for selection and early stopping."
+        },
+        {
+          "path": "third_party/microexpression/CausalNet/reference/Models.py",
+          "required_patterns": [
+            "CrossTransformer(256",
+            "x=x.reshape(b,d//4,2,2)"
+          ],
+          "finding": "The public 28x28 path reshapes 256 channels to 64 channels before a 256-dimensional cross-attention layer."
+        },
+        {
+          "path": "third_party/microexpression/CausalNet/reference/main_train.py",
+          "required_patterns": [
+            "image_size=28"
+          ],
+          "finding": "The audited public configuration selects the affected 28x28 path."
+        }
+      ]
+    },
+    {
+      "id": "megc2024_code",
+      "name": "MEGC2024-CODE",
+      "repository": "https://github.com/hitheyuhong/MEGC2024-CODE",
+      "commit": "826aa718efcc44920a1f6ae373350fade7ed92da",
+      "license": {
+        "spdx": "Apache-2.0",
+        "path": "third_party/microexpression/MEGC2024-CODE/LICENSE",
+        "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+      },
+      "usage_scope": "Reference for spotting windows, interval expansion, interval suppression, and evaluation scaffolding.",
+      "forbidden_usage": [
+        "Do not execute or import the reference snapshot as production code.",
+        "Do not replace project subject-level splits with upstream five-fold splits.",
+        "Do not adopt fixed eight-epoch results as project metrics.",
+        "Do not present short-window SMIC classification as long-video spotting validation."
+      ],
+      "reference_files": [
+        {
+          "path": "third_party/microexpression/MEGC2024-CODE/reference/README.md",
+          "sha256": "d860ffcc36d3e3838b0ab155615e89b1f08c08e399a561c97d9207a450bc2cec",
+          "purpose": "Protocol and prerequisite audit"
+        },
+        {
+          "path": "third_party/microexpression/MEGC2024-CODE/reference/main_spotandrecog.py",
+          "sha256": "4712384d503cd0600343f19df06e175607d3d027a28de792fc7869520a34b8c6",
+          "purpose": "Spotting orchestration audit"
+        },
+        {
+          "path": "third_party/microexpression/MEGC2024-CODE/reference/spot_util_casme.py",
+          "sha256": "9e000724eb7235f99dcfd20901ff35283bcd088d9c7533226297890f16f61c09",
+          "purpose": "Peak, interval expansion, and interval NMS reference"
+        },
+        {
+          "path": "third_party/microexpression/MEGC2024-CODE/reference/spot_util_samm.py",
+          "sha256": "fbbb2fc845ed26f78fab5326e5875d228fa44414912bda4eb9b95fe4d84603a4",
+          "purpose": "Long-video interval-processing reference"
+        },
+        {
+          "path": "third_party/microexpression/MEGC2024-CODE/reference/util/sim_filter.py",
+          "sha256": "95c719e24df5ad437d4ff4088518d2ee2e95f48a948cfe0b84acb72b21752c7e",
+          "purpose": "Temporal filter reference"
+        }
+      ],
+      "evidence_checks": [
+        {
+          "path": "third_party/microexpression/MEGC2024-CODE/reference/README.md",
+          "required_patterns": [
+            "five-fold cross-validation",
+            "train only 8 epochs"
+          ],
+          "finding": "The upstream training protocol is not the project strict subject-level Nested-LOSO protocol."
+        },
+        {
+          "path": "third_party/microexpression/MEGC2024-CODE/reference/spot_util_casme.py",
+          "required_patterns": [
+            "def fenxi1",
+            "def expend",
+            "def divide",
+            "def nms2"
+          ],
+          "finding": "The source contains reusable conceptual scaffolding for peaks, intervals, and suppression."
+        },
+        {
+          "path": "third_party/microexpression/MEGC2024-CODE/reference/spot_util_samm.py",
+          "required_patterns": [
+            "def nms2",
+            "iou>0.34"
+          ],
+          "finding": "The public interval suppression includes dataset-specific hard-coded thresholds and must be reimplemented and validated."
+        }
+      ]
+    }
+  ],
+  "required_notice_tokens": [
+    "CausalNet",
+    "7bdf163face030eeae4358fc7638cf538305acce",
+    "MIT",
+    "MEGC2024-CODE",
+    "826aa718efcc44920a1f6ae373350fade7ed92da",
+    "Apache-2.0",
+    "audit-only reference snapshots"
+  ]
+}

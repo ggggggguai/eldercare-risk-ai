@@ -1,0 +1,45 @@
+protocol_version: mood-social-v3.3.3-r4
+freeze_stage: after_adaptive_screening_before_seed_repeats_and_lodo
+frozen_at: 2026-08-12T11:18:00+08:00
+evidence_level: adaptive-development/reused-benchmark
+candidate_space:
+  elasticnet:
+    - {candidate_id: elasticnet_c01_l020, C: 0.1, l1_ratio: 0.2}
+    - {candidate_id: elasticnet_c05_l050, C: 0.5, l1_ratio: 0.5}
+  hist_gradient:
+    - {candidate_id: hist_leaf15_l2, max_leaf_nodes: 15, l2_regularization: 2.0, max_iter: 250, learning_rate: 0.05}
+    - {candidate_id: hist_leaf31_l5, max_leaf_nodes: 31, l2_regularization: 5.0, max_iter: 250, learning_rate: 0.04}
+  lightgbm:
+    - {candidate_id: lightgbm_leaf7, n_estimators: 300, learning_rate: 0.025, num_leaves: 7, min_child_samples: 30, reg_lambda: 3.0}
+    - {candidate_id: lightgbm_leaf15, n_estimators: 350, learning_rate: 0.025, num_leaves: 15, min_child_samples: 35, reg_lambda: 5.0}
+  catboost:
+    - {candidate_id: catboost_d3, iterations: 300, depth: 3, learning_rate: 0.035, l2_leaf_reg: 8.0}
+    - {candidate_id: catboost_d5, iterations: 350, depth: 5, learning_rate: 0.03, l2_leaf_reg: 12.0}
+selection:
+  inner_score: 0.6_natural_auprc_plus_0.4_participant_equal_auprc
+  top_two: distinct_model_families
+  convex_weights: [0.0, 0.25, 0.5, 0.75, 1.0]
+  calibration: [none, platt, beta, isotonic]
+  calibration_metric: participant_equal_brier_plus_0.25_ece
+repeat_seeds: [20260812, 20260813, 20260814]
+outer_folds: 5
+inner_folds: 5
+tracks:
+  - multisource_deployable
+  - psyche_d_single_source_research
+labels:
+  - phq_ge5_current
+  - phq_ge10_current
+postprocessing:
+  dual_head_projection: midpoint_projection_if_probability_ge10_exceeds_probability_ge5
+locked_evaluation:
+  bootstrap_replicates: 2000
+  bootstrap_seed: 20260812
+  lodo_major_sources: [nhanes, nhanes_ssq_2005_2008, psyche_d, shenzhen_elderly]
+  lodo_policy: diagnostic_and_route_local_warning
+  unsupported_route: abstain_and_report_zero_coverage
+prohibitions:
+  - no_historical_or_current_phq_inputs
+  - no_outer_score_dependent_search_space_change
+  - no_network_dataset_or_dependency_download
+  - no_r2_r3_artifact_overwrite

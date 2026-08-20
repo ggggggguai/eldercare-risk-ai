@@ -1,0 +1,28 @@
+task_id: API-003
+run_id: MH-20260804-024
+mode: no_promotion_keep_art001
+
+input:
+  art002_decision_path: models/mental_health/mood_social/v3.3.3/candidates/MH-20260804-023/art002_decision_manifest.json
+  art002_decision_sha256: fb1ddf95263491478c33c136001e3582130c160737c1fec99c1e6d522efcb579
+  package_selection_path: src/elderly_monitoring/modules/mental_health/mood_social/package_selection.py
+  package_selection_sha256: 10285feb90269f25347b256101d9cb8370954e18d8f68b7dbcc09d85c056532b
+  pipeline_path: src/elderly_monitoring/modules/mental_health/mood_social/pipeline.py
+  pipeline_sha256: d667ae632c22c584133c25c0590146a691bea7cc8a7487763e1f1db53a122426
+  backend_service_path: ../../backend/app/services/mood_social.py
+  backend_service_sha256: 1c8e9f48d97a7f7bd9b81c51389bd2fbfda1555e5d15e996da17cf8b9164ddab
+  backend_migration_path: ../../backend/app/migrations.py
+  backend_migration_sha256: 30a95fcf99d73e4372b91a71b5bcb178a81f31b8da03f0165b119937454f31f0
+
+expected:
+  active_package_run_id: MH-20260802-013
+  model_version: mood-fusion-v3.3.3
+  backend_unique_columns: [elder_id, target_date, model_version]
+  no_evidence_http_status: 200
+  unavailable_package_http_status: 503
+  original_probability_preserved: true
+  backend_implements_algorithm: false
+
+output:
+  report_directory: reports/mental_health/mood_social/MH-20260804-024
+  manifest_path: models/mental_health/mood_social/v3.3.3/candidates/MH-20260804-024/api003_decision_manifest.json

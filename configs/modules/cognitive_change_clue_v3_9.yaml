@@ -1,0 +1,204 @@
+schema_version: cognitive_change_clue_config_v3_9_governance_v1
+research_version: cognitive-v39-cross-dataset-research
+stage: opt_cog_035_protocol_freeze
+release_eligible: false
+training_authorized: true
+legal_terminal_states:
+  - stopped_by_governance_or_license
+  - rejected_no_internal_candidate
+  - rejected_on_process2_test
+  - frozen_cross_domain_research_only
+
+paths:
+  cogpic_train_subject_index: data/processed/cognitive_change_clue/v3.5.0/cogpic_subject_bags_v35.jsonl
+  cogpic_test: 数据集/心理/CogPic/CogPic/Test
+  process2_root: 数据集/心理/PROCESS-2/PROCESS-2
+  process2_metadata: 数据集/心理/PROCESS-2/PROCESS-2/meta-info.csv
+  meco_leaf: 数据集/心理/MECO/MECO/MECO
+  meco_local_description: 数据集/心理/MECO/MECO/数据集说明.md
+  governance_root: data/processed/cognitive_change_clue/v3.9.0/governance
+  report_root: reports/cognitive_change_clue/v3.9.0
+  approval_metadata:
+    process2: data/processed/cognitive_change_clue/v3.9.0/governance/approval_metadata/process2_approval_redacted.json
+    meco: data/processed/cognitive_change_clue/v3.9.0/governance/approval_metadata/meco_approval_redacted.json
+    secure_storage: data/processed/cognitive_change_clue/v3.9.0/governance/approval_metadata/secure_storage_attestation_redacted.json
+
+process2:
+  subject_directory_glob: PROCESS-2_rec__*
+  task_codes: [SFT, PFT, CTD]
+  payload_extensions: [.wav, .txt]
+  expected_subjects: 400
+  expected_train_subjects: 320
+  expected_test_subjects: 80
+  expected_payload_files: 2400
+  expected_payload_bytes: 2448962474
+  expected_payload_sha256: 1f113264172abed8185453931eebc9661f92a61b63be8ee73e9a4ca69428b17c
+  expected_train_payload_sha256: bd369aea76492d752c0e714969dae94559e89702c4cf5c3763c92c3dd5acc414
+  expected_test_payload_sha256: 8a7bc571d8404c9a0a0de140e35ab5ee23681fef74887853d2edfd31389184ec
+  superseded_legacy_train_payload_sha256: 6d5019589109b8319b6830717a41ab10437bffa84f326fc37f8b711af9503703
+  superseded_legacy_test_payload_sha256: 1134257f3d9d5c233326d8af688844002188df44febb6b2c7278e0e61d035e33
+  hash_resolution: double_verified_python_and_powershell_dotnet_20260811
+  aggregate_algorithm: relative_posix_path_nul_byte_size_nul_file_sha256_lf_then_sha256
+  scanner_excludes: [.cache, .DS_Store, meta-info.csv, README.md, LICENSE, .gitattributes, 数据集说明.md]
+  test_pre_freeze_allowed_operations: [existence, sha256, wav_readability_and_format, txt_utf8_and_nonempty]
+  test_pre_freeze_forbidden_operations: [feature_extraction, prediction, label_access, demographic_access, threshold_fitting, model_selection]
+
+meco:
+  expected_subjects: 42
+  expected_leaf_files: 127
+  expected_pickle_files: 126
+  expected_leaf_bytes: 1142692691
+  excluded_parent_description_bytes: 14394
+  safe_conversion_authorized: true
+  cognition_unit: subject
+  window_random_split_allowed: false
+
+governance_requirements:
+  process2_approval_archived: true
+  meco_approval_archived: true
+  competition_use_confirmed: true
+  secure_institutional_storage_attested: true
+  authorized_personnel_only_attested: true
+  deletion_obligation_attested: true
+  redistribution_and_reidentification_ban_attested: true
+  identifiable_speech_excerpt_ban_attested: true
+  speech_reconstruction_ban_attested: true
+
+known_protocol_deviations:
+  - id: PROCESS2-PUBLIC-README-TEST-AGGREGATE-EXPOSURE
+    observed: true
+    scope: published_aggregate_statistics_only
+    row_level_metadata_accessed: false
+    used_for_training_or_selection: false
+    action: quarantine_as_known_preselection_aggregate_disclosure
+    blocking_after_user_continuation: false
+
+environment:
+  required_python_executable: C:/Users/30124/miniconda3-deltavlm/envs/eldercare-cognitive/python.exe
+  requirements_lock: requirements-cognitive-v3.3.lock
+
+cross_validation:
+  outer_summary_blocks: 5
+  inner_selection_folds: 4
+  development_split_seed: 20270118
+  model_training_seeds: [20270118, 20270128, 20270218]
+  seed_selection_allowed: false
+  prefreeze_outer_heldout_prediction_allowed: false
+  postfreeze_outer_heldout_report_only: true
+
+schema:
+  subject_id_namespaces: [cogpic, process2, meco]
+  input_sections: [features, modality_mask, quality, task_family, language]
+  target_sections: [dataset_native_group, cognitive_score, screening_target]
+  audit_sections: [subject_id, sample_id, source_dataset, paths, hashes, split, demographics]
+  model_input_forbidden:
+    - subject_id
+    - sample_id
+    - source_dataset
+    - dataset_id
+    - diagnosis
+    - diagnosis_label
+    - age
+    - sex_code
+    - education_code
+    - mmse_label
+    - moca_label
+    - official_split
+    - derived_split
+    - path
+    - audio_path
+    - original_text_path
+    - face_path
+  label_ontology:
+    COGPIC: [HC, MCI, AD]
+    PROCESS2: [HC, MCI, Dementia]
+    MECO_SCREEN: [MMSE_GT_26, MMSE_LE_26]
+  prohibited_label_equivalences:
+    - PROCESS2:Dementia!=COGPIC:AD
+    - MECO_SCREEN:MMSE_LE_26!=clinical_MCI
+    - PROCESS2:mmse_label!=COGPIC:moca_label
+
+task_bag:
+  variable_length: true
+  task_families:
+    cogpic: [picture_description]
+    process2: [semantic_fluency, phonemic_fluency, picture_description]
+    meco: [session1, session2, session3]
+  languages:
+    cogpic: zh
+    process2: en
+    meco: zh
+  dataset_id_allowed_as_model_input: false
+
+candidate_budget:
+  inner_subruns_per_trial: 60
+  paired_baseline_trials: [C-A0, P-A0]
+  paired_baseline_inner_subrun_limit: 120
+  speech_and_fusion_trial_limit: 5
+  speech_and_fusion_inner_subrun_limit: 300
+  meco_trials: [M-A0, M0-teacher, M0-student]
+  meco_inner_subrun_limit: 180
+  total_inner_subrun_limit: 600
+  postfreeze_outer_fold_seed_unit_limit: 90
+
+gates:
+  red_line:
+    maximum_in_fold_predictions: 0
+    minimum_coverage: 1.0
+    maximum_subject_overlap: 0
+    maximum_test_access_events: 0
+  cogpic_inner:
+    minimum_auc_gain: 0.003
+    minimum_positive_blocks: 3
+    minimum_hc_mci_auc_gain: -0.010
+    maximum_brier_increase: 0.010
+    maximum_ece_increase: 0.010
+    maximum_seed_gain_sample_std: 0.015
+  process2_inner:
+    minimum_hc_mci_auc_gain: 0.010
+    minimum_positive_blocks: 3
+    maximum_hc_vs_all_macro_f1_drop: 0.010
+    maximum_brier_increase: 0.010
+    maximum_ece_increase: 0.010
+    maximum_seed_gain_sample_std: 0.015
+  meco_teacher:
+    minimum_mmse_mae_relative_improvement: 0.05
+    minimum_spearman_gain: 0.05
+    minimum_positive_blocks: 4
+  meco_student:
+    minimum_mmse_mae_relative_improvement: 0.03
+    maximum_screen_auc_drop: 0.02
+    maximum_screen_macro_f1_drop: 0.02
+  process2_test_once:
+    minimum_hc_mci_auc_gain: 0.010
+    minimum_paired_bootstrap_ci_lower: -0.010
+    maximum_hc_mci_macro_f1_drop: 0.010
+    maximum_hc_vs_all_auc_drop: 0.010
+    maximum_brier_increase: 0.010
+    maximum_ece_increase: 0.010
+    minimum_frozen_threshold_sensitivity: 0.75
+    maximum_subgroup_auc_drop: 0.05
+
+path_firewall:
+  cogpic_official_test_denied: true
+  process2_test_prefreeze_denied: true
+  process2_test_evaluator_unlock_task: OPT-COG-042
+  meco_raw_pickle_model_read_allowed: false
+  selection_denied_fragments:
+    - CogPic/Test
+    - CogPic\\Test
+    - PROCESS-2_rec__321
+    - PROCESS-2_rec__400
+    - outer_evaluation
+    - outer_heldout
+    - subject_oof
+    - task_oof
+
+reporting:
+  evidence_label: V3.9_cross_dataset_controlled_offline_research
+  medical_diagnosis_output: false
+  backend_changed: false
+  api_changed: false
+  default_model_changed: false
+  s10_changed: false
+  process2_test_is_external_independent_cohort: false

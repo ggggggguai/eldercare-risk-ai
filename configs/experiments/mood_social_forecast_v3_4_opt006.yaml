@@ -1,0 +1,33 @@
+schema_version: mood-social-forecast-v3.4-opt006-v1
+task_range: FORECAST-OPT-006A..FORECAST-OPT-006H
+status: experimental
+execution_mode: offline_only
+decision_authority: shadow_only
+product_visible: false
+reference_runs:
+  pure_passive: MH-20260809-FOPT-044
+  state_aware: MH-20260809-FOPT-026
+  formal_baseline: MH-20260805-FCAST-001
+random_seeds: [20260728, 20260729, 20260730]
+bootstrap_seed: 20260809
+bootstrap_replicates: 2000
+inner_contexts: [0, 1, 2, 3, 4]
+gates:
+  exploratory_auprc_delta: 0.003
+  independent_auprc_delta: 0.005
+  contexts_non_decrease: 4
+  max_context_drop: 0.015
+  max_brier_increase: 0.002
+  max_ece_increase: 0.002
+profile_first_line: [birthyear, sex, educ]
+profile_conditional: [bmi]
+profile_deferred:
+  - comorbid_cancer
+  - comorbid_diabetes_typ1
+  - comorbid_diabetes_typ2
+  - comorbid_gout
+  - comorbid_migraines
+  - comorbid_ms
+  - comorbid_osteoporosis
+  - comorbid_neuropathic
+  - comorbid_arthritis

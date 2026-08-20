@@ -1,0 +1,261 @@
+schema_version: wandering-augmentation-config-v1
+purpose: semantic_preserving_synthetic_camera_corruption
+global_seed: 20260805
+
+trust_roots:
+  preprocessing_config:
+    path: configs/data/wandering_preprocessing_v1.yaml
+    sha256: 5b69243337cddeeec8beed4f081330b06c47eadeaee06dc3b3e4ba026f36ff45
+  preprocessing_samples:
+    path: data/processed/wandering/preprocessing/v1/samples.jsonl
+    sha256: 323ec1258a03ed2daab1e84e3291edc62644c68b1c292dc93a332c01faa08cda
+  preprocessing_feature_stats:
+    path: data/processed/wandering/preprocessing/v1/feature_stats.json
+    sha256: 249ad8383043dba1d95452533ddc6004dfecc2c9e99be43f788dcfcbfb434c8d
+  preprocessing_manifest:
+    path: data/processed/wandering/preprocessing/v1/manifest.json
+    sha256: 242072bdfe4b969d320a091ecc499aff445c30a937dfb1e6739ad869aa938593
+  camera_config:
+    path: configs/modules/wandering_camera_v1.yaml
+    sha256: 08bbec6ef263dd45fef3262c407ce675107f87ea584584f7ab61142cd734ae8e
+  camera_adapter_source:
+    path: src/elderly_monitoring/modules/mental_health/wandering/camera_adapter.py
+    sha256: a2617dd688e0e200ff07d28ab7b9e93e3d66ff3e5d01023146eb3f5ddd75f331
+  camera_qc_source:
+    path: src/elderly_monitoring/modules/mental_health/wandering/camera_qc.py
+    sha256: 0c64c82a3092ea8f7e111219d4b9cb3d5ed69060059d91197a1f5e99f68588f5
+  camera_inference_source:
+    path: src/elderly_monitoring/modules/mental_health/wandering/camera_inference.py
+    sha256: 243f5364ee8b59824c3cb4bbdd1266f0bc45aa17259edcbaa0dcc50167e7fab8
+  rf_config:
+    path: configs/modules/wandering_rf_v1.yaml
+    sha256: d29db531f42ae5d7cf4ed540a85681ddab78e483695633ccc8b382d98e745e35
+  rf_development_manifest:
+    path: reports/mental_health/wandering_step5/development/v1/manifest.json
+    sha256: fff6340e868de32bee2021ec1000f166b8caabe5caeb1132abb8ab822bfaaaf2
+  tcn_config:
+    path: configs/modules/wandering_tcn_v1.yaml
+    sha256: 8a8ab3a051dd6a00356df507b4fa3f06d4a7ed7ec7ecca8f04a3ff28dfd22cca
+  tcn_development_manifest:
+    path: reports/mental_health/wandering_step6/development/v1/manifest.json
+    sha256: 0f4c48d948f0f4355dd577c89330b050ecb1bb513ca83ef1b25234897e27a10e
+
+split_policy:
+  development_splits: [train, validation]
+  train_augmentation_split: train
+  frozen_pressure_split: validation
+  forbidden_splits: [test, sealed_external_test]
+  official_source_allowed: false
+  expected_ready_train: 1257
+  expected_ready_validation: 278
+  expected_wp_four_class_train_per_class: 280
+  expected_wp_four_class_validation_per_class: 60
+  expected_smartcare_train_binary: [63, 74]
+  expected_smartcare_validation_binary: [17, 21]
+
+generation:
+  target_points: 80
+  synthetic_bucket_seconds: 0.5
+  synthetic_bucket_time: true
+  model_temporal_features_enabled: false
+  virtual_canvas: [1920, 1080]
+  base_center: [0.5, 0.5]
+  base_fit_extent: 0.70
+  base_visible_margin: 0.15
+  base_span_epsilon: 1.0e-6
+  coordinate_convention: column_vector_homogeneous
+  matrix_order: "T(center+translation) @ Projective @ Shear @ Anisotropic @ Uniform @ Rotation @ T(-center)"
+  axis_parameter_sampling:
+    translation_xy: independent_xy
+    anisotropic_scale: independent_xy
+    shear: independent_xy
+    projective: independent_xy
+  local_shape_control_before_projective: true
+  local_shape_offset_sampling: uniform_magnitude_uniform_angle
+  local_shape_angle_radians: "[0, 2*pi)"
+  local_shape_control_indices: [0, 8, 16, 24, 32, 40, 48, 56, 64, 72, 79]
+  local_shape_smoothing: centered_moving_average_5
+  local_shape_smoothing_padding: replicate_edge
+  protected_local_offsets_forced_zero_after_smoothing: true
+  bbox_width_to_height: 0.40
+  virtual_reference_height: 0.20
+  virtual_height_clip: [0.06, 0.60]
+  bbox_bottom_offset_axis: y_only
+  bbox_bottom_offset_sign: rademacher_equal_probability
+  bbox_bottom_offset_scale: current_noisy_bbox_height
+  bbox_height_noise_mode: additive_ar1
+  bbox_height_noise_rho_source: sampled_position_ar1_rho
+  bbox_height_noise_initial_state: 0.0
+  bbox_height_noise_sigma_semantics: stationary_standard_deviation
+  bbox_height_noise_post_clip: [0.06, 0.60]
+  quantized_aspect_ratio: [16, 9]
+  bbox_quantization_coordinates: [x1, y1, x2, y2]
+  bbox_quantization_rounding: floor_pixel_plus_half
+  quantized_degenerate_bbox_policy: omit_tracking_row
+  quantize_then_rescale_to_virtual_canvas: true
+  synthetic_video_fps: 30.0
+  synthetic_video_duration_seconds: 40.0
+  observed_track_confidence: 1.0
+  frame_id_rounding: floor_x_plus_half
+  timestamp_from_frame_id: true
+  ar1_initial_state: [0.0, 0.0]
+  position_sigma_semantics: stationary_standard_deviation
+  ar1_innovation_clip_standard_deviations: 3.0
+  ar1_innovation_policy: single_gaussian_draw_then_clip
+  random_missing_count_rounding: floor_n_times_fraction_plus_half
+  random_missing_without_replacement: true
+  contiguous_block_independent_of_random_missing: true
+  missing_masks_allow_overlap: true
+  crop_edge_order: [left, right, top, bottom]
+  crop_requires_full_bbox_visible: true
+  out_of_view_policy: omit_tracking_row
+  store_realized_parameters: true
+  train_severities: [low, medium]
+  validation_severities: [low, medium, high]
+  max_train_attempts_per_severity: 4
+  validation_attempts_per_severity: 1
+
+profiles:
+  low:
+    rotation_degrees: [-180.0, 180.0]
+    translation_xy: [-0.03, 0.03]
+    uniform_scale: [0.90, 1.10]
+    anisotropic_scale: [0.97, 1.03]
+    shear: [-0.03, 0.03]
+    projective: [-0.03, 0.03]
+    crop_fraction: [0.00, 0.03]
+    local_shape_control_offset: [0.00, 0.01]
+    ar1_rho: [0.60, 0.75]
+    position_sigma: [0.002, 0.006]
+    random_missing_fraction: [0.00, 0.03]
+    contiguous_missing_buckets: [1, 2]
+    bbox_bottom_offset_fraction: [0.00, 0.02]
+    bbox_height_noise_sigma: [0.00, 0.005]
+    timestamp_jitter_seconds: [-0.03, 0.03]
+    quantized_heights: [720, 1080]
+  medium:
+    rotation_degrees: [-180.0, 180.0]
+    translation_xy: [-0.08, 0.08]
+    uniform_scale: [0.70, 1.30]
+    anisotropic_scale: [0.85, 1.15]
+    shear: [-0.10, 0.10]
+    projective: [-0.12, 0.12]
+    crop_fraction: [0.03, 0.15]
+    local_shape_control_offset: [0.01, 0.025]
+    ar1_rho: [0.75, 0.90]
+    position_sigma: [0.006, 0.012]
+    random_missing_fraction: [0.03, 0.08]
+    contiguous_missing_buckets: [1, 3]
+    bbox_bottom_offset_fraction: [0.02, 0.04]
+    bbox_height_noise_sigma: [0.005, 0.015]
+    timestamp_jitter_seconds: [-0.08, 0.08]
+    quantized_heights: [360, 720, 1080]
+  high:
+    rotation_degrees: [-180.0, 180.0]
+    translation_xy: [-0.15, 0.15]
+    uniform_scale: [0.60, 1.40]
+    anisotropic_scale: [0.75, 1.25]
+    shear: [-0.20, 0.20]
+    projective: [-0.20, 0.20]
+    crop_fraction: [0.10, 0.25]
+    local_shape_control_offset: [0.025, 0.05]
+    ar1_rho: [0.60, 0.90]
+    position_sigma: [0.012, 0.030]
+    random_missing_fraction: [0.08, 0.20]
+    contiguous_missing_buckets: [4, 16]
+    bbox_bottom_offset_fraction: [0.04, 0.10]
+    bbox_height_noise_sigma: [0.015, 0.04]
+    timestamp_jitter_seconds: [-0.20, 0.20]
+    quantized_heights: [360, 720]
+
+semantic_check:
+  metric_epsilon: 1.0e-6
+  coverage_grid_size: 8
+  coverage_bounds: clean_corrupted_joint
+  coverage_entropy_normalization: natural_log_over_natural_log_64
+  coverage_max_edge_bin: 7
+  coverage_zero_span_bin: 0
+  endpoint_reference_points: 10
+  endpoint_query_points: 10
+  endpoint_repeat_radius: 0.10
+  endpoint_distance: euclidean
+  endpoint_radius_inclusive: true
+  path_length_ratio: [0.65, 1.35]
+  path_efficiency_max_abs_delta: 0.15
+  curvature_ratio: [0.50, 2.00]
+  near_zero_curvature_max_abs_delta: 0.08
+  coverage_entropy_max_abs_delta: 0.20
+  direct_max_added_reversals: 1
+  direct_max_total_reversals: 2
+  direct_max_added_winding: 0.25
+  pacing_min_reversals: 2
+  pacing_max_lost_reversals: 1
+  pacing_endpoint_repeat_max_abs_delta: 0.20
+  lapping_min_absolute_winding: 0.50
+  lapping_min_winding_retention: 0.65
+  lapping_max_added_closure_distance: 0.15
+  lapping_max_lost_revisit_pairs: 2
+  random_max_added_path_efficiency: 0.15
+  random_max_lost_structure_events: 2
+
+fault_suite:
+  parents_per_wp_class: 8
+  parents_per_smartcare_binary_class: 8
+  fault_types:
+    - long_gap_4_buckets
+    - hard_jump_4_body_heights_per_second
+    - observable_id_splice_two_parent_halves
+    - height_ratio_2_with_step_1_body_height
+    - camera_motion_state_moved
+  limitation_control_types:
+    - geometrically_continuous_splice_control
+  expected_gated_fault_records: 240
+  expected_limitation_control_records: 48
+  minimum_qc_rejection_rate_per_fault: 0.90
+  splice_index: 40
+  donor_selection:
+    same_source_dataset: true
+    same_split: validation
+    different_task_label: true
+    order: sha256_parent_sample_id_utf8
+    selection: next_cyclic
+    wandering_patterns_label: four_class
+    smartcare_label: binary
+  observable_splice:
+    same_track_id: true
+    boundary_height_ratio: 1.0
+    boundary_body_step: 2.0
+    boundary_step_rate_body_heights_per_second: 4.0
+    expected_qc_reason: suspected_id_switch
+  continuous_splice_control:
+    same_track_id: true
+    align_position: true
+    align_bbox_height: true
+    align_initial_direction: true
+    qc_rejection_gate: not_required
+    training_allowed: false
+
+compatibility:
+  primary_seed: 20260731
+  low_label_agreement_target: 0.95
+  medium_label_agreement_target: 0.90
+  medium_macro_f1_max_drop_target: 0.10
+  probability_divergence: jensen_shannon_base2
+  calibration_status: not_run_step12
+  prototype_energy_status: not_run_step12
+  uncertain_status: not_run_step12
+
+visual_review:
+  selection: sha256_child_id_ascending
+  accepted_wp_pairs_per_class_per_severity: 50
+  accepted_smartcare_pairs_per_binary_class_per_severity: 10
+  initial_status: pending_human_review
+
+output_schemas:
+  attempt: wandering-augmentation-attempt-v1
+  pair: wandering-augmented-pair-v1
+  pressure: wandering-corruption-pressure-v1
+  fault: wandering-qc-fault-v1
+  report: wandering-augmentation-report-v1
+  manifest: wandering-augmentation-manifest-v1
+  compatibility: wandering-anchorless-compatibility-v1

@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "wandering-handoff-run-summary-v1",
+  "title": "Wandering handoff run summary",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "module",
+    "run_id",
+    "started_at",
+    "finished_at",
+    "person_id",
+    "session_id",
+    "source_video_id",
+    "status",
+    "input_counts",
+    "output_counts",
+    "failure_counts",
+    "degraded_components",
+    "quality_flags",
+    "identity",
+    "source_refs"
+  ],
+  "properties": {
+    "schema_version": {"const": "wandering-handoff-run-summary-v1"},
+    "module": {"const": "mental_health"},
+    "run_id": {"type": "string", "minLength": 1},
+    "started_at": {"type": "string", "format": "date-time"},
+    "finished_at": {"type": "string", "format": "date-time"},
+    "person_id": {"type": ["string", "null"]},
+    "session_id": {"type": ["string", "null"]},
+    "source_video_id": {"type": ["string", "null"]},
+    "status": {"enum": ["ready", "uncertain", "unavailable", "error"]},
+    "input_counts": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}},
+    "output_counts": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}},
+    "failure_counts": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}},
+    "degraded_components": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "quality_flags": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "identity": {"$ref": "#/$defs/identity"},
+    "source_refs": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/source_ref"}}
+  },
+  "$defs": {
+    "identity": {
+      "type": "object",
+      "required": ["model_id", "model_sha256", "config_id", "config_sha256", "policy_id", "policy_sha256"],
+      "properties": {
+        "model_id": {"type": ["string", "null"]},
+        "model_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+        "config_id": {"type": "string", "minLength": 1},
+        "config_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "policy_id": {"type": "string", "minLength": 1},
+        "policy_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "source_ref": {
+      "type": "object",
+      "required": ["ref_type", "ref_id", "artifact_path", "sha256"],
+      "properties": {
+        "ref_type": {"type": "string", "minLength": 1},
+        "ref_id": {"type": "string", "minLength": 1},
+        "artifact_path": {"type": ["string", "null"]},
+        "sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"}
+      }
+    }
+  }
+}

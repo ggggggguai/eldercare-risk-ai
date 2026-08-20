@@ -1,0 +1,31 @@
+schema_version: mood-social-forecast-v3.4-evaluation-config-v1
+task_id: FORECAST-OPT-001F
+run_id: MH-20260807-FOPT-002
+baseline_run_id: MH-20260805-FCAST-001
+upstream_fusion_manifest_sha256: d28113346e699660e3f55a2d86fdfe545e16c0647fd4d733760d533ed00ed6f9
+baseline_models:
+  forecast_1m: elasticnet_logistic
+  forecast_2m: lightgbm
+bootstrap:
+  repetitions: 2000
+  seed: 20260728
+  confidence_level: 0.95
+  unit: participant_cluster
+common_window_count: 8494
+promotion_gate:
+  auprc_min_delta: 0.005
+  auroc_min_delta: -0.005
+  brier_max_delta: 0.002
+  ece_max_absolute: 0.03
+  ece_max_delta: 0.005
+  min_non_decreasing_folds: 3
+  max_fold_auprc_drop: 0.02
+  bootstrap_auprc_median_positive: true
+release_status: experimental
+execution_mode: offline_only
+decision_authority: shadow_only
+product_visible: false
+backend_change: false
+api_change: false
+v3_3_package_change: false
+physiology_in_scope: false

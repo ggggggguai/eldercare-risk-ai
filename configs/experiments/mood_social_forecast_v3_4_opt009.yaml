@@ -1,0 +1,175 @@
+schema_version: mood-social-forecast-v3.4-opt009-contract-v1
+task_id: FORECAST-OPT-009A
+status: frozen_for_execution
+run_ids:
+  FORECAST-OPT-009A: MH-20260810-FOPT-078
+  FORECAST-OPT-009B: MH-20260810-FOPT-079
+  FORECAST-OPT-009C: MH-20260810-FOPT-080
+  FORECAST-OPT-009D: MH-20260810-FOPT-081
+  FORECAST-OPT-009E: MH-20260810-FOPT-082
+  FORECAST-OPT-009F: MH-20260810-FOPT-083
+  FORECAST-OPT-009G: MH-20260810-FOPT-084
+
+references:
+  pure_passive: MH-20260809-FOPT-044
+  profile_formal_2m: MH-20260809-FOPT-059
+  state_aware: MH-20260809-FOPT-026
+  profile_inner_parent: MH-20260809-FOPT-063
+  calibration_no_go: MH-20260810-FOPT-072
+  opt008_package: MH-20260810-FOPT-077
+  passive_allowlist: MH-20260809-FOPT-045/passive_feature_allowlist.json
+  inner_split_manifest: artifacts/mental_health/mood_social/forecast_v3.4/inner_split_manifest.json
+  inner_split_sha256: 64f9e4a8d548f9c5152275b9d1fc8933814bbc9730ca74af5557284657a4e4ef
+
+evidence:
+  level: development_only_post_selection
+  existing_outer_spent: true
+  new_untouched_evaluation_data_available: false
+  outer_oof_generation_allowed: false
+  v3_4_status: experimental/offline_only/shadow_only/product_visible=false
+  backend_model: mood-fusion-v3.3.3 / MH-20260802-013
+
+keys: [global_participant_id, target_window_id, task_id, evaluation_outer_fold]
+evaluation_contexts: [0, 1, 2, 3, 4]
+inner_folds: [0, 1, 2, 3, 4]
+
+robust_ranking:
+  horizon: forecast_1m
+  parent_prediction_file: profile_probability_inner_oof_predictions.parquet
+  reference_column: reference_probability
+  parent_candidate_column: core__catboost_residual
+  candidates:
+    - id: predefined_group_reweight_1.25
+      weak_group_delta_lt: 0.0
+      weak_row_multiplier: 1.25
+      other_row_multiplier: 1.0
+      multiple_hits: any_no_product
+    - id: soft_group_dro_0.20
+      coefficient: 0.20
+      clip: [0.80, 1.25]
+      row_aggregation: arithmetic_mean_six_families
+  group_families:
+    - sex
+    - birthyear_quartile
+    - educ
+    - label_month_slot
+    - short_history
+    - low_completeness
+  group_qualification:
+    minimum_rows: 30
+    minimum_participants: 10
+    require_both_classes: true
+    ineligible_multiplier: 1.0
+  short_history: history_observed_month_count <= 2
+  low_completeness: feature_nonmissing_count <= 19
+  original_worst_tuple:
+    task_id: forecast_1m
+    evaluation_outer_fold: 2
+    group_family: educ
+    canonical_level: 1.0
+    rows: 37
+    participants: 15
+    delta: -0.02608059928005413
+  gates_vs_passive:
+    mean_auprc_delta_min: 0.005
+    non_decrease_contexts_min: 4
+    worst_context_delta_min: -0.015
+    worst_eligible_slice_delta_min: -0.020
+    exact_keys_and_coverage: true
+  gates_vs_parent:
+    mean_auprc_delta_min: -0.002
+    original_worst_tuple_improvement_min: 0.006
+    both_main_sex_groups_may_decline: false
+    sex_context_decline_threshold: -0.005
+    sex_context_decline_count_max: 3
+  exploration_signal_delta_min: 0.003
+  nested_oof_required: true
+  candidate_expansion_allowed: false
+
+scale_corrected_platt:
+  execute_only_after_full_ranking_gate: true
+  probability_clip: [0.000001, 0.999999]
+  beta_parameterization: exp_gamma
+  alpha_regularized: false
+  beta_penalty: (1/N_eff)*(beta-1)^2
+  optimizer: L-BFGS-B
+  initial: {alpha: 0.0, gamma: 0.0}
+  maxiter: 1000
+  ftol: 1.0e-12
+  gtol: 1.0e-8
+  second_level_nested_cross_fit: true
+  gates:
+    raw_auprc_absolute_change_max: 1.0e-10
+    mean_brier_delta_vs_passive_max: 0.002
+    mean_ece_delta_vs_passive_max: 0.002
+    brier_non_worse_contexts_min: 4
+    ece_non_worse_contexts_min: 4
+    batch_probability_error_max: 1.0e-12
+
+external_audit:
+  candidate_dataset_ids: [resilient, conscious_wearable, other_longitudinal_activity_sleep]
+  minimum_qualified_participants: 100
+  window_days: 30
+  cutoff_step_days: 7
+  minimum_valid_days_per_window: 14
+  minimum_shared_fields: 4
+  minimum_coverage_per_field: 0.70
+  external_psychological_labels_allowed: false
+  dataset_merge_allowed: false
+  require_psyche_d_matching_past_only_fields: true
+  require_participant_source_record_overlap_zero: true
+  tie_break: [qualified_participants_desc, qualified_fields_desc, minimum_coverage_desc, canonical_dataset_id_asc]
+
+masked_autoencoder:
+  execute_only_after_external_audit_pass: true
+  input: 30xK_values_plus_observation_mask
+  encoder: [linear_60K_32, relu, linear_32_8]
+  decoder: [linear_8_32, relu, linear_32_30K]
+  latent_dim: 8
+  mask_fraction: 0.20
+  loss: masked_only_mse
+  optimizer: Adam
+  learning_rate: 0.001
+  batch_size: 128
+  maximum_epochs: 50
+  seed: 20260810
+  validation_fraction_by_participant_hash: 0.10
+  patience: 5
+  min_delta: 0.00001
+  cpu_deterministic: true
+  horizons: [forecast_1m, forecast_2m]
+  gates:
+    mean_auprc_delta_min: 0.003
+    non_decrease_contexts_min: 4
+    worst_context_delta_min: -0.015
+    mean_brier_delta_max: 0.002
+    mean_ece_delta_max: 0.002
+    worst_eligible_slice_delta_min: -0.020
+    max_context_spearman_lt: 0.995
+    batch_latent_probability_error_max: 1.0e-12
+
+fusion:
+  weights: [0.25, 0.50, 0.75]
+  require_same_horizon_input_keys_coverage: true
+  max_context_spearman_lt: 0.995
+  gain_over_best_component_min: 0.001
+  non_decrease_contexts_min: 4
+  worst_context_delta_min: -0.015
+  worst_eligible_slice_delta_min: -0.020
+  mean_brier_delta_max: 0.002
+  mean_ece_delta_max: 0.002
+  batch_error_max: 1.0e-12
+
+terminal:
+  B_exploration_signal: any_009B_mean_auprc_delta_ge_0.003
+  E_exploration_signal: 009D_pass_and_any_horizon_delta_ge_0.003_and_max_context_spearman_lt_0.995
+  exhausted: not_B_and_not_E
+  create_same_style_OPT010_when_exhausted: false
+
+execution_boundary:
+  backend_change: false
+  v3_3_change: false
+  physiology_change: false
+  opt004_008_change: false
+  v3_4_backend_integration: false
+  model_materialization: development_only_post_selection_if_all_corresponding_gates_pass

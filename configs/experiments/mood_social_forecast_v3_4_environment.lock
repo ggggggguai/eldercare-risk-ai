@@ -1,0 +1,22 @@
+{
+  "schema_version": "mood-social-forecast-v3.4-environment-lock-v1",
+  "environment_name": "eldercare-ai",
+  "verified_reference": "algorithm/eldercare-risk-ai-main/environment-reference.txt",
+  "python": "3.11.15",
+  "packages": {
+    "numpy": "2.4.6",
+    "pandas": "3.0.3",
+    "pyarrow": "21.0.0",
+    "scikit-learn": "1.9.0",
+    "lightgbm": "4.6.0",
+    "PyYAML": "6.0.3",
+    "pytest": "9.1.1"
+  },
+  "determinism": {
+    "random_seed": 20260728,
+    "threads": 1,
+    "lightgbm_deterministic": true,
+    "lightgbm_force_col_wise": true
+  },
+  "current_interpreter_note": "The default interpreter used for context tests may differ; formal model training must run in eldercare-ai with this lock."
+}

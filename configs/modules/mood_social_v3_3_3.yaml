@@ -1,0 +1,151 @@
+# Current production-target configuration. V3.3.2 is retained only for audit.
+module: mood_social
+version: "3.3.3"
+
+schema:
+  request: mood_social_infer_request_v3
+  response: mood_social_infer_response_v3
+  error: mood_social_error_v1
+  response_module: mood_social_attention
+
+runtime:
+  timezone: Asia/Shanghai
+  update_frequency: daily
+  inference_window_days: 7
+  fallback_strategy: unavailable
+  random_seed: 20260728
+
+baseline:
+  history_lookback_calendar_days: 28
+  initial_days: 3
+  stable_days: 7
+  max_valid_days: 14
+  center_method: median
+  quantile_interpolation: linear
+  lower_quantile: 0.10
+  upper_quantile: 0.90
+  mad_scale_factor: 1.4826
+  quantile_scale_divisor: 2.563
+  relative_scale_fraction: 0.05
+  absolute_scale_floor: 0.05
+  standardized_component_divisor: 2.0
+  relative_denominator_floor: 0.05
+  relative_change_scale: 0.50
+  deviation_aggregation: max
+  abnormal_score_threshold: 0.60
+  exclude_current_day: true
+  exclude_imputed_values: true
+  exclude_abnormal_domain_days_after_initialization: true
+
+camera:
+  daytime_start: "06:00"
+  daytime_end: "18:00"
+  daytime_minutes: 720
+  activity_window_seconds: 10
+  active_score_weights:
+    center_motion_score: 0.55
+    pose_motion_score: 0.30
+    zone_transition_score: 0.10
+    posture_change_score: 0.05
+  active_score_threshold: 0.40
+  low_activity_score_threshold: 0.20
+  sedentary_min_minutes: 30
+  walking_speed:
+    history_lookback_calendar_days: 28
+    min_history_days: 3
+    max_valid_days: 14
+    lower_quantile: 0.10
+    upper_quantile: 0.90
+    denominator_epsilon: 1.0e-6
+
+masks:
+  layers:
+    - feature_mask
+    - day_mask
+    - expert_mask
+    - personal_change_mask
+  imputed_values_activate_masks: false
+  mask_values_are_risk_features: false
+
+personal_trend:
+  domains:
+    - activity
+    - sleep
+    - social
+  slope:
+    method: theil_sen
+    minimum_total_points: 3
+    use_calendar_day_spacing: true
+  persistence:
+    missing_day_breaks_sequence: true
+  isolation_forest:
+    stable_baseline_only: true
+    n_estimators: 100
+    contamination: 0.15
+    random_seed: 20260728
+    minimum_common_features: 2
+  change_point:
+    minimum_valid_points: 6
+    recent_window_points: 3
+
+fusion:
+  method: masked_logistic_stacking
+  probability_clip_epsilon: 1.0e-6
+  confidence_mode: decay_only
+  independent_confidence_risk_term: false
+  mask_values_are_risk_features: false
+  effective_evidence:
+    supervised_term: expert_mask_times_confidence
+    personal_change_term: personal_change_mask_times_reliability
+    unavailable_at_or_below: 0.0
+    run_intercept_when_unavailable: false
+
+attention:
+  thresholds:
+    level_1: 0.25
+    level_2: 0.45
+    level_3: 0.65
+  score_rounding: half_up
+
+trend:
+  max_history_results: 6
+  include_current_result: true
+  same_model_version_only: true
+  minimum_points: 3
+  method: ordinary_least_squares
+  use_calendar_day_spacing: true
+  rising_threshold_per_day: 0.03
+  falling_threshold_per_day: -0.03
+
+devices:
+  source_codes:
+    C: camera
+    S: sleep_device
+    T: s10
+  supported_combinations:
+    - [camera]
+    - [sleep_device]
+    - [s10]
+    - [camera, sleep_device]
+    - [camera, s10]
+    - [sleep_device, s10]
+    - [camera, sleep_device, s10]
+  profile_is_device: false
+
+models:
+  version: mood-fusion-v3.3.3
+  directory: models/mental_health/mood_social/v3.3.3
+  artifacts:
+    activity_expert: activity_expert.joblib
+    sleep_expert: sleep_expert.joblib
+    physiology_expert: physiology_expert.joblib
+    activity_sleep_joint_expert: activity_sleep_joint_expert.joblib
+    social_context_expert: social_context_expert.joblib
+    personal_trend: personal_trend.joblib
+    mood_fusion: mood_fusion.joblib
+    feature_schema: feature_schema.json
+    manifest: manifest.json
+    split_manifest: split_manifest.json
+    metrics: metrics.json
+    factor_labels_zh_cn: factor_labels.zh-CN.json
+    checksums: SHA256SUMS

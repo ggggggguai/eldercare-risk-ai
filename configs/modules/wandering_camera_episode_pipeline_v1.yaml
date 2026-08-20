@@ -1,0 +1,64 @@
+schema_version: wandering-camera-episode-pipeline-config-v1
+pipeline_id: w5d02-b01-b02-automatic-episode-shape-v1
+
+development:
+  expected_batch_counts: {B01: 36, B02: 12}
+  index_schema_id: wandering-camera-development-index-v1
+  index:
+    path: reports/mental_health/wandering_camera_5d_contract_v3/development_index.jsonl
+    sha256: bd29c218cdd78c054955c7ac51ab195003a9a5533d84c2efc7f9cc3dd01b82f8
+
+segmenter:
+  profile_id: closing-s008-d04
+  selection_gate_satisfied: false
+  profile:
+    path: reports/mental_health/wandering_camera_segmenter_search_v2/selected_segmenter_profile.yaml
+    sha256: ac69ceab548d263fd51f09ee36121055ea373d995353ae5f8050d33d3d5948aa
+
+shape_bridge:
+  policy_id: m0cam-ep2a-s2a-proposed-plus-uncertain-development-v2
+  config:
+    path: configs/modules/wandering_camera_episode_proposal_shape_v1.yaml
+    sha256: e34c77076c11315c3822283bfec62792b1c3ca672b6b588e010c594badbaaa8d
+
+fixed_primary:
+  candidate_id: topowander-m0s-seed20260731-epoch0005
+  model_state_sha256: 94c3c22d4caa38ece347d6a10f440b9fb3f7067b6c791ac1f259ce7efe69c031
+  binary_decision_threshold: 0.5
+  candidate_manifest:
+    path: reports/mental_health/wandering_performance/m0r_score_entry_hardening_v1/artifacts/topowander_m0r_candidate_v3/candidate_manifest.json
+    sha256: 3a1e56c37b9b43e340dcd67a3163454da1d37f24b01d8677935f63a069d97ac7
+  episode_config:
+    path: configs/modules/wandering_camera_episode_v1.yaml
+    sha256: 4300bbced198b0fc631bf39e23926aad3499a56b82da4fc22239dbb36f76cc4e
+  primary_config:
+    path: configs/modules/wandering_camera_primary_v1.yaml
+    sha256: 79f8e06e57ca355da926044828fc7a8a4c7d0e123d59767a2c86ef6c620ca2f5
+
+evaluation:
+  boundary_config:
+    path: configs/modules/wandering_camera_episode_boundary_eval_v1.yaml
+    sha256: 60fe0f4a748885be039f02abaf8ba062773840545b69f5c69507a8d06d535fd3
+  episode_config:
+    path: configs/modules/wandering_camera_episode_eval_v1.yaml
+    sha256: a459c06618c680773b245143abcf6a7bef9efaf464a7868facd4fe1b08a427b2
+  episode_result_schema:
+    path: configs/schemas/wandering_5d_v1/episode_result.schema.json
+    sha256: 7daea2e5102803165812e1069507c682ffa850b71484017a5ac097f452cea484
+
+gates:
+  known_episode_prediction_coverage_minimum: 0.85
+  known_episode_prediction_coverage_target: 0.90
+  automatic_binary_reported_separately: true
+  oracle_binary_reported_separately: true
+  pipeline_miss_reported_separately: true
+
+outputs:
+  required_files:
+    - episode_results.jsonl
+    - run_summary.json
+    - handoff_manifest.partial.json
+    - README.md
+    - VERIFICATION.md
+  fresh_output_directory_must_not_exist: true
+  algorithm_event_emitted: false

@@ -1,0 +1,21 @@
+{
+  "schema_version": "mood_social_current_state_production_v1",
+  "active": true,
+  "authorized_at": "2026-08-13",
+  "decision": "user_authorized_best_deployable_model_replacement",
+  "primary_model_version": "mood-social-current-state-v3.3.3-r5",
+  "primary_package_run_id": "MH-20260812-R5-001",
+  "fallback_model_version": "mood-fusion-v3.3.3",
+  "fallback_package_run_id": "MH-20260802-013",
+  "primary_signatures": [
+    "profile",
+    "sleep"
+  ],
+  "fallback_signatures": [
+    "joint",
+    "unsupported"
+  ],
+  "mixed_signature_policy": "project_to_sleep_else_profile_without_relabeling_camera",
+  "phq9_input_allowed": false,
+  "forecast_model_changed": false
+}

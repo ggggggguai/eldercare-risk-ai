@@ -1,0 +1,102 @@
+schema_version: wandering-camera-daily-baseline-config-v1
+daily_baseline_id: w5d04-b01-b02-real-daily-baseline-v1
+validation_scope: b01_b02_development
+home_input_status: awaiting_input
+home_smoke_status: not_run_input_unavailable
+
+inputs:
+  development_index: reports/mental_health/wandering_camera_5d_contract_v3/development_index.jsonl
+  episode_results: reports/mental_health/wandering_camera_episode_pipeline_w5d02_v4/episode_results.jsonl
+  context_reviews: reports/mental_health/wandering_camera_context_core_w5d03a_v2/context_reviews.jsonl
+  mental_health_config: configs/modules/mental_health.yaml
+
+schemas:
+  binding_manifest: configs/schemas/wandering_5d_v1/daily_binding.schema.json
+  daily_reports: configs/schemas/wandering_5d_v1/daily_report_v2.schema.json
+  baseline_profiles: configs/schemas/wandering_5d_v1/baseline_profile.schema.json
+  baseline_deviations: configs/schemas/wandering_5d_v1/baseline_deviation.schema.json
+  run_summary: configs/schemas/wandering_5d_v1/run_summary.schema.json
+
+aggregation:
+  minimum_usable_tracking_coverage: 0.10
+  tracking_max_gap_seconds: 5.0
+
+# Source sidecars have capture_started_at=null. These explicit schedules bind the
+# owner-provided session dates and deterministic clip order without claiming a
+# measured wall-clock time. The generated binding manifest expands all 48 clips.
+session_bindings:
+  - batch_id: B01
+    session_id: S-20260814
+    person_id: P-OFFICE-01
+    timezone: Asia/Shanghai
+    session_started_at: "2026-08-14T09:00:00+08:00"
+    clip_gap_seconds: 1.0
+    time_basis: declared_development_schedule_capture_clock_unavailable
+    presence_basis: owner_bound_authorized_protocol_full_clip
+    clip_order:
+      - vid-b01-0002
+      - vid-b01-0003
+      - vid-b01-0004
+      - vid-b01-0005
+      - vid-b01-0006
+      - vid-b01-0007
+      - vid-b01-0008
+      - vid-b01-0009
+      - vid-b01-0010
+      - vid-b01-0011
+      - vid-b01-0012
+      - vid-b01-0013
+      - vid-b01-0014
+      - vid-b01-0015
+      - vid-b01-0016
+      - vid-b01-0017
+      - vid-b01-0018
+      - vid-b01-0019
+      - vid-b01-0020
+      - vid-b01-0021
+      - vid-b01-0022
+      - vid-b01-0023
+      - vid-b01-0024
+      - vid-b01-0025
+      - vid-b01-0026
+      - vid-b01-0027
+      - vid-b01-0028
+      - vid-b01-0029
+      - vid-b01-0030
+      - vid-b01-0031
+      - vid-b01-0032
+      - vid-b01-0033
+      - vid-b01-0034
+      - vid-b01-0035
+      - vid-b01-0036
+      - vid-b01-0037
+  - batch_id: B02
+    session_id: S-20260816
+    person_id: P-OFFICE-01
+    timezone: Asia/Shanghai
+    session_started_at: "2026-08-16T09:00:00+08:00"
+    clip_gap_seconds: 1.0
+    time_basis: declared_development_schedule_capture_clock_unavailable
+    presence_basis: owner_bound_authorized_protocol_full_clip
+    clip_order:
+      - b02-0008
+      - vid-b02-0002
+      - vid-b02-0003
+      - vid-b02-0004
+      - vid-b02-0005
+      - vid-b02-0006
+      - vid-b02-0007
+      - vid-b02-0009
+      - vid-b02-0010
+      - vid-b02-0011
+      - vid-b02-0012
+      - vid-b02-0013
+
+replay:
+  person_id: P-REPLAY-W5D04-01
+  start_local_date: "2026-07-01"
+  default_days: 15
+
+identity:
+  config_id: w5d04-b01-b02-real-daily-baseline-v1
+  policy_id: w5d04-explicit-binding-strict-prior-3-7-14-v1

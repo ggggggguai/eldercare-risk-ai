@@ -1,0 +1,90 @@
+schema_version: opt_me_003_search_v1
+task_id: OPT-ME-003
+dataset_scope: CASME II exposed development benchmark
+selection_scope: subject-group inner-OOF only
+outer_test_access_allowed: false
+model:
+  architecture: reduced_causalnet
+  parameters: 623963
+  input_shape: [4, 3, 28, 28]
+  dim: 64
+  heads: 2
+  block_repeats: [1, 1, 1]
+  mlp_mult: 2
+  cross_heads: 4
+  cross_depth: 2
+  dropout: 0.1
+  head_hidden_dim: 256
+training:
+  optimizer: Adam
+  learning_rate: 0.0001
+  weight_decay: 0.0001
+  batch_size: 64
+  gradient_clip_norm: 1.0
+  screening_epochs: 12
+  screening_min_epochs: 1
+  screening_patience: 12
+  rescreen_epochs: 25
+  rescreen_min_epochs: 8
+  rescreen_patience: 6
+  final_seeds: [20260806, 20260817, 20260829]
+development_splits:
+  screening_repeat_indices: [0, 1]
+  rescreen_repeat_indices: [0, 1, 2]
+  fold_count: 5
+candidates:
+  screening: [C0, C1, C2, C3, C4, C5]
+  rescreen_baseline: C0
+  conditional_candidate: C6
+  conditional_c6_policy:
+    imbalance_pool: [C1, C2, C3, C4]
+    traditional_component: C5
+    require_both_components_pass_screen_gate: true
+    deep_component: highest_ranked_passing_imbalance_candidate
+  finalist_limit: 2
+traditional:
+  C5: T6
+  T6_feature_groups: [dense_motion]
+  T7_feature_groups: [dense_motion, landmark_features]
+calibration:
+  registry: [identity, temperature, regularized_vector]
+  vector_regularization: 0.01
+  fitting: cross_fitted_by_held_development_fold
+fusion:
+  grid: [0.0, 0.25, 0.5, 0.75, 1.0]
+  meaning: p=weight*p_causal+(1-weight)*p_traditional
+  fitting: cross_fitted_by_held_development_fold
+ranking:
+  primary: min(UF1,UAR)
+  tie_break: [positive_f1, positive_recall, zero_score_subject_count, seed_std, complexity]
+screen_gate:
+  maximum_uf1_decline: 0.005
+  maximum_uar_decline: 0.005
+  minimum_one_primary_improvement: 0.01
+  maximum_positive_f1_decline: 0.01
+  zero_score_subject_increase_allowed: 0
+rescreen_gate:
+  minimum_uf1_improvement: 0.01
+  minimum_uar_improvement: 0.01
+  minimum_positive_f1_or_recall_improvement: 0.02
+  other_positive_metric_decline_allowed: 0.0
+  maximum_seed_std: 0.03
+  persistent_zero_score_subject_allowed: false
+  paired_selection_score_ci_lower_bound: -0.01
+bootstrap:
+  iterations: 2000
+  seed: 20260810
+budget:
+  screening_semantic_runs: 60
+  rescreen_semantic_runs_maximum: 135
+  exploratory_semantic_runs_if_frozen: 144
+  total_semantic_runs_maximum: 339
+recovery:
+  maximum_same_hash_retries: 1
+  completed_result_reuse_requires_matching_run_lock: true
+reporting:
+  retain_all_failures: true
+  retain_all_checkpoints: true
+  retain_epoch_logs: true
+  retain_sample_probabilities: true
+  best_seed_as_main_result_allowed: false

@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "wandering-handoff-run-summary-v2",
+  "title": "W5D-05 verified handoff run summary",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "module", "run_id", "started_at", "finished_at",
+    "person_id", "session_id", "source_video_id", "status", "delivery_status",
+    "validation_scope", "home_input_status", "home_annotation_status",
+    "home_smoke_status", "algorithm_event_emitted",
+    "medical_diagnosis_emitted", "backend_or_frontend_implemented",
+    "input_counts", "output_counts", "failure_counts", "degraded_components",
+    "quality_flags", "conservation", "identity", "source_refs"
+  ],
+  "properties": {
+    "schema_version": {"const": "wandering-handoff-run-summary-v2"},
+    "module": {"const": "mental_health"},
+    "run_id": {"type": "string", "minLength": 1},
+    "started_at": {"type": "string", "format": "date-time"},
+    "finished_at": {"type": "string", "format": "date-time"},
+    "person_id": {"type": ["string", "null"]},
+    "session_id": {"type": "null"},
+    "source_video_id": {"type": "null"},
+    "status": {"enum": ["ready", "uncertain", "unavailable", "error"]},
+    "delivery_status": {
+      "enum": [
+        "algorithm_ready_with_home_smoke_pending",
+        "algorithm_ready_after_home_smoke"
+      ]
+    },
+    "validation_scope": {"type": "string", "minLength": 1},
+    "home_input_status": {"enum": ["awaiting_input", "available"]},
+    "home_annotation_status": {"enum": ["not_provided", "unlabeled", "available"]},
+    "home_smoke_status": {
+      "enum": ["not_run_input_unavailable", "ready", "uncertain", "error"]
+    },
+    "algorithm_event_emitted": {"const": false},
+    "medical_diagnosis_emitted": {"const": false},
+    "backend_or_frontend_implemented": {"const": false},
+    "input_counts": {"$ref": "#/$defs/counts"},
+    "output_counts": {"$ref": "#/$defs/counts"},
+    "failure_counts": {"$ref": "#/$defs/counts"},
+    "degraded_components": {"$ref": "#/$defs/string_list"},
+    "quality_flags": {"$ref": "#/$defs/string_list"},
+    "conservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "episode_result_count", "context_review_count",
+        "daily_context_bucket_count", "valid_shape_count",
+        "unavailable_episode_count", "error_episode_count",
+        "wandering_like_count", "wandering_like_duration_seconds"
+      ],
+      "properties": {
+        "episode_result_count": {"type": "integer", "minimum": 0},
+        "context_review_count": {"type": "integer", "minimum": 0},
+        "daily_context_bucket_count": {"type": "integer", "minimum": 0},
+        "valid_shape_count": {"type": "integer", "minimum": 0},
+        "unavailable_episode_count": {"type": "integer", "minimum": 0},
+        "error_episode_count": {"type": "integer", "minimum": 0},
+        "wandering_like_count": {"type": "integer", "minimum": 0},
+        "wandering_like_duration_seconds": {"type": "number", "minimum": 0}
+      }
+    },
+    "identity": {"$ref": "#/$defs/identity"},
+    "source_refs": {
+      "type": "array", "minItems": 3, "maxItems": 3,
+      "items": {"$ref": "#/$defs/source_ref"}
+    }
+  },
+  "$defs": {
+    "counts": {
+      "type": "object",
+      "additionalProperties": {"type": "integer", "minimum": 0}
+    },
+    "string_list": {
+      "type": "array", "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "identity": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "model_id", "model_sha256", "config_id", "config_sha256",
+        "policy_id", "policy_sha256"
+      ],
+      "properties": {
+        "model_id": {"type": ["string", "null"]},
+        "model_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+        "config_id": {"type": "string", "minLength": 1},
+        "config_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "policy_id": {"type": "string", "minLength": 1},
+        "policy_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "source_ref": {
+      "type": "object", "additionalProperties": false,
+      "required": ["ref_type", "ref_id", "artifact_path", "sha256"],
+      "properties": {
+        "ref_type": {"type": "string", "minLength": 1},
+        "ref_id": {"type": "string", "minLength": 1},
+        "artifact_path": {"type": ["string", "null"]},
+        "sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"}
+      }
+    }
+  }
+}

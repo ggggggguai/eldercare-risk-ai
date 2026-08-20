@@ -1,0 +1,258 @@
+from __future__ import annotations
+
+import os
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any, Mapping
+
+import yaml
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+
+
+@dataclass(frozen=True)
+class ServiceSettings:
+    model_path: Path = Path("yolov8n-pose.pt")
+    gait_model_path: Path | None = None
+    gait_model_device: str = "auto"
+    gait_model_window_frames: int = 16
+    api_token: str = "change-me"
+    callback_token: str = "change-me"
+    baseline_history_path: Path | None = None
+    max_inference_fps: float = 8.0
+    pose_window_sec: float = 10.0
+    analysis_interval_sec: float = 0.5
+    fusion_interval_sec: float = 2.0
+    primary_lost_timeout_sec: float = 2.0
+    event_cooldown_sec: float = 30.0
+    callback_timeout_sec: float = 5.0
+    callback_retry_delays_sec: tuple[float, ...] = (0.5, 1.0, 2.0)
+    outbox_capacity: int = 32
+    outbox_drain_timeout_sec: float = 3.0
+    session_stop_timeout_sec: float = 5.0
+    frame_queue_capacity: int = 2
+    stream_open_timeout_ms: int = 5000
+    stream_read_timeout_ms: int = 5000
+    reconnect_attempts: int = 3
+    reconnect_delay_sec: float = 1.0
+    scene_risk_scores: Mapping[str, float] = field(default_factory=dict)
+    branch_quality: Mapping[str, Any] = field(default_factory=dict)
+    fall_state: Mapping[str, Any] = field(default_factory=dict)
+    ezviz_llm_api_key: str = ""
+    ezviz_llm_base_url: str = "https://openai.ezviz.com/v1"
+    ezviz_llm_model: str = "qwen3.6-plus"
+    ezviz_llm_timeout_sec: float = 30.0
+    cognitive_model_package_path: Path = (
+        PROJECT_ROOT / "models" / "mental_health" / "cognitive_change_clue" / "v3.3.0"
+    )
+    cognitive_model_package_v34_path: Path = (
+        PROJECT_ROOT / "models" / "mental_health" / "cognitive_change_clue" / "v3.4.0"
+    )
+    cognitive_model_package_v35_path: Path = (
+        PROJECT_ROOT / "models" / "mental_health" / "cognitive_change_clue" / "v3.5.0"
+    )
+    cognitive_asr_url: str = "http://127.0.0.1:8011/v1/asr/transcribe"
+    cognitive_inference_device: str = "cpu"
+    facial_affect_b0_package_path: Path = (
+        PROJECT_ROOT
+        / "models"
+        / "mental_health"
+        / "facial_affect"
+        / "b0_opt_me_008_deployment_v1"
+    )
+    facial_affect_inference_device: str = "cpu"
+    facial_affect_video_max_bytes: int = 128 * 1024 * 1024
+    facial_affect_video_url_allowed_origins: tuple[str, ...] = ()
+    facial_affect_video_temp_root: Path = (
+        PROJECT_ROOT / ".runtime" / "facial_affect_video"
+    )
+    facial_affect_video_temp_retention_seconds: int = 3600
+    facial_affect_video_download_timeout_seconds: float = 30.0
+    facial_affect_spotting_config_path: Path = (
+        PROJECT_ROOT / "configs" / "modules" / "facial_affect_spotting_v1.json"
+    )
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.model_path, Path):
+            object.__setattr__(self, "model_path", Path(self.model_path))
+        if self.baseline_history_path is not None and not isinstance(self.baseline_history_path, Path):
+            object.__setattr__(self, "baseline_history_path", Path(self.baseline_history_path))
+        if self.gait_model_path is not None and not isinstance(self.gait_model_path, Path):
+            object.__setattr__(self, "gait_model_path", Path(self.gait_model_path))
+        if not isinstance(self.cognitive_model_package_path, Path):
+            object.__setattr__(
+                self,
+                "cognitive_model_package_path",
+                Path(self.cognitive_model_package_path),
+            )
+        if not isinstance(self.cognitive_model_package_v34_path, Path):
+            object.__setattr__(
+                self,
+                "cognitive_model_package_v34_path",
+                Path(self.cognitive_model_package_v34_path),
+            )
+        if not isinstance(self.cognitive_model_package_v35_path, Path):
+            object.__setattr__(
+                self,
+                "cognitive_model_package_v35_path",
+                Path(self.cognitive_model_package_v35_path),
+            )
+        if not isinstance(self.facial_affect_b0_package_path, Path):
+            object.__setattr__(
+                self,
+                "facial_affect_b0_package_path",
+                Path(self.facial_affect_b0_package_path),
+            )
+        if not isinstance(self.facial_affect_video_temp_root, Path):
+            object.__setattr__(
+                self,
+                "facial_affect_video_temp_root",
+                Path(self.facial_affect_video_temp_root),
+            )
+        if not isinstance(self.facial_affect_spotting_config_path, Path):
+            object.__setattr__(
+                self,
+                "facial_affect_spotting_config_path",
+                Path(self.facial_affect_spotting_config_path),
+            )
+        if self.gait_model_window_frames < 2:
+            raise ValueError("gait_model_window_frames must be at least 2")
+        if self.frame_queue_capacity < 1:
+            raise ValueError("frame_queue_capacity must be at least 1")
+        if self.outbox_capacity < 1:
+            raise ValueError("outbox_capacity must be at least 1")
+        if self.outbox_drain_timeout_sec < 0:
+            raise ValueError("outbox_drain_timeout_sec must be non-negative")
+        if self.session_stop_timeout_sec <= 0:
+            raise ValueError("session_stop_timeout_sec must be positive")
+        if self.cognitive_inference_device not in {"auto", "cpu", "cuda:0"}:
+            raise ValueError("cognitive_inference_device must be auto, cpu, or cuda:0")
+        if self.facial_affect_inference_device not in {"auto", "cpu", "cuda:0"}:
+            raise ValueError(
+                "facial_affect_inference_device must be auto, cpu, or cuda:0"
+            )
+        if self.facial_affect_video_max_bytes < 1024:
+            raise ValueError("facial_affect_video_max_bytes is too small")
+        if self.facial_affect_video_temp_retention_seconds < 0:
+            raise ValueError("facial_affect_video_temp_retention_seconds must be non-negative")
+        if self.facial_affect_video_download_timeout_seconds <= 0:
+            raise ValueError("facial_affect_video_download_timeout_seconds must be positive")
+
+    @classmethod
+    def load(cls, path: Path | None = None, environ: Mapping[str, str] | None = None) -> "ServiceSettings":
+        env = os.environ if environ is None else environ
+        config_path = path or Path(env.get("FALL_RISK_SERVICE_CONFIG", "configs/modules/fall_risk_service.yaml"))
+        raw: dict[str, Any] = {}
+        if config_path.exists():
+            loaded = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+            if not isinstance(loaded, dict):
+                raise ValueError("fall risk service config must be a mapping")
+            raw.update(loaded)
+
+        overrides: dict[str, tuple[str, Any]] = {
+            "MODEL_PATH": ("model_path", Path),
+            "GAIT_MODEL_PATH": ("gait_model_path", Path),
+            "GAIT_MODEL_DEVICE": ("gait_model_device", str),
+            "GAIT_MODEL_WINDOW_FRAMES": ("gait_model_window_frames", int),
+            "ALGORITHM_API_TOKEN": ("api_token", str),
+            "CALLBACK_TOKEN": ("callback_token", str),
+            "BASELINE_HISTORY_PATH": ("baseline_history_path", Path),
+            "MAX_INFERENCE_FPS": ("max_inference_fps", float),
+            "POSE_WINDOW_SEC": ("pose_window_sec", float),
+            "ANALYSIS_INTERVAL_SEC": ("analysis_interval_sec", float),
+            "FUSION_INTERVAL_SEC": ("fusion_interval_sec", float),
+            "PRIMARY_LOST_TIMEOUT_SEC": ("primary_lost_timeout_sec", float),
+            "EVENT_COOLDOWN_SEC": ("event_cooldown_sec", float),
+            "CALLBACK_TIMEOUT_SEC": ("callback_timeout_sec", float),
+            "OUTBOX_CAPACITY": ("outbox_capacity", int),
+            "OUTBOX_DRAIN_TIMEOUT_SEC": ("outbox_drain_timeout_sec", float),
+            "SESSION_STOP_TIMEOUT_SEC": ("session_stop_timeout_sec", float),
+            "FRAME_QUEUE_CAPACITY": ("frame_queue_capacity", int),
+            "RECONNECT_ATTEMPTS": ("reconnect_attempts", int),
+            "RECONNECT_DELAY_SEC": ("reconnect_delay_sec", float),
+            "EZVIZ_LLM_API_KEY": ("ezviz_llm_api_key", str),
+            "EZVIZ_LLM_BASE_URL": ("ezviz_llm_base_url", str),
+            "EZVIZ_LLM_MODEL": ("ezviz_llm_model", str),
+            "EZVIZ_LLM_TIMEOUT_SECONDS": ("ezviz_llm_timeout_sec", float),
+            "COGNITIVE_MODEL_PACKAGE_PATH": ("cognitive_model_package_path", Path),
+            "COGNITIVE_MODEL_PACKAGE_V34_PATH": ("cognitive_model_package_v34_path", Path),
+            "COGNITIVE_MODEL_PACKAGE_V35_PATH": ("cognitive_model_package_v35_path", Path),
+            "COGNITIVE_ASR_URL": ("cognitive_asr_url", str),
+            "COGNITIVE_INFERENCE_DEVICE": ("cognitive_inference_device", str),
+            "FACIAL_AFFECT_B0_PACKAGE_PATH": (
+                "facial_affect_b0_package_path",
+                Path,
+            ),
+            "FACIAL_AFFECT_INFERENCE_DEVICE": (
+                "facial_affect_inference_device",
+                str,
+            ),
+            "FACIAL_AFFECT_VIDEO_MAX_BYTES": (
+                "facial_affect_video_max_bytes",
+                int,
+            ),
+            "FACIAL_AFFECT_VIDEO_URL_ALLOWED_ORIGINS": (
+                "facial_affect_video_url_allowed_origins",
+                lambda value: tuple(
+                    item.strip() for item in value.split(",") if item.strip()
+                ),
+            ),
+            "FACIAL_AFFECT_VIDEO_TEMP_ROOT": (
+                "facial_affect_video_temp_root",
+                Path,
+            ),
+            "FACIAL_AFFECT_VIDEO_TEMP_RETENTION_SECONDS": (
+                "facial_affect_video_temp_retention_seconds",
+                int,
+            ),
+            "FACIAL_AFFECT_VIDEO_DOWNLOAD_TIMEOUT_SECONDS": (
+                "facial_affect_video_download_timeout_seconds",
+                float,
+            ),
+            "FACIAL_AFFECT_SPOTTING_CONFIG_PATH": (
+                "facial_affect_spotting_config_path",
+                Path,
+            ),
+        }
+        for env_name, (field_name, converter) in overrides.items():
+            if env_name in env:
+                raw[field_name] = converter(env[env_name])
+        if "model_path" in raw:
+            raw["model_path"] = Path(raw["model_path"])
+        if raw.get("baseline_history_path"):
+            raw["baseline_history_path"] = Path(raw["baseline_history_path"])
+        if raw.get("gait_model_path"):
+            raw["gait_model_path"] = Path(raw["gait_model_path"])
+        if raw.get("cognitive_model_package_path"):
+            raw["cognitive_model_package_path"] = Path(
+                raw["cognitive_model_package_path"]
+            )
+        if raw.get("cognitive_model_package_v34_path"):
+            raw["cognitive_model_package_v34_path"] = Path(
+                raw["cognitive_model_package_v34_path"]
+            )
+        if raw.get("cognitive_model_package_v35_path"):
+            raw["cognitive_model_package_v35_path"] = Path(
+                raw["cognitive_model_package_v35_path"]
+            )
+        if raw.get("facial_affect_b0_package_path"):
+            raw["facial_affect_b0_package_path"] = Path(
+                raw["facial_affect_b0_package_path"]
+            )
+        if raw.get("facial_affect_video_temp_root"):
+            raw["facial_affect_video_temp_root"] = Path(
+                raw["facial_affect_video_temp_root"]
+            )
+        if raw.get("facial_affect_spotting_config_path"):
+            raw["facial_affect_spotting_config_path"] = Path(
+                raw["facial_affect_spotting_config_path"]
+            )
+        if "facial_affect_video_url_allowed_origins" in raw:
+            value = raw["facial_affect_video_url_allowed_origins"]
+            raw["facial_affect_video_url_allowed_origins"] = tuple(
+                item.strip() for item in value.split(",") if item.strip()
+            ) if isinstance(value, str) else tuple(value)
+        if "callback_retry_delays_sec" in raw:
+            raw["callback_retry_delays_sec"] = tuple(float(value) for value in raw["callback_retry_delays_sec"])
+        return cls(**raw)

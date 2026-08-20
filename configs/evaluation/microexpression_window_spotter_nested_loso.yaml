@@ -1,0 +1,44 @@
+schema_version: smic_window_spotter_evaluation_config_v1
+task_id: SPOT-ME-002
+run_id: SPOT-ME-002-SMIC-WINDOW-NESTED-LOSO-20260807
+
+inputs:
+  feature_manifest: data/manifests/microexpression/spotter_v1_manifest.jsonl
+  source_manifest: data/manifests/microexpression/sequence_manifest_v1.jsonl
+  open_source_lock: configs/open_source/microexpression_open_source_lock_v1.json
+
+protocol:
+  validation_subject_count: 3
+  final_seeds: [20260807, 20260818, 20260830]
+  bootstrap_iterations: 2000
+  threshold_min: 0.05
+  threshold_max: 0.95
+  threshold_step: 0.01
+  test_used_for_selection: false
+  long_video_spotting_claim: false
+
+model:
+  hidden_dim: 64
+  dropout: 0.20
+
+features:
+  image_size: 64
+  max_frames: 16
+  temporal_bins: 8
+  spatial_grid: 4
+
+training:
+  optimizer: adam
+  learning_rate: 0.001
+  max_epochs: 40
+  min_epochs: 8
+  patience: 8
+  batch_size: 256
+  weight_decay: 0.0001
+  gradient_clip_norm: 1.0
+
+interpretation:
+  rejected_below: 0.60
+  short_window_baseline_at: 0.70
+  deployment_eligible: false
+  next_required_task: SPOT-ME-003

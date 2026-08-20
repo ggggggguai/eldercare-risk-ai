@@ -1,0 +1,69 @@
+schema_version: causalnet_eval_me_005_config_v1
+task_id: EVAL-ME-005
+run_id: EVAL-ME-005-CASME2-CROSS-MERGED-20260807
+
+inputs:
+  casme2_manifest: data/manifests/microexpression/eval_me_005_v1/casme2_eval_manifest_v1.jsonl
+  smic_manifest: data/manifests/microexpression/eval_me_005_v1/smic_eval_manifest_v1.jsonl
+  merged_manifest: data/manifests/microexpression/eval_me_005_v1/merged_eval_manifest_v1.jsonl
+  split_manifest: data/manifests/microexpression/eval_me_005_v1/eval_me_005_subject_protocols_v1.json
+  input_audit: data/manifests/microexpression/eval_me_005_v1/eval_me_005_input_audit_v1.json
+  casme_crosswalk: data/manifests/microexpression/eval_me_005_v1/casme2_three_class_crosswalk_v1.json
+  casme_preprocessing_config: configs/preprocessing/microexpression_casme2_official_causalnet_v1.yaml
+  smic_preprocessing_config: configs/preprocessing/microexpression_causalnet_v1.yaml
+  environment_lock: environment-microexpression.lock.yml
+
+model:
+  image_size: 28
+  patch_size: 7
+  dim: 256
+  heads: 3
+  num_hierarchies: 3
+  block_repeats: [3, 3, 9]
+  num_classes: 3
+  gamma: 0.5
+  channels: 3
+  mlp_mult: 4
+  dropout: 0.0
+  cross_heads: 8
+  cross_depth: 9
+
+training:
+  optimizer: adam
+  learning_rate: 0.00005
+  max_epochs: 100
+  min_epochs: 20
+  patience: 10
+  batch_size: 256
+  weight_decay: 0.0
+  gradient_clip_norm: 1.0
+  num_workers: 0
+  loss: weighted_cross_entropy
+  lr_step_epochs: 50
+  lr_gamma: 0.5
+
+protocol:
+  required_protocols:
+    - casme2_nested_loso
+    - cross_smic_to_casme2
+    - cross_casme2_to_smic
+    - merged_nested_loso
+  final_seeds: [20260806, 20260817, 20260829]
+  bootstrap_iterations: 2000
+  test_evaluations_per_seed_sample: 1
+  configuration_selection: frozen_before_outer_test
+  checkpoint_selection: validation_uf1_uar_harmonic_then_loss
+  test_used_for_selection: false
+  dataset_name_used_as_model_feature: false
+
+release_thresholds:
+  rejected_if_either_below: 0.55
+  research_baseline_both_at_least: 0.60
+  candidate_both_at_least: 0.70
+  candidate_max_seed_std: 0.05
+  require_no_zero_score_folds: true
+
+runtime:
+  require_cuda: true
+  expected_gpu: NVIDIA GeForce RTX 4060 Laptop GPU
+  deterministic: true

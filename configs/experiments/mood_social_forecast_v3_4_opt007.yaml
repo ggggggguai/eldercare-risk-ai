@@ -1,0 +1,31 @@
+schema_version: mood-social-forecast-v3.4-opt007-v1
+task_range: FORECAST-OPT-007A..FORECAST-OPT-007G
+status: experimental
+execution_mode: offline_only
+decision_authority: shadow_only
+product_visible: false
+evidence_level: development_only_post_selection
+existing_outer_spent: true
+reference_runs:
+  pure_passive: MH-20260809-FOPT-044
+  basic_profile: MH-20260809-FOPT-059
+  state_aware: MH-20260809-FOPT-026
+  opt006_contract: MH-20260809-FOPT-045
+random_seeds: [20260728, 20260729, 20260730]
+bootstrap_seed: 20260809
+bootstrap_replicates: 2000
+inner_contexts: [0, 1, 2, 3, 4]
+gates:
+  exploratory_auprc_delta: 0.003
+  independent_auprc_delta: 0.005
+  contexts_non_decrease: 4
+  max_context_drop: 0.015
+  max_brier_increase: 0.002
+  max_ece_increase: 0.002
+  max_profile_slice_drop: 0.020
+  fusion_max_spearman: 0.995
+  fusion_min_delta: 0.001
+profile_core: [birthyear, sex, educ]
+profile_conditional: [bmi]
+existing_outer_access_for_selection: false
+new_untouched_evaluation_data_available: false

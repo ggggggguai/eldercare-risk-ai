@@ -1,0 +1,119 @@
+schema_version: opt_me_004_search_v1
+task_id: OPT-ME-004
+dataset_scope: CASME II exposed development benchmark
+selection_scope: subject-group inner-OOF only
+outer_test_access_allowed: false
+model:
+  architecture: reduced_causalnet
+  parameters: 623963
+  input_shape: [4, 3, 28, 28]
+  dim: 64
+  heads: 2
+  block_repeats: [1, 1, 1]
+  mlp_mult: 2
+  cross_heads: 4
+  cross_depth: 2
+  dropout: 0.1
+  head_hidden_dim: 256
+training:
+  optimizer: Adam
+  learning_rate: 0.0001
+  weight_decay: 0.0001
+  batch_size: 64
+  gradient_clip_norm: 1.0
+  screening_epochs: 12
+  screening_min_epochs: 1
+  screening_patience: 12
+  rescreen_epochs: 25
+  rescreen_min_epochs: 8
+  rescreen_patience: 6
+  final_epochs: 25
+  final_min_epochs: 8
+  final_patience: 6
+  final_seeds: [20260806, 20260817, 20260829]
+development_splits:
+  source: data/manifests/microexpression/opt_me_003/development_subject_splits_v1.json
+  source_sha256: 957fe54ba12f5cd669f8b00521f141565f5284da9f87d4eb965914b03f6698cd
+  repeat_seeds: [1900122016, 497039249, 2045744886]
+  screening_repeat_indices: [0, 1]
+  rescreen_repeat_indices: [0, 1, 2]
+  fold_count: 5
+candidates:
+  screening: [M0, M1, M2, M3, M4, M5]
+  rescreen_mandatory: [M0, M1]
+  experimental_pool: [M2, M3, M4, M5]
+  experimental_finalist_limit: 1
+  M0: {loss: weighted_cross_entropy, ema: false, subject_equalized: false, ssl: false}
+  M1: {loss: ldam_drw, ema: false, subject_equalized: false, ssl: false}
+  M2: {loss: ldam_drw, ema: true, subject_equalized: false, ssl: false}
+  M3: {loss: ldam_drw, ema: false, subject_equalized: true, ssl: false}
+  M4: {loss: ldam_drw, ema: false, subject_equalized: false, ssl: true}
+  M5: {loss: ldam_drw, ema: true, subject_equalized: true, ssl: false}
+ema:
+  decay: 0.999
+  start_step: 0
+  validation_weights: ema
+subject_equalized_loss:
+  sample_weight: 0.7
+  subject_weight: 0.3
+  sampler_change_allowed: false
+ssl:
+  consistency_weight: 0.1
+  flow_magnitude_gain: [0.9, 1.1]
+  gaussian_noise_sigma: 0.01
+  single_route_dropout_probability: 0.10
+  maximum_dropped_routes_per_sample: 1
+  reverse_time_allowed: false
+  swap_keyframes_allowed: false
+calibration:
+  primary: temperature
+  audit_control: identity
+  fitting: cross_fitted_by_held_development_fold
+  vector_scaling_allowed: false
+ranking:
+  primary: min(UF1,UAR)
+  tie_break: [positive_f1, positive_recall, worst_quartile_subject_score, paired_ci_width, seed_std, complexity]
+screen_gate:
+  maximum_uf1_decline: 0.005
+  maximum_uar_decline: 0.005
+  minimum_one_primary_improvement: 0.01
+  positive_f1_decline_allowed: 0.0
+  positive_recall_decline_allowed: 0.0
+  zero_score_subject_increase_allowed: 0
+freeze_gate:
+  minimum_uf1_improvement: 0.01
+  minimum_uar_improvement: 0.01
+  minimum_positive_f1_improvement: 0.02
+  minimum_positive_recall_improvement: 0.02
+  maximum_seed_std: 0.03
+  persistent_zero_score_subject_allowed: false
+  paired_selection_score_ci_lower_bound: -0.01
+  maximum_worst_quartile_subject_score_decline: 0.005
+  minimum_positive_leave_one_subject_out_count: 20
+  maximum_single_subject_delta_shift: 0.01
+  maximum_brier_increase: 0.005
+  maximum_nll_increase: 0.01
+  maximum_ece_increase: 0.01
+  high_confidence_threshold: 0.70
+  maximum_high_confidence_error_rate_increase: 0.01
+calibration_metrics:
+  ece_bins: 10
+bootstrap:
+  iterations: 2000
+  seed: 20260810
+budget:
+  screening_semantic_runs: 60
+  rescreen_semantic_runs_maximum: 135
+  exploratory_semantic_runs_if_frozen: 144
+  total_semantic_runs_maximum: 339
+recovery:
+  maximum_same_hash_retries: 1
+  completed_result_reuse_requires_matching_run_lock: true
+reporting:
+  retain_all_failures: true
+  retain_all_checkpoints: true
+  retain_optimizer_scheduler_ema_state: true
+  retain_epoch_logs: true
+  retain_sample_logits_and_probabilities: true
+  best_seed_as_main_result_allowed: false
+  casme2_scope: post-hoc exploratory development estimate

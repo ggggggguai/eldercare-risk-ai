@@ -1,0 +1,64 @@
+schema_version: mood-social-forecast-v3.4-opt008-config-v1
+evidence_level: development_only_post_selection
+deployment:
+  experimental: true
+  offline_only: true
+  shadow_only: true
+  product_visible: false
+  backend_integration: false
+references:
+  pure_passive: MH-20260809-FOPT-044
+  passive_profile_2m: MH-20260809-FOPT-059
+  state_aware: MH-20260809-FOPT-026
+  profile_inner: MH-20260809-FOPT-063
+  state_inner: MH-20260809-FOPT-065
+  opt007_package: MH-20260809-FOPT-070
+calibration:
+  task_id: forecast_1m
+  source_column: core__catboost_residual
+  candidates:
+    platt: {l2: 1.0}
+    beta_l2: {l2: 4.0}
+  gates:
+    max_abs_auprc_change: 1.0e-10
+    max_brier_increase_vs_passive: 0.002
+    max_ece_increase_vs_passive: 0.002
+    min_contexts_ece_non_worse: 4
+    max_batch_error: 1.0e-12
+robust_ranking:
+  candidates:
+    predefined_group_reweight: {multiplier: 1.25}
+    soft_group_dro: {penalty: 0.20}
+  groups: [sex, train_only_age_quartile, education, label_month, short_history, low_completeness]
+  gates:
+    min_auprc_delta_vs_passive: 0.005
+    min_contexts_non_decrease: 4
+    min_worst_context_delta: -0.015
+    min_worst_slice_delta: -0.020
+    max_brier_increase: 0.002
+    max_ece_increase: 0.002
+    max_auprc_drop_vs_fopt063: 0.002
+    min_original_worst_slice_improvement: 0.006
+state_transition:
+  candidates: [hard_routed_transition_experts, shared_base_with_transition_offsets]
+  gates:
+    min_auprc_delta: 0.005
+    exploration_stop_delta: 0.003
+    min_contexts_non_decrease: 4
+    min_worst_context_delta: -0.015
+    max_brier_increase: 0.002
+    max_ece_increase: 0.002
+    min_new_onset_recall_delta: -0.010
+    min_persistent_recall_delta: -0.010
+    max_recovery_fpr_delta: 0.020
+    max_stable_low_fpr_delta: 0.020
+new_signal:
+  min_participants: 300
+  min_windows_per_participant: 2
+  min_coverage: 0.70
+fusion:
+  weights: [0.25, 0.50, 0.75]
+  max_spearman: 0.995
+  min_auprc_gain_vs_best: 0.001
+  max_brier_increase: 0.002
+  max_ece_increase: 0.002

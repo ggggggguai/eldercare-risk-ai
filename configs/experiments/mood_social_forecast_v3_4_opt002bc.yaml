@@ -1,0 +1,56 @@
+schema_version: mood-social-forecast-v3.4-opt002bc-config-v1
+task_id: FORECAST-OPT-002B-002C
+optimization_version: mood-social-forecast-v3.4-opt002bc-v1
+status: completed_data_target_weight_audit
+run_id: MH-20260807-FOPT-003
+formal_baseline_run_id: MH-20260805-FCAST-001
+secondary_audit_run_id: MH-20260807-FOPT-002
+dataset_id: psyche_d
+task_ids:
+  - forecast_1m
+  - forecast_2m
+history_contract:
+  time_unit: nominal_month_slot
+  cutoff_rule: c=t-h
+  cross_cutoff_fill: false
+  day_level_windows_allowed: false
+  personal_baseline_formula: (x(c)-median(x(<c)))/max(1.4826*MAD(x(<c)),epsilon)
+  personal_baseline_scope: participant_local_strict_history
+  group_reference_scope: outer_train_only
+target_contract:
+  primary: future_binary_target
+  auxiliaries:
+    - phq9_score_regression
+    - phq9_ordinal_level
+    - phq9_worsening_improvement_direction
+  auxiliary_as_input: false
+  evaluation_labels: original_v3_4_hard_labels
+weighting:
+  schemes:
+    - participant_equal
+    - inner_fold_class_balanced
+    - strict_history_recency
+    - threshold_near_downweight
+  fit_scope: outer_train_inner_train_only
+  ordinary_smote: false
+  cross_participant_synthesis: false
+  cross_month_random_concat: false
+models:
+  training_started: false
+  p0_candidates:
+    - elasticnet_logistic
+    - lightgbm
+    - catboost
+    - xgboost_if_environment_frozen
+  deferred_from_primary_search:
+    - tcn
+    - transformer_encoder
+execution_boundary:
+  release_status: experimental
+  execution_mode: offline_only
+  decision_authority: shadow_only
+  product_visible: false
+  backend_change: false
+  api_change: false
+  v3_3_package_change: false
+  v3_3_physiology_change: false

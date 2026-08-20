@@ -1,0 +1,190 @@
+schema_version: wandering-camera-segmenter-search-config-v1
+search_id: w5d01-b01-b02-stationary-closing-v2
+
+development_contract:
+  development_index:
+    path: reports/mental_health/wandering_camera_5d_contract_v3/development_index.jsonl
+    sha256: bd29c218cdd78c054955c7ac51ab195003a9a5533d84c2efc7f9cc3dd01b82f8
+  run_manifest:
+    path: reports/mental_health/wandering_camera_5d_contract_v3/run_manifest.json
+    sha256: 225015cf05cbb12d177aba7168de86851713884ac659f306a0c957fdeb076409
+
+proposal_baseline:
+  path: configs/modules/wandering_camera_episode_boundary_proposal_v1.yaml
+  sha256: 66828e0f5fe8c960146ca5781a531431b8e22b689adaf3f7c500e2f946c4b99c
+
+evaluation_config:
+  path: configs/modules/wandering_camera_episode_boundary_eval_v1.yaml
+  sha256: 60fe0f4a748885be039f02abaf8ba062773840545b69f5c69507a8d06d535fd3
+
+expected_batches: {B01: 36, B02: 12}
+
+selection_policy:
+  policy_id: w5d01-recall-first-stable-batch-v1
+  pooled_recall_minimum: 0.75
+  pooled_f1_minimum: 0.72
+  matched_mean_tiou_minimum: 0.65
+  known_episode_candidate_coverage_minimum: 0.85
+  technical_hard_break_crossing_maximum: 0
+  finalist_count: 3
+  ranking_order:
+    - gate_satisfied
+    - pooled_recall
+    - minimum_batch_recall
+    - known_episode_candidate_coverage
+    - pooled_f1
+    - minimum_batch_f1
+    - matched_mean_tiou
+    - serious_split_merge_count
+    - candidate_support
+    - candidate_id
+
+candidates:
+  - candidate_id: baseline-v1
+    stage: baseline
+    parameter_group: baseline
+    state_machine: &baseline_state
+      movement_start_min_buckets: 5
+      movement_start_min_displacement_body_heights: 0.25
+      stationary_max_displacement_body_heights: 0.08
+      stationary_dwell_candidate_seconds: 15.0
+      minimum_episode_duration_seconds: 2.0
+    boundary_refinement: &refinement_off
+      enabled: false
+      bucket_seconds: 0.25
+      search_radius_seconds: 0.5
+      movement_step_min_body_heights: 0.03
+      stationary_step_max_body_heights: 0.02
+      stationary_confirmation_buckets: 2
+
+  - candidate_id: closing-s008-d04
+    stage: one_group
+    parameter_group: stationary_closing
+    state_machine:
+      <<: *baseline_state
+      stationary_dwell_candidate_seconds: 4.0
+    boundary_refinement: *refinement_off
+
+  - candidate_id: closing-s008-d02
+    stage: one_group
+    parameter_group: stationary_closing
+    state_machine:
+      <<: *baseline_state
+      stationary_dwell_candidate_seconds: 2.0
+    boundary_refinement: *refinement_off
+
+  - candidate_id: closing-s008-d01
+    stage: one_group
+    parameter_group: stationary_closing
+    state_machine:
+      <<: *baseline_state
+      stationary_dwell_candidate_seconds: 1.0
+    boundary_refinement: *refinement_off
+
+  - candidate_id: closing-s010-d04
+    stage: one_group
+    parameter_group: stationary_closing
+    state_machine:
+      <<: *baseline_state
+      stationary_max_displacement_body_heights: 0.10
+      stationary_dwell_candidate_seconds: 4.0
+    boundary_refinement: *refinement_off
+
+  - candidate_id: closing-s010-d02
+    stage: one_group
+    parameter_group: stationary_closing
+    state_machine:
+      <<: *baseline_state
+      stationary_max_displacement_body_heights: 0.10
+      stationary_dwell_candidate_seconds: 2.0
+    boundary_refinement: *refinement_off
+
+  - candidate_id: closing-s010-d01
+    stage: one_group
+    parameter_group: stationary_closing
+    state_machine:
+      <<: *baseline_state
+      stationary_max_displacement_body_heights: 0.10
+      stationary_dwell_candidate_seconds: 1.0
+    boundary_refinement: *refinement_off
+
+  - candidate_id: closing-s012-d06
+    stage: one_group
+    parameter_group: stationary_closing
+    state_machine:
+      <<: *baseline_state
+      stationary_max_displacement_body_heights: 0.12
+      stationary_dwell_candidate_seconds: 6.0
+    boundary_refinement: *refinement_off
+
+  - candidate_id: closing-s012-d04
+    stage: one_group
+    parameter_group: stationary_closing
+    state_machine:
+      <<: *baseline_state
+      stationary_max_displacement_body_heights: 0.12
+      stationary_dwell_candidate_seconds: 4.0
+    boundary_refinement: *refinement_off
+
+  - candidate_id: closing-s012-d03
+    stage: one_group
+    parameter_group: stationary_closing
+    state_machine:
+      <<: *baseline_state
+      stationary_max_displacement_body_heights: 0.12
+      stationary_dwell_candidate_seconds: 3.0
+    boundary_refinement: *refinement_off
+
+  - candidate_id: closing-s012-d02
+    stage: one_group
+    parameter_group: stationary_closing
+    state_machine:
+      <<: *baseline_state
+      stationary_max_displacement_body_heights: 0.12
+      stationary_dwell_candidate_seconds: 2.0
+    boundary_refinement: *refinement_off
+
+  - candidate_id: closing-s012-d01
+    stage: one_group
+    parameter_group: stationary_closing
+    state_machine:
+      <<: *baseline_state
+      stationary_max_displacement_body_heights: 0.12
+      stationary_dwell_candidate_seconds: 1.0
+    boundary_refinement: *refinement_off
+
+  - candidate_id: closing-s012-d00p5
+    stage: one_group
+    parameter_group: stationary_closing
+    state_machine:
+      <<: *baseline_state
+      stationary_max_displacement_body_heights: 0.12
+      stationary_dwell_candidate_seconds: 0.5
+    boundary_refinement: *refinement_off
+
+  - candidate_id: closing-s014-d04
+    stage: one_group
+    parameter_group: stationary_closing
+    state_machine:
+      <<: *baseline_state
+      stationary_max_displacement_body_heights: 0.14
+      stationary_dwell_candidate_seconds: 4.0
+    boundary_refinement: *refinement_off
+
+  - candidate_id: closing-s014-d02
+    stage: one_group
+    parameter_group: stationary_closing
+    state_machine:
+      <<: *baseline_state
+      stationary_max_displacement_body_heights: 0.14
+      stationary_dwell_candidate_seconds: 2.0
+    boundary_refinement: *refinement_off
+
+  - candidate_id: closing-s016-d02
+    stage: one_group
+    parameter_group: stationary_closing
+    state_machine:
+      <<: *baseline_state
+      stationary_max_displacement_body_heights: 0.16
+      stationary_dwell_candidate_seconds: 2.0
+    boundary_refinement: *refinement_off

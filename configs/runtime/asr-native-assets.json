@@ -1,0 +1,17 @@
+{
+  "schema_version": "asr_native_assets_v1",
+  "tools": {
+    "ffmpeg": {
+      "command": "ffmpeg",
+      "filename": "ffmpeg.exe",
+      "version": "ffmpeg version 8.1.2-full_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers",
+      "sha256": "ad8f211bc894755e0061c55ab280ae00e8d3d4f15a8cc4372b24cfa247b5942e"
+    },
+    "ffprobe": {
+      "command": "ffprobe",
+      "filename": "ffprobe.exe",
+      "version": "ffprobe version 8.1.2-full_build-www.gyan.dev Copyright (c) 2007-2026 the FFmpeg developers",
+      "sha256": "9df3b0b5275e830961df6d94e1f7a71121a7abd5ff708e9fec8a0b6084a55015"
+    }
+  }
+}

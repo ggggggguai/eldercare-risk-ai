@@ -1,0 +1,34 @@
+schema_version: cognitive-wandering-rule-fusion-config-v1
+policy_version: cognitive-wandering-rule-fusion-v1
+deployment_status: local_candidate_pending_home_validation
+
+time:
+  maximum_cognitive_age_days: 30
+  wandering_window_days: 7
+
+wandering_quality:
+  minimum_tracking_coverage: 0.10
+  minimum_baseline_ready_days: 2
+  baseline_ready_states: [initial_ready, stable_ready]
+  usable_statuses: [ready, uncertain]
+
+wandering_support:
+  elevation_metrics:
+    - wandering_like_count_per_presence_hour
+    - wandering_like_duration_seconds_per_presence_hour
+    - night_wandering_like_ratio
+  minimum_elevated_days_for_support: 2
+  minimum_elevated_days_for_strong_support: 3
+  strong_support_requires_stable_baseline: true
+  require_high_confidence_wandering_episode: true
+  purpose_context_is_explanatory_only: true
+
+fusion:
+  support_maximum_increment_levels: 1
+  support_only_maximum_level: attention
+  wandering_can_downrank_cognitive: false
+  anchors:
+    normal: 20.0
+    attention: 55.0
+    high_attention: 85.0
+

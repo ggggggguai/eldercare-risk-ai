@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "wandering-handoff-manifest-v2",
+  "title": "Verified backend-consumable wandering algorithm handoff manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "module", "handoff_id", "created_at", "person_id",
+    "session_id", "source_video_id", "status", "delivery_status",
+    "validation_scope", "home_input_status", "home_annotation_status",
+    "home_smoke_status", "algorithm_event_emitted",
+    "medical_diagnosis_emitted", "backend_or_frontend_implemented",
+    "artifacts", "schemas", "source_stages", "quality_flags", "identity",
+    "source_refs"
+  ],
+  "properties": {
+    "schema_version": {"const": "wandering-handoff-manifest-v2"},
+    "module": {"const": "mental_health"},
+    "handoff_id": {"type": "string", "minLength": 1},
+    "created_at": {"type": "string", "format": "date-time"},
+    "person_id": {"type": ["string", "null"]},
+    "session_id": {"type": "null"},
+    "source_video_id": {"type": "null"},
+    "status": {"$ref": "#/$defs/status"},
+    "delivery_status": {
+      "enum": [
+        "algorithm_ready_with_home_smoke_pending",
+        "algorithm_ready_after_home_smoke"
+      ]
+    },
+    "validation_scope": {"type": "string", "minLength": 1},
+    "home_input_status": {"enum": ["awaiting_input", "available"]},
+    "home_annotation_status": {"enum": ["not_provided", "unlabeled", "available"]},
+    "home_smoke_status": {
+      "enum": ["not_run_input_unavailable", "ready", "uncertain", "error"]
+    },
+    "algorithm_event_emitted": {"const": false},
+    "medical_diagnosis_emitted": {"const": false},
+    "backend_or_frontend_implemented": {"const": false},
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "episode_results.jsonl", "context_reviews.jsonl", "daily_reports.jsonl",
+        "baseline_profiles.jsonl", "baseline_deviations.jsonl",
+        "run_summary.json", "README.md"
+      ],
+      "properties": {
+        "episode_results.jsonl": {"$ref": "#/$defs/artifact"},
+        "context_reviews.jsonl": {"$ref": "#/$defs/artifact"},
+        "daily_reports.jsonl": {"$ref": "#/$defs/artifact"},
+        "baseline_profiles.jsonl": {"$ref": "#/$defs/artifact"},
+        "baseline_deviations.jsonl": {"$ref": "#/$defs/artifact"},
+        "run_summary.json": {"$ref": "#/$defs/artifact"},
+        "README.md": {"$ref": "#/$defs/artifact"}
+      }
+    },
+    "schemas": {
+      "type": "object",
+      "minProperties": 7,
+      "maxProperties": 7,
+      "additionalProperties": {"$ref": "#/$defs/schema_ref"}
+    },
+    "source_stages": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["episode", "context", "daily"],
+      "properties": {
+        "episode": {"$ref": "#/$defs/stage"},
+        "context": {"$ref": "#/$defs/stage"},
+        "daily": {"$ref": "#/$defs/stage"}
+      }
+    },
+    "quality_flags": {"$ref": "#/$defs/string_list"},
+    "identity": {"$ref": "#/$defs/identity"},
+    "source_refs": {
+      "type": "array", "minItems": 3, "maxItems": 3,
+      "items": {"$ref": "#/$defs/source_ref"}
+    }
+  },
+  "$defs": {
+    "status": {"enum": ["ready", "uncertain", "unavailable", "error"]},
+    "string_list": {
+      "type": "array", "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "artifact": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "record_count", "byte_count", "sha256"],
+      "properties": {
+        "schema_version": {"type": ["string", "null"]},
+        "record_count": {"type": ["integer", "null"], "minimum": 0},
+        "byte_count": {"type": "integer", "minimum": 0},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "schema_ref": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "artifact_path", "sha256"],
+      "properties": {
+        "schema_version": {"type": "string", "minLength": 1},
+        "artifact_path": {"type": "string", "minLength": 1},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "stage": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "stage", "handoff_id", "status", "manifest_schema_version",
+        "manifest_path", "manifest_sha256", "artifacts"
+      ],
+      "properties": {
+        "stage": {"enum": ["W5D-02", "W5D-03A", "W5D-04"]},
+        "handoff_id": {"type": "string", "minLength": 1},
+        "status": {"$ref": "#/$defs/status"},
+        "manifest_schema_version": {"type": "string", "minLength": 1},
+        "manifest_path": {"type": "string", "minLength": 1},
+        "manifest_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "artifacts": {
+          "type": "object", "minProperties": 1,
+          "additionalProperties": {"$ref": "#/$defs/artifact"}
+        }
+      }
+    },
+    "identity": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "model_id", "model_sha256", "config_id", "config_sha256",
+        "policy_id", "policy_sha256"
+      ],
+      "properties": {
+        "model_id": {"type": ["string", "null"]},
+        "model_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+        "config_id": {"type": "string", "minLength": 1},
+        "config_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "policy_id": {"type": "string", "minLength": 1},
+        "policy_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "source_ref": {
+      "type": "object", "additionalProperties": false,
+      "required": ["ref_type", "ref_id", "artifact_path", "sha256"],
+      "properties": {
+        "ref_type": {"type": "string", "minLength": 1},
+        "ref_id": {"type": "string", "minLength": 1},
+        "artifact_path": {"type": ["string", "null"]},
+        "sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"}
+      }
+    }
+  }
+}

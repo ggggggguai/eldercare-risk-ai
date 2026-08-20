@@ -1,0 +1,89 @@
+schema_version: opt_me_001_nested_selection_config_v1
+task_id: OPT-ME-001
+run_id: OPT-ME-001-FORMAL
+
+inputs:
+  source_compatible_roi:
+    casme2_manifest: data/manifests/microexpression/eval_me_005_v1/casme2_eval_manifest_v1.jsonl
+    smic_manifest: data/manifests/microexpression/eval_me_005_v1/smic_eval_manifest_v1.jsonl
+    merged_manifest: data/manifests/microexpression/eval_me_005_v1/merged_eval_manifest_v1.jsonl
+    input_audit: data/manifests/microexpression/eval_me_005_v1/eval_me_005_input_audit_v1.json
+  full_face:
+    casme2_manifest: data/manifests/microexpression/opt_me_001/full_face/evaluation/casme2_eval_manifest_v1.jsonl
+    smic_manifest: data/manifests/microexpression/opt_me_001/full_face/evaluation/smic_eval_manifest_v1.jsonl
+    merged_manifest: data/manifests/microexpression/opt_me_001/full_face/evaluation/merged_eval_manifest_v1.jsonl
+    input_audit: data/manifests/microexpression/opt_me_001/full_face/evaluation/eval_me_005_input_audit_v1.json
+  split_manifest: data/manifests/microexpression/eval_me_005_v1/eval_me_005_subject_protocols_v1.json
+  stage_a_audit: reports/microexpression/opt_me_001/stage_a/stage_a_input_audit.json
+  environment_lock: environment-microexpression.lock.yml
+
+protocol:
+  required_protocols:
+    - casme2_nested_loso
+    - cross_smic_to_casme2
+    - cross_casme2_to_smic
+    - merged_nested_loso
+  selection_seed: 20260806
+  final_seeds: [20260806, 20260817, 20260829]
+  bootstrap_iterations: 2000
+  selection_epochs: 6
+  selection_min_epochs: 3
+  selection_patience: 3
+  final_epochs: 25
+  final_min_epochs: 8
+  final_patience: 6
+  test_used_for_selection: false
+  dataset_name_used_as_model_feature: false
+
+model_defaults:
+  num_classes: 3
+  embedding_dim: 64
+  hidden_dim: 96
+  layers: 1
+  heads: 4
+  dropout: 0.1
+  classifier_hidden_dim: 128
+  causalnet:
+    image_size: 28
+    patch_size: 7
+    dim: 64
+    heads: 2
+    num_hierarchies: 3
+    block_repeats: [1, 1, 1]
+    num_classes: 3
+    gamma: 0.5
+    mlp_mult: 2
+    cross_heads: 4
+    cross_depth: 2
+    dropout: 0.1
+    channels: 3
+    head_hidden_dim: 256
+
+training_defaults:
+  optimizer: adam
+  learning_rate: 0.0001
+  batch_size: 64
+  weight_decay: 0.0001
+  gradient_clip_norm: 1.0
+  sampler: random
+  loss: weighted_cross_entropy
+  label_smoothing: 0.0
+  focal_gamma: 2.0
+  domain_alignment: none
+  domain_alignment_weight: 0.0
+  dann_reversal_scale: 1.0
+  augmentation:
+    enabled: false
+
+selection_priority:
+  primary: validation_harmonic_uf1_uar
+  secondary: validation_positive_f1
+  tertiary: validation_positive_recall
+  quaternary: validation_loss
+
+release_thresholds:
+  rejected_if_either_below: 0.55
+  research_baseline_both_at_least: 0.60
+  candidate_both_at_least: 0.70
+  candidate_max_seed_std: 0.05
+  require_no_zero_score_folds: true

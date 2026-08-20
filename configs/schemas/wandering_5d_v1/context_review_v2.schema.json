@@ -1,0 +1,172 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "wandering-handoff-context-review-v2",
+  "title": "Wandering episode purpose and context review",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "module",
+    "record_id",
+    "context_review_id",
+    "episode_id",
+    "episode_record_id",
+    "person_id",
+    "session_id",
+    "source_video_id",
+    "start_time",
+    "end_time",
+    "start_sec",
+    "end_sec_exclusive",
+    "status",
+    "context_label",
+    "confidence",
+    "rationale",
+    "error_code",
+    "provider",
+    "provider_model",
+    "trigger",
+    "frame_refs",
+    "quality_flags",
+    "episode_identity",
+    "identity",
+    "episode_snapshot_sha256",
+    "source_refs"
+  ],
+  "properties": {
+    "schema_version": {"const": "wandering-handoff-context-review-v2"},
+    "module": {"const": "mental_health"},
+    "record_id": {"type": "string", "minLength": 1},
+    "context_review_id": {"type": "string", "minLength": 1},
+    "episode_id": {"type": "string", "minLength": 1},
+    "episode_record_id": {"type": "string", "minLength": 1},
+    "person_id": {"type": "string", "minLength": 1},
+    "session_id": {"type": "string", "minLength": 1},
+    "source_video_id": {"type": "string", "minLength": 1},
+    "start_time": {"type": ["string", "null"], "format": "date-time"},
+    "end_time": {"type": ["string", "null"], "format": "date-time"},
+    "start_sec": {"type": "number", "minimum": 0},
+    "end_sec_exclusive": {"type": "number", "exclusiveMinimum": 0},
+    "status": {"enum": ["ready", "uncertain", "unavailable", "error"]},
+    "context_label": {
+      "enum": ["phone_call", "searching", "cleaning", "exercise", "social", "other", "unknown"]
+    },
+    "confidence": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+    "rationale": {"type": ["string", "null"]},
+    "error_code": {"type": ["string", "null"]},
+    "provider": {"type": "string", "minLength": 1},
+    "provider_model": {"type": ["string", "null"]},
+    "trigger": {"$ref": "#/$defs/trigger"},
+    "frame_refs": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "prefixItems": [
+        {"$ref": "#/$defs/frame_ref"},
+        {"$ref": "#/$defs/frame_ref"},
+        {"$ref": "#/$defs/frame_ref"}
+      ],
+      "items": false
+    },
+    "quality_flags": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "episode_identity": {"$ref": "#/$defs/identity"},
+    "identity": {"$ref": "#/$defs/identity"},
+    "episode_snapshot_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "source_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/source_ref"}
+    }
+  },
+  "$defs": {
+    "trigger": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reasons", "binary_label", "episode_status"],
+      "properties": {
+        "reasons": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": ["binary_wandering_like", "episode_status_uncertain", "explicit_review"]
+          }
+        },
+        "binary_label": {"type": ["string", "null"]},
+        "episode_status": {"enum": ["ready", "uncertain", "unavailable", "error"]}
+      }
+    },
+    "frame_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "position",
+        "requested_timestamp_sec",
+        "selected_timestamp_sec",
+        "frame_index",
+        "track_id",
+        "bbox_xyxy",
+        "status",
+        "error_code",
+        "scene_ref",
+        "person_crop_ref",
+        "quality_flags"
+      ],
+      "properties": {
+        "position": {"enum": ["start", "middle", "end"]},
+        "requested_timestamp_sec": {"type": "number", "minimum": 0},
+        "selected_timestamp_sec": {"type": ["number", "null"], "minimum": 0},
+        "frame_index": {"type": ["integer", "null"], "minimum": 0},
+        "track_id": {"type": ["string", "integer", "null"]},
+        "bbox_xyxy": {
+          "oneOf": [
+            {"type": "null"},
+            {
+              "type": "array",
+              "minItems": 4,
+              "maxItems": 4,
+              "items": {"type": "number"}
+            }
+          ]
+        },
+        "status": {"enum": ["ready", "unavailable"]},
+        "error_code": {"type": ["string", "null"]},
+        "scene_ref": {"$ref": "#/$defs/source_ref"},
+        "person_crop_ref": {"$ref": "#/$defs/source_ref"},
+        "quality_flags": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["model_id", "model_sha256", "config_id", "config_sha256", "policy_id", "policy_sha256"],
+      "properties": {
+        "model_id": {"type": ["string", "null"]},
+        "model_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+        "config_id": {"type": "string", "minLength": 1},
+        "config_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "policy_id": {"type": "string", "minLength": 1},
+        "policy_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "source_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ref_type", "ref_id", "artifact_path", "sha256"],
+      "properties": {
+        "ref_type": {"type": "string", "minLength": 1},
+        "ref_id": {"type": "string", "minLength": 1},
+        "artifact_path": {"type": ["string", "null"]},
+        "sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"}
+      }
+    }
+  }
+}
