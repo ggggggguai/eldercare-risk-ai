@@ -13,5 +13,5 @@ python /app/scripts/deploy/verify_asr_assets.py \
 
 exec uvicorn elderly_monitoring.modules.asr.api:app \
   --host 0.0.0.0 \
-  --port "${PORT:-8011}" \
+  --port "${PORT:-8081}" \
   --workers 1
