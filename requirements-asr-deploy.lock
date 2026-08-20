@@ -1,5 +1,5 @@
---index-url https://pypi.org/simple
---extra-index-url https://download.pytorch.org/whl/cu128
+--index-url https://mirrors.cloud.tencent.com/pypi/simple/
+--extra-index-url https://download.pytorch.org/whl/cpu
 
 fastapi==0.116.1
 httpx==0.28.1
@@ -13,6 +13,7 @@ funasr==1.4.0
 modelscope==1.39.0
 jieba==0.42.1
 sentencepiece==0.2.2
-torch==2.11.0+cu128
-torchaudio==2.11.0+cu128
-torchvision==0.26.0+cu128
+
+torch==2.11.0+cpu
+torchaudio==2.11.0+cpu
+torchvision==0.26.0+cpu
