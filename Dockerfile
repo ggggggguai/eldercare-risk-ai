@@ -9,7 +9,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PORT=8081 \
     ASR_PORT=8081 \
     ASR_MODEL_ROOT=/app/models/asr/asr-paraformer-zh-v1.0 \
-    ASR_DEVICE=cuda:0 \
+    ASR_DEVICE=cpu \
     ASR_NATIVE_ASSETS_MANIFEST=/app/configs/runtime/asr-native-assets.container.json
 
 WORKDIR /app
