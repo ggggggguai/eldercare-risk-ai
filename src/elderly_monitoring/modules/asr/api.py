@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -14,6 +15,9 @@ from elderly_monitoring.modules.asr.facade import ASREngine, transcribe as _tran
 from elderly_monitoring.modules.asr.runtime_integrity import verify_native_assets
 from elderly_monitoring.modules.asr.schemas import ASRRequest, ASRTranscript
 from elderly_monitoring.modules.asr.settings import ASRSettings
+
+
+logger = logging.getLogger(__name__)
 
 
 def transcribe(
@@ -43,14 +47,33 @@ def create_asr_app(
     async def lifespan(_: FastAPI):
         verify_native_assets(runtime_settings)
         if prewarm:
-            await asyncio.to_thread(runtime_engine.warmup)
+            async def warmup() -> None:
+                try:
+                    await asyncio.to_thread(runtime_engine.warmup)
+                except Exception as exc:
+                    app.state.asr_warmup_error = exc
+                    logger.exception("ASR model warmup failed")
+                else:
+                    logger.info("ASR model warmup completed")
+
+            app.state.asr_warmup_task = asyncio.create_task(
+                warmup(),
+                name="asr-model-warmup",
+            )
         yield
+        warmup_task = app.state.asr_warmup_task
+        if warmup_task is not None:
+            warmup_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await warmup_task
 
     app = FastAPI(
         title="Elderly Monitoring ASR Service",
         version="1.0.0",
         lifespan=lifespan,
     )
+    app.state.asr_warmup_error = None
+    app.state.asr_warmup_task = None
 
     def require_token(
         credentials: HTTPAuthorizationCredentials | None = Depends(bearer),
@@ -71,6 +94,8 @@ def create_asr_app(
 
     @app.get("/health/ready")
     def ready() -> dict[str, str]:
+        if app.state.asr_warmup_error is not None:
+            raise HTTPException(status_code=503, detail="ASR model warmup failed")
         if not bool(getattr(runtime_engine, "is_ready", False)):
             raise HTTPException(status_code=503, detail="ASR model is not ready")
         return {"status": "ready"}
@@ -81,6 +106,10 @@ def create_asr_app(
         dependencies=[Depends(require_token)],
     )
     def transcribe_route(request: ASRRequest) -> ASRTranscript:
+        if app.state.asr_warmup_error is not None:
+            raise HTTPException(status_code=503, detail="ASR model warmup failed")
+        if not bool(getattr(runtime_engine, "is_ready", False)):
+            raise HTTPException(status_code=503, detail="ASR model is not ready")
         return transcribe(request, engine=runtime_engine, settings=runtime_settings)
 
     app.state.asr_engine = runtime_engine

@@ -23,8 +23,9 @@ restored from Tencent Cloud at:
 ```
 
 Every package file, including the internal `sha256sums.txt`, is bound by
-`deploy/asr/asset_manifest.json`. The service fails closed before startup if
-the external package, native FFmpeg runtime or API token is unavailable.
+`deploy/asr/asset_manifest.json`. The service does not report ready or accept
+transcription requests when the external package cannot be loaded. A missing
+native FFmpeg runtime still stops startup.
 
 The repository keeps the Windows FFmpeg evidence in
 `configs/runtime/asr-native-assets.json`. The Linux container generates
@@ -51,3 +52,29 @@ COGNITIVE_ASR_URL=http://asr:8011/v1/asr/transcribe
 
 Use one worker so one GPU loads one copy of the approximately 1.94 GiB frozen
 model package. Real S10 audio remains an external device acceptance step.
+
+## Tencent CloudBase Run
+
+Use service port `8081` and keep `PORT=8081`. The public access port may remain
+`80`; callers do not need to know the container's internal port.
+
+The COS source prefix `/models/asr` mounted at `/app/models/asr` must expose this
+exact tree inside the container:
+
+```text
+/app/models/asr/asr-paraformer-zh-v1.0/
+  paraformer/config.yaml
+  paraformer/model.pt
+  fsmn-vad/config.yaml
+  fsmn-vad/model.pt
+  ct-punc/config.yaml
+  ct-punc/model.pt
+  sha256sums.txt
+```
+
+Model verification and warmup run in the background after Uvicorn opens its
+port. `/health/live` reports process liveness immediately; `/health/ready`
+returns `503` until the model is loaded. Start with at least 4 vCPU and 8 GiB
+RAM for CPU inference, set `InitialDelaySeconds` to at least 30 seconds, and use
+a minimum replica count of 1 if cold starts are unacceptable. If the container
+is OOM-killed during warmup, increase RAM to 16 GiB.

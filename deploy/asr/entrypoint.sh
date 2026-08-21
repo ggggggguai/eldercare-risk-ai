@@ -22,14 +22,29 @@ if [ ! -r "${MODEL_ROOT}" ]; then
   exit 21
 fi
 
-echo "[entrypoint] verifying native assets..."
+for required_file in \
+  "${MODEL_ROOT}/paraformer/config.yaml" \
+  "${MODEL_ROOT}/paraformer/model.pt" \
+  "${MODEL_ROOT}/fsmn-vad/config.yaml" \
+  "${MODEL_ROOT}/fsmn-vad/model.pt" \
+  "${MODEL_ROOT}/ct-punc/config.yaml" \
+  "${MODEL_ROOT}/ct-punc/model.pt" \
+  "${MODEL_ROOT}/sha256sums.txt"
+do
+  if [ ! -r "${required_file}" ]; then
+    echo "[entrypoint] ERROR: required model file is missing or unreadable: ${required_file}" >&2
+    exit 22
+  fi
+done
+
+echo "[entrypoint] verifying deployment manifest and native assets..."
 
 python /app/scripts/deploy/verify_asr_assets.py \
-  --project-root /app \
   --manifest /app/deploy/asr/asset_manifest.json \
+  --manifest-only \
   --verify-native
 
-echo "[entrypoint] native asset verification passed"
+echo "[entrypoint] fast startup checks passed"
 echo "[entrypoint] starting uvicorn on 0.0.0.0:${SERVER_PORT}"
 
 exec python -m uvicorn elderly_monitoring.modules.asr.api:app \
