@@ -109,9 +109,6 @@ class ParaformerEngine:
                     punc_model=str(paths["punc_model"]),
                     device=device,
                     disable_update=True,
-                    check_latest=False,
-                    vad_kwargs={"check_latest": False},
-                    punc_kwargs={"check_latest": False},
                 )
             except Exception as exc:
                 raise ASRModelUnavailableError("local ASR model could not be loaded") from exc
