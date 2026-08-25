@@ -1,6 +1,6 @@
 # 项目文档
 
-更新时间：2026-08-12
+更新时间：2026-08-24
 
 本页是文档唯一总入口。现行文档描述当前代码和接口；计划文档描述目标；归档文档只保留历史上下文，不能作为当前实现依据。
 
@@ -22,9 +22,13 @@
 | 接口 | [算法事件输出接口](interfaces/算法事件输出接口.md) | 通用事件字段和风险等级编码 |
 | 接口 | [跌倒风险服务对接说明](interfaces/跌倒风险算法服务后端对接说明.md) | HTTP 会话、鉴权和回调契约 |
 | 协作 | [AGENTS.md](../AGENTS.md) | 项目环境、开发流程、事实源和文档同步规则 |
+| 交付 | [跌倒风险算法模块（含运行环境）比赛交付初稿](deliverables/跌倒风险算法模块（含运行环境）-比赛交付初稿.md) | 面向评审专家的模块章节草稿、图源与待补证据清单 |
 | 跌倒 | [模块 README](modules/fall_risk/README.md) | 当前能力、命令、字段和限制 |
+| 跌倒 | [正式比赛交付冻结决定](../reports/fall_risk/fall_risk_release_freeze_20260819.md) | v1 模型与规则组合、哈希冻结边界和证据解释 |
 | 跌倒 | [协作开发指南](modules/fall_risk/guides/跌倒风险算法协作开发指南.md) | 开发约束、验证方式和代码职责 |
 | 跌倒 | [研发计划](modules/fall_risk/plans/跌倒风险算法研发计划.md) | 目标路线、实验设计和阶段计划，不等于完成状态 |
+| 跌倒 | [演示方案](modules/fall_risk/plans/跌倒风险演示方案.md) | 初审视频脚本、镜头顺序、素材清单和注意事项 |
+| 跌倒 | [本地 Web 演示台](../src/elderly_monitoring/service/static/fall-risk.html) | `/demo/fall-risk` 初审演示入口；默认使用脱敏本地 fixture，实时事件流为预留适配点 |
 | 跌倒 | [下一阶段执行计划](modules/fall_risk/plans/跌倒风险下一阶段执行计划.md) | 当前实时链路与算法语义质量冲刺：时钟与采样契约、分支可用性、会话边界、异步回调、变形回放和运行可观测性 |
 | 跌倒 | [算法技术方案](modules/fall_risk/plans/跌倒风险算法技术方案.md) | 分层算法链路、技术选型、模块输入输出、训练评估门槛和研发阶段路线 |
 | 跌倒 | [挑战杯冲奖增强计划](modules/fall_risk/plans/挑战杯揭榜挂帅冲奖增强计划.md) | 官方评分映射、七周执行计划、验收门槛和提交证据 |
@@ -48,6 +52,7 @@
 | 数据 | [跌倒标签目录说明](../data/annotations/fall_risk/README.md) | v2 根标签、v3 训练标签、来源批次、split 和机器事实源 |
 | 数据 | [数据集标注规范](modules/fall_risk/data/数据集标注规范.md) | 数据集到统一标注格式的映射 |
 | 数据 | [数据集处理状态](modules/fall_risk/data/数据集处理状态.md) | `data/external/` 下各数据集的实际接入阶段、产物和缺口 |
+| 数据 | [数据集与划分说明](modules/fall_risk/数据集与划分说明.md) | 当前正式训练数据源、各子模型训练窗口和统一 v3 split |
 | 数据 | [标签字典](modules/fall_risk/data/跌倒风险标签字典.md) | 动作、事件和风险标签定义 |
 | 数据 | [Windows CVAT 教程](modules/fall_risk/data/Windows本地部署CVAT标注员教程.md) | 标注员本地工具部署 |
 | 审计 | [工作流 A 数据审计](../reports/fall_risk/data_audit.md) | manifest、标签来源、时间轴和评估分母的实测事实 |
@@ -68,6 +73,8 @@
 | 复现 | [坐站训练 manifest](../reports/reproducibility/sit_stand_training_manifest.json) | 坐站 P0 审计的机器可读 hash、事实、门禁和执行授权边界 |
 | 跌倒 | [个体化行为基线算法增强计划](modules/fall_risk/plans/个体化行为基线算法增强计划.md) | 因果周期契约、鲁棒统计、冷启动、防污染、纵向数据、消融评估和轻量模型晋级路线 |
 | 评估 | [工作流 A 合成烟测报告](../reports/fall_risk/workflow_a_synthetic_evaluation/bundle/report.md) | 事件评估 bundle 的开发链路证据；不是比赛指标或真实效果 |
+| 评估 | [居家模拟动作 `fall_nearfall_v1`](../reports/fall_risk/fall_nearfall_v1/README.md) | 冻结 v1 在 115 条单人居家候选视频上的开发性跌倒/近跌倒事件指标；不是 frozen test 或老人域泛化证据 |
+| 评估 | [居家数据域内适配 `fall_nearfall_adaptation_v1`](../reports/fall_risk/fall_nearfall_adaptation_v1/README.md) | 加入 11 条自采跌倒正例后的三 seed 适配模型与 44 条未见视频对照；不替换冻结 v1，不支持跨主体泛化结论 |
 | 评估 | [步态 observable-context v2 TCN](../reports/fall_risk/gait_observable_context_v2/splitv3-e71a045/README.md) | 当前唯一保留的步态实验候选；validation-only，未接入主路径 |
 | 评估 | [步态 TCN v5 六 seed 集成实验](../reports/fall_risk/gait_window_v5_effect_first/development-20260803/README.md) | B01-B04 functional proxy 的六 seed 训练、集成结果和 test 隔离状态 |
 | 评估 | [坐站首轮 provisional 训练](../reports/fall_risk/sit_stand_event_v1/README.md) | 坐站训练前审计、clip-level E0/E2、候选双头 TCN smoke、test 隔离、预估偏差与正式事件定位阻塞 |

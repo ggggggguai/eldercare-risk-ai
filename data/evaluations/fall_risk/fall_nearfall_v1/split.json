@@ -1,0 +1,14 @@
+{
+  "assignment_count": 115,
+  "assignments_sha256": "96be879b3f91f8b998a120008b20e4a39636e17c9a74d465ba4aea177fde0141",
+  "ground_truth_sha256": "0abc204644f772da86fe375536bb77e4b646c194128400555460fe6807ec0f9d",
+  "leakage_policy": "all videos are one subject/session; no train or validation assignments",
+  "manifest_sha256": "dd85c3ebfe029ac9b3b2d0fb8fdee849d92f8c11952e38ab96a7d005beb53773",
+  "partition": "test",
+  "protocol_status": "development_provisional",
+  "redacted_annotation_sha256": "e067dc5b0232e6403ff2ac8aac5ec8865aa71151d8dacc6c682096c90cf6aa46",
+  "schema_version": "fall-nearfall-evaluation-split-v1",
+  "source_archive_sha256": "2bdd736b0dc4bda13a1ccbbca4cf2e4737372e3bf5a7948f169514e81d37f9e5",
+  "split_id": "fall-nearfall-v1-test-candidate",
+  "video_count": 115
+}

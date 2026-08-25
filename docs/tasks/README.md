@@ -1,10 +1,10 @@
 # 当前任务
 
-更新时间：2026-08-12
+更新时间：2026-08-19
 
-本文件只记录尚未完成的工作。已经落地的能力写入模块 README；阶段结论和旧待办移入 `docs/archive/`。当前跌倒风险模块处于模型化增强阶段：规则 baseline 仍作为对照和安全 fallback，新增时序模型必须经过数据、split、评估和部署门禁后才能替换主路径。
+本文件只记录尚未完成的工作。已经落地的能力写入模块 README；阶段结论和旧待办移入 `docs/archive/`。当前跌倒风险模块已完成正式比赛交付模型替换并冻结 v1。以下数据、研究评估和工程任务服务于后续 release 或证据完善，不再阻塞 v1；任何模型、阈值、特征或服务配置更新必须新建 release ID。
 
-## P0：形成可验证交付
+## P0：完善后续 release 证据
 
 工作流 A 已实现统一 manifest、v2/v3 标签、统一 split 和校验。2026-08-17 接纳 SCF_MVP_V1 的 P01/P02/P04 后，v3 有 9,612 条动作、9,651 条事件和 19,263 条 assignment；SCF 451 条全部位于 train。校验 `valid=true`，事件任务 `training_ready=true`，动作类型仍为 false；v2 formal 仍有 285 个既有 blocker。
 
@@ -37,13 +37,11 @@
 
 ## P2：数据和模型增强
 
-- 当前阶段主线：为步态、坐站、近跌倒/跌倒事件构建时序模型训练任务，并在同一数据、同一 split、同一指标协议下与规则 baseline 对照；优先使用 TCN、MS-TCN++ 或 ST-GCN，保留规则安全覆盖。
-- 步态 observable-context v2 已按 `splitv3_3342705b7b1ac51570148337` 重建并完成三 seed。2026-08-18 项目负责人基于比赛时间约束批准 transfer seed 43 进入默认实时步态主分支；服务加载路径、CPU、16 帧契约已固定，输入不足或推理失败自动回退规则。该决定解决工程接入，不解除 test、老人域、冻结协议和样本规模门禁，证据等级仍为 provisional。见[运行启用记录](../../reports/fall_risk/gait_runtime_activation_20260818.md)。
-- 坐站 v2 已重用全部可用受审动作并接入 SCF P01/P02/P04 auxiliary train：发布 1,942 个事件、5,512 个显式背景和 229 个 ignore，物化感知保护组 split 生成 11,373 个多 cutoff 因果窗口。seed 42 pilot 的完整 validation 流 event F1/Recall/FP-hour 为 `0.449/0.419/158.8`，recall-balanced 复评为 `0.380/0.507/419.7`；均未达到 0.75/0.85 门禁。2026-08-18 按最高执行人比赛期决定，默认分支切到 `experimental_tcn`，最新 cutoff 推理失败或无事件时回退规则；证据等级仍为 `development_provisional`，test 未读取。见[启用记录](../../reports/fall_risk/sit_stand_runtime_activation_20260818.md)与[v2 治理与训练报告](../../reports/fall_risk/sit_stand_event_v2/README.md)。
-- 跌倒事件 candidate-clip TCN pilot 已退休；连续治理 v2 已重新绑定当前 `splitv3_3342705b7b1ac51570148337`，7,701 条开发监督物化为 7,504 个 `[32,17,20]` 因果窗口，train/validation=`5,721/1,783`。因果 residual TCN 已完成 seed 42/43/44，固定阈值 0.5 的 validation F1/PR-AUC 均值为 `0.6745/0.6782`；三模型平均概率 F1/Recall=`0.6824/0.7360`，但普通背景误报率 `0.2116`，onset validation 仅 7 条，SCF 仅在 train。2026-08-18 为比赛交付将三枚 checkpoint 以 `experimental_tcn` 接入实时主评分，TCN 命中沿用强触发契约，窗口不足/推理失败回退规则；raw 分数、来源和 fallback 写入诊断。连续背景、老人域、冻结协议和独立阈值校准仍未通过，test 未读取，证据等级保持 `development_provisional`。见[训练报告](../../reports/fall_risk/fall_event_continuous_tcn_v2/README.md)。
-- 近跌倒 v2 的 `splitv3_e71a045.../c7fd...` 产物和三 seed 指标均为历史 provisional 结果，不绑定当前 `splitv3_3342705b7b1ac51570148337`；SCF 发布后的窗口、事件和困难负例需重建，test 仍未读取。当前不扩 seed、不晋级 checkpoint，优先补连续老人域背景及新人员困难负例。见[v2 治理与训练报告](../../reports/fall_risk/near_fall_event_v2/README.md)。
+- 当前阶段主线：保持 `fall-risk-competition-v1-20260819` 不变；新的步态、坐站、近跌倒/跌倒事件实验只作为下一 release 候选，在同一数据、split 和指标协议下与 v1 对照，并保留规则安全覆盖。
+- v1 已冻结步态 seed 43、坐站 seed 42 和跌倒事件三 seed checkpoint；这些文件只作为现行交付基线使用，后续训练结果不得覆盖。历史 validation 指标和缺失 test/老人域/连续背景证据继续见各自训练报告。
+- 近跌倒 v1 明确冻结规则主路径。现有 TCN 三 seed 与动作辅助消融只作为下一 release 的历史候选，不写入 v1 checkpoint 清单；若继续优化，优先补连续老人域背景及新人员困难负例。见[v2 治理与训练报告](../../reports/fall_risk/near_fall_event_v2/README.md)。
 - SCF_MVP_V1 的 P01/P02/P04 已进入训练根标签；P05 challenge、P03 excluded。E1-E3 仍为 No-Go，不替换 checkpoint 或规则主路径。见[执行报告](../../reports/fall_risk/self_collected_scf_mvp_v1/README.md)。
-- 模型替换门槛：来源完整标签、人员/源组无泄漏划分、冻结验证协议、误报漏报分析、推理延迟和低质量输入降级证据全部齐备。
+- 后续 release 晋级门槛：来源完整标签、人员/源组无泄漏划分、冻结验证协议、误报漏报分析、推理延迟和低质量输入降级证据全部齐备。该门槛不追溯撤销负责人对 v1 的比赛交付冻结决定。
 - 个体基线 Phase 0-1 与 Phase 2 算法基础设施已完成合成验收；已接入实时主链路的显式周期提交入口 `POST /v1/monitoring/sessions/{session_id}/baseline-period`，没有有效周期输入时仍失败关闭。当前待办是采集真实连续周期，补非空且有授权的 subject profiles、独立 `risk_labels` 与双审记录，在 validation 前冻结晋级阈值、最小样本量、split 和协议；这些门禁前真实 builder 保持 `blocked`，不得用 synthetic 指标声称个体化有效或接入默认主路径。见[Phase 2 状态报告](../../reports/fall_risk/baseline_longitudinal_phase2.md)。
 - 扩充老人域、近跌倒、低光、遮挡、辅助器具和跨房间数据。
 - 主 pose cache 的 8 个批次覆盖 6,512 个 eligible RGB 视频（674,889 源帧、708,177 条 raw/cleaned 记录），SCF P01/P02/P04 的 150 个 train 视频复用独立 cleaned pose；步态数据准备通过多 pose root 合并读取，当前 6,662 个 eligible RGB 视频均有 pose。`fall_detection_2017` 的 2 个 `completed_no_pose` 视频经核查为空场景；`gstride`、`ltmm` 及表格/时序资产不属于 RGB pose cache。姿态覆盖不等于正式训练或主链路替换已就绪。

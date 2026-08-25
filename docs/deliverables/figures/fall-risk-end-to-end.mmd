@@ -1,0 +1,19 @@
+flowchart LR
+    A[萤石设备或离线视频流] --> B[人体检测与跟踪\nYOLOv8-Pose + ByteTrack]
+    B --> C[姿态关键点提取]
+    C --> D[关键点质量控制\n时序平滑与有效性门禁]
+    D --> E1[步态稳定性\nseed 43 TCN]
+    D --> E2[坐站转换\nseed 42 TCN]
+    D --> E3[近跌倒事件\n规则主路径]
+    D --> E4[跌倒事件\n三 seed TCN]
+    D --> E5[个体行为基线\n统计实现]
+    S[ESP32-S3\nTSL2591 + 水浸探头] --> T[EnvironmentStore\n因果快照与质量门禁]
+    T --> U[弱光/水浸暴露\n人-环境交互特征]
+    E1 --> F[跌倒模块内部风险融合\n规则主路径]
+    E2 --> F
+    E3 --> F
+    E4 --> F
+    E5 --> F
+    U --> F
+    F --> G[风险等级、分数、置信度\n风险因子与建议动作]
+    G --> H[AlgorithmEvent\nmodule=fall_risk]

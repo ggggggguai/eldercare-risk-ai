@@ -12,11 +12,15 @@
 
 新同事加入或开始较大改动前，建议先阅读 `docs/modules/fall_risk/guides/跌倒风险算法协作开发指南.md`。该文档汇总了当前实现状态、固定算法路线、开发注意事项、验证命令和后续优化方向。
 
-## 当前研发阶段：模型化增强
+如果当前任务是准备初审演示，可以直接看[跌倒风险演示方案](plans/跌倒风险演示方案.md)。
 
-当前模块不是停留在规则 baseline 阶段，而是进入模型化增强阶段。增强主线是使用来源完整、无泄漏划分的数据，将步态、坐站、近跌倒/跌倒事件等规则分支逐步替换为 TCN、MS-TCN++ 或 ST-GCN 等时序模型，并与现有规则结果做受控对照。
+## 当前研发阶段：正式模型替换完成并冻结
 
-当前仍保留规则分支用于 baseline、紧急事件安全覆盖、低质量输入降级和结果解释。个体行为基线及最终风险融合只有在连续个人数据或 `risk_labels` 真值、冻结 split 和正式评估协议具备后，才进入模型替换；计划中的候选模型不能写成已经完成的主链能力。
+当前模块已进入正式模型替换完成并冻结阶段。2026-08-19 项目负责人接受当前证据边界，将步态 seed 43、坐站 seed 42、跌倒事件三 seed TCN，以及现有近跌倒/个体基线/最终融合规则共同冻结为正式比赛交付基线。机器清单为 `configs/modules/fall_risk_release_v1.yaml`；后续更新必须创建新 release，不能覆盖 v1。
+
+该阶段名称表示交付版本已经选定，不表示历史缺失的 test、老人域、连续背景或纵向真值被补齐。历史实验门禁结论继续有效，临床有效性和完整泛化验证仍不得宣称。
+
+当前仍保留规则分支用于 baseline、紧急事件安全覆盖、低质量输入降级和结果解释。个体行为基线及最终风险融合在 v1 中明确冻结为统计/规则实现；只有取得连续个人数据或 `risk_labels` 真值、冻结 split 和正式评估协议后，才能作为新 release 的模型候选，不能原地改写 v1。
 
 ## 算法主线
 
@@ -66,12 +70,13 @@
 | 统一数据 manifest | 已实现并对本地数据运行 | `data/manifests/fall_risk_video_manifest.jsonl` 当前有 7,684 条资产，其中 6,670 条是视频；包含 SCF P01/P02/P04 的 150 个 auxiliary train 视频，以及 3,914 条已接受的 NTU RGB+D 视频。SCF P03/P05 未进入根 manifest |
 | 通用全视频姿态缓存 | 当前训练相关视频覆盖完整 | 主 pose cache 的 8 个批次覆盖 6,512 个 eligible RGB 视频、674,889 源帧和 708,177 条 raw/cleaned 记录；SCF P01/P02/P04 的 150 个训练视频复用 `baseline_replay/cleaned_pose` 独立 cache。步态 builder 通过重复 `--additional-pose-dir` 合并读取，当前 6,662 个 eligible RGB 视频均有可用 pose，未复制或重跑 SCF 姿态。该覆盖不等于正式训练或主链路替换已就绪 |
 | 跌倒动作候选 TCN | 历史 pilot，已退休 | 旧 candidate-clip 仅作报告追溯；当前不训练、不评估、不接入实时主路径。连续因果输入基础设施另行保留 |
-| 跌倒连续因果 TCN | provisional `experimental_tcn` 已进实时主评分；规则保留 fallback | v2 治理重新绑定 `splitv3_3342705b7b1ac51570148337`，生成 7,701 条开发监督并物化 7,504 个 `[32,17,20]` 因果窗口，train/validation=`5,721/1,783`，test 语义和姿态未读取。三 seed F1@0.5 均值 `0.6745`、PR-AUC 均值 `0.6782`；平均概率 F1/Recall=`0.6824/0.7360`，普通背景误报率 `0.2116`，onset validation 仅 7 条。配置已将 TCN 有效窗口作为 `fall_event_score` 主来源，命中按现有 0.9 强触发契约进入融合/事件状态机；窗口不足或推理失败回退规则，shadow/raw 分数仍写入诊断。连续背景、老人域和冻结协议仍缺失，证据等级为 `development_provisional`。见[训练报告](../../../reports/fall_risk/fall_event_continuous_tcn_v2/README.md) |
+| 跌倒连续因果 TCN | v1 冻结三 seed 主评分；规则保留 fallback | v2 治理重新绑定 `splitv3_3342705b7b1ac51570148337`，生成 7,701 条开发监督并物化 7,504 个 `[32,17,20]` 因果窗口。三 seed F1@0.5 均值 `0.6745`、PR-AUC 均值 `0.6782`；配置已将有效窗口作为 `fall_event_score` 主来源，命中按 0.9 强触发契约进入状态机，窗口不足或推理失败回退规则。连续背景、老人域、test 和冻结研究协议仍是已知证据限制。见[训练报告](../../../reports/fall_risk/fall_event_continuous_tcn_v2/README.md) |
 | 跌倒事件训练 P0 审计 | 已实现；主路径门禁仍阻塞 | `scripts/audit/audit_fall_event_training.py` 不解析 test 标签内容，只绑定 manifest、v3 标签、split、formal/v3 报告和配置 hash。现有 P0 报告早于 SCF 发布，需按当前 `splitv3_3342705b7b1ac51570148337` 重建；formal、连续背景、老人域、冻结 split/协议和 test 保管门禁仍未通过。旧 candidate 报告不能作为当前 split 结果。见[P0 审计](../../../reports/fall_risk/fall_event_training_audit.md)和[阻塞清单](../../../reports/fall_risk/fall_event_blockers.md) |
-| 步态窗口、训练与运行 | provisional seed 43 已受控进入主链；规则保留 fallback | `splitv3_3342705b7b1ac51570148337` 的 observable-context v2 有 2,372 个窗口，SCF 260 个窗口只进入 shared encoder/walking gate。transfer seed 43 validation F1=`0.857`、walking-gate F1=`0.919`、正常窗口误报约 `12.0/hour`。2026-08-18 因比赛交付时间约束，由项目负责人批准将该 checkpoint 写入默认服务配置；输入不足、任务/窗口契约不兼容或推理失败时自动使用规则分。test/老人域/冻结协议仍未完成，因此证据等级保持 `development_provisional`。见[运行启用记录](../../../reports/fall_risk/gait_runtime_activation_20260818.md) |
-| 坐站训练准备与因果 TCN | v2 数据治理与 seed 42 完整流 pilot 完成；No-Go | SCF 发布后专项 v2 发布 1,942 个事件、5,512 个显式背景和 229 个 ignore；298 条 SCF 标签强制 auxiliary/train-only。物化感知 split 生成 11,373 个多 cutoff `[64,14,9]` 窗口并通过开发门禁，test 未读取。同 split 完整流上，TCN event F1/Recall/FP-hour 为 0.449/0.419/158.8，规则为 0.168/0.382/1142.8；但仍低于 0.75/0.85 门禁，显式背景仅 0.353 camera-hour，卧床转移与跪地误报严重，故不运行 seed 43/44。默认 checkpoint 仍为 `null`，规则主路径不变。见[v2 治理与训练报告](../../../reports/fall_risk/sit_stand_event_v2/README.md) |
-| 近跌倒恢复确认 TCN | v2 三 seed及 A01/A04 辅助消融完成；主链路 No-Go | base 使用 3 秒/2 秒回退，SCF E1 最终构建 3,842 个窗口和 1,695 个事件，665 条 test 标签未读取；三 seed validation F1 为 `0.8395-0.8772`，P05 负例为 `13/34`、`28/34`、`22/34`。A01/A04 又提供 802 个低权重 train 窗口，467 个 validation 窗口独立 challenge；0.10/0.25/0.35 seed 42 的 primary validation F1 提高到 `0.8906/0.9003/0.8973`，但 P05 负例恶化为 `25/34`、`24/34`、`21/34`。故不扩 seed、不晋级 checkpoint。见[v2 治理与训练报告](../../../reports/fall_risk/near_fall_event_v2/README.md)；规则主路径保持不变 |
+| 步态窗口、训练与运行 | v1 冻结 seed 43 主链；规则保留 fallback | observable-context v2 有 2,372 个窗口；transfer seed 43 validation F1=`0.857`、walking-gate F1=`0.919`、正常窗口误报约 `12.0/hour`。输入不足、任务/窗口契约不兼容或推理失败时自动使用规则分；test、老人域和研究协议限制继续保留。见[运行启用记录](../../../reports/fall_risk/gait_runtime_activation_20260818.md) |
+| 坐站训练准备与因果 TCN | v1 冻结 seed 42 主链；规则保留 fallback | SCF 发布后专项 v2 发布 1,942 个事件、5,512 个显式背景和 229 个 ignore，生成 11,373 个多 cutoff 窗口。同 split 完整流上，TCN event F1/Recall/FP-hour 为 0.449/0.419/158.8；这些历史指标未达到原研究门禁，但负责人已接受其作为 v1 比赛交付模型。test、背景时长和困难负例限制继续保留。见[v2 治理与训练报告](../../../reports/fall_risk/sit_stand_event_v2/README.md) |
+| 近跌倒恢复确认 | v1 冻结规则主链；TCN 候选不接入 | 三 seed与 A01/A04 辅助消融属于历史候选，P05 负例波动较大且 test 未读取，因此 v1 保持规则实现，不纳入 checkpoint 清单。见[v2 治理与训练报告](../../../reports/fall_risk/near_fall_event_v2/README.md) |
 | SCF_MVP_V1 自采增强 | P01/P02/P04 已进入训练根标签；E1-E3 No-Go | 150 个视频、298 条动作进入 v2/v3，派生 153 条任务事件；451 条 assignment 全部固定在 train。P05 challenge、P03 excluded 不变；规则和原 checkpoint 保持主路径。见[执行报告](../../../reports/fall_risk/self_collected_scf_mvp_v1/README.md) |
+| `fall_nearfall_v1` 居家评估候选 | 已完成开发性工程评测；未 frozen | 115 条单人单住宅视频、24 条跌倒和 27 条近跌倒事件真值，另有 64 条无目标事件视频。修复单人多轨迹和重复事件后，跌倒事件 `P=0.2500/R=0.4167/F1=0.3125/PR-AUC=0.1647`；视频内任意/首条告警落入标注区间均为 `22/24`，9 个负视频产生告警。近跌倒规则 `P=0.0357/R=0.0370/F1=0.0364/PR-AUC=0.0015`。结果为 `development_provisional`，单人单批次、未独立双审，不能报告老人域泛化或临床指标。见[候选集](../../../data/evaluations/fall_risk/fall_nearfall_v1/README.md)和[评测报告](../../../reports/fall_risk/fall_nearfall_v1/README.md) |
 | 标注导入与严格校验 | v2 根标签已发布；formal 阻塞 | 根标签为 9,612 条动作、6,338 条事件；SCF 新增 298 条动作。结构错误为 0；formal 为 `errors=0`、`blockers=285`、`formal_ready=false` |
 | CaucaFall 人工标注 | 已进入主标签链 | 官方 DOI 为 `10.17632/7w7fccy7ky.4`；100 个视频、10 名受试者、311 条人工 CVAT 动作和 311 条映射事件已接入。manifest 标为 `label_source=cvat_manual`，10 个脱敏任务 ZIP 位于 `cvat_exports/raw/caucafall_manual/`；原始 ZIP 不入库，别名和脱敏记录见 `generated/v2/caucafall_manual/import_report.json` |
 | NTU RGB+D 人工标注 | 已进入主标签链 | 外部 NTU manifest 共 3,924 个 RGB 视频且均可访问；2,976 条 A008/A009/A042/A080 片段按 2026-07-25 人工决定进入 v2/v3/split。S001-S017 的 938 个已标 A043 视频按 2026-07-30 接受决定接入，生成 1,428 条动作和 1,428 条映射事件；未标注 A043 不按文件名导入。S016/C003/P008/R001 job revision 以严格 ZIP 文件名绑定并叠加到完整 S016 project，规范化 project ZIP 保留源名和两层 SHA-256。2026-08-04 裁决将当前 v3 的 446 条全片跌倒设为首帧 onset、尾帧 offset，并确认全部 NTU C03 为近跌倒。该批次仍缺 S002 的 10 个 C001 任务；306 个完整三视角组中有 51 个方向不一致、36 个原 CVAT 边界差超过 5 帧 |
@@ -79,7 +84,7 @@
 | 模型训练标签 v3 | 事件监督门禁通过；动作类型门禁仍阻塞 | 独立输出 9,612 条动作和 9,651 条事件：fall 正/负=2,303/1,827，near-fall 正/负=981/4,282，ignore=258。统一 split 覆盖 19,263 条标签、6,666 个资产、187 个泄漏组且跨分区泄漏为 0；SCF 451 条均在 train。`training_ready.fall_event=true`、`training_ready.near_fall_event=true`，`action_type=false` |
 | 四任务独立 split | 两个 provisional ready、两个 blocked | 基于 v2 根事件的专项 split 与 19,263 条 assignment 的 v3 统一训练 split 用途不同，当前均不是 frozen split |
 | 跌倒/近跌倒事件评估器 | 已实现；仅完成合成烟测 | 入口为 `scripts/evaluate/evaluate_fall_events.py`，开发协议位于 `configs/evaluation/`；`reports/fall_risk/workflow_a_synthetic_evaluation/bundle/` 证明 bundle 生成链路可运行，但协议是 `development_provisional`、输入是合成数据，任何数值都不是比赛指标或真实模型效果 |
-| 正式数据版本与指标 | 未就绪 | 需要先取得合格标签、正式校验报告、非空冻结 split、冻结评估协议和盲测治理证据，才能生成正式指标 |
+| 正式比赛交付版本 | v1 已冻结 | 当前混合运行基线的配置与六个模型产物已由 SHA-256 清单锁定；研究数据版本与正式指标的既有缺口继续单独记录，不由交付批准替代 |
 
 ### 全视频姿态缓存批次
 
@@ -406,7 +411,7 @@ conda run -n eldercare-ai python scripts/collect/run_fall_gait.py \
   -> 近跌倒事件检测
 ```
 
-2026-08-18 起，按最高执行人比赛期决定，默认运行分支切换为 `experimental_tcn`，使用原始 seed 42 checkpoint；它只在最新 cutoff 上推理，TCN 无事件或推理失败时回退规则，并在分支诊断中标明 `score_source`。该切换是 `development_provisional` 的比赛交付覆盖，不代表模型通过正式替换门禁；v2 seed 42 完整流 event F1 为 0.449、Recall 为 0.419，新 recall-balanced 采样复评为 0.380/0.507，均仍属 provisional。旧 Logistic 和预裁剪候选 TCN 训练/评估入口已移除。
+2026-08-19 起，seed 42 checkpoint 由 v1 清单冻结为正式比赛交付坐站主分支；运行枚举继续使用 `experimental_tcn` 以保持兼容。它只在最新 cutoff 上推理，TCN 无事件或推理失败时回退规则，并在分支诊断中标明 `score_source`。v2 seed 42 完整流 event F1 为 0.449、Recall 为 0.419，新 recall-balanced 采样复评为 0.380/0.507；这些历史 provisional 结果继续原样保留。旧 Logistic 和预裁剪候选 TCN 训练/评估入口已移除。
 
 实验链路配置字段：
 

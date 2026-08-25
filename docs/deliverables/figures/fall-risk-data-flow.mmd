@@ -1,0 +1,35 @@
+flowchart LR
+    A[视频帧] --> B{目标与姿态\n是否满足契约?}
+    B -->|是| C[滑动窗口与时序特征]
+    B -->|否| R1[拒识/不可用\n失败关闭或规则降级]
+    C --> D{模型分支\n是否可用?}
+    D -->|可用| M[TCN 推理\n步态/坐站/跌倒事件]
+    D -->|不可用或异常| R2[对应规则 fallback]
+    C --> N[近跌倒规则]
+    C --> P[个体基线统计\n历史不足则失败关闭]
+    S[ESP32-S3 环境读数] --> T[EnvironmentStore\n去重、因果快照、过期门禁]
+    T --> U[弱光/水浸/交互特征\n环境 mask]
+    M --> F[融合 mask 与规则融合]
+    R2 --> F
+    N --> F
+    P --> F
+    U --> F
+    F --> E[风险事件状态机与节流]
+    E --> O[AlgorithmEvent\n仅输出 module=fall_risk]
+    O --> Q[业务后端回调\n算法仓库不负责处置]
+    subgraph boundary[算法模块边界]
+      B
+      C
+      D
+      M
+      R1
+      R2
+      N
+      P
+      S
+      T
+      U
+      F
+      E
+      O
+    end

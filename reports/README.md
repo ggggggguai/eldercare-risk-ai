@@ -29,6 +29,10 @@ Workflow A 当前入口：
 
 模型实验入口：
 
+- [`fall_risk/fall_risk_release_freeze_20260819.md`](fall_risk/fall_risk_release_freeze_20260819.md)：当前混合模型的正式比赛交付冻结决定、release 边界、证据解释和完整性测试入口。
+- [`fall_risk/fall_nearfall_v1/README.md`](fall_risk/fall_nearfall_v1/README.md)：115 条居家模拟动作视频上的冻结 v1 跌倒/近跌倒开发性工程评测、事件级指标、误报检查和复现命令；不是 frozen test 或老人域泛化证据。
+- [`fall_risk/fall_nearfall_adaptation_v1/README.md`](fall_risk/fall_nearfall_adaptation_v1/README.md)：将 11 条自采跌倒正例加入开发训练后，在 44 条未见居家视频上的域内适配对照；不替换冻结 v1，也不是跨主体泛化证据。
+
 - [`fall_risk/kinecal_gait_tcn/README.md`](fall_risk/kinecal_gait_tcn/README.md)：KINECAL 14 点轻量步态 TCN 的固定划分 baseline、失败结论和复现命令。
 - [`fall_risk/gait_window_v4_hierarchical_masked/development-20260803/README.md`](fall_risk/gait_window_v4_hierarchical_masked/development-20260803/README.md)：不增加数据条件下的质量捷径隔离、walking gate、三个 seed 结果和不替换主路径的结论。
 - [`fall_risk/gait_window_v5_effect_first/development-20260803/README.md`](fall_risk/gait_window_v5_effect_first/development-20260803/README.md)：B01-B04 functional proxy 的六 seed 训练与概率集成结果；F1 `0.308`，test 未读取，未替换规则主路径。

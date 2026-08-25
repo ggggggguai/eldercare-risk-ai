@@ -1,16 +1,17 @@
 model_path: models/yolov8n-pose.pt
-# 2026-08-18 比赛交付决定：provisional seed 43 进入步态主分支。
+# 2026-08-19 正式比赛交付冻结：seed 43 为步态主分支。
 # 任务/输入契约不兼容、观测不足或推理失败时规则 baseline 自动兜底。
 gait_model_path: reports/fall_risk/gait_observable_context_v2/splitv3-3342705-scfaux-v1/pretrained-seed43/best_model.pt
 gait_model_device: cpu
 gait_model_window_frames: 16
-# 2026-08-18 最高执行人批准比赛期 provisional TCN 进入坐站默认主分支。
+# 2026-08-19 正式比赛交付冻结：seed 42 TCN 为坐站默认主分支。
 # TCN 无事件、输入不足或推理失败时规则 baseline 自动兜底。
 sit_stand_runtime_mode: experimental_tcn
 sit_stand_model_path: reports/fall_risk/sit_stand_continuous_tcn_v2/sitstandsplit_11e163684e3bb898a5c3508d/seed42-pilot-loss-scale-fixed/best_model.pt
 sit_stand_model_device: cpu
 sit_stand_model_batch_size: 128
-# 比赛交付临时启用 provisional TCN 主评分；原始概率达到 0.5 时按现有
+# 正式比赛交付冻结三 seed TCN 主评分；保留 experimental_tcn 枚举以兼容
+# 现有运行契约。原始概率达到 0.5 时按现有
 # 跌倒强触发契约输出 0.9。窗口不足或推理失败时自动回退规则状态机。
 fall_event_runtime_mode: experimental_tcn
 fall_event_shadow_checkpoint_paths:

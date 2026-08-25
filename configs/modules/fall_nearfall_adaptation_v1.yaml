@@ -1,0 +1,40 @@
+schema_version: "1.0"
+release_id: fall-nearfall-adaptation-v1-20260822
+status: development_provisional
+stage: self_collected_domain_adaptation
+created_at: "2026-08-22"
+scope: development_holdout_only
+base_release_id: fall-risk-competition-v1-20260819
+
+artifacts:
+  - role: pose_detection_and_tracking
+    path: models/yolov8n-pose.pt
+    sha256: c6fa93dd1ee4a2c18c900a45c1d864a1c6f7aba75d84f91648a30b7fb641d212
+  - role: fall_event_ensemble_seed_42
+    path: reports/fall_risk/fall_nearfall_adaptation_v1/seed42/best_model.pt
+    sha256: 33e250af8a3c27180881eae25f497e318e865235a17e68ea9ec808a68d0dbaeb
+  - role: fall_event_ensemble_seed_43
+    path: reports/fall_risk/fall_nearfall_adaptation_v1/seed43/best_model.pt
+    sha256: ec1007384d3a6bc2fe4e9198c2e6ba480cd7ed942412aecf6f74618d73c00ebe
+  - role: fall_event_ensemble_seed_44
+    path: reports/fall_risk/fall_nearfall_adaptation_v1/seed44/best_model.pt
+    sha256: 88128acf8ec63d100e7e810a2fb9f68cb5ee9986840b02541fa943c1a162c1fc
+
+dataset:
+  adaptation_split: reports/fall_risk/fall_nearfall_adaptation_v1/split.json
+  merged_dataset: reports/fall_risk/fall_nearfall_adaptation_v1/dataset.npz
+  holdout_manifest: reports/fall_risk/fall_nearfall_adaptation_v1/holdout_manifest.jsonl
+  holdout_ground_truth: reports/fall_risk/fall_nearfall_adaptation_v1/holdout_ground_truth_events.jsonl
+
+protocol:
+  split_id: fall-nearfall-adaptation-v1-holdout
+  train_and_validation_video_isolated: true
+  holdout_used_for_training: false
+  holdout_used_for_threshold_selection: false
+  test_evaluated: false
+  clinical_claims_allowed: false
+
+limitations:
+  - all self-collected videos are one adult, one household and one capture batch
+  - result estimates within-household adaptation, not cross-person generalization
+  - this release must not replace the frozen competition release
