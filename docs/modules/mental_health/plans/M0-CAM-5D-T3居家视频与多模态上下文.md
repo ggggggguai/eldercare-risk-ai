@@ -1,8 +1,8 @@
 # M0-CAM-5D-T3 居家视频与多模态上下文
 
-状态：`completed_core_awaiting_home_smoke`
+状态：`completed_core_home_smoke_and_labeled_development`
 
-计划：Day 3 完成 input-independent core；居家视频到位后补充 smoke
+计划：Day 3 input-independent core、居家 smoke 与 labeled-development 补充均已完成
 
 上游：[T2 自动 Episode 与轨迹识别闭环](M0-CAM-5D-T2自动Episode与轨迹识别闭环.md)（已完成）
 
@@ -16,7 +16,8 @@
 
 ## 2. 当前输入事实与决策
 
-当前没有可用于定量验收的已标注居家视频。按实际输入分三种情况处理：
+当前已有一段 truth-free 居家 smoke 和 70 task/135 episode 时间段/行为标注，并已完成
+development 复核及 2026-08-22 分段/分类修复。以下三种情况继续作为新输入的运行规则：
 
 | 输入情况 | 立即执行 | 可得结论 | 是否阻塞 |
 |---|---|---|---|
@@ -24,7 +25,9 @@
 | 居家 MP4 到位但未标注 | 直接运行 truth-free `MP4 -> tracking -> episode -> shape -> context` | 真实场景工程 smoke；不能计算边界或分类准确率 | 否 |
 | 居家 MP4 和独立人工标签都到位 | 在 truth-free smoke 之外补 development 定量复核 | 有限的居家 development 误差和失败案例 | 否；属于补充证据 |
 
-不得把模型输出、多模态回答或文件名当作人工 truth。需要量化边界/shape/context 效果时再补人工标签；标签未完成不能阻止算法链运行。
+不得把模型输出、多模态回答或文件名当作人工 truth。CVAT rectangle 与 `evaluation_role`
+只提供时间段/行为语义，不能作为检测或跟踪真值；标签未完成不能阻止算法链运行。当前修复
+结果仍属于同 participant development，不是 independent test 或 `home_validated`。
 
 ## 3. 数据与身份规则
 

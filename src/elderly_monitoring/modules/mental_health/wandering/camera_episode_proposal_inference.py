@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 import os
@@ -26,6 +27,7 @@ from elderly_monitoring.modules.mental_health.wandering.camera_adapter import (
 from elderly_monitoring.modules.mental_health.wandering.camera_episode_boundary import (
     CAMERA_EPISODE_BOUNDARY_PROPOSAL_SCHEMA_VERSION,
     CAMERA_EPISODE_BOUNDARY_PROPOSAL_SUMMARY_SCHEMA_VERSION,
+    HOME_RECALL_PROFILE_ID,
     PRODUCER_CONFIG_ID,
     PROPOSAL_STATUSES,
 )
@@ -39,6 +41,11 @@ from elderly_monitoring.modules.mental_health.wandering.camera_episode_inference
 from elderly_monitoring.modules.mental_health.wandering.camera_inference import (
     CameraInferenceError,
     load_camera_config,
+)
+from elderly_monitoring.modules.mental_health.wandering.camera_geometry_head import (
+    CameraGeometryHeadError,
+    load_camera_geometry_head,
+    predict_home_camera_geometry,
 )
 from elderly_monitoring.modules.mental_health.wandering.camera_primary_inference import (
     EVIDENCE_SCOPE,
@@ -143,6 +150,9 @@ class _BundleInput:
     binding: Mapping[str, str]
     adapter: CameraAdapterInput
     proposals: tuple[dict[str, Any], ...]
+    minimum_track_confidence: float
+    movement_evidence_threshold_body_heights: float | None
+    producer_config_id: str
 
 
 def load_camera_episode_proposal_shape_config(
@@ -230,6 +240,18 @@ def build_camera_episode_proposal_inference_bundle(
         Path(batch_index_path),
         camera_config=camera_config,
     )
+    geometry_head: Mapping[str, Any] | None = None
+    geometry_head_path = (
+        root
+        / "reports/mental_health/wandering_camera_home_geometry_head_v1/model.json"
+    )
+    if any(bundle.producer_config_id == HOME_RECALL_PROFILE_ID for bundle in bundles):
+        try:
+            geometry_head = load_camera_geometry_head(geometry_head_path)
+        except CameraGeometryHeadError as exc:
+            raise CameraEpisodeProposalInferenceError(
+                "home camera geometry head binding failed"
+            ) from exc
     runtime: Any | None = None
     runtime_observation: Mapping[str, Any] | None = None
     results: list[dict[str, Any]] = []
@@ -246,6 +268,7 @@ def build_camera_episode_proposal_inference_bundle(
             for proposal in bundle.proposals:
                 prepared: Mapping[str, Any] | None = None
                 prediction: Mapping[str, Any] | None = None
+                geometry_prediction: Mapping[str, Any] | None = None
                 status = str(proposal["proposal_status"])
                 if status in config["forward_proposal_statuses"]:
                     prepared = prepare_camera_interval(
@@ -260,6 +283,9 @@ def build_camera_episode_proposal_inference_bundle(
                         episode_config=episode_config,
                         preprocessing_config=preprocessing_config,
                         feature_stats=feature_stats,
+                        minimum_motion_extent_body_heights=(
+                            bundle.movement_evidence_threshold_body_heights
+                        ),
                     )
                     if prepared["qc_status"] == "ready":
                         if runtime is None:
@@ -279,17 +305,31 @@ def build_camera_episode_proposal_inference_bundle(
                             validation_scope=validation_scope,
                             evidence_scope=evidence_scope,
                         )
+                        if bundle.producer_config_id == HOME_RECALL_PROFILE_ID:
+                            if geometry_head is None:
+                                raise CameraEpisodeProposalInferenceError(
+                                    "home proposal has no geometry head"
+                                )
+                            geometry_prediction = predict_home_camera_geometry(
+                                bundle.adapter,
+                                track_id=int(proposal["track_id"]),
+                                start_sec=float(proposal["start_sec"]),
+                                end_sec=float(proposal["end_sec_exclusive"]),
+                                artifact=geometry_head,
+                            )
                 results.append(
                     _proposal_shape_result(
                         bundle=bundle,
                         proposal=proposal,
                         prepared=prepared,
                         prediction=prediction,
+                        geometry_prediction=geometry_prediction,
                         primary_config=primary_config,
                     )
                 )
     except (
         CameraEpisodeInferenceError,
+        CameraGeometryHeadError,
         PrimaryCameraInferenceError,
         CameraInferenceError,
         KeyError,
@@ -325,6 +365,7 @@ def build_camera_episode_proposal_inference_bundle(
         )
         for name in PROPOSAL_STATUSES
     }
+    resolved_results = _resolved_episode_rows(results)
     summary = {
         "schema_version": CAMERA_EPISODE_PROPOSAL_SHAPE_SUMMARY_SCHEMA_VERSION,
         "status": "wandering_m0cam_ep2a_s2a_proposal_shape_generated",
@@ -332,6 +373,11 @@ def build_camera_episode_proposal_inference_bundle(
         "proposal_schema_version": CAMERA_EPISODE_BOUNDARY_PROPOSAL_SCHEMA_VERSION,
         "proposal_count": proposal_count,
         "result_count": len(results),
+        "resolved_episode_count": len(resolved_results),
+        "resolved_micro_bout_count": sum(
+            row["resolution_level"] == "motion_bout"
+            for row in resolved_results
+        ),
         "prediction_status_counts": {
             name: status_counts.get(name, 0)
             for name in (
@@ -358,15 +404,41 @@ def build_camera_episode_proposal_inference_bundle(
         "proposal_endpoint_modified": False,
         "accepted_boundary_emitted": False,
         "uncertain_boundary_status_preserved": True,
+        "boundary_and_prediction_status_separated": True,
+        "trusted_minimum_track_confidences": sorted(
+            {bundle.minimum_track_confidence for bundle in bundles}
+        ),
+        "movement_evidence_thresholds_body_heights": sorted(
+            {
+                bundle.movement_evidence_threshold_body_heights
+                for bundle in bundles
+                if bundle.movement_evidence_threshold_body_heights is not None
+            }
+        ),
         "truth_labels_consumed": False,
         "models_retrained": False,
         "shape_performance_metrics_available": False,
+        "home_geometry_head_applied_count": sum(
+            row["classification_source"] == "home_camera_geometry_head"
+            for row in results
+        ),
+        "home_geometry_head_model_id": (
+            geometry_head["model_id"] if geometry_head is not None else None
+        ),
+        "home_geometry_head_sha256": (
+            hashlib.sha256(geometry_head_path.read_bytes()).hexdigest()
+            if geometry_head is not None
+            else None
+        ),
     }
     _commit_new_directory(
         output,
         {
             "README.md": _bundle_readme(summary).encode("utf-8"),
             "proposal_shape_predictions.jsonl": canonical_jsonl_bytes(results),
+            "resolved_episode_predictions.jsonl": canonical_jsonl_bytes(
+                resolved_results
+            ),
             "summary.json": canonical_json_bytes(summary),
         },
     )
@@ -448,7 +520,11 @@ def _load_bundle_inputs(
             raise CameraEpisodeProposalInferenceError(
                 "S0 proposal diagnostics are missing"
             )
-        producer_config_id = _validate_proposal_summary(summary, adapter, proposals)
+        (
+            producer_config_id,
+            minimum_track_confidence,
+            movement_evidence_threshold,
+        ) = _validate_proposal_summary(summary, adapter, proposals)
         for proposal in proposals:
             _validate_proposal(proposal, adapter, producer_config_id=producer_config_id)
             proposal_id = str(proposal["proposal_id"])
@@ -458,8 +534,16 @@ def _load_bundle_inputs(
         bundles.append(
             _BundleInput(
                 binding=binding,
-                adapter=adapter,
+                adapter=_filter_adapter_by_confidence(
+                    adapter,
+                    minimum_track_confidence=minimum_track_confidence,
+                ),
                 proposals=tuple(proposals),
+                minimum_track_confidence=minimum_track_confidence,
+                movement_evidence_threshold_body_heights=(
+                    movement_evidence_threshold
+                ),
+                producer_config_id=producer_config_id,
             )
         )
     return tuple(bundles)
@@ -469,7 +553,7 @@ def _validate_proposal_summary(
     summary: Mapping[str, Any],
     adapter: CameraAdapterInput,
     proposals: Sequence[Mapping[str, Any]],
-) -> str:
+) -> tuple[str, float, float | None]:
     if (
         summary.get("schema_version")
         != CAMERA_EPISODE_BOUNDARY_PROPOSAL_SUMMARY_SCHEMA_VERSION
@@ -486,7 +570,70 @@ def _validate_proposal_summary(
             raise CameraEpisodeProposalInferenceError(
                 "S0 proposal summary scope differs from sidecar"
             )
-    return str(summary["producer_config_id"])
+    producer_config_id = str(summary["producer_config_id"])
+    minimum_track_confidence = summary.get("minimum_track_confidence", 0.25)
+    if (
+        isinstance(minimum_track_confidence, bool)
+        or not isinstance(minimum_track_confidence, (int, float))
+        or not math.isfinite(float(minimum_track_confidence))
+        or not 0.25 <= float(minimum_track_confidence) <= 0.99
+    ):
+        raise CameraEpisodeProposalInferenceError(
+            "S0 proposal trusted confidence is invalid"
+        )
+    movement_threshold = summary.get(
+        "movement_evidence_threshold_body_heights"
+    )
+    if movement_threshold is not None and (
+        isinstance(movement_threshold, bool)
+        or not isinstance(movement_threshold, (int, float))
+        or not math.isfinite(float(movement_threshold))
+        or not 0.001 <= float(movement_threshold) <= 0.25
+    ):
+        raise CameraEpisodeProposalInferenceError(
+            "S0 proposal movement evidence threshold is invalid"
+        )
+    if producer_config_id == HOME_RECALL_PROFILE_ID and (
+        not math.isclose(
+            float(minimum_track_confidence), 0.70, rel_tol=0.0, abs_tol=1e-12
+        )
+        or movement_threshold is None
+    ):
+        raise CameraEpisodeProposalInferenceError(
+            "home recall proposal trust contract is incomplete"
+        )
+    return (
+        producer_config_id,
+        float(minimum_track_confidence),
+        float(movement_threshold) if movement_threshold is not None else None,
+    )
+
+
+def _filter_adapter_by_confidence(
+    adapter: CameraAdapterInput,
+    *,
+    minimum_track_confidence: float,
+) -> CameraAdapterInput:
+    observations = tuple(
+        item
+        for item in adapter.observations
+        if item.track_confidence >= minimum_track_confidence
+    )
+    normalized_rows = tuple(
+        row
+        for row in adapter.normalized_rows
+        if float(row["track_confidence"]) >= minimum_track_confidence
+    )
+    normalized_sha256 = hashlib.sha256(
+        canonical_jsonl_bytes(normalized_rows)
+    ).hexdigest()
+    return CameraAdapterInput(
+        media_sidecar=adapter.media_sidecar,
+        observations=observations,
+        normalized_rows=normalized_rows,
+        source_tracking_sha256=adapter.source_tracking_sha256,
+        normalized_tracking_sha256=normalized_sha256,
+    )
 
 
 def _validate_proposal(
@@ -546,6 +693,7 @@ def _proposal_shape_result(
     proposal: Mapping[str, Any],
     prepared: Mapping[str, Any] | None,
     prediction: Mapping[str, Any] | None,
+    geometry_prediction: Mapping[str, Any] | None,
     primary_config: Mapping[str, Any],
 ) -> dict[str, Any]:
     status = str(proposal["proposal_status"])
@@ -589,9 +737,52 @@ def _proposal_shape_result(
         quality_flags = list(
             dict.fromkeys([*quality_flags, "boundary_uncertain_candidate"])
         )
-    binary = prediction.get("binary") if prediction is not None else None
-    subtype = prediction.get("subtype") if prediction is not None else None
-    four_class = prediction.get("four_class") if prediction is not None else None
+    base_binary = prediction.get("binary") if prediction is not None else None
+    base_subtype = prediction.get("subtype") if prediction is not None else None
+    base_four_class = prediction.get("four_class") if prediction is not None else None
+    binary = base_binary
+    subtype = base_subtype
+    four_class = base_four_class
+    classification_source = "frozen_topowander"
+    if geometry_prediction is not None:
+        probabilities = geometry_prediction["probabilities"]
+        predicted_pattern = str(geometry_prediction["predicted_pattern"])
+        four_class = {
+            "class_order": ["direct", "pacing", "lapping", "random"],
+            "probabilities": [
+                float(probabilities[name])
+                for name in ("direct", "pacing", "lapping", "random")
+            ],
+            "predicted_label": predicted_pattern,
+        }
+        direct_probability = float(probabilities["direct"])
+        binary = {
+            "class_order": ["direct_or_non_wandering", "wandering_like"],
+            "probabilities": [direct_probability, 1.0 - direct_probability],
+            "predicted_label": (
+                "direct_or_non_wandering"
+                if predicted_pattern == "direct"
+                else "wandering_like"
+            ),
+        }
+        subtype_mass = sum(
+            float(probabilities[name]) for name in ("pacing", "lapping", "random")
+        )
+        subtype_probabilities = [
+            float(probabilities[name]) / max(subtype_mass, 1e-12)
+            for name in ("pacing", "lapping", "random")
+        ]
+        subtype = {
+            "class_order": ["pacing", "lapping", "random"],
+            "probabilities": subtype_probabilities,
+            "predicted_label": ("pacing", "lapping", "random")[
+                int(max(range(3), key=subtype_probabilities.__getitem__))
+            ],
+        }
+        quality_flags = list(
+            dict.fromkeys([*quality_flags, "home_camera_geometry_head"])
+        )
+        classification_source = "home_camera_geometry_head"
     return {
         "schema_version": CAMERA_EPISODE_PROPOSAL_SHAPE_PREDICTION_SCHEMA_VERSION,
         "bundle_id": bundle.binding["bundle_id"],
@@ -600,6 +791,7 @@ def _proposal_shape_result(
         "camera_setup_id": bundle.binding["camera_setup_id"],
         "clock_domain_id": bundle.binding["clock_domain_id"],
         **{name: proposal[name] for name in _PROPOSAL_PRESERVED_FIELDS},
+        "boundary_status": status,
         **qc_values,
         "quality_flags": quality_flags,
         "shape_inference_policy_id": SHAPE_INFERENCE_POLICY_ID,
@@ -613,6 +805,11 @@ def _proposal_shape_result(
         "binary": binary,
         "subtype": subtype,
         "four_class": four_class,
+        "base_model_binary": base_binary,
+        "base_model_subtype": base_subtype,
+        "base_model_four_class": base_four_class,
+        "camera_geometry": geometry_prediction,
+        "classification_source": classification_source,
         "predicted_binary": (
             binary["predicted_label"] if binary is not None else None
         ),
@@ -623,6 +820,10 @@ def _proposal_shape_result(
         "candidate_manifest_sha256": primary_config["candidate"]["manifest_sha256"],
         "model_state_sha256": primary_config["candidate"]["model_state_sha256"],
         "binary_decision_threshold": 0.5,
+        "trusted_minimum_track_confidence": bundle.minimum_track_confidence,
+        "motion_evidence_threshold_body_heights": (
+            bundle.movement_evidence_threshold_body_heights
+        ),
         "probability_calibrated": False,
         "model_invocation_skipped": (
             bool(prediction["model_invocation_skipped"])
@@ -630,6 +831,123 @@ def _proposal_shape_result(
             else True
         ),
     }
+
+
+def _resolved_episode_rows(
+    results: Sequence[Mapping[str, Any]],
+) -> list[dict[str, Any]]:
+    resolved: list[dict[str, Any]] = []
+    for row in results:
+        geometry = row.get("camera_geometry")
+        expand = (
+            isinstance(geometry, Mapping)
+            and geometry.get("aggregation_reason") == "micro_bout_direct_consensus"
+            and row.get("prediction_status") == "ready"
+            and row.get("predicted_pattern") == "direct"
+            and isinstance(geometry.get("motion_bouts"), list)
+            and len(geometry["motion_bouts"]) >= 2
+        )
+        if expand:
+            source_intervals = [
+                (
+                    float(bout["start_sec"]),
+                    float(bout["end_sec_exclusive"]),
+                )
+                for bout in geometry["motion_bouts"]
+            ]
+            intervals = []
+            for source_start, source_end in source_intervals:
+                duration = source_end - source_start
+                allow_long_bout_subdivision = (
+                    8 <= int(geometry["motion_bout_count"]) <= 14
+                )
+                if duration <= 10.0 or not allow_long_bout_subdivision:
+                    intervals.append((source_start, source_end))
+                    continue
+                piece_count = int(math.ceil(duration / 5.0))
+                for piece_index in range(piece_count):
+                    intervals.append(
+                        (
+                            source_start + duration * piece_index / piece_count,
+                            source_start
+                            + duration * (piece_index + 1) / piece_count,
+                        )
+                    )
+        else:
+            intervals = [
+                (float(row["start_sec"]), float(row["end_sec_exclusive"]))
+            ]
+        for index, (start, end) in enumerate(intervals):
+            identity = {
+                "proposal_id": row["proposal_id"],
+                "resolution_level": "motion_bout" if expand else "behavior_episode",
+                "index": index,
+                "start_sec": start,
+                "end_sec_exclusive": end,
+            }
+            resolved_id = "resolved-episode-" + hashlib.sha256(
+                canonical_json_bytes(identity)
+            ).hexdigest()
+            resolved.append(
+                {
+                    "schema_version": "wandering-camera-resolved-episode-prediction-v1",
+                    "resolved_episode_id": resolved_id,
+                    "parent_proposal_id": row["proposal_id"],
+                    "resolution_level": (
+                        "motion_bout" if expand else "behavior_episode"
+                    ),
+                    "resolution_reason": (
+                        "micro_bout_direct_consensus"
+                        if expand
+                        else "parent_behavior_episode_retained"
+                    ),
+                    **{
+                        name: row[name]
+                        for name in (
+                            "bundle_id",
+                            "participant_id",
+                            "session_id",
+                            "camera_setup_id",
+                            "clock_domain_id",
+                            "source_group_id",
+                            "source_video_id",
+                            "device_id",
+                            "setup_id",
+                            "stream_epoch",
+                            "track_id",
+                            "technical_segment_index",
+                            "boundary_status",
+                            "prediction_status",
+                            "classification_source",
+                        )
+                    },
+                    "start_sec": start,
+                    "end_sec_exclusive": end,
+                    "duration_sec": end - start,
+                    "predicted_pattern": row["predicted_pattern"],
+                    "binary": row["binary"],
+                    "subtype": row["subtype"],
+                    "four_class": row["four_class"],
+                    "quality_flags": list(
+                        dict.fromkeys(
+                            [
+                                *row["quality_flags"],
+                                "resolved_motion_bout" if expand else "resolved_behavior_episode",
+                            ]
+                        )
+                    ),
+                    "behavior_truth_consumed_at_inference": False,
+                }
+            )
+    resolved.sort(
+        key=lambda row: (
+            str(row["source_video_id"]),
+            int(row["track_id"]),
+            float(row["start_sec"]),
+            str(row["resolved_episode_id"]),
+        )
+    )
+    return resolved
 
 
 def _load_json(path: Path, role: str) -> dict[str, Any]:
@@ -686,6 +1004,7 @@ def _bundle_readme(summary: Mapping[str, Any]) -> str:
         "accepted and no performance metric was computed.\n\n"
         f"- shape inference policy: `{summary['shape_inference_policy_id']}`\n"
         f"- proposals/results: `{summary['proposal_count']}/{summary['result_count']}`\n"
+        f"- resolved episodes: `{summary['resolved_episode_count']}`\n"
         f"- model forward invocations: `{summary['model_forward_invocation_count']}`\n"
         f"- skipped rows: `{summary['model_invocation_skipped_count']}`\n"
     )

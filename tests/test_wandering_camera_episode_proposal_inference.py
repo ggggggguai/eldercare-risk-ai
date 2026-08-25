@@ -113,10 +113,18 @@ def _fixture(
     tmp_path: Path,
     *,
     producer_config_id: str = "m0cam-ep2a-s0-b01-development-frozen-v1",
+    minimum_track_confidence: float | None = None,
+    movement_evidence_threshold_body_heights: float | None = None,
+    low_confidence_noise: bool = False,
+    small_oscillation: bool = False,
 ) -> tuple[Path, list[dict[str, object]]]:
     rows = []
     for index in range(60):
-        x = 128.0 + 320.0 * index / 59.0
+        x = (
+            288.0 + (12.0 if index % 2 else -12.0)
+            if small_oscillation
+            else 128.0 + 320.0 * index / 59.0
+        )
         rows.append(
             {
                 "frame_id": index * 10,
@@ -130,6 +138,21 @@ def _fixture(
                 "timestamp_sec": index * 0.5 + 0.1,
             }
         )
+        if low_confidence_noise:
+            noise_x = 64.0 if index % 2 else 576.0
+            rows.append(
+                {
+                    "frame_id": index * 10 + 1,
+                    "person_id": "anonymous_001",
+                    "track_id": 1,
+                    "bbox": [noise_x - 40.0, 240.0, noise_x + 40.0, 360.0],
+                    "scene_region": "office",
+                    "track_confidence": 0.69,
+                    "center": [noise_x, 300.0],
+                    "speed_px_per_sec": None,
+                    "timestamp_sec": index * 0.5 + 0.11,
+                }
+            )
     tracking_bytes = canonical_jsonl_bytes(rows)
     tracking = tmp_path / "tracking.jsonl"
     tracking.write_bytes(tracking_bytes)
@@ -198,9 +221,7 @@ def _fixture(
     proposal_bundle.mkdir()
     (proposal_bundle / "proposals.jsonl").write_bytes(canonical_jsonl_bytes(proposals))
     (proposal_bundle / "diagnostics.jsonl").write_bytes(canonical_jsonl_bytes([]))
-    (proposal_bundle / "summary.json").write_bytes(
-        canonical_json_bytes(
-            {
+    proposal_summary = {
                 "schema_version": "wandering-camera-episode-boundary-proposal-summary-v1",
                 "proposal_schema_version": "wandering-camera-episode-boundary-proposal-v1",
                 "producer_config_id": producer_config_id,
@@ -216,8 +237,15 @@ def _fixture(
                     "uncertain": 1,
                     "rejected_by_qc": 1,
                 },
-            }
+    }
+    if minimum_track_confidence is not None:
+        proposal_summary["minimum_track_confidence"] = minimum_track_confidence
+    if movement_evidence_threshold_body_heights is not None:
+        proposal_summary["movement_evidence_threshold_body_heights"] = (
+            movement_evidence_threshold_body_heights
         )
+    (proposal_bundle / "summary.json").write_bytes(
+        canonical_json_bytes(proposal_summary)
     )
     index = tmp_path / "batch_index.jsonl"
     index.write_bytes(
@@ -310,6 +338,7 @@ def test_proposed_and_uncertain_invoke_model_without_accepting_boundary(
     assert {path.name for path in output.iterdir()} == {
         "README.md",
         "proposal_shape_predictions.jsonl",
+        "resolved_episode_predictions.jsonl",
         "summary.json",
     }
     summary = json.loads((output / "summary.json").read_text(encoding="utf-8"))
@@ -370,6 +399,80 @@ def test_bundle_summary_can_bind_the_selected_w5d01_profile(
 
     assert result.proposal_count == 3
     assert result.model_forward_invocation_count == 2
+
+
+def test_home_bundle_filters_sub_070_points_before_qc_and_model(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    batch_index, _ = _fixture(
+        tmp_path,
+        producer_config_id="home-recall-confidence070-v1",
+        minimum_track_confidence=0.70,
+        movement_evidence_threshold_body_heights=0.05,
+        low_confidence_noise=True,
+    )
+    model = _CountingModel()
+    monkeypatch.setattr(
+        proposal_inference_module,
+        "load_primary_camera_runtime",
+        lambda **_kwargs: _runtime(model),
+    )
+    output = tmp_path / "home-confidence-shape"
+
+    build_camera_episode_proposal_inference_bundle(
+        project_root=ROOT,
+        config_path=CONFIG_PATH,
+        batch_index_path=batch_index,
+        output_dir=output,
+    )
+
+    predictions = [
+        json.loads(line)
+        for line in (output / "proposal_shape_predictions.jsonl")
+        .read_text(encoding="utf-8")
+        .splitlines()
+    ]
+    assert predictions[0]["source_observation_count"] == 30
+    assert predictions[0]["accepted_observation_count"] == 30
+    assert predictions[0]["trusted_minimum_track_confidence"] == 0.70
+
+
+def test_home_bundle_uses_shared_locomotion_evidence_for_model_forward(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    batch_index, _ = _fixture(
+        tmp_path,
+        producer_config_id="home-recall-confidence070-v1",
+        minimum_track_confidence=0.70,
+        movement_evidence_threshold_body_heights=0.05,
+        small_oscillation=True,
+    )
+    model = _CountingModel()
+    monkeypatch.setattr(
+        proposal_inference_module,
+        "load_primary_camera_runtime",
+        lambda **_kwargs: _runtime(model),
+    )
+    output = tmp_path / "home-shared-motion-shape"
+
+    result = build_camera_episode_proposal_inference_bundle(
+        project_root=ROOT,
+        config_path=CONFIG_PATH,
+        batch_index_path=batch_index,
+        output_dir=output,
+    )
+
+    assert result.model_forward_invocation_count == 2
+    predictions = [
+        json.loads(line)
+        for line in (output / "proposal_shape_predictions.jsonl")
+        .read_text(encoding="utf-8")
+        .splitlines()
+    ]
+    assert predictions[0]["prediction_status"] == "ready"
+    assert predictions[0]["motion_evidence_threshold_body_heights"] == 0.05
 
 
 def test_bundle_rejects_producer_id_that_differs_from_its_summary(

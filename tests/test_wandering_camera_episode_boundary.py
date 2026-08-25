@@ -21,6 +21,7 @@ from elderly_monitoring.modules.mental_health.wandering.camera_episode_boundary 
     CAMERA_EPISODE_BOUNDARY_PROPOSAL_SCHEMA_VERSION,
     _refine_locomotion_interval,
     build_camera_episode_boundary_proposal_bundle,
+    load_camera_episode_boundary_development_profile,
     load_camera_episode_boundary_proposal_config,
     propose_camera_episode_boundaries,
 )
@@ -37,6 +38,9 @@ ROOT = Path(__file__).resolve().parents[1]
 CAMERA_CONFIG_PATH = ROOT / "configs/modules/wandering_camera_v1.yaml"
 PROPOSAL_CONFIG_PATH = (
     ROOT / "configs/modules/wandering_camera_episode_boundary_proposal_v1.yaml"
+)
+HOME_PROFILE_PATH = (
+    ROOT / "configs/modules/wandering_camera_episode_boundary_home_v1.yaml"
 )
 
 
@@ -199,6 +203,18 @@ def _run(
         _adapter({1: values}),
         proposal_config=proposal_config,
         camera_config=camera_config,
+    )
+
+
+def _run_home(
+    tracks: dict[int, list[tuple[float, float, float, float]]],
+) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
+    return propose_camera_episode_boundaries(
+        _adapter(tracks),
+        proposal_config=load_camera_episode_boundary_development_profile(
+            HOME_PROFILE_PATH
+        ),
+        camera_config=load_camera_config(CAMERA_CONFIG_PATH),
     )
 
 
@@ -576,6 +592,71 @@ def test_insufficient_locomotion_is_retained_as_rejected_by_qc() -> None:
     assert proposals[0]["manual_review_required"] is True
     assert "insufficient_locomotion_evidence" in proposals[0]["reason_codes"]
     assert diagnostics[0]["proposal_status_counts"] == {"rejected_by_qc": 1}
+
+
+def test_home_profile_uses_only_confidence_070_tracks_for_formal_proposals() -> None:
+    high_confidence_motion = _line(0.2, 0.55, 12)
+    low_confidence_false_track = [
+        _value(0.1 if index % 2 == 0 else 0.9, confidence=0.69)
+        for index in range(20)
+    ]
+
+    proposals, diagnostics = _run_home(
+        {1: high_confidence_motion, 9: low_confidence_false_track}
+    )
+
+    locomotion = _locomotion(proposals)
+    assert locomotion
+    assert {row["track_id"] for row in locomotion} == {1}
+    assert all(row["accepted_observation_count"] > 0 for row in proposals)
+    assert sum(row["accepted_observation_count"] for row in diagnostics) == len(
+        high_confidence_motion
+    )
+
+
+def test_home_profile_slow_high_confidence_translation_is_forward_candidate() -> None:
+    proposals, _diagnostics = _run_home({1: _line(0.2, 0.32, 14)})
+
+    locomotion = _locomotion(proposals)
+    assert len(locomotion) == 1
+    assert locomotion[0]["start_reason"] == "sustained_movement_at_track_start"
+    assert locomotion[0]["proposal_status"] in {"proposed", "uncertain"}
+
+
+def test_home_profile_stationary_high_confidence_jitter_is_not_an_episode() -> None:
+    jitter = [
+        _value(0.4 + (0.001 if index % 2 else -0.001))
+        for index in range(30)
+    ]
+
+    proposals, diagnostics = _run_home({1: jitter})
+
+    assert proposals == []
+    assert diagnostics[0]["proposal_status_counts"] == {}
+    assert diagnostics[0]["reason_codes"] == ["stationary_track_no_episode"]
+
+
+def test_home_profile_brief_pause_does_not_fragment_continuous_motion() -> None:
+    proposals, _diagnostics = _run_home(
+        {
+            1: _line(0.2, 0.5, 10)
+            + _stationary(0.5, 2)
+            + _line(0.5, 0.8, 10)
+        }
+    )
+
+    assert len(_locomotion(proposals)) == 1
+
+
+def test_home_profile_same_track_position_jump_keeps_reason_without_forcing_uncertain() -> None:
+    proposals, _diagnostics = _run_home(
+        {1: _line(0.2, 0.4, 10) + _line(0.9, 0.98, 10)}
+    )
+
+    locomotion = _locomotion(proposals)
+    assert len(locomotion) == 2
+    assert all("suspected_id_switch" in row["hard_break_reasons"] for row in locomotion)
+    assert all(row["proposal_status"] == "proposed" for row in locomotion)
 
 
 def _write_input_pair(directory: Path) -> tuple[Path, Path, dict[str, object]]:

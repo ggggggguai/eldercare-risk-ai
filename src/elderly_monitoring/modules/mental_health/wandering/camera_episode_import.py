@@ -315,22 +315,121 @@ def import_cvat_episode_xml(
         if video_frame_count <= 0:
             raise CameraEpisodeImportError("CVAT job size must be positive")
 
-    boundaries: list[dict[str, Any]] = []
-    truths: list[dict[str, Any]] = []
     tracks = root.findall("./track")
     if not tracks:
         raise CameraEpisodeImportError("CVAT XML contains no episode tracks")
+    return import_cvat_episode_tracks(
+        tracks,
+        media,
+        target_track_ids={str(track.get("id")): track_id for track in tracks},
+        video_frame_count=video_frame_count,
+        frame_offset=0,
+    )
+
+
+def import_cvat_project_task_xml(
+    path: str | Path,
+    media: Mapping[str, Any],
+    *,
+    task_id: str | int,
+    target_track_ids: Mapping[str, int],
+    frame_offset: int,
+) -> CvatEpisodeImport:
+    """Import one task from a CVAT project export with explicit frame offset.
+
+    CVAT project exports may number track frames cumulatively across tasks.  The
+    caller must supply the task's audited cumulative offset and an independently
+    derived machine-track binding for every CVAT episode track.
+    """
+
+    source_video_id = _nonempty_text(
+        media.get("source_video_id"), "media.source_video_id"
+    )
+    normalized_task_id = _nonempty_text(str(task_id), "task_id")
+    normalized_offset = _nonnegative_int(frame_offset, "frame_offset")
+    try:
+        root = ET.parse(Path(path)).getroot()
+    except (OSError, ET.ParseError) as exc:
+        raise CameraEpisodeImportError("cannot parse CVAT XML") from exc
+    if root.tag != "annotations" or root.findtext("./version") != "1.1":
+        raise CameraEpisodeImportError("CVAT XML must use annotations version 1.1")
+    task_nodes = [
+        task
+        for task in root.findall("./meta/project/tasks/task")
+        if task.findtext("./id") == normalized_task_id
+    ]
+    if len(task_nodes) != 1:
+        raise CameraEpisodeImportError("CVAT project task_id is missing or duplicated")
+    task = task_nodes[0]
+    source_name = task.findtext("./source") or task.findtext("./name")
+    if not source_name or Path(source_name).stem != source_video_id:
+        raise CameraEpisodeImportError("CVAT project task source_video_id mismatch")
+    try:
+        video_frame_count = int(task.findtext("./size", ""))
+    except ValueError as exc:
+        raise CameraEpisodeImportError("CVAT project task size is invalid") from exc
+    if video_frame_count <= 0:
+        raise CameraEpisodeImportError("CVAT project task size must be positive")
+    tracks = [
+        track
+        for track in root.findall("./track")
+        if track.get("task_id") == normalized_task_id
+    ]
+    if not tracks:
+        raise CameraEpisodeImportError("CVAT project task contains no episode tracks")
+    if any(track.get("source") != "manual" for track in tracks):
+        raise CameraEpisodeImportError("CVAT project task contains a non-manual track")
+    track_ids = {str(track.get("id")) for track in tracks}
+    if set(target_track_ids) != track_ids:
+        raise CameraEpisodeImportError(
+            "CVAT project target_track_ids must cover the exact task track set"
+        )
+    return import_cvat_episode_tracks(
+        tracks,
+        media,
+        target_track_ids=target_track_ids,
+        video_frame_count=video_frame_count,
+        frame_offset=normalized_offset,
+    )
+
+
+def import_cvat_episode_tracks(
+    tracks: Sequence[ET.Element],
+    media: Mapping[str, Any],
+    *,
+    target_track_ids: Mapping[str, int],
+    video_frame_count: int | None,
+    frame_offset: int,
+) -> CvatEpisodeImport:
+    """Import already-selected CVAT tracks using audited task-local frames."""
+    fps = _finite_positive(media.get("nominal_fps"), "media.nominal_fps")
+    duration = _finite_positive(media.get("duration_sec"), "media.duration_sec")
+    source_video_id = _nonempty_text(
+        media.get("source_video_id"), "media.source_video_id"
+    )
+    boundaries: list[dict[str, Any]] = []
+    truths: list[dict[str, Any]] = []
     for track in tracks:
         if track.get("label") != "wandering_episode":
             raise CameraEpisodeImportError("CVAT XML contains a non-episode track")
         cvat_track_id = _nonempty_text(track.get("id"), "cvat track id")
+        if cvat_track_id not in target_track_ids:
+            raise CameraEpisodeImportError("CVAT target track binding is missing")
+        target_track_id = _nonnegative_int(
+            target_track_ids[cvat_track_id], "target_track_id"
+        )
         boxes = list(track.findall("./box"))
         if not boxes:
             raise CameraEpisodeImportError("CVAT episode track contains no boxes")
         parsed_boxes = sorted(
-            ((_frame(box), _outside(box), box) for box in boxes),
+            (
+                (_frame(box) - frame_offset, _outside(box), box)
+                for box in boxes
+            ),
             key=lambda item: item[0],
         )
+        if parsed_boxes[0][0] < 0:
+            raise CameraEpisodeImportError("CVAT project frame precedes task offset")
         if parsed_boxes[0][1]:
             raise CameraEpisodeImportError("CVAT episode must start with outside=0")
         visible = [item for item in parsed_boxes if not item[1]]
@@ -374,7 +473,7 @@ def import_cvat_episode_xml(
                 "schema_version": CAMERA_EPISODE_BOUNDARY_SCHEMA_VERSION,
                 "episode_id": episode_id,
                 "source_video_id": source_video_id,
-                "target_track_id": track_id,
+                "target_track_id": target_track_id,
                 "start_sec": start_sec,
                 "end_sec_exclusive": end_sec,
                 "boundary_source": "cvat_xml",
@@ -392,7 +491,7 @@ def import_cvat_episode_xml(
             "schema_version": CAMERA_EPISODE_TRUTH_SCHEMA_VERSION,
             "episode_id": episode_id,
             "source_video_id": source_video_id,
-            "target_track_id": track_id,
+            "target_track_id": target_track_id,
             "cvat_track_id": cvat_track_id,
             "start_sec": start_sec,
             "end_sec_exclusive": end_sec,
@@ -592,6 +691,8 @@ __all__ = [
     "CvatEpisodeImport",
     "build_cvat_episode_import_bundle",
     "import_cvat_episode_xml",
+    "import_cvat_episode_tracks",
+    "import_cvat_project_task_xml",
     "load_episode_boundaries",
     "load_episode_truth",
     "validate_episode_boundary",

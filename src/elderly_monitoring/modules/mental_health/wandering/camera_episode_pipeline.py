@@ -494,10 +494,13 @@ def _build_episode_result(
         _source_ref_from_artifact(
             "media_sidecar", str(row["source_video_id"]), row["artifacts"]["media_sidecar"]
         ),
-        _source_ref_from_artifact(
-            "truth", str(row["source_video_id"]), row["artifacts"]["truth"]
-        ),
     ]
+    if row["artifacts"].get("truth") is not None:
+        source_refs.append(
+            _source_ref_from_artifact(
+                "truth", str(row["source_video_id"]), row["artifacts"]["truth"]
+            )
+        )
     if context.get("boundary_path") is not None:
         boundary_path = Path(context["boundary_path"])
         source_refs.append(

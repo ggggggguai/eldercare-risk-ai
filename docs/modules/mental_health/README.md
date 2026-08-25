@@ -1,6 +1,6 @@
 # 心理健康风险算法模块
 
-更新时间：2026-08-18
+更新时间：2026-08-22
 
 本模块输出行为与睡眠变化的工程特征和独立心理健康风险事件，不输出医学诊断。心理健康与跌倒模块分别评分、验证和输出；本模块只使用 `module=mental_health`。
 
@@ -112,7 +112,7 @@ camera MP4
 - context v2 schema 增加结构化 `error_code`、trigger、三帧 scene/crop refs、upstream episode identity 和 snapshot SHA；context 不能修改 shape、boundary、truth、QC 或 threshold；
 - 全量 B01+B02 development evidence 从 129 条 episode result 选出 82 个 trigger，生成 82/82 row、246/246 个 ready 时点和 492 个 JPEG artifact，逐引用 hash 与 episode snapshot 全部复核；fake 标签只验证 ready contract，不是 context accuracy；
 - 独立 disabled evidence 覆盖 B01/B02 两个登记视频的 3 个 trigger，成功退出并生成 `3/3 unknown+unavailable+provider_disabled`，provider invocation 为 0；
-- 核心状态为 `completed_core_awaiting_home_smoke`，`home_input_status=awaiting_input`、`home_smoke_status=not_run_input_unavailable`，不发 `AlgorithmEvent`。最终证据见 [W5D-03A full context core](../../../reports/mental_health/wandering_camera_context_core_w5d03a_v2/README.md) 和 [disabled degradation](../../../reports/mental_health/wandering_camera_context_core_w5d03a_disabled_v2/README.md)。
+- W5D-03A core 原始证据保持不变；2026-08-21 的 W5D-03B 增量已把当前状态更新为 `home_input_status=available`、`home_smoke_status=ready`，仍不发 `AlgorithmEvent`。core 证据见 [W5D-03A full context core](../../../reports/mental_health/wandering_camera_context_core_w5d03a_v2/README.md) 和 [disabled degradation](../../../reports/mental_health/wandering_camera_context_core_w5d03a_disabled_v2/README.md)，居家证据见 [W5D-03B home smoke](../../../reports/mental_health/wandering_camera_home_smoke_w5d03b_v1/README.md)。
 
 ### 3.8 W5D-04 真实 development 日报与个人基线
 
@@ -132,8 +132,33 @@ camera MP4
 - 正式 v2 包包含 129 episode、82 context、2 daily、2 profile、2 deviation；95 条可用 shape、34 条 unavailable、0 条 error、19 条 wandering-like 和 617.8 秒 duration 全部守恒；
 - 单命令 cached-tracking E2E 已重跑 48 条 B01+B02 视频并复得 129/82/2/2/2；disabled 降级包保留 3 条 `unknown/unavailable` context，同时继续输出完整 episode/daily/baseline；
 - 输出采用 fresh staging + atomic commit；stable ID、non-overwrite、descriptor/stage/cross-stage tamper 均有回归；
-- 最终状态为 `algorithm_ready_with_home_smoke_pending`，`home_input_status=awaiting_input`、`home_smoke_status=not_run_input_unavailable`，不是 `home_validated`。证据见 [B01+B02 handoff v2](../../../reports/mental_health/wandering_camera_handoff_w5d05_v2/README.md) 与 [disabled degradation v2](../../../reports/mental_health/wandering_camera_handoff_w5d05_disabled_v2/README.md)。
+- W5D-05 原正式包仍保留其生成时的 `algorithm_ready_with_home_smoke_pending` 快照；后续 W5D-03B 独立增量状态为 `completed_with_home_smoke`、`home_input_status=available`、`home_smoke_status=ready`，不反写既有包，也不是 `home_validated`。证据见 [B01+B02 handoff v2](../../../reports/mental_health/wandering_camera_handoff_w5d05_v2/README.md)、[disabled degradation v2](../../../reports/mental_health/wandering_camera_handoff_w5d05_disabled_v2/README.md) 与 [W5D-03B home smoke](../../../reports/mental_health/wandering_camera_home_smoke_w5d03b_v1/README.md)。
 - 最终验收为 handoff 聚焦 `10 passed`、全 camera `660 passed`、wandering + mental_health 联合 `929 passed, 205 subtests passed`。
+
+### 3.10 W5D-03B 居家 development 复核
+
+- 一段原始居家 MP4 的 truth-free fresh smoke 已完成；70 task/135 episode 的独立 CVAT
+  project 也已完成裁决、累计帧归一化、身份校验和 development 评价；
+- 负责人确认 task 1657 / track 108 为 `direct + ordinary_negative`；原 XML 以 SHA-256
+  绑定备份保存。全部 CVAT 标注只作为时间段/行为语义 truth，rectangle 不作为检测或跟踪
+  真值；
+- 134/135 episode 达到单主体时序 Track ID 覆盖门，`wand_R01_dining_1` / track 131
+  覆盖率为 `0.539851`，oracle QC 输出 unavailable；
+- 修复前 automatic-boundary all-locomotion precision/recall/F1 为
+  `0.566038/0.666667/0.612245`，proposed-only recall 仅 `0.103704`；
+- oracle-boundary shape 的 all-eligible binary accuracy/macro-F1 为
+  `0.923664/0.930021`，四分类为 `0.839695/0.492788`；pacing recall/F1 均为 0，不能把
+  subtype 写成可用；
+- 131 条 shape-eligible 中 122 条 ready，覆盖率 `0.931298`；`dark_1` 仅 2/9 ready。
+  所有视频仍属于同一 development participant，不是独立测试、跨机位泛化或临床证据；
+- 2026-08-22 修复后，0.70 可信轨迹门槛贯穿分段、QC 与送模；behavior-parent
+  precision/recall/F1 为 `0.802920/0.814815/0.808824`，resolved boundary recall/F1 为
+  `0.938931/0.656000`，137/137 parent prediction ready；resolved 全链 direct/pacing recall
+  为 `0.933962/0.888889`，random recall `0.25` 仍是主要短板。证据见
+  [居家分段与分类修复报告](../../../reports/mental_health/wandering_camera_home_repair_v1/README.md)；
+- `wand_H02_dining_1_exercise` / track 100 尚有 purposeful pacing 与 ordinary-negative
+  role 不一致，只阻断 purposeful-hard-negative diagnostic，不改写 observable-pattern 指标。
+  证据见 [W5D-03B home labeled development](../../../reports/mental_health/wandering_camera_home_smoke_w5d03b_v1/README.md)。
 
 ## 4. B01/B02 最新使用规则
 
@@ -153,7 +178,7 @@ B01 和 B02 现在统一为可反复使用的 camera development 数据：
 | automatic boundary F1 | 0.598131 | 0.971429 |
 | candidate-inclusive ready coverage | - | 17/18 |
 
-当前主要短板是 B01 分段 F1/fragmentation、真实拍摄 clock 缺失、真实长期个人观察和居家场景 smoke。W5D-02/W5D-03A/W5D-04/W5D-05 主链已完成，后续不因居家素材暂缺回退到分段、context、日报或 handoff 重做。
+当前主要短板是 random subtype、低照 QC、真实拍摄 clock 缺失和真实长期个人观察；另有居家 track 100 的 evaluation-role 语义待裁决。W5D-02/W5D-03A/W5D-04/W5D-05 主链、W5D-03B smoke、labeled-development 复核及居家分段/分类修复已完成，不回退到 context、日报或 handoff 重做。
 
 ## 5. 居家视频与上下文
 
@@ -163,7 +188,7 @@ W5D-03A 已用 B01+B02 和确定性 fixture 完成候选三帧、context adapter
 T2 episode result -> frame refs -> optional context -> daily
 ```
 
-居家 MP4/人工标签不是上述核心的前置门。MP4 未到位时记录 `home_input_status=awaiting_input`；MP4 到位但未标注时直接运行 truth-free `MP4 -> tracking -> segmenter -> shape -> context -> daily` smoke，不计算准确率；有独立标签后才补 development 定量评价。
+居家 MP4/人工标签不是上述核心的前置门。2026-08-21 已从一段原始居家 MP4 fresh 跑通 `tracking -> segmenter -> shape -> context`，当前 `home_input_status=available`、`home_smoke_status=ready`；该 smoke 没有消费人工 truth。2026-08-22 已用 70 task/135 episode 的独立 CVAT 时间段/行为标签完成 development boundary 与 oracle-shape 评价；CVAT 框与机器人体框不对齐，不作为检测/跟踪真值。
 
 轨迹模型只判断 shape。对 `wandering_like` 或 uncertain episode 抽取开始/中间/结束三帧，由可插拔多模态模型判断：
 
@@ -204,10 +229,10 @@ latest 14 usable days: rolling window
 | W5D-00 | 交付契约与运行基线 | 已完成：48 条 index、CPU identity、九份 schema、fresh/non-overwrite |
 | W5D-01 | B01+B02 分段器联合优化 | 已完成：两轮 29 候选、唯一 recall-first fallback、top-3 全量复放、失败留存 |
 | W5D-02 | 自动 episode 与轨迹识别闭环 | 已完成 development 主链；coverage 达最低门但未达 0.90，状态 `uncertain`，已保留 boundary/QC 限制 |
-| W5D-03A | input-independent 多模态上下文 | 已完成 core：82/82 trigger rows、246/246 三帧时点、真实 adapter contract 与 disabled/error 降级；居家 smoke pending |
+| W5D-03A | input-independent 多模态上下文 | 已完成 core：82/82 trigger rows、246/246 三帧时点、真实 adapter contract 与 disabled/error 降级 |
 | W5D-04 | 真实日报与个人基线 | 已完成：48 个显式 binding、2 个真实 development day/profile/deviation 均 warming-up；15 日 replay 验证 3/7/14 与最新 14 日窗口 |
 | W5D-05 | 算法对接包与整体验收 | 已完成：严格 8 文件、manifest/run-summary v2、单命令 E2E、public loader、disabled 非阻塞和 tamper/non-overwrite 回归 |
-| W5D-03B | 居家视频补充 smoke | `awaiting_input`：素材到位后 truth-free 复放，人工标签只在需要定量评价时补；不是当前代码任务 |
+| W5D-03B | 居家视频 smoke 与 labeled development | 已完成：单段原始 MP4 fresh smoke；70 task/135 episode 时间段/行为 truth 的初始审计及修复复评。修复后 parent boundary F1 `0.808824`，resolved boundary recall `0.938931`，direct/pacing recall `0.933962/0.888889`；仅为同 participant development |
 
 精确输入、输出、完成门和命令见 [五日总任务书](plans/M0-CAM-5D快速交付总任务书.md)。实际状态只在 [任务表](../../tasks/README.md) 更新。
 

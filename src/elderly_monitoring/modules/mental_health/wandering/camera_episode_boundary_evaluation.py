@@ -187,6 +187,13 @@ _PROPOSAL_SUMMARY_FIELDS = frozenset(
         "manual_acceptance_required",
     }
 )
+_PROPOSAL_DEVELOPMENT_SUMMARY_FIELDS = frozenset(
+    {
+        "minimum_track_confidence",
+        "movement_evidence_threshold_body_heights",
+        "segmenter_strategy",
+    }
+)
 _TRUTH_SOURCES = frozenset({"synthetic_fixture", "independent_human"})
 _VIEW_ORDER = ("all_locomotion_candidates", "proposed_only_conditional")
 _GROUP_FIELDS = (
@@ -1570,8 +1577,6 @@ def _validate_proposal_bundle(
         _validate_proposal_diagnostic(row, media=media)
         for row in diagnostic_values
     ]
-    if not proposals:
-        raise CameraEpisodeBoundaryEvaluationError("proposal JSONL is empty")
     if not diagnostics:
         raise CameraEpisodeBoundaryEvaluationError("proposal diagnostics are empty")
     _unique_text_ids(proposals, "proposal_id")
@@ -1628,9 +1633,17 @@ def _validate_proposal_bundle(
             raise CameraEpisodeBoundaryEvaluationError(
                 "proposal diagnostic status counts drifted"
             )
-    if set(proposals_by_segment) != diagnostic_keys:
+        if not expected and not {
+            "stationary_track_no_episode",
+            "below_trusted_confidence",
+            "insufficient_trusted_buckets",
+        }.intersection(diagnostic["reason_codes"]):
+            raise CameraEpisodeBoundaryEvaluationError(
+                "proposal-free diagnostic has no trusted no-episode reason"
+            )
+    if not set(proposals_by_segment).issubset(diagnostic_keys):
         raise CameraEpisodeBoundaryEvaluationError(
-            "proposal technical segments and diagnostics differ"
+            "proposal technical segment has no diagnostic"
         )
     _validate_proposal_summary_counts(summary, proposals, diagnostics)
     return (
@@ -1644,9 +1657,13 @@ def _validate_proposal_summary(
     *,
     media: Mapping[str, Any],
 ) -> dict[str, Any]:
-    if not isinstance(value, Mapping) or frozenset(value) != _PROPOSAL_SUMMARY_FIELDS:
+    fields = frozenset(value) if isinstance(value, Mapping) else frozenset()
+    if fields not in {
+        _PROPOSAL_SUMMARY_FIELDS,
+        _PROPOSAL_SUMMARY_FIELDS | _PROPOSAL_DEVELOPMENT_SUMMARY_FIELDS,
+    }:
         raise CameraEpisodeBoundaryEvaluationError(
-            "proposal summary fields must match the exact S0 v1 set"
+            "proposal summary fields must match S0 v1 or its declared development extension"
         )
     row = dict(value)
     if (
@@ -1671,6 +1688,26 @@ def _validate_proposal_summary(
             "proposal summary validation scope differs from media"
         )
     _nonempty_text(row["producer_config_id"], "producer_config_id")
+    if _PROPOSAL_DEVELOPMENT_SUMMARY_FIELDS.issubset(row):
+        minimum_track_confidence = _finite_nonnegative(
+            row["minimum_track_confidence"], "minimum_track_confidence"
+        )
+        movement_threshold = _finite_nonnegative(
+            row["movement_evidence_threshold_body_heights"],
+            "movement_evidence_threshold_body_heights",
+        )
+        if (
+            not 0.25 <= minimum_track_confidence <= 0.99
+            or not 0.001 <= movement_threshold <= 0.25
+            or row["segmenter_strategy"]
+            not in {
+                "home_recall_hysteresis",
+                "legacy_path_displacement_state_machine",
+            }
+        ):
+            raise CameraEpisodeBoundaryEvaluationError(
+                "proposal development trust fields are invalid"
+            )
     for field in (
         "proposal_count",
         "locomotion_proposal_count",
@@ -1957,15 +1994,12 @@ def _validate_proposal_summary_counts(
                     row["stream_epoch"],
                     row["track_id"],
                 )
-                for row in proposals
+                for row in diagnostics
             }
         ),
         "technical_segment_count": len(diagnostics),
         "technical_hard_break_segment_count": sum(
             bool(row["hard_break_reasons"]) for row in diagnostics
-        ),
-        "source_observation_count": sum(
-            int(row["source_observation_count"]) for row in diagnostics
         ),
         "accepted_observation_count": sum(
             int(row["accepted_observation_count"]) for row in diagnostics
@@ -1986,6 +2020,13 @@ def _validate_proposal_summary_counts(
             raise CameraEpisodeBoundaryEvaluationError(
                 f"proposal summary {field} does not match rows"
             )
+    diagnostic_source_observation_count = sum(
+        int(row["source_observation_count"]) for row in diagnostics
+    )
+    if int(summary["source_observation_count"]) < diagnostic_source_observation_count:
+        raise CameraEpisodeBoundaryEvaluationError(
+            "proposal summary source observations are below diagnostic rows"
+        )
     if summary["proposal_status_counts"] != {
         name: status_counts[name] for name in PROPOSAL_STATUSES
     }:
@@ -2011,8 +2052,8 @@ def _validate_proposal_summary_counts(
         )
     accepted_coverage = (
         expected["accepted_observation_count"]
-        / expected["source_observation_count"]
-        if expected["source_observation_count"]
+        / int(summary["source_observation_count"])
+        if int(summary["source_observation_count"])
         else 0.0
     )
     bucket_coverage = (

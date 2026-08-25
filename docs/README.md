@@ -1,6 +1,6 @@
 # 项目文档
 
-更新时间：2026-08-18
+更新时间：2026-08-23
 
 本页是文档唯一总入口。现行文档描述当前代码和接口；计划文档描述目标；归档文档只保留历史上下文，不能作为当前实现依据。
 
@@ -61,13 +61,17 @@
 | 评估 | [近跌倒恢复确认 TCN pilot](../reports/fall_risk/near_fall_event_v1/README.md) | 当前 v3 split 的三 seed validation、窗口来源限制和 test 隔离状态；不是 onset-time 预警指标 |
 | 复现 | [实时链路工程回归](../reports/fall_risk/runtime/README.md) | 阶段 0/1 的固定输入 hash、离线服务烟测与时钟/队列诊断；不是效果指标 |
 | 心理健康 | [模块 README](modules/mental_health/README.md) | 日级聚合、基线、评分、离线 CLI，以及隔离徘徊数据管线的当前边界 |
+| 心理健康 | [居家视频分段与分类修复任务台账](tasks/徘徊居家视频分段与分类修复.md) | 0.70 可信轨迹、分段召回/连续性、送模门禁、pacing subtype、逐视频状态和验收记录 |
+| 心理健康 | [居家视频分段与分类修复报告](../reports/mental_health/wandering_camera_home_repair_v1/README.md) | 70 视频 fresh repair、parent/resolved boundary、全链分类、逐视频结论和 development 证据边界 |
 | 心理健康 | [徘徊识别技术文档2](modules/mental_health/plans/徘徊识别技术文档2.md) | 现行五日技术路线：B01+B02 联合 development、automatic episode、camera shape、多模态 context、真实日报、滚动个人基线和算法对接契约 |
+| 心理健康 | [比赛主文档徘徊章节与配图规划](modules/mental_health/plans/比赛主文档徘徊章节与配图规划.md) | 比赛主文档 5.5–5.7 的章节任务、一张总览图、五张主图、支持图、表格位置、视觉规范和证据边界 |
+| 心理健康 | [比赛主文档徘徊章节正文](modules/mental_health/比赛主文档徘徊章节正文.md) | 比赛主文档 5.5–5.7 的完整 Markdown 初稿；W-F0、W-F1、W-F3 以链接给出，并预留 W-F2、W-S1、W-F4、W-F5 图位及 W-T2、W-T3 表格 |
 | 心理健康 | [M0-CAM-5D 快速交付总任务书](modules/mental_health/plans/M0-CAM-5D快速交付总任务书.md) | 当前唯一执行入口；五天完成 camera MP4 到 episode/context/daily/baseline/handoff 的算法闭环，后端和前端不在本轮 |
 | 心理健康 | [W5D-T0 交付契约](modules/mental_health/plans/M0-CAM-5D-T0交付契约与运行基线.md) | 固定 B01+B02 development index、candidate/runtime identity、输出 schema 和 fresh/non-overwrite 规则 |
 | 心理健康 | [徘徊五日算法交付契约](interfaces/徘徊五日算法交付契约.md) | episode/context/daily/baseline/handoff 文件名、统一状态、source reference、identity 和 JSON Schema 入口；不等于 AlgorithmEvent |
 | 心理健康 | [W5D-T1 分段器联合优化](modules/mental_health/plans/M0-CAM-5D-T1-B01B02分段器联合优化.md) | B01+B02 可反复参数搜索，recall-first，支持 0.25 秒局部边界 refinement、失败清单和唯一 profile |
 | 心理健康 | [W5D-T2 自动 Episode+Shape](modules/mental_health/plans/M0-CAM-5D-T2自动Episode与轨迹识别闭环.md) | tracking/sidecar 到一 proposal 一 result；binary 为主，四类诊断，必要时才启用轻量 camera 模型调整 |
-| 心理健康 | [W5D-T3 居家视频与 Context](modules/mental_health/plans/M0-CAM-5D-T3居家视频与多模态上下文.md) | 先以 B01+B02/fixture 完成三帧多模态 context core；居家 MP4 到位后补 truth-free smoke，视频或标签暂缺不阻塞后续 |
+| 心理健康 | [W5D-T3 居家视频与 Context](modules/mental_health/plans/M0-CAM-5D-T3居家视频与多模态上下文.md) | B01+B02/fixture 三帧 context core、单段原始居家 MP4 truth-free smoke 和 70-task 时间段/行为标签 development 复核已完成；track 100 的 evaluation role 仍待人工裁决 |
 | 心理健康 | [W5D-T4 真实日报与个人基线](modules/mental_health/plans/M0-CAM-5D-T4真实日报与个人基线.md) | 真实 person/session/timezone/presence adapter，日级聚合与 3/7/14 日 baseline readiness/deviation |
 | 心理健康 | [W5D-T5 算法对接与 E2E](modules/mental_health/plans/M0-CAM-5D-T5算法对接包与整体验收.md) | 交付 episode/context/daily/baseline JSONL、manifest、运行命令和失败降级；不实现后端/前端 |
 | 心理健康 | [M0-CAM-EP1B 执行任务书](modules/mental_health/plans/M0-CAM-EP1B执行任务书.md) | 历史执行记录：B01/B02 manual-CVAT oracle-boundary descriptive pilot；其旧独立证据门已被 W5D 取代 |
@@ -107,6 +111,7 @@
 | 复现 | [W5D-02 automatic episode-to-shape pipeline](../reports/mental_health/wandering_camera_episode_pipeline_w5d02_v4/README.md) | 48 条 B01+B02 development 视频、129 条一一对应 result、proposal/QC/80 点/shape 自动闭环；coverage 0.897436 通过最低门但未达 0.90，binary 主结果、oracle/automatic miss 分开，fixed primary/0.5 保留 |
 | 复现 | [W5D-03A three-frame context core](../reports/mental_health/wandering_camera_context_core_w5d03a_v2/README.md) | B01+B02 的 82/82 eligible context rows、246/246 起中末 scene/crop 时点和 492 个 Git 外 JPEG refs；fake 只验证 ready contract，不是 context accuracy 或居家验证 |
 | 复现 | [W5D-03A disabled degradation](../reports/mental_health/wandering_camera_context_core_w5d03a_disabled_v2/README.md) | B01/B02 两个登记视频的 3/3 trigger 在 provider disabled 时成功输出 `unknown/unavailable/provider_disabled`，不阻塞主链 |
+| 评估 | [W5D-03B home smoke 与 labeled development](../reports/mental_health/wandering_camera_home_smoke_w5d03b_v1/README.md) | 原始居家 MP4 truth-free smoke 已跑通；70 task/135 episode 时间段/行为 truth 已完成 automatic-boundary 与 oracle-shape development 评价。CVAT 框不作检测/跟踪真值；结果仅属同 participant development |
 | 复现 | [W5D-04 B01+B02 real-development daily/baseline](../reports/mental_health/wandering_camera_daily_baseline_w5d04_v1/README.md) | 48 个显式 video binding、129 条 episode 汇总为 P-OFFICE-01 的 2 个自然日；presence/coverage/四态/context 守恒，2/2 profile 保持 warming-up，capture clock 缺失显式标记 declared schedule |
 | 复现 | [W5D-04 15-day readiness replay](../reports/mental_health/wandering_camera_daily_baseline_w5d04_replay_v1/README.md) | deterministic replay 验证 3 个 warming-up、4 个 initial-ready、8 个 stable-ready 和最新 14 usable day 窗口；不是实际长期观察 |
 | 复现 | [W5D-05 B01+B02 algorithm handoff v2](../reports/mental_health/wandering_camera_handoff_w5d05_v2/README.md) | 严格 8 文件、129/82/2/2/2、manifest/run-summary v2、跨阶段 identity/hash/count/duration 校验、public loader 和单命令 cached-tracking E2E；状态为 home-smoke pending，不是 home-validated |

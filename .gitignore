@@ -22,6 +22,7 @@ data/documents/**/*
 data/annotations/fall_risk/cvat_exports/raw/**/*
 
 # Local experiment outputs.
+outputs/
 reports/**/*.csv
 reports/**/*.json
 reports/**/*.jsonl
@@ -30,6 +31,12 @@ reports/**/*.png
 reports/**/*.jpg
 reports/**/*.jpeg
 reports/**/*.mp4
+!reports/mental_health/wandering_camera_home_geometry_head_v1/model.json
+reports/mental_health/wandering_camera_home_repair_all70_v*/
+reports/mental_health/wandering_camera_home_repair_boundary_eval_v*/
+reports/mental_health/wandering_camera_home_repair_h01_p01_check_v*/
+reports/mental_health/wandering_camera_home_repair_labeled_v*/
+reports/mental_health/wandering_camera_home_repair_targets_v*/
 reports/mental_health/wandering_performance/**/*.sha256
 reports/mental_health/wandering_performance/**/*.zip
 reports/mental_health/wandering_performance/**/artifacts/**/*

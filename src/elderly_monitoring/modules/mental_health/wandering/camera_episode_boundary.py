@@ -57,6 +57,7 @@ CAMERA_EPISODE_BOUNDARY_PROPOSAL_DIAGNOSTIC_SCHEMA_VERSION = (
     "wandering-camera-episode-boundary-proposal-diagnostic-v1"
 )
 PRODUCER_CONFIG_ID = "m0cam-ep2a-s0-b01-development-frozen-v1"
+HOME_RECALL_PROFILE_ID = "home-recall-confidence070-v1"
 PROPOSAL_STATUSES = ("proposed", "uncertain", "rejected_by_qc")
 TECHNICAL_HARD_BREAK_REASONS = frozenset(
     {
@@ -144,6 +145,29 @@ def propose_camera_episode_boundaries(
     diagnostics: list[dict[str, Any]] = []
     groups = group_observations(adapter_input.observations)
     for scope_key, observations in groups.items():
+        if _uses_home_recall_strategy(proposal_config):
+            trusted_observations = tuple(
+                item for item in observations if item.track_confidence >= threshold
+            )
+            if not trusted_observations:
+                diagnostics.append(
+                    _diagnostic_row(
+                        observations,
+                        accepted=tuple(),
+                        buckets=tuple(),
+                        scope_key=scope_key,
+                        technical_segment_index=0,
+                        hard_break_reasons=tuple(),
+                        state_sequence=(
+                            EpisodeBoundaryState.IDLE.value,
+                            EpisodeBoundaryState.CLOSED.value,
+                        ),
+                        proposals=tuple(),
+                        reason_codes=("below_trusted_confidence",),
+                    )
+                )
+                continue
+            observations = trusted_observations
         try:
             segments = _split_observations(
                 observations,
@@ -327,6 +351,17 @@ def _propose_segment(
     media: Mapping[str, Any],
     proposal_config: Mapping[str, Any],
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    if _uses_home_recall_strategy(proposal_config):
+        return _propose_home_recall_segment(
+            segment,
+            scope_key=scope_key,
+            technical_segment_index=technical_segment_index,
+            segment_start_bound=segment_start_bound,
+            segment_end_bound=segment_end_bound,
+            hard_break_reasons=hard_break_reasons,
+            media=media,
+            proposal_config=proposal_config,
+        )
     sampling = proposal_config["sampling"]
     machine = proposal_config["state_machine"]
     threshold = float(sampling["minimum_track_confidence"])
@@ -569,6 +604,245 @@ def _propose_segment(
     )
 
 
+def _propose_home_recall_segment(
+    segment: Sequence[CameraObservation],
+    *,
+    scope_key: tuple[str, str, str, str, str, int],
+    technical_segment_index: int,
+    segment_start_bound: float,
+    segment_end_bound: float,
+    hard_break_reasons: Sequence[str],
+    media: Mapping[str, Any],
+    proposal_config: Mapping[str, Any],
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Recall-first home-development state machine over trusted observations only."""
+
+    sampling = proposal_config["sampling"]
+    machine = proposal_config["state_machine"]
+    threshold = float(sampling["minimum_track_confidence"])
+    bucket_seconds = float(sampling["bucket_seconds"])
+    accepted = tuple(item for item in segment if item.track_confidence >= threshold)
+    buckets = weighted_bucket_observations(
+        accepted,
+        minimum_track_confidence=threshold,
+        bucket_seconds=bucket_seconds,
+    )
+    state = EpisodeBoundaryState.IDLE
+    state_sequence = [state.value]
+    proposals: list[dict[str, Any]] = []
+    movement_candidates: list[int] = []
+    start_index: int | None = None
+    start_reason: str | None = None
+    stationary_start_index: int | None = None
+    movement_min_buckets = int(machine["movement_start_min_buckets"])
+    movement_threshold = float(
+        machine["movement_start_min_displacement_body_heights"]
+    )
+    stationary_threshold = float(
+        machine["stationary_max_displacement_body_heights"]
+    )
+    dwell_seconds = float(machine["stationary_dwell_candidate_seconds"])
+
+    if media["camera_motion_state"] == "moved":
+        _transition(state_sequence, EpisodeBoundaryState.UNCERTAIN)
+        _transition(state_sequence, EpisodeBoundaryState.CLOSED)
+        proposals.append(
+            _rejected_segment_row(
+                segment,
+                accepted=accepted,
+                buckets=buckets,
+                scope_key=scope_key,
+                technical_segment_index=technical_segment_index,
+                segment_start_bound=segment_start_bound,
+                segment_end_bound=segment_end_bound,
+                hard_break_reasons=hard_break_reasons,
+                reason_codes=["camera_moved", *hard_break_reasons],
+                media=media,
+                bucket_seconds=bucket_seconds,
+                producer_config_id=_producer_config_id(proposal_config),
+            )
+        )
+        return proposals, _diagnostic_row(
+            segment,
+            accepted=accepted,
+            buckets=buckets,
+            scope_key=scope_key,
+            technical_segment_index=technical_segment_index,
+            hard_break_reasons=hard_break_reasons,
+            state_sequence=state_sequence,
+            proposals=proposals,
+        )
+
+    for index, bucket in enumerate(buckets):
+        if state in {EpisodeBoundaryState.IDLE, EpisodeBoundaryState.CLOSED}:
+            if movement_candidates and (
+                bucket.bucket_index
+                != buckets[movement_candidates[-1]].bucket_index + 1
+            ):
+                movement_candidates.clear()
+            movement_candidates.append(index)
+            movement_candidates = movement_candidates[-movement_min_buckets:]
+            if len(movement_candidates) < movement_min_buckets:
+                continue
+            candidate_buckets = [buckets[item] for item in movement_candidates]
+            steps = [
+                _body_step(left, right)
+                for left, right in zip(candidate_buckets, candidate_buckets[1:])
+            ]
+            active_step_count = sum(
+                step > stationary_threshold + 1e-12 for step in steps
+            )
+            if (
+                _path_displacement_body_heights(candidate_buckets)
+                < movement_threshold
+                or active_step_count < max(1, movement_min_buckets - 1)
+            ):
+                continue
+            start_index = movement_candidates[0]
+            start_reason = (
+                "sustained_movement_at_track_start"
+                if start_index == 0 and not proposals
+                else "sustained_movement"
+            )
+            stationary_start_index = None
+            movement_candidates.clear()
+            _transition(state_sequence, EpisodeBoundaryState.OPEN)
+            state = EpisodeBoundaryState.OPEN
+            continue
+
+        previous = buckets[index - 1]
+        contiguous = bucket.bucket_index == previous.bucket_index + 1
+        step = _body_step(previous, bucket)
+        if state == EpisodeBoundaryState.OPEN:
+            if contiguous and step <= stationary_threshold:
+                stationary_start_index = index - 1
+                _transition(state_sequence, EpisodeBoundaryState.CLOSING)
+                state = EpisodeBoundaryState.CLOSING
+            continue
+
+        if state == EpisodeBoundaryState.CLOSING:
+            if stationary_start_index is None:
+                raise CameraEpisodeBoundaryProposalError(
+                    "home recall closing state lost stationary candidate"
+                )
+            if not contiguous or step > stationary_threshold:
+                stationary_start_index = None
+                _transition(state_sequence, EpisodeBoundaryState.OPEN)
+                state = EpisodeBoundaryState.OPEN
+                continue
+            stationary_duration = (
+                _bucket_start(bucket, bucket_seconds)
+                - _bucket_start(buckets[stationary_start_index], bucket_seconds)
+            )
+            if stationary_duration + 1e-9 < dwell_seconds:
+                continue
+            if start_index is None or start_reason is None:
+                raise CameraEpisodeBoundaryProposalError(
+                    "home recall open state lost movement onset"
+                )
+            proposals.append(
+                _locomotion_row(
+                    segment,
+                    accepted=accepted,
+                    buckets=buckets,
+                    scope_key=scope_key,
+                    technical_segment_index=technical_segment_index,
+                    segment_start_bound=segment_start_bound,
+                    segment_end_bound=segment_end_bound,
+                    start_sec=_bucket_start(buckets[start_index], bucket_seconds),
+                    end_sec=_bucket_start(
+                        buckets[stationary_start_index], bucket_seconds
+                    ),
+                    start_reason=start_reason,
+                    end_reason="sustained_stationary",
+                    hard_break_reasons=hard_break_reasons,
+                    reason_codes=[
+                        "sustained_movement",
+                        "sustained_stationary",
+                        "home_recall_hysteresis",
+                    ],
+                    media=media,
+                    proposal_config=proposal_config,
+                    force_uncertain=_home_blocking_hard_break(
+                        hard_break_reasons
+                    ),
+                )
+            )
+            _transition(state_sequence, EpisodeBoundaryState.CLOSED)
+            state = EpisodeBoundaryState.CLOSED
+            start_index = None
+            start_reason = None
+            stationary_start_index = None
+            movement_candidates.clear()
+
+    if state in {EpisodeBoundaryState.OPEN, EpisodeBoundaryState.CLOSING}:
+        if start_index is None or start_reason is None:
+            raise CameraEpisodeBoundaryProposalError(
+                "home recall open segment lost movement onset"
+            )
+        technical_break = _home_blocking_hard_break(hard_break_reasons)
+        _transition(
+            state_sequence,
+            EpisodeBoundaryState.UNCERTAIN
+            if technical_break
+            else EpisodeBoundaryState.CLOSED,
+        )
+        if technical_break:
+            _transition(state_sequence, EpisodeBoundaryState.CLOSED)
+        proposals.append(
+            _locomotion_row(
+                segment,
+                accepted=accepted,
+                buckets=buckets,
+                scope_key=scope_key,
+                technical_segment_index=technical_segment_index,
+                segment_start_bound=segment_start_bound,
+                segment_end_bound=segment_end_bound,
+                start_sec=_bucket_start(buckets[start_index], bucket_seconds),
+                end_sec=min(
+                    float(media["duration_sec"]),
+                    _bucket_end(buckets[-1], bucket_seconds),
+                ),
+                start_reason=start_reason,
+                end_reason=(
+                    "technical_hard_break"
+                    if technical_break
+                    else "track_or_stream_end"
+                ),
+                hard_break_reasons=hard_break_reasons,
+                reason_codes=[
+                    "sustained_movement",
+                    "home_recall_hysteresis",
+                    *(hard_break_reasons or ["stream_end_clipped"]),
+                ],
+                media=media,
+                proposal_config=proposal_config,
+                force_uncertain=technical_break,
+            )
+        )
+    elif state == EpisodeBoundaryState.IDLE and not proposals:
+        _transition(state_sequence, EpisodeBoundaryState.CLOSED)
+
+    diagnostic_reasons: tuple[str, ...] = tuple()
+    if not proposals:
+        diagnostic_reasons = (
+            "insufficient_trusted_buckets"
+            if len(buckets) < movement_min_buckets
+            else "stationary_track_no_episode",
+        )
+    return proposals, _diagnostic_row(
+        segment,
+        accepted=accepted,
+        buckets=buckets,
+        scope_key=scope_key,
+        technical_segment_index=technical_segment_index,
+        hard_break_reasons=hard_break_reasons,
+        state_sequence=state_sequence,
+        proposals=proposals,
+        reason_codes=diagnostic_reasons,
+    )
+
+
 def _locomotion_row(
     segment: Sequence[CameraObservation],
     *,
@@ -753,6 +1027,7 @@ def _diagnostic_row(
     hard_break_reasons: Sequence[str],
     state_sequence: Sequence[str],
     proposals: Sequence[Mapping[str, Any]],
+    reason_codes: Sequence[str] = tuple(),
 ) -> dict[str, Any]:
     counts = Counter(str(row["proposal_status"]) for row in proposals)
     source_bucket_count = (
@@ -788,6 +1063,7 @@ def _diagnostic_row(
                 for row in proposals
                 for reason in row["reason_codes"]
             }
+            | {str(reason) for reason in reason_codes}
         ),
         "manual_review_required": bool(proposals),
     }
@@ -810,7 +1086,7 @@ def _build_summary(
     locomotion_count = sum(
         row["proposal_status"] != "rejected_by_qc" for row in proposals
     )
-    return {
+    summary = {
         "schema_version": CAMERA_EPISODE_BOUNDARY_PROPOSAL_SUMMARY_SCHEMA_VERSION,
         "status": "wandering_m0cam_ep2a_s0_boundary_proposal_generated",
         "evidence_scope": "partial_truth_free_smoke_only",
@@ -897,6 +1173,23 @@ def _build_summary(
         "shape_metrics_available": False,
         "manual_acceptance_required": True,
     }
+    if proposal_config.get("schema_version") == (
+        CAMERA_EPISODE_BOUNDARY_DEVELOPMENT_PROFILE_SCHEMA_VERSION
+    ):
+        summary["minimum_track_confidence"] = float(
+            proposal_config["sampling"]["minimum_track_confidence"]
+        )
+        summary["movement_evidence_threshold_body_heights"] = float(
+            proposal_config["state_machine"][
+                "movement_start_min_displacement_body_heights"
+            ]
+        )
+        summary["segmenter_strategy"] = (
+            "home_recall_hysteresis"
+            if _uses_home_recall_strategy(proposal_config)
+            else "legacy_path_displacement_state_machine"
+        )
+    return summary
 
 
 def _bundle_readme(summary: Mapping[str, Any]) -> str:
@@ -1118,12 +1411,11 @@ def _validate_config_bindings(
     sampling = proposal_config["sampling"]
     if sampling["bucket_seconds"] != camera_config["sampling"]["bucket_seconds"]:
         raise CameraEpisodeBoundaryProposalError("proposal bucket grid drifted from camera QC")
-    if (
-        sampling["minimum_track_confidence"]
-        != camera_config["sampling"]["minimum_track_confidence"]
+    if float(sampling["minimum_track_confidence"]) < float(
+        camera_config["sampling"]["minimum_track_confidence"]
     ):
         raise CameraEpisodeBoundaryProposalError(
-            "proposal accepted-observation threshold drifted from camera QC"
+            "proposal accepted-observation threshold is below camera QC"
         )
     if (
         sampling["maximum_internal_gap_buckets"]
@@ -1191,9 +1483,14 @@ def _validate_development_profile(value: Any) -> None:
         )
     if sampling.get("bucket_seconds") != 0.5:
         raise CameraEpisodeBoundaryProposalError("coarse bucket_seconds must remain 0.5")
-    if sampling.get("minimum_track_confidence") != 0.25:
+    minimum_track_confidence = sampling.get("minimum_track_confidence")
+    if (
+        isinstance(minimum_track_confidence, bool)
+        or not isinstance(minimum_track_confidence, (int, float))
+        or not 0.25 <= float(minimum_track_confidence) <= 0.99
+    ):
         raise CameraEpisodeBoundaryProposalError(
-            "minimum_track_confidence must remain 0.25"
+            "minimum_track_confidence must be in [0.25, 0.99]"
         )
     maximum_gap = sampling.get("maximum_internal_gap_buckets")
     if isinstance(maximum_gap, bool) or not isinstance(maximum_gap, int) or not 1 <= maximum_gap <= 3:
@@ -1322,6 +1619,22 @@ def _commit_new_directory(output: Path, files: Mapping[str, bytes]) -> None:
         if temporary.exists():
             shutil.rmtree(temporary)
         raise
+
+
+def _uses_home_recall_strategy(proposal_config: Mapping[str, Any]) -> bool:
+    return (
+        proposal_config.get("schema_version")
+        == CAMERA_EPISODE_BOUNDARY_DEVELOPMENT_PROFILE_SCHEMA_VERSION
+        and proposal_config.get("profile_id") == HOME_RECALL_PROFILE_ID
+    )
+
+
+def _home_blocking_hard_break(reasons: Sequence[str]) -> bool:
+    return bool(
+        {"long_internal_gap", "height_position_discontinuity"}.intersection(
+            reasons
+        )
+    )
 
 
 def _expected_config() -> dict[str, Any]:

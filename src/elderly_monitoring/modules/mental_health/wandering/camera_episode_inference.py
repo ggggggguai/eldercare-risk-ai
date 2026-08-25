@@ -205,6 +205,7 @@ def prepare_camera_interval(
     episode_config: Mapping[str, Any],
     preprocessing_config: Mapping[str, Any],
     feature_stats: Mapping[str, Any],
+    minimum_motion_extent_body_heights: float | None = None,
 ) -> dict[str, Any]:
     """Prepare one validated interval without assigning boundary acceptance semantics."""
 
@@ -213,6 +214,22 @@ def prepare_camera_interval(
     _validate_config_bindings(camera_config, episode_config)
     if input_kind not in _INTERVAL_INPUT_QUALITY_FLAGS:
         raise CameraEpisodeInferenceError("camera episode interval input kind is invalid")
+    configured_motion_threshold = float(
+        episode_config["episode_qc"]["minimum_motion_extent_body_heights"]
+    )
+    motion_threshold = configured_motion_threshold
+    if minimum_motion_extent_body_heights is not None:
+        override = float(minimum_motion_extent_body_heights)
+        if (
+            input_kind != "automatic_proposal"
+            or not np.isfinite(override)
+            or override <= 0.0
+            or override > configured_motion_threshold
+        ):
+            raise CameraEpisodeInferenceError(
+                "automatic proposal motion-evidence override is invalid"
+            )
+        motion_threshold = override
     if not isinstance(interval_id, str) or not interval_id:
         raise CameraEpisodeInferenceError("camera episode interval ID is invalid")
     if (
@@ -380,7 +397,7 @@ def prepare_camera_interval(
     except CameraQCError as exc:
         raise CameraEpisodeInferenceError("episode bucket interpolation/QC failed") from exc
     base["motion_extent_body_heights"] = motion_extent
-    if motion_extent < float(qc["minimum_motion_extent_body_heights"]):
+    if motion_extent < motion_threshold:
         return _unavailable_preparation(
             base,
             status="unavailable",
