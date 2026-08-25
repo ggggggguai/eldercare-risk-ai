@@ -184,6 +184,7 @@ class FallRiskSessionEngine:
             kwargs.get("outbox_drain_timeout_sec", 3.0)
         )
         self._last_episode_event: AlgorithmEvent | None = None
+        self.latest_event: AlgorithmEvent | None = None
         self._last_source_time_sec = 0.0
         self.frame_id = 0
         self.primary_pose_count = 0
@@ -321,6 +322,14 @@ class FallRiskSessionEngine:
             },
             "stage_timings_ms": dict(result.stage_timings_ms or {}),
         }
+        if result.primary_pose is not None:
+            self.last_frame_diagnostics["visual"] = {
+                "bbox": result.primary_pose.bbox,
+                "bbox_pixels": result.primary_pose.bbox_pixels,
+                "coordinate_system": result.primary_pose.coordinate_system,
+                "track_id": result.primary_pose.track_id,
+                "keypoints": [point.to_dict() for point in result.primary_pose.keypoints],
+            }
         if result.primary_pose is None:
             self._expire_episode(monotonic_sec=received)
             return
@@ -351,6 +360,7 @@ class FallRiskSessionEngine:
             fall_diagnostic = snapshot.branch_diagnostics.get(branch_name, {})
             observation_status = str(fall_diagnostic.get("status", "unavailable"))
         if event is not None:
+            self.latest_event = event
             self._process_algorithm_event(
                 event,
                 observation_status=observation_status,
@@ -566,6 +576,7 @@ class FallRiskSessionEngine:
             "epoch_resets": list(self.epoch_reset_history),
             "close": self.close_diagnostics,
             "episode": self.episode.snapshot(),
+            "latest_event": self.latest_event.to_dict() if self.latest_event is not None else None,
             "outbox": self.outbox.snapshot(),
         }
 

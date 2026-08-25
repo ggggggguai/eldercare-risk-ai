@@ -2,10 +2,15 @@ from __future__ import annotations
 
 from functools import partial
 import shutil
+from pathlib import Path
 from typing import Any
 
 from fastapi import Depends, FastAPI, HTTPException, Request, status
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
+import asyncio
+import cv2
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from elderly_monitoring.service.schemas import (
@@ -72,6 +77,54 @@ def create_app(*, settings: ServiceSettings | None = None, session_manager: Sess
         fall_state=service_settings.fall_state,
     )
     app = FastAPI(title="Elderly Monitoring Fall Risk Service", version="0.2.0")
+    static_dir = Path(__file__).with_name("static")
+    app.mount("/demo-assets", StaticFiles(directory=static_dir), name="demo-assets")
+    demo_media_dir = Path(__file__).resolve().parents[3] / "reports" / "fall_risk" / "runtime" / "demo"
+    if demo_media_dir.exists():
+        app.mount("/demo-media", StaticFiles(directory=demo_media_dir), name="demo-media")
+    @app.get("/demo/fall-risk", include_in_schema=False)
+    def fall_risk_demo() -> FileResponse:
+        return FileResponse(static_dir / "fall-risk.html")
+
+    @app.get("/demo/live-view", include_in_schema=False)
+    def live_view() -> FileResponse:
+        return FileResponse(static_dir / "live-view.html")
+
+    @app.get("/demo/live-status", include_in_schema=False)
+    def demo_live_status() -> dict[str, Any]:
+        """Redacted local-demo status so the page can discover an existing session."""
+        sessions = getattr(manager, "sessions", {})
+        active = next(
+            (session for session in sessions.values() if session.status.value not in {"stopped", "failed"}),
+            None,
+        )
+        if active is None:
+            return {"active": False}
+        manager.get(active.session_id)
+        return {
+            "active": True,
+            "session_id": active.session_id,
+            "status": active.status.value,
+            "stream_epoch": active.stream_epoch,
+            "last_frame_at": active.last_frame_at,
+            "last_error": active.last_error,
+            "runtime_diagnostics": dict(getattr(active, "runtime_diagnostics", {})),
+            "visual": dict(getattr(active, "runtime_diagnostics", {}).get("last_frame", {}).get("visual", {})),
+        }
+
+    @app.get("/demo/live.mjpeg", include_in_schema=False)
+    async def demo_live_mjpeg() -> StreamingResponse:
+        async def stream():
+            while True:
+                sessions = getattr(manager, "sessions", {})
+                active = next((s for s in sessions.values() if s.status.value not in {"stopped", "failed"}), None)
+                frame = getattr(active, "latest_frame", None) if active else None
+                if frame is not None:
+                    ok, encoded = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), 82])
+                    if ok:
+                        yield b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + encoded.tobytes() + b"\r\n"
+                await asyncio.sleep(0.12)
+        return StreamingResponse(stream(), media_type="multipart/x-mixed-replace; boundary=frame")
     bearer = HTTPBearer(auto_error=False)
 
     def require_token(credentials: HTTPAuthorizationCredentials | None = Depends(bearer)) -> None:

@@ -42,6 +42,7 @@ class MonitoringSession:
     frame_diagnostics: dict[str, Any] = field(default_factory=dict)
     epoch_history: list[dict[str, Any]] = field(default_factory=list)
     runtime_diagnostics: dict[str, Any] = field(default_factory=dict)
+    latest_frame: Any | None = field(default=None, repr=False)
     next_epoch_reason: str = field(default="session_started", repr=False)
     stream_url_revision: int = field(default=0, repr=False)
 
@@ -310,6 +311,7 @@ class SessionManager:
                 received = time.monotonic()
                 if frame is None:
                     break
+                session.latest_frame = frame
                 source_pts = getattr(reader, "source_pts_sec", None)
                 buffer.put(FramePacket(
                     frame=frame,
