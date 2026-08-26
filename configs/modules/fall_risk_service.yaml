@@ -95,22 +95,3 @@ fall_state:
   recovery_motion_threshold: 0.05
   recovery_confirmation_sec: 3.0
   episode_ttl_sec: 30.0
-
-# 环境分支默认关闭；启用 shadow/assist 前必须补齐现场标定与准入证据。
-environment:
-  mode: disabled
-  max_age_sec: 3.0
-  max_transport_age_sec: 2.0
-  max_future_skew_sec: 0.5
-  store_capacity_per_device: 256
-  shadow_log_path: null
-  roi_window_frames: 3
-  roi_min_usable_frames: 2
-  roi_min_hits: 2
-  roi_max_span_sec: 1.0
-  camera_bindings: {}
-  assist:
-    weight: null
-    min_behavior_anchor: null
-    policy_version: null
-    acceptance_report: null

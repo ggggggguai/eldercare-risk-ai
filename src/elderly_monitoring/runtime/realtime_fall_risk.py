@@ -360,12 +360,16 @@ class FallRiskSessionEngine:
             "stage_timings_ms": dict(result.stage_timings_ms or {}),
         }
         if result.primary_pose is not None:
+            pose = result.primary_pose
             self.last_frame_diagnostics["visual"] = {
-                "bbox": result.primary_pose.bbox,
-                "bbox_pixels": result.primary_pose.bbox_pixels,
-                "coordinate_system": result.primary_pose.coordinate_system,
-                "track_id": result.primary_pose.track_id,
-                "keypoints": [point.to_dict() for point in result.primary_pose.keypoints],
+                "bbox": getattr(pose, "bbox", None),
+                "bbox_pixels": getattr(pose, "bbox_pixels", None),
+                "coordinate_system": getattr(pose, "coordinate_system", None),
+                "track_id": getattr(pose, "track_id", None),
+                "keypoints": [
+                    point.to_dict() if hasattr(point, "to_dict") else point
+                    for point in (getattr(pose, "keypoints", None) or [])
+                ],
             }
         if result.primary_pose is None:
             self._expire_episode(monotonic_sec=received)
