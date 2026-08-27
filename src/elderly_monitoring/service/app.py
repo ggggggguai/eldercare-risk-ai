@@ -4,10 +4,11 @@ from functools import partial
 import shutil
 from pathlib import Path
 import asyncio
+from uuid import uuid4
 from typing import Any, Mapping
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, status
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse, Response, StreamingResponse
 import cv2
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -41,6 +42,130 @@ def reader_factory_for(settings: ServiceSettings) -> Any:
     )
 
 
+def _redact_demo_value(value: Any, *, key: str = "") -> Any:
+    """Remove stream URLs and auth material before exposing local demo diagnostics."""
+    sensitive = {"stream_url", "callback_url", "api_token", "access_token", "authorization", "token"}
+    if key.lower() in sensitive:
+        return "[redacted]"
+    if isinstance(value, Mapping):
+        return {
+            str(item_key): _redact_demo_value(item_value, key=str(item_key))
+            for item_key, item_value in value.items()
+        }
+    if isinstance(value, list):
+        return [_redact_demo_value(item) for item in value]
+    if isinstance(value, tuple):
+        return tuple(_redact_demo_value(item) for item in value)
+    if isinstance(value, str):
+        redacted = value
+        for scheme in ("rtsp://", "rtmp://", "http://", "https://"):
+            marker = redacted.lower().find(scheme)
+            if marker >= 0:
+                redacted = redacted[:marker] + "[redacted]"
+        return redacted
+    return value
+
+
+def _demo_event_trace(runtime_diagnostics: Mapping[str, Any]) -> dict[str, Any] | None:
+    """Return the latest transport trace without exposing callback configuration."""
+    outbox = runtime_diagnostics.get("outbox")
+    if not isinstance(outbox, Mapping):
+        return None
+    candidates = [
+        item
+        for collection_name in ("recent_terminal_items", "active_items")
+        for item in (outbox.get(collection_name) or [])
+        if isinstance(item, Mapping)
+    ]
+    if not candidates:
+        return None
+    latest = max(
+        candidates,
+        key=lambda item: str(item.get("first_generated_time") or ""),
+    )
+    allowed = (
+        "event_id",
+        "episode_id",
+        "session_id",
+        "stream_epoch",
+        "lifecycle_state",
+        "version_kind",
+        "first_generated_time",
+        "delivery_status",
+        "attempt_count",
+        "retry_count",
+        "last_status_code",
+        "last_error",
+    )
+    return {key: _redact_demo_value(latest.get(key), key=key) for key in allowed}
+
+
+def _demo_model_ready(settings: ServiceSettings) -> bool:
+    """Mirror the readiness gate without turning the demo status endpoint into an error."""
+    if not settings.model_path.exists():
+        return False
+    if settings.gait_model_path is not None and not settings.gait_model_path.exists():
+        return False
+    if settings.sit_stand_runtime_mode == "experimental_tcn" and (
+        settings.sit_stand_model_path is None
+        or not settings.sit_stand_model_path.exists()
+    ):
+        return False
+    if settings.near_fall_runtime_mode == "tabular_rescorer" and (
+        settings.near_fall_model_path is None
+        or not settings.near_fall_model_path.exists()
+    ):
+        return False
+    if any(not path.exists() for path in settings.fall_event_shadow_checkpoint_paths):
+        return False
+    return not (
+        settings.stream_reader_backend == "ffmpeg"
+        and (shutil.which("ffmpeg") is None or shutil.which("ffprobe") is None)
+    )
+
+
+def _demo_processing_stages(
+    active: Any | None,
+    runtime_diagnostics: Mapping[str, Any],
+    event_trace: Mapping[str, Any] | None,
+) -> list[dict[str, str]]:
+    """Derive a conservative, evidence-backed processing chain for the demo UI."""
+    frame = runtime_diagnostics.get("last_frame") or {}
+    visual = frame.get("visual") or {}
+    window = frame.get("window") or {}
+    has_frame = bool(active and getattr(active, "last_frame_at", None))
+    has_person = bool(visual.get("bbox"))
+    has_window = bool(window)
+    has_branches = bool(window.get("branches"))
+    has_event = bool(runtime_diagnostics.get("latest_event") or event_trace)
+    delivery_status = str((event_trace or {}).get("delivery_status") or "")
+    stages = [
+        ("session_created", bool(active), "会话尚未创建"),
+        ("stream_connected", bool(active and active.status.value == "running"), "等待视频流连接"),
+        ("first_frame_received", has_frame, "等待首帧"),
+        ("person_tracking", has_person, "等待有效人体观测"),
+        ("pose_window_ready", has_window, "等待姿态窗口"),
+        ("branch_analysis", has_branches, "等待分支输入"),
+        ("risk_fusion", has_event or bool(window.get("fusion_mask")), "等待有效融合结果"),
+        (
+            "event_sent",
+            delivery_status == "delivered",
+            "等待 AlgorithmEvent" if not has_event else "等待回调发送",
+        ),
+    ]
+    if active and active.status.value in {"starting", "reconnecting"}:
+        for index, (name, complete, reason) in enumerate(stages):
+            if not complete:
+                stages[index] = (name, False, "处理中")
+                break
+    if delivery_status == "failed":
+        stages[-1] = ("event_sent", False, "回调发送失败")
+    return [
+        {"name": name, "status": "complete" if complete else "pending", "reason": reason}
+        for name, complete, reason in stages
+    ]
+
+
 def create_app(*, settings: ServiceSettings | None = None, session_manager: SessionManager | None = None) -> FastAPI:
     service_settings = settings or ServiceSettings.load()
     environment_store = EnvironmentStore(
@@ -49,6 +174,7 @@ def create_app(*, settings: ServiceSettings | None = None, session_manager: Sess
     manager = session_manager or SessionManager(
         reader_factory=reader_factory_for(service_settings),
         model_path=str(service_settings.model_path),
+        release_id=service_settings.release_id,
         gait_model_path=service_settings.gait_model_path,
         gait_model_device=service_settings.gait_model_device,
         gait_model_window_frames=service_settings.gait_model_window_frames,
@@ -56,6 +182,12 @@ def create_app(*, settings: ServiceSettings | None = None, session_manager: Sess
         sit_stand_model_path=service_settings.sit_stand_model_path,
         sit_stand_model_device=service_settings.sit_stand_model_device,
         sit_stand_model_batch_size=service_settings.sit_stand_model_batch_size,
+        near_fall_runtime_mode=service_settings.near_fall_runtime_mode,
+        near_fall_model_path=service_settings.near_fall_model_path,
+        near_fall_score_threshold=service_settings.near_fall_score_threshold,
+        near_fall_alert_cooldown_sec=(
+            service_settings.near_fall_alert_cooldown_sec
+        ),
         fall_event_runtime_mode=service_settings.fall_event_runtime_mode,
         fall_event_shadow_checkpoint_paths=service_settings.fall_event_shadow_checkpoint_paths,
         fall_event_shadow_device=service_settings.fall_event_shadow_device,
@@ -110,18 +242,115 @@ def create_app(*, settings: ServiceSettings | None = None, session_manager: Sess
             None,
         )
         if active is None:
-            return {"active": False}
+            terminal = [
+                session
+                for session in sessions.values()
+                if session.status.value in {"stopped", "failed"}
+            ]
+            if terminal:
+                latest = max(
+                    terminal,
+                    key=lambda session: str(
+                        getattr(session, "last_frame_at", None)
+                        or getattr(session, "started_at", None)
+                        or ""
+                    ),
+                )
+                reason = _redact_demo_value(getattr(latest, "last_error", None))
+                if not reason:
+                    reason = "直播会话已停止。"
+                return {
+                    "active": False,
+                    "model_ready": _demo_model_ready(service_settings),
+                    "video_state": "not_connected",
+                    "last_terminal": {
+                        "session_id": latest.session_id,
+                        "status": latest.status.value,
+                        "reason": reason,
+                    },
+                }
+            return {
+                "active": False,
+                "model_ready": _demo_model_ready(service_settings),
+                "video_state": "not_connected",
+                "processing": _demo_processing_stages(None, {}, None),
+            }
         manager.get(active.session_id)
+        runtime_diagnostics = dict(getattr(active, "runtime_diagnostics", {}))
+        event_trace = _demo_event_trace(runtime_diagnostics)
         return {
             "active": True,
             "session_id": active.session_id,
+            "request_id": active.request_id,
+            "device_id": active.device_id,
+            "scene_region": getattr(active, "scene_region", "unknown"),
+            "started_at": active.started_at,
             "status": active.status.value,
-            "stream_epoch": active.stream_epoch,
-            "last_frame_at": active.last_frame_at,
-            "last_error": active.last_error,
-            "runtime_diagnostics": dict(getattr(active, "runtime_diagnostics", {})),
-            "visual": dict(getattr(active, "runtime_diagnostics", {}).get("last_frame", {}).get("visual", {})),
+            "model_ready": _demo_model_ready(service_settings),
+            "video_state": (
+                "connected"
+                if getattr(active, "last_frame_at", None)
+                else "connecting"
+            ),
+            "stream_epoch": int(getattr(active, "stream_epoch", 0)),
+            "last_frame_at": getattr(active, "last_frame_at", None),
+            "last_error": _redact_demo_value(getattr(active, "last_error", None)),
+            "runtime_diagnostics": _redact_demo_value(
+                runtime_diagnostics
+            ),
+            "visual": dict(runtime_diagnostics.get("last_frame", {}).get("visual", {})),
+            "event_trace": event_trace,
+            "processing": _demo_processing_stages(active, runtime_diagnostics, event_trace),
         }
+
+    @app.get("/demo/config", include_in_schema=False)
+    def demo_config() -> dict[str, bool]:
+        """Expose availability only; the signed stream URL remains server-side."""
+        return {"default_stream_configured": bool(service_settings.demo_stream_url)}
+
+    @app.post("/demo/callback", include_in_schema=False, status_code=204, name="demo_callback")
+    async def demo_callback(_: Request) -> Response:
+        """Accept callbacks for the local demo without persisting event payloads."""
+        return Response(status_code=204)
+
+    @app.post("/demo/live-start", include_in_schema=False)
+    def demo_live_start(
+        request: Request, stream: StreamUrlUpdate | None = None
+    ) -> dict[str, str]:
+        """Start a real stream using service-side auth and runtime configuration."""
+        stream_url = service_settings.demo_stream_url or (
+            stream.stream_url if stream is not None else None
+        )
+        if not stream_url:
+            raise HTTPException(
+                status_code=422,
+                detail="no default demo stream is configured",
+            )
+        request_id = f"FR-LIVE-{uuid4().hex[:12]}"
+        callback_url = str(request.url_for("demo_callback"))
+        try:
+            session = manager.start(
+                request_id=request_id,
+                stream_url=stream_url,
+                device_id="live-demo-camera",
+                person_id="live-demo-person",
+                scene_region="home",
+                callback_url=callback_url,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        return {
+            "session_id": session.session_id,
+            "status": session.status.value,
+            "request_id": request_id,
+        }
+
+    @app.post("/demo/live-stop/{session_id}", include_in_schema=False)
+    def demo_live_stop(session_id: str) -> dict[str, str]:
+        session = manager.stop(session_id)
+        if session is None:
+            raise HTTPException(status_code=404, detail="session not found")
+        return {"session_id": session.session_id, "status": session.status.value}
 
     @app.get("/demo/live.mjpeg", include_in_schema=False)
     async def demo_live_mjpeg() -> StreamingResponse:
@@ -167,6 +396,17 @@ def create_app(*, settings: ServiceSettings | None = None, session_manager: Sess
             )
         ):
             raise HTTPException(status_code=503, detail="sit-stand model is not available")
+        if (
+            service_settings.near_fall_runtime_mode == "tabular_rescorer"
+            and (
+                service_settings.near_fall_model_path is None
+                or not service_settings.near_fall_model_path.exists()
+            )
+        ):
+            raise HTTPException(
+                status_code=503,
+                detail="near-fall model is not available",
+            )
         missing_fall_event_models = [
             path.as_posix()
             for path in service_settings.fall_event_shadow_checkpoint_paths

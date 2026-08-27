@@ -1,0 +1,54 @@
+schema_version: "1.0"
+release_id: fall-risk-adaptation-v2-onset-candidate-20260827
+status: development_candidate
+stage: domain_adaptation_candidate
+based_on_release: fall-risk-competition-v1-20260819
+created_at: "2026-08-27T00:00:00+08:00"
+scope: development_only
+
+service_config:
+  path: configs/modules/fall_risk_service.yaml
+  sha256: 517df8e7a7d4565357f9ca2f9f529b4ab22b67178e47aa0bc0c7c2d328cb91db
+
+artifacts:
+  - role: pose_detection_and_tracking
+    path: models/yolov8n-pose.pt
+    sha256: c6fa93dd1ee4a2c18c900a45c1d864a1c6f7aba75d84f91648a30b7fb641d212
+  - role: gait_primary
+    path: reports/fall_risk/gait_observable_context_v2/splitv3-3342705-scfaux-v1/pretrained-seed43/best_model.pt
+    sha256: 67e6028bfc32cada85bfc3ed440e5f968f96d0f13a3288b6b8c797e8aca8a3fc
+  - role: sit_stand_primary
+    path: reports/fall_risk/sit_stand_continuous_tcn_v2/sitstandsplit_11e163684e3bb898a5c3508d/seed42-pilot-loss-scale-fixed/best_model.pt
+    sha256: efcc12dbb2c243214f89348a991ebf595061b918e4fda04f4215707443ce756b
+  - role: fall_event_ensemble_seed_42
+    path: reports/fall_risk/fall_nearfall_adaptation_v2_onset/seed42/best_model.pt
+    sha256: 37fee0f374c0051e0a47b41da1f1dfd435778c29319f52cc16ff21f57f33c700
+  - role: fall_event_ensemble_seed_43
+    path: reports/fall_risk/fall_nearfall_adaptation_v2_onset/seed43/best_model.pt
+    sha256: 67ac284b955c4e9357cf29838d1748f81d79f3737e20d11f7bc36dbace6c80ec
+  - role: fall_event_ensemble_seed_44
+    path: reports/fall_risk/fall_nearfall_adaptation_v2_onset/seed44/best_model.pt
+    sha256: 1185ed9bd9d95295dad756560e2582a50a9276fe99bc7a49e5b346278d17561e
+
+runtime_branches:
+  pose: yolov8_pose_bytetrack
+  gait: tcn_seed_43_primary_with_rule_fallback
+  sit_stand: tcn_seed_42_primary_with_rule_fallback
+  fall_event: tcn_three_seed_ensemble_adaptation_v2_onset_candidate
+  near_fall: rule_primary
+  personal_baseline: statistical_fail_closed
+  risk_fusion: rule_primary
+
+acceptance_gates:
+  artifact_integrity: passed
+  holdout_evaluation: pending
+  competition_delivery_freeze: not_requested
+
+safety_policy:
+  rule_fallback_retained: true
+  fail_closed_on_missing_personal_history: true
+  clinical_claims_allowed: false
+
+change_policy:
+  immutable_release: true
+  requires_new_release_id: true

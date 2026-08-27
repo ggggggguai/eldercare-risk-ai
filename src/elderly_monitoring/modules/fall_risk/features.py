@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import math
 from typing import Any, Mapping
 
 
@@ -95,7 +96,13 @@ def environment_assist_contribution(
 def clamp_score(value: float | int | None) -> float:
     if value is None:
         return 0.0
-    return max(0.0, min(1.0, float(value)))
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return 0.0
+    if not math.isfinite(number):
+        return 0.0
+    return max(0.0, min(1.0, number))
 
 
 def weighted_fall_risk_score(features: Mapping[str, Any]) -> float:

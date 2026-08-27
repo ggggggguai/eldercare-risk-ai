@@ -314,6 +314,7 @@ class FallStateResult:
     fall_event_score: float
     long_static_score: float
     suspected_fall: bool
+    static_duration_sec: float = 0.0
     triggered_now: bool = False
 
 
@@ -324,21 +325,51 @@ class FallStateDetector:
         self._suspected_at: float | None = None
         self._static_since: float | None = None
         self._last_valid_timestamp: float | None = None
+        self._recovery_started_at: float | None = None
 
     def reset(self) -> None:
         self._history.clear()
         self._suspected_at = None
         self._static_since = None
         self._last_valid_timestamp = None
+        self._recovery_started_at = None
+
+    def hold(self, timestamp_sec: float | None = None) -> FallStateResult:
+        """Return the last fall state without advancing it from an invalid window."""
+        last_time = self._last_valid_timestamp
+        # Invalid windows must not advance detector timers. The supplied
+        # timestamp is intentionally ignored while holding state.
+        now = last_time
+        static_duration = (
+            0.0
+            if self._static_since is None or now is None
+            else max(0.0, now - self._static_since)
+        )
+        active = self._suspected_at is not None
+        return FallStateResult(
+            fall_event_score=0.9 if active else 0.0,
+            long_static_score=0.9 if active and static_duration >= self.config.static_duration_sec else 0.0,
+            suspected_fall=active,
+            static_duration_sec=static_duration,
+        )
 
     def update(self, observation: Mapping[str, Any]) -> FallStateResult:
         current = {key: float(observation.get(key, default)) for key, default in (
             ("timestamp_sec", 0.0), ("hip_center_y", 0.0), ("bbox_center_y", 0.0),
             ("trunk_angle_deg", 0.0), ("core_keypoint_quality", 0.0), ("motion_score", 1.0),
+            ("trunk_geometry_valid", 0.0),
         )}
         now = current["timestamp_sec"]
         triggered = False
         valid_observation = current["core_keypoint_quality"] >= self.config.min_quality
+        if (
+            valid_observation
+            and self._last_valid_timestamp is not None
+            and now < self._last_valid_timestamp
+        ):
+            # Source timestamps can arrive out of order after reconnects. Do
+            # not let an old frame create a synthetic body drop or rewind timers.
+            return self.hold(now)
         if valid_observation:
             while (
                 self._history
@@ -351,26 +382,41 @@ class FallStateDetector:
             hip_drop = current["hip_center_y"] - reference["hip_center_y"]
             center_drop = current["bbox_center_y"] - reference["bbox_center_y"]
             if (
+                current["trunk_geometry_valid"] >= 0.5
+                and
                 hip_drop >= self.config.hip_drop_threshold
                 and center_drop >= self.config.center_drop_threshold
                 and current["trunk_angle_deg"] >= self.config.horizontal_angle_threshold
             ):
                 self._suspected_at = now
                 self._static_since = None
+                self._recovery_started_at = None
                 triggered = True
         if valid_observation:
             self._history.append(current)
             self._last_valid_timestamp = now
 
         if self._suspected_at is not None and valid_observation:
-            if (
+            recovery_candidate = (
+                current["trunk_geometry_valid"] >= 0.5
+                and
                 current["trunk_angle_deg"]
                 <= self.config.recovery_upright_angle_threshold
                 and current["motion_score"] >= self.config.recovery_motion_threshold
+            )
+            if recovery_candidate:
+                if self._recovery_started_at is None:
+                    self._recovery_started_at = now
+                elif now - self._recovery_started_at >= self.config.recovery_confirmation_sec:
+                    self._suspected_at = None
+                    self._static_since = None
+                    self._recovery_started_at = None
+            else:
+                self._recovery_started_at = None
+            if self._suspected_at is not None and current["motion_score"] <= max(
+                self.config.static_motion_threshold,
+                self.config.recovery_motion_threshold,
             ):
-                self._suspected_at = None
-                self._static_since = None
-            elif current["motion_score"] <= self.config.static_motion_threshold:
                 if self._static_since is None:
                     self._static_since = now
             else:
@@ -384,5 +430,6 @@ class FallStateDetector:
             fall_event_score=0.9 if self._suspected_at is not None else 0.0,
             long_static_score=0.9 if static_duration >= self.config.static_duration_sec else 0.0,
             suspected_fall=self._suspected_at is not None,
+            static_duration_sec=max(0.0, static_duration),
             triggered_now=triggered,
         )

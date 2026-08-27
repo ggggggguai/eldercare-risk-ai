@@ -30,6 +30,15 @@ class _Assembler:
         return {"baseline_state": "stable"} if record is not None else None
 
 
+class _SequenceAssembler(_Assembler):
+    def __init__(self, snapshots):
+        super().__init__(None)
+        self.snapshots = iter(snapshots)
+
+    def add_pose(self, record, monotonic_sec):
+        return next(self.snapshots)
+
+
 class RealtimeEngineTest(unittest.TestCase):
     def test_completed_baseline_period_is_forwarded_to_assembler(self) -> None:
         assembler = _Assembler(FeatureSnapshot(features={}, quality_flags=[], usable=False))
@@ -84,6 +93,51 @@ class RealtimeEngineTest(unittest.TestCase):
             engine.last_snapshot.branch_diagnostics["near_fall"]["status"],
             "unavailable",
         )
+
+    def test_analysis_throttle_keeps_last_completed_snapshot(self) -> None:
+        snapshot = FeatureSnapshot(
+            features={},
+            quality_flags=[],
+            usable=False,
+            branch_diagnostics={"gait": {"status": "valid", "score": 0.2}},
+        )
+        engine = RealtimeFallRiskEngine(
+            assembler=_SequenceAssembler([snapshot, None]),
+        )
+
+        engine.process_pose({}, monotonic_sec=1.0)
+        engine.process_pose({}, monotonic_sec=1.1)
+
+        self.assertIs(engine.last_snapshot, snapshot)
+
+    def test_unusable_completed_window_clears_current_event_without_erasing_history(self) -> None:
+        valid = FeatureSnapshot(
+            features={
+                "person_id": "elder-1",
+                "timestamp": "2026-08-27T12:00:00+08:00",
+                "fall_event_score": 0.9,
+                "long_static_score": 0.0,
+            },
+            quality_flags=[],
+            usable=True,
+            urgent=True,
+        )
+        unavailable = FeatureSnapshot(
+            features={},
+            quality_flags=["fall_state:insufficient_branch_keypoint_coverage"],
+            usable=False,
+        )
+        engine = RealtimeFallRiskEngine(
+            assembler=_SequenceAssembler([valid, unavailable]),
+            fusion_interval_sec=0.0,
+        )
+
+        first = engine.process_pose({}, monotonic_sec=1.0)
+        self.assertEqual(first.risk_level, 4)
+        self.assertIs(engine.current_event, first)
+
+        self.assertIsNone(engine.process_pose({}, monotonic_sec=2.0))
+        self.assertIsNone(engine.current_event)
 
 
 class _BlockingSender:

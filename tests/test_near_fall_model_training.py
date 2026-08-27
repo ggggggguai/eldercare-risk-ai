@@ -766,6 +766,28 @@ class NearFallTCNTrainingTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "source_group_ids"):
             _validate_dataset(arrays)
 
+    def test_declared_single_subject_scene_split_allows_subject_overlap(self) -> None:
+        arrays = {
+            "features": np.zeros((4, 3, 10, 8), dtype=np.float32),
+            "labels": np.asarray([0, 1, 0, 1], dtype=np.int64),
+            "partitions": np.asarray(["train", "train", "validation", "validation"]),
+            "sample_ids": np.asarray(["s1", "s2", "s3", "s4"]),
+            "event_ids": np.asarray(["e1", "e2", "e3", "e4"]),
+            "subject_ids": np.asarray(["single-subject"] * 4),
+            "source_group_ids": np.asarray(["g1", "g2", "g3", "g4"]),
+            "sample_group_ids": np.asarray(["sg1", "sg2", "sg3", "sg4"]),
+            "split_group_ids": np.asarray(["sp1", "sp2", "sp3", "sp4"]),
+            "sample_weights": np.ones(4, dtype=np.float32),
+            "loss_eligible": np.ones(4, dtype=np.bool_),
+            "normalization_mean": np.zeros(7, dtype=np.float32),
+            "normalization_std": np.ones(7, dtype=np.float32),
+        }
+        arrays["features"][..., 7] = 1.0
+
+        with self.assertRaisesRegex(ValueError, "subject_ids"):
+            _validate_dataset(arrays)
+        _validate_dataset(arrays, allow_subject_overlap=True)
+
     def test_fixed_seed_checkpoint_contract_rejection_and_synthetic_overfit(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

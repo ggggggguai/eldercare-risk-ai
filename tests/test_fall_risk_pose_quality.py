@@ -79,6 +79,20 @@ class FallRiskPoseQualityTest(unittest.TestCase):
         self.assertEqual(left_hip["source"], "low_confidence")
         self.assertIn("left_hip", cleaned["missing_core_names"])
 
+    def test_out_of_bounds_normalized_keypoint_is_marked_invalid(self) -> None:
+        records = [
+            make_pose_record(
+                0,
+                overrides={"left_hip": (1.4, 0.50, 0.95)},
+            )
+        ]
+
+        [cleaned] = process_pose_records(records)
+        left_hip = keypoint(cleaned, "left_hip")
+
+        self.assertFalse(left_hip["valid"])
+        self.assertEqual(left_hip["source"], "out_of_bounds")
+
     def test_core_quality_decreases_when_core_points_are_missing(self) -> None:
         good, bad = process_pose_records(
             [

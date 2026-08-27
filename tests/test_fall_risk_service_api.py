@@ -62,19 +62,45 @@ class _FakeSession:
         self.person_id = "elder-1"
         self.started_at = datetime.now(timezone.utc)
         self.last_frame_at = None
-        self.last_error = None
+        self.last_error = "stream failed at rtmp://secret.example/live?token=secret"
+        self.stream_epoch = 0
+        self.runtime_diagnostics = {
+            "stream_url": "rtmp://secret.example/live?token=secret",
+            "authorization": "Bearer secret",
+            "latest_event": {
+                "module": "fall_risk",
+                "timestamp": "2026-08-27T10:00:00+00:00",
+                "model_version": "fall-risk-test-v1",
+            },
+            "outbox": {
+                "active_items": [],
+                "recent_terminal_items": [
+                    {
+                        "event_id": "event-1",
+                        "session_id": session_id,
+                        "delivery_status": "delivered",
+                        "last_status_code": 204,
+                        "first_generated_time": "2026-08-27T10:00:01+00:00",
+                    }
+                ],
+            },
+        }
 
 
 class _FakeManager:
     def __init__(self):
         self.session = None
+        self.sessions = {}
+        self.last_start_kwargs = None
 
     def start(self, **kwargs):
+        self.last_start_kwargs = kwargs
         if self.session and self.session.request_id == kwargs["request_id"]:
             return self.session
         if self.session:
             raise ValueError("another session is active")
         self.session = _FakeSession(request_id=kwargs["request_id"])
+        self.sessions[self.session.session_id] = self.session
         return self.session
 
     def get(self, session_id):
@@ -136,6 +162,78 @@ class ServiceApiTest(unittest.TestCase):
 
     def test_ready_requires_model(self):
         self.assertEqual(self.client.get("/health/ready").status_code, 503)
+
+    def test_demo_live_adapter_starts_and_stops_without_browser_token(self):
+        response = self.client.post(
+            "/demo/live-start", json={"stream_url": "rtmp://camera/live"}
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["status"], "running")
+        self.assertTrue(payload["request_id"].startswith("FR-LIVE-"))
+
+        status_response = self.client.get("/demo/live-status")
+        status_payload = status_response.json()
+        self.assertTrue(status_payload["active"])
+        self.assertEqual(status_payload["request_id"], payload["request_id"])
+        self.assertEqual(status_payload["session_id"], payload["session_id"])
+        self.assertEqual(status_payload["device_id"], "cam-1")
+        self.assertIsNotNone(status_payload["started_at"])
+        self.assertEqual(status_payload["event_trace"]["event_id"], "event-1")
+        self.assertEqual(status_payload["event_trace"]["delivery_status"], "delivered")
+        self.assertNotIn("stream_url", status_payload)
+        status_text = status_response.text
+        self.assertNotIn("secret.example", status_text)
+        self.assertNotIn("Bearer secret", status_text)
+
+        callback = self.client.post("/demo/callback", json={"module": "fall_risk"})
+        self.assertEqual(callback.status_code, 204)
+        stop_response = self.client.post(f"/demo/live-stop/{payload['session_id']}")
+        self.assertEqual(stop_response.status_code, 200)
+        self.assertEqual(stop_response.json()["status"], "stopped")
+
+    def test_demo_uses_server_side_default_stream_without_exposing_url(self):
+        from elderly_monitoring.service.settings import ServiceSettings
+
+        secret_stream = "https://camera.example/live.flv?token=secret"
+        settings = ServiceSettings(
+            api_token="api",
+            model_path=Path("missing.pt"),
+            demo_stream_url=secret_stream,
+        )
+        client = TestClient(create_app(settings=settings, session_manager=self.manager))
+
+        config_response = client.get("/demo/config")
+        self.assertEqual(config_response.status_code, 200)
+        self.assertEqual(config_response.json(), {"default_stream_configured": True})
+        self.assertNotIn(secret_stream, config_response.text)
+
+        start_response = client.post("/demo/live-start")
+        self.assertEqual(start_response.status_code, 200)
+        self.assertEqual(self.manager.last_start_kwargs["stream_url"], secret_stream)
+        self.assertNotIn(secret_stream, start_response.text)
+        client.close()
+
+    def test_demo_live_status_exposes_redacted_terminal_failure(self):
+        response = self.client.post(
+            "/demo/live-start", json={"stream_url": "rtmp://camera/live"}
+        )
+        self.assertEqual(response.status_code, 200)
+        self.manager.session.status = SessionStatus.FAILED
+        status_response = self.client.get("/demo/live-status")
+        payload = status_response.json()
+        self.assertFalse(payload["active"])
+        self.assertEqual(payload["last_terminal"]["status"], "failed")
+        self.assertNotIn("secret.example", payload["last_terminal"]["reason"])
+        self.assertNotIn("token=secret", payload["last_terminal"]["reason"])
+
+    def test_demo_overlay_tracks_contained_video_content(self):
+        response = self.client.get("/demo/fall-risk")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("syncVisualOverlay", response.text)
+        self.assertIn("naturalWidth", response.text)
+        self.assertIn("Math.min(frameWidth / sourceWidth", response.text)
 
     def test_ready_requires_ffmpeg_tools_for_ffmpeg_backend(self):
         from elderly_monitoring.service.settings import ServiceSettings
@@ -203,6 +301,27 @@ class ServiceSettingsTest(unittest.TestCase):
         self.assertEqual(settings.sit_stand_model_device, "cpu")
         self.assertEqual(settings.sit_stand_model_batch_size, 32)
 
+    def test_loads_near_fall_tabular_runtime_overrides(self) -> None:
+        from elderly_monitoring.service.settings import ServiceSettings
+
+        settings = ServiceSettings.load(
+            path=Path("/path/that/does/not/exist.yaml"),
+            environ={
+                "NEAR_FALL_RUNTIME_MODE": "tabular_rescorer",
+                "NEAR_FALL_MODEL_PATH": "reports/near-fall.joblib",
+                "NEAR_FALL_SCORE_THRESHOLD": "0.3815",
+                "NEAR_FALL_ALERT_COOLDOWN_SEC": "15.0",
+            },
+        )
+
+        self.assertEqual(settings.near_fall_runtime_mode, "tabular_rescorer")
+        self.assertEqual(
+            settings.near_fall_model_path,
+            Path("reports/near-fall.joblib"),
+        )
+        self.assertEqual(settings.near_fall_score_threshold, 0.3815)
+        self.assertEqual(settings.near_fall_alert_cooldown_sec, 15.0)
+
     def test_repository_config_freezes_stage_two_runtime_gates(self) -> None:
         from elderly_monitoring.runtime.realtime_fall_risk import (
             _feature_assembly_config,
@@ -210,7 +329,7 @@ class ServiceSettingsTest(unittest.TestCase):
         from elderly_monitoring.service.settings import ServiceSettings
 
         settings = ServiceSettings.load(
-            path=Path("configs/modules/fall_risk_service.yaml"), environ={}
+            path=Path("configs/modules/fall_risk_service_v2.yaml"), environ={}
         )
         assembly = _feature_assembly_config(
             {
@@ -221,6 +340,14 @@ class ServiceSettingsTest(unittest.TestCase):
         )
 
         self.assertEqual(settings.primary_lost_timeout_sec, 2.0)
+        self.assertEqual(
+            settings.release_id,
+            "fall-risk-competition-v2-20260827",
+        )
+        self.assertEqual(settings.near_fall_runtime_mode, "tabular_rescorer")
+        self.assertTrue(settings.near_fall_model_path.is_file())
+        self.assertEqual(settings.near_fall_score_threshold, 0.3815)
+        self.assertEqual(settings.near_fall_alert_cooldown_sec, 15.0)
         self.assertEqual(settings.fall_event_runtime_mode, "experimental_tcn")
         self.assertEqual(len(settings.fall_event_shadow_checkpoint_paths), 3)
         self.assertTrue(

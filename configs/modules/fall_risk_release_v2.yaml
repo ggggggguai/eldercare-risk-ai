@@ -1,0 +1,124 @@
+schema_version: "1.0"
+release_id: fall-risk-competition-v2-20260827
+status: competition_release_frozen
+stage: near_fall_runtime_upgrade_with_sit_stand_contract_preserved
+based_on_release: fall-risk-competition-v1-20260819
+frozen_at: "2026-08-27T19:17:09+08:00"
+approval_basis: project_owner_requests_most_appropriate_refreeze
+scope: competition_delivery_runtime
+runtime_source_revision: 7c56430ffded60365dd253ed9bea81432101759a
+
+service_config:
+  path: configs/modules/fall_risk_service_v2.yaml
+  sha256: 9da03536b272373bda5aa40dcf78b474ff23a18b9133bbb402d5184b7fc067e7
+
+artifacts:
+  - role: pose_detection_and_tracking
+    path: models/yolov8n-pose.pt
+    sha256: c6fa93dd1ee4a2c18c900a45c1d864a1c6f7aba75d84f91648a30b7fb641d212
+  - role: gait_primary
+    path: reports/fall_risk/gait_observable_context_v2/splitv3-3342705-scfaux-v1/pretrained-seed43/best_model.pt
+    sha256: 67e6028bfc32cada85bfc3ed440e5f968f96d0f13a3288b6b8c797e8aca8a3fc
+  - role: sit_stand_primary
+    path: reports/fall_risk/sit_stand_continuous_tcn_v2/sitstandsplit_11e163684e3bb898a5c3508d/seed42-pilot-loss-scale-fixed/best_model.pt
+    sha256: efcc12dbb2c243214f89348a991ebf595061b918e4fda04f4215707443ce756b
+  - role: near_fall_tabular_seed_42
+    path: reports/fall_risk/fall_self_near_fall_tabular_v2/seed42/best_model.joblib
+    sha256: 0585b3a667103f6e77885252d5a4c11f299246d8805875504a138e94a726ef83
+  - role: fall_event_ensemble_seed_42
+    path: reports/fall_risk/fall_event_continuous_tcn_v2/seed42/best_model.pt
+    sha256: 650ab9016d3d4c6f682f524c85c3ed09f02bba526d2e83f7cdc8fac87b08d99c
+  - role: fall_event_ensemble_seed_43
+    path: reports/fall_risk/fall_event_continuous_tcn_v2/seed43/best_model.pt
+    sha256: b4c60ab009730ca83bb0f0d694af1580d89cd9d1a05876c7599a0e71c214fc79
+  - role: fall_event_ensemble_seed_44
+    path: reports/fall_risk/fall_event_continuous_tcn_v2/seed44/best_model.pt
+    sha256: c1602d9d1a2c12037b6a4ebae4ed560e0b9e6c5216fe263afcafb23046ad852e
+
+runtime_implementation:
+  - path: src/elderly_monitoring/modules/fall_risk/near_fall_tabular.py
+    sha256: a2482373fda603493bf18f528d61a658f98078cd32912e5d8424400c8a9e24e2
+  - path: src/elderly_monitoring/runtime/feature_assembly.py
+    sha256: 21bbbe565135d429cb8fc9fad1109a23f8a0e3db85ef54acd0b84233d6be1ae3
+  - path: src/elderly_monitoring/modules/fall_risk/pipeline.py
+    sha256: 8fa40d409a0ed446f0feca7f19a1649b31a30992e9aec08bcc684943949ea80f
+  - path: src/elderly_monitoring/runtime/event_policy.py
+    sha256: 6faf82c86da86051287930a3ccd7792573caf748133e91c2d6ac6751e0a86ccf
+  - path: src/elderly_monitoring/runtime/realtime_fall_risk.py
+    sha256: 7ef74f04b31eacfbcb1d36c09efd25093c764ba23471d0f50c9e9aea78bfee2c
+  - path: src/elderly_monitoring/service/settings.py
+    sha256: 0195a10484ffd34a7e66fa7aad062f24922c0c9f879352d92909a00bd4b0b7e4
+  - path: src/elderly_monitoring/service/app.py
+    sha256: 444cd52a8441be55cc647651769ccc7e96fcb43ef2bce9d7386019fd0ac3cb54
+
+runtime_branches:
+  pose: yolov8_pose_bytetrack
+  gait: tcn_seed_43_primary_with_rule_fallback
+  sit_stand: continuous_tcn_seed_42_primary_with_rule_fallback
+  near_fall: rule_candidates_plus_extratrees_seed_42_rescoring_with_rule_fallback
+  fall_event: tcn_three_seed_ensemble_primary_with_rule_fallback
+  personal_baseline: statistical_fail_closed
+  risk_fusion: rule_primary
+
+near_fall_policy:
+  score_threshold: 0.3815
+  alert_cooldown_sec: 15.0
+  rule_candidate_generation_retained: true
+  causal_window_sec: 3.0
+  fallback_window_sec: 2.0
+  inference_failure_behavior: rule_fallback
+  evaluation_only_event_hold_sec: 0.75
+
+sit_stand_policy:
+  primary_checkpoint_role: sit_stand_primary
+  clip_presence_random_forest_promoted: false
+  exclusion_reason: clip_presence_model_lacks_continuous_event_boundary_and_direction_contract
+
+acceptance_gates:
+  artifact_integrity: passed
+  runtime_integration_tests: passed
+  near_fall_development_validation: passed_for_competition_delivery
+  sit_stand_runtime_contract_preserved: passed
+  competition_delivery_freeze: passed_by_project_owner
+
+evidence:
+  near_fall_selection_record:
+    path: reports/fall_risk/fall_self_near_fall_runtime_decoder_selection_v2.json
+    sha256: 69836da45cfee8c957c8076e4377acd30b7c391bf58ed43ea077f4548b4eb2d9
+  near_fall_full_engineering_replay:
+    video_count: 115
+    event_f1: 0.7931034482758621
+    recall: 0.8518518518518519
+    precision: 0.7419354838709677
+    independent_test: false
+  sit_stand_clip_presence_candidate:
+    checkpoint_sha256: cf4bfd7b3e08ac255f3376e1a3254ad8faea60efbaf8931023de9544bc5a3bf1
+    internal_confirmation_f1: 0.9543
+    continuous_replay_event_f1: 0.2738
+    promoted: false
+
+safety_policy:
+  rule_fallback_retained: true
+  fail_closed_on_missing_personal_history: true
+  clinical_claims_allowed: false
+
+evidence_policy:
+  approval_does_not_create_missing_evidence: true
+  preserve_historical_metrics_and_gate_results: true
+  known_limitations_remain_recorded: true
+  single_subject_single_household_near_fall_evidence: true
+  locked_test_evaluated: false
+
+change_policy:
+  immutable_release: true
+  requires_new_release_id: true
+  allowed_without_new_release:
+    - secret_rotation
+    - deployment_endpoint_change
+  requires_new_release:
+    - checkpoint_change
+    - model_path_change
+    - threshold_change
+    - feature_contract_change
+    - service_runtime_config_change
+    - runtime_implementation_change

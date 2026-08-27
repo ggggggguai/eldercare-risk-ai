@@ -1,10 +1,10 @@
 # 老年人多模态风险预警算法工程
 
-更新时间：2026-08-19
+更新时间：2026-08-27
 
 本工程只覆盖算法开发部分，面向两个模块：
 
-- `fall_risk`：跌倒风险前置预警算法。当前混合运行基线已于 2026-08-19 冻结为正式比赛交付版本：步态、坐站和跌倒事件使用固定 TCN checkpoint，近跌倒、个体基线和最终融合保持现有规则/统计实现，模型不可用或输入不满足契约时继续规则兜底。
+- `fall_risk`：跌倒风险前置预警算法。当前 `fall-risk-competition-v2-20260827` 已冻结为正式比赛交付版本：步态、连续坐站和跌倒事件使用固定 TCN checkpoint，近跌倒采用规则候选 + ExtraTrees 重评分，个体基线和最终融合保持统计/规则实现；模型不可用或输入不满足契约时继续规则兜底。
 - `mental_health`：心理健康风险预警算法。行为/睡眠适配、日级聚合、个人基线、风险评分和离线 CLI 已实现；徘徊专项完成了隔离数据转换与人工复核步骤，尚未进入正式 split、模型或现有评分主链。
 
 系统开发不在本工程范围内。家属端、社区端、账号、消息推送、工单流转、可视化看板等只通过标准 JSON 接口对接。
@@ -41,13 +41,13 @@ conda run -n eldercare-ai python -m pip show elderly-monitoring-algorithms
 
 ## 当前研发阶段与优先级
 
-当前跌倒风险模块处于正式模型替换完成并冻结阶段。项目负责人已接受当前证据边界，并将现有混合运行基线冻结为比赛正式交付版本：YOLOv8-Pose + ByteTrack 和姿态质量控制作为输入主链，步态 seed 43、坐站 seed 42、跌倒事件三 seed TCN 为固定模型分支，近跌倒、跌倒状态、个体基线和最终风险融合保持当前规则/统计实现。冻结清单见 [`configs/modules/fall_risk_release_v1.yaml`](configs/modules/fall_risk_release_v1.yaml)；后续更新必须创建新 release ID，不能覆盖 v1。
+当前跌倒风险模块处于比赛交付 v2 冻结阶段。项目负责人已接受当前证据边界，将 YOLOv8-Pose + ByteTrack、步态 seed 43、连续坐站 seed 42、跌倒事件三 seed TCN，以及近跌倒规则候选 + ExtraTrees seed 42 重评分冻结为 `fall-risk-competition-v2-20260827`。个体基线和最终融合继续使用统计/规则实现，所有模型分支保留规则 fallback。机器清单见 [`configs/modules/fall_risk_release_v2.yaml`](configs/modules/fall_risk_release_v2.yaml)；v1 保持不可变，后续更新必须创建新 release ID。
 
 该交付决定不制造缺失的实验事实。v2 formal blocker、未冻结研究 split/协议、未读取 test、连续背景/老人域和纵向真值缺口仍按原报告保留，故不得把“正式比赛交付”扩展表述为临床有效或完整泛化验证通过。
 
 SCF_MVP_V1 自采批次已取消数据集级隔离：P01/P02/P04 的 298 条受审动作、150 个视频已进入 v2 根标签、v3 训练标签和统一 split，451 条 SCF assignment 全部固定在 train；P05 继续作为 challenge，P03 继续 excluded。既有 split 按 6,516 个资产继承，SCF 不改写既有 validation/test。新步态 observable-context v2 已重建 2,372 个窗口并完成 3 seed provisional 对照；迁移 encoder seed 43 已进入实时步态主分支，规则保留为失败降级。详见[执行报告](reports/fall_risk/self_collected_scf_mvp_v1/README.md)和[运行启用记录](reports/fall_risk/gait_runtime_activation_20260818.md)。
 
-近跌倒恢复确认数据已按当前 split 和事件标签 hash 重建为 v2：完整同轨因果上下文、3 秒/2 秒显式回退和逐标签审计形成 base，再由 SCF E1 只加入六类受审负例，最终为 3,842 个窗口、1,695 个事件。三 seed 的 P05 负例触发为 `13/34`、`28/34`、`22/34`，正例代理检出为 `10/16`、`14/16`、`11/16`。后续 A01/A04 低权重动作辅助负例 seed 42 消融把 primary validation F1 最高提高到 `0.9003`，但 P05 负例仍为 `21-25/34`，明显差于原 SCF E1 seed 42 的 `13/34`，故不扩 seed、不晋级 checkpoint，规则主路径不变。详见[v2 治理与训练报告](reports/fall_risk/near_fall_event_v2/README.md)。
+近跌倒 TCN 与动作辅助消融仍保留为历史研究候选；v2 实际晋级的是面向自采场景的 ExtraTrees 重评分器。它在规则候选上使用 3 秒因果窗口（不足时尝试 2 秒），阈值 `0.3815`，模型不可用时回退规则。暗光开发验证 F1=`0.800`，固定参数后的 hall 开发挑战 F1=`0.714`，115 段工程回放 F1=`0.7931`；数据仍来自单一成人、单一家庭和同一批次，不能表述为跨人员或老人域泛化。详见[冻结记录](reports/fall_risk/fall_risk_release_freeze_20260827.md)。
 
 跌倒连续训练链已重新绑定当前 `splitv3_3342705b7b1ac51570148337`：7,701 条开发监督物化为 7,504 个 `[32,17,20]` 因果窗口，并完成三 seed TCN。固定阈值 0.5 的 validation F1/PR-AUC 均值为 `0.6745/0.6782`；普通背景误报率仍为 `0.2116`，onset validation 只有 7 条。三枚 checkpoint 现已由 v1 清单冻结为正式比赛交付主评分：TCN 命中沿用现有强触发契约，窗口不足/推理失败回退规则；原始概率和来源写入诊断。test 标签语义、连续背景和老人域证据仍缺失，历史研究证据等级保持 `development_provisional`，不因交付批准而改写。详见[训练报告](reports/fall_risk/fall_event_continuous_tcn_v2/README.md)。
 
@@ -57,8 +57,8 @@ SCF_MVP_V1 自采批次已取消数据集级隔离：P01/P02/P04 的 298 条受�
 
 冻结后的优先级：
 
-1. 保持 v1 模型、阈值和服务配置不变；任何算法更新在新 release ID 下单独验证，不回写当前冻结版本。
-2. 将 v2 formal、研究 split/协议、连续背景、老人域和 test 缺口作为下一版本证据工作，不追溯改写 v1 的交付状态。
+1. 保持 v2 模型、阈值、运行实现和服务配置不变；任何算法更新在新 release ID 下单独验证，不回写当前冻结版本。
+2. 将 formal、研究 split/协议、连续背景、老人域和 test 缺口作为后续证据工作，不追溯改写 v1/v2 的交付状态。
 3. 在已通过真实萤石算法端 120 秒烟测的基础上，完成业务后端风险回调、直播地址刷新、弱网和固定硬件长时资源验收。
 4. 完成徘徊专项固定 split，再进入预处理和模型训练；不得提前把转换产物称为识别能力。
 5. 继续保持两个模块独立评分、独立验证和独立输出，只共享 `AlgorithmEvent` 字段契约。
@@ -79,18 +79,20 @@ SCF_MVP_V1 自采批次已取消数据集级隔离：P01/P02/P04 的 298 条受�
 conda run -n eldercare-ai python -m pip install -e ".[vision,service]"
 ```
 
-必需环境变量为 `ALGORITHM_API_TOKEN` 和 `CALLBACK_TOKEN`；姿态模型路径由 `MODEL_PATH` 指定，默认是仓库内的 `models/yolov8n-pose.pt`。可选的 `BASELINE_HISTORY_PATH` 指向个体历史 JSONL。默认服务配置与 checkpoint 已由 v1 清单冻结；正式比赛部署不应使用环境变量覆盖模型路径，紧急回滚仍可切换到规则 fallback 并重启服务。启动单 worker 服务：
+必需环境变量为 `ALGORITHM_API_TOKEN` 和 `CALLBACK_TOKEN`；姿态模型路径由 `MODEL_PATH` 指定，默认是仓库内的 `models/yolov8n-pose.pt`。可选的 `BASELINE_HISTORY_PATH` 指向个体历史 JSONL。默认服务配置与 checkpoint 已由 v2 清单冻结；正式比赛部署不应使用环境变量覆盖模型路径，紧急回滚仍可切换到规则 fallback 并重启服务。启动单 worker 服务：
 
 ```bash
 ALGORITHM_API_TOKEN=replace-me CALLBACK_TOKEN=replace-me \
 conda run -n eldercare-ai uvicorn elderly_monitoring.service.app:app \
-  --host 0.0.0.0 --port 8080 --workers 1
+  --host 0.0.0.0 --port 8000 --workers 1
 ```
+
+录屏演示入口：`http://localhost:8000/demo/fall-risk`。页面默认进入明确标记的模拟回放；切换到“真实直播”后会清空模拟结果，并按实际诊断展示服务/模型/视频状态、任务编号、处理阶段、分支结果与 AlgorithmEvent 回调状态。业务后端保存和家属提醒不属于本仓库能力，页面只显示为未接入边界。
 
 Docker 镜像不包含模型，运行时只读挂载固定路径：
 
 ```bash
-docker run --rm -p 8080:8080 \
+docker run --rm -p 8000:8080 \
   -e ALGORITHM_API_TOKEN=replace-me \
   -e CALLBACK_TOKEN=replace-me \
   -v "$PWD/models/yolov8n-pose.pt:/models/yolov8n-pose.pt:ro" \

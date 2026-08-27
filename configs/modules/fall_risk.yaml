@@ -111,8 +111,10 @@ gait:
     - model_version
 
 sit_stand:
-  current_backend: rule_baseline
-  model_version: sit-stand-risk-rule-v0.1
+  current_backend: continuous_tcn
+  checkpoint: reports/fall_risk/sit_stand_continuous_tcn_v2/sitstandsplit_11e163684e3bb898a5c3508d/seed42-pilot-loss-scale-fixed/best_model.pt
+  fallback_backend: rule_baseline
+  model_version: sit-stand-continuous-tcn-v1
   input_format: cleaned_pose_jsonl
   output_format: jsonl
   output_fields:
@@ -131,5 +133,27 @@ sit_stand:
     - stabilization_time
     - sit_stand_features
     - quality_coverage
+    - risk_factors
+    - model_version
+
+near_fall:
+  current_backend: rule_candidates_plus_tabular_rescorer
+  checkpoint: reports/fall_risk/fall_self_near_fall_tabular_v2/seed42/best_model.joblib
+  score_threshold: 0.3815
+  alert_cooldown_sec: 15.0
+  fallback_backend: rule_baseline
+  model_version: near-fall-tabular-extratrees-v1
+  input_format: cleaned_pose_jsonl
+  output_fields:
+    - person_id
+    - track_id
+    - scene_region
+    - start_time
+    - end_time
+    - event_type
+    - near_fall_event_score
+    - rule_near_fall_event_score
+    - score_source
+    - fallback_reason
     - risk_factors
     - model_version

@@ -2,7 +2,7 @@
 
 更新时间：2026-08-19
 
-本文件只记录尚未完成的工作。已经落地的能力写入模块 README；阶段结论和旧待办移入 `docs/archive/`。当前跌倒风险模块已完成正式比赛交付模型替换并冻结 v1。以下数据、研究评估和工程任务服务于后续 release 或证据完善，不再阻塞 v1；任何模型、阈值、特征或服务配置更新必须新建 release ID。
+本文件只记录尚未完成的工作。已经落地的能力写入模块 README；阶段结论和旧待办移入 `docs/archive/`。当前跌倒风险模块已冻结 `fall-risk-competition-v2-20260827`，v1 保留为不可变回滚版本。以下数据、研究评估和工程任务服务于后续 release 或证据完善，不再阻塞当前比赛交付；任何模型、阈值、特征、运行实现或服务配置更新必须新建 release ID。
 
 ## P0：完善后续 release 证据
 
@@ -39,9 +39,10 @@
 
 ## P2：数据和模型增强
 
-- 当前阶段主线：保持 `fall-risk-competition-v1-20260819` 不变；新的步态、坐站、近跌倒/跌倒事件实验只作为下一 release 候选，在同一数据、split 和指标协议下与 v1 对照，并保留规则安全覆盖。
-- v1 已冻结步态 seed 43、坐站 seed 42 和跌倒事件三 seed checkpoint；这些文件只作为现行交付基线使用，后续训练结果不得覆盖。历史 validation 指标和缺失 test/老人域/连续背景证据继续见各自训练报告。
-- 近跌倒 v1 明确冻结规则主路径。现有 TCN 三 seed 与动作辅助消融只作为下一 release 的历史候选，不写入 v1 checkpoint 清单；若继续优化，优先补连续老人域背景及新人员困难负例。见[v2 治理与训练报告](../../reports/fall_risk/near_fall_event_v2/README.md)。
+- 当前阶段主线：保持 `fall-risk-competition-v2-20260827` 不变；新的步态、坐站、近跌倒/跌倒事件实验只作为下一 release 候选，在同一数据、split 和指标协议下与 v2 对照，并保留规则安全覆盖。
+- 2026-08-27 坐站片段 Random Forest 在内部确认集达到 F1=`0.9543`、Recall=`0.9807`，只证明动作片段存在性，不替代连续事件定位；步态 seed 43 的原 validation F1=`0.8571` 已是该集最佳阈值结果，但 9 个阳性和单一阳性来源仍未通过原研究门槛。下一步优先补 B03 主质量片段、独立阳性来源和连续坐站困难负例，详见 `reports/fall_risk/sit_stand_gait_optimization_20260827.md`。
+- v2 冻结步态 seed 43、连续坐站 seed 42、近跌倒 ExtraTrees seed 42 和跌倒事件三 seed checkpoint；这些文件只作为现行交付基线使用，后续训练结果不得覆盖。历史 validation 指标和缺失 test/老人域/连续背景证据继续见各自训练报告。
+- 近跌倒 v2 已接入规则候选 + ExtraTrees 重评分，下一步优先补跨人员、老人域和连续背景验证；坐站片段 Random Forest 未晋级，需先完成连续事件方向/边界契约和困难负例验证。见[v2 冻结记录](../../reports/fall_risk/fall_risk_release_freeze_20260827.md)。
 - SCF_MVP_V1 的 P01/P02/P04 已进入训练根标签；P05 challenge、P03 excluded。E1-E3 仍为 No-Go，不替换 checkpoint 或规则主路径。见[执行报告](../../reports/fall_risk/self_collected_scf_mvp_v1/README.md)。
 - 后续 release 晋级门槛：来源完整标签、人员/源组无泄漏划分、冻结验证协议、误报漏报分析、推理延迟和低质量输入降级证据全部齐备。该门槛不追溯撤销负责人对 v1 的比赛交付冻结决定。
 - 个体基线 Phase 0-1 与 Phase 2 算法基础设施已完成合成验收；已接入实时主链路的显式周期提交入口 `POST /v1/monitoring/sessions/{session_id}/baseline-period`，没有有效周期输入时仍失败关闭。当前待办是采集真实连续周期，补非空且有授权的 subject profiles、独立 `risk_labels` 与双审记录，在 validation 前冻结晋级阈值、最小样本量、split 和协议；这些门禁前真实 builder 保持 `blocked`，不得用 synthetic 指标声称个体化有效或接入默认主路径。见[Phase 2 状态报告](../../reports/fall_risk/baseline_longitudinal_phase2.md)。

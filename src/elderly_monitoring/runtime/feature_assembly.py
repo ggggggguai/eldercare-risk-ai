@@ -113,6 +113,7 @@ class FeatureAssembler:
         fall_state_config: FallStateConfig | None = None,
         gait_predictor: Any | None = None,
         sit_stand_predictor: Any | None = None,
+        near_fall_predictor: Any | None = None,
         fall_event_predictor: Any | None = None,
         fall_event_runtime_mode: str = "shadow",
         environment_store: EnvironmentStore | None = None,
@@ -128,6 +129,7 @@ class FeatureAssembler:
         self._fall_state = FallStateDetector(fall_state_config)
         self._gait_predictor = gait_predictor
         self._sit_stand_predictor = sit_stand_predictor
+        self._near_fall_predictor = near_fall_predictor
         self._fall_event_predictor = fall_event_predictor
         if fall_event_runtime_mode not in {"shadow", "experimental_tcn"}:
             raise ValueError(
@@ -304,12 +306,36 @@ class FeatureAssembler:
         if self._fall_event_runtime_mode == "experimental_tcn":
             if fall_event_tcn_diagnostic["status"] == "valid":
                 detected = bool(fall_event_tcn_item.get("fall_event_tcn_detected"))
-                # Preserve the existing event-feature contract: a detected fall is
-                # a strong binary trigger, while the raw model probability remains
-                # available separately for diagnostics and threshold tuning.
-                fall_event_score = 0.9 if detected else 0.0
-                fall_event_score_source = "continuous_tcn"
+                # The continuous TCN is a candidate generator. A stable sitting
+                # posture can look fall-like to the model, so an emergency score
+                # requires independent kinematic corroboration from the rule
+                # state machine in the same pose window.
+                kinematic_corroboration = bool(
+                    state is not None
+                    and (
+                        state.suspected_fall
+                        or state.triggered_now
+                        or state.long_static_score >= 0.8
+                    )
+                )
+                fall_event_score = 0.9 if detected and kinematic_corroboration else 0.0
+                fall_event_score_source = (
+                    "continuous_tcn"
+                    if detected and kinematic_corroboration
+                    else "continuous_tcn_uncorroborated_rule_fallback"
+                    if detected
+                    else "continuous_tcn"
+                )
                 fall_event_score_available = True
+                if detected and not kinematic_corroboration:
+                    fall_event_tcn_diagnostic["activation_status"] = "suppressed"
+                    fall_event_tcn_diagnostic["activation_reason"] = (
+                        "no_kinematic_fall_corroboration"
+                    )
+                else:
+                    fall_event_tcn_diagnostic["activation_status"] = (
+                        "active" if detected else "inactive"
+                    )
             elif fall_event_score_available:
                 fall_event_score_source = "fall_state_rule_fallback"
 
@@ -378,6 +404,7 @@ class FeatureAssembler:
             "fall_event_score": fall_event_score,
             "fall_event_score_source": fall_event_score_source,
             "long_static_score": state.long_static_score if state else None,
+            "static_duration_sec": state.static_duration_sec if state else None,
             "fall_event_tcn_score": fall_event_tcn_item.get(
                 "fall_event_tcn_score"
             ),
@@ -411,6 +438,7 @@ class FeatureAssembler:
             or (
                 self._fall_event_runtime_mode == "experimental_tcn"
                 and fall_event_tcn_item.get("fall_event_tcn_detected")
+                and fall_event_score >= 0.8
             )
         )
         stage_timings["feature_assembly_total"] = _elapsed_ms(assembly_started)
@@ -650,13 +678,20 @@ class FeatureAssembler:
         )
 
     def _run_near_fall(self, cleaned: list[dict[str, Any]]) -> tuple[dict[str, Any], dict[str, Any]]:
+        predictor = self._near_fall_predictor
         return self._run_scored_branch(
             name="near_fall",
             cleaned=cleaned,
             gate=self.config.near_fall_gate,
             score_field="near_fall_event_score",
-            default_version=NEAR_FALL_MODEL_VERSION,
-            run=lambda: extract_near_fall_events(cleaned),
+            default_version=str(
+                getattr(predictor, "model_version", NEAR_FALL_MODEL_VERSION)
+            ),
+            run=(
+                (lambda: predictor.predict_records(cleaned))
+                if predictor is not None
+                else (lambda: extract_near_fall_events(cleaned))
+            ),
             unavailable_flag="insufficient_near_fall_quality",
         )
 
@@ -723,6 +758,18 @@ class FeatureAssembler:
         started = time.perf_counter()
         diagnostic = _quality_diagnostic(cleaned, self.config.fall_state_gate)
         if diagnostic["reasons"]:
+            held_state = self._fall_state.hold(
+                _number(cleaned[-1].get("timestamp_sec"), 0.0) if cleaned else None
+            )
+            if held_state.suspected_fall:
+                diagnostic.update({
+                    "status": "valid",
+                    "score": max(held_state.fall_event_score, held_state.long_static_score),
+                    "reasons": ["quality_degraded_state_hold", *diagnostic["reasons"]],
+                    "model_version": "fall-state-rule-v0.1",
+                    "duration_ms": _elapsed_ms(started),
+                })
+                return held_state, diagnostic
             diagnostic.update({
                 "status": "unavailable",
                 "score": None,
@@ -1114,6 +1161,15 @@ def _elapsed_ms(started: float) -> float:
 
 def _state_observation(record: Mapping[str, Any], previous: Mapping[str, Any] | None = None) -> dict[str, float]:
     points = {str(point.get("name")): point for point in record.get("keypoints", []) if isinstance(point, Mapping)}
+    trunk_names = ("left_shoulder", "right_shoulder", "left_hip", "right_hip")
+    trunk_geometry_valid = all(
+        name in points
+        and points[name].get("valid") is True
+        and points[name].get("is_jump_outlier") is not True
+        and _optional_number(points[name].get("x")) is not None
+        and _optional_number(points[name].get("y")) is not None
+        for name in trunk_names
+    )
     def center(left: str, right: str) -> tuple[float, float]:
         first, second = points.get(left), points.get(right)
         if not first or not second:
@@ -1136,6 +1192,7 @@ def _state_observation(record: Mapping[str, Any], previous: Mapping[str, Any] | 
         "hip_center_y": hip[1],
         "bbox_center_y": (_number(bbox[1], 0.0) + _number(bbox[3], 0.0)) / 2 if len(bbox) >= 4 else hip[1],
         "trunk_angle_deg": angle,
+        "trunk_geometry_valid": 1.0 if trunk_geometry_valid else 0.0,
         "core_keypoint_quality": _number(record.get("core_keypoint_quality", record.get("keypoint_quality")), 0.0),
         "motion_score": _number(record.get("motion_score"), motion),
     }

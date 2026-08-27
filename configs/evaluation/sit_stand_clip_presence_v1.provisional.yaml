@@ -1,0 +1,22 @@
+protocol_version: sit-stand-clip-presence-eval-v1
+protocol_status: development_provisional
+task_type: sit_stand_clip_presence_vs_explicit_hard_negatives
+positive_action_ids: [A03, A04]
+negative_action_ids: [A05, A06, A07, A09, A11, D01, D02, D03, D04, D05]
+evaluation_unit: action_event
+window_aggregation: mean_probability
+fit_partition: train
+threshold_selection_partition: validation_selection_by_split_group
+confirmation_partition: validation_confirmation_by_split_group
+selection_seed: sitstand-selection-v1
+group_protection: [split_group_id, source_group_id, sample_group_id, video_id]
+excellent_gate:
+  precision_min: 0.85
+  recall_min: 0.90
+  f1_min: 0.90
+  pr_auc_min: 0.95
+test_policy: locked_not_read
+limitations:
+  - not_continuous_temporal_localization
+  - internal_development_confirmation_only
+  - not_runtime_streaming_compatible

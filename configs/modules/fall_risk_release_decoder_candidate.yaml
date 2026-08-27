@@ -1,0 +1,66 @@
+schema_version: "1.0"
+release_id: fall-risk-decoder-candidate-20260827
+status: development_candidate
+stage: self_collected_event_decoder_candidate
+based_on_release: fall-risk-competition-v1-20260819
+created_at: "2026-08-27T00:00:00+08:00"
+scope: development_evaluation_only
+
+service_config:
+  path: configs/modules/fall_risk_service.yaml
+  sha256: 517df8e7a7d4565357f9ca2f9f529b4ab22b67178e47aa0bc0c7c2d328cb91db
+
+artifacts:
+  - role: pose_detection_and_tracking
+    path: models/yolov8n-pose.pt
+    sha256: c6fa93dd1ee4a2c18c900a45c1d864a1c6f7aba75d84f91648a30b7fb641d212
+  - role: gait_primary
+    path: reports/fall_risk/gait_observable_context_v2/splitv3-3342705-scfaux-v1/pretrained-seed43/best_model.pt
+    sha256: 67e6028bfc32cada85bfc3ed440e5f968f96d0f13a3288b6b8c797e8aca8a3fc
+  - role: sit_stand_primary
+    path: reports/fall_risk/sit_stand_continuous_tcn_v2/sitstandsplit_11e163684e3bb898a5c3508d/seed42-pilot-loss-scale-fixed/best_model.pt
+    sha256: efcc12dbb2c243214f89348a991ebf595061b918e4fda04f4215707443ce756b
+  - role: fall_event_ensemble_seed_42
+    path: reports/fall_risk/fall_event_continuous_tcn_v2/seed42/best_model.pt
+    sha256: 650ab9016d3d4c6f682f524c85c3ed09f02bba526d2e83f7cdc8fac87b08d99c
+  - role: fall_event_ensemble_seed_43
+    path: reports/fall_risk/fall_event_continuous_tcn_v2/seed43/best_model.pt
+    sha256: b4c60ab009730ca83bb0f0d694af1580d89cd9d1a05876c7599a0e71c214fc79
+  - role: fall_event_ensemble_seed_44
+    path: reports/fall_risk/fall_event_continuous_tcn_v2/seed44/best_model.pt
+    sha256: c1602d9d1a2c12037b6a4ebae4ed560e0b9e6c5216fe263afcafb23046ad852e
+
+fall_event_decoder:
+  score_threshold: 0.5
+  pre_alert_sec: 1.0
+  end_cap_sec: 2.5
+  alert_cooldown_sec: 15.0
+  selection_partition: validation
+
+near_fall_candidate:
+  implementation: rule_primary
+  score_threshold: 0.35
+  track_policy: longest_track
+  suppress_when_fall_alerted: true
+  status: development_candidate
+
+acceptance_gates:
+  artifact_integrity: passed
+  validation_selection: passed_development_provisional
+  holdout_confirmation: passed_development_provisional
+  competition_delivery_freeze: not_requested
+
+evidence:
+  validation_video_count: 14
+  holdout_video_count: 44
+  full_engineering_replay_video_count: 115
+  full_engineering_replay_is_independent_test: false
+
+safety_policy:
+  rule_fallback_retained: true
+  fail_closed_on_missing_personal_history: true
+  clinical_claims_allowed: false
+
+change_policy:
+  immutable_release: true
+  requires_new_release_id: true

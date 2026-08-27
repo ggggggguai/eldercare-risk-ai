@@ -155,8 +155,12 @@ def _build_working_record(
                 raw_keypoints[name] = keypoint
 
     payload = dict(record)
+    coordinate_system = str(payload.get("coordinate_system", "image_normalized_0_1"))
     points_by_name = {
-        name: _build_quality_keypoint(name, raw_keypoints.get(name), config) for name in keypoint_names
+        name: _build_quality_keypoint(
+            name, raw_keypoints.get(name), config, coordinate_system=coordinate_system
+        )
+        for name in keypoint_names
     }
     payload["keypoints"] = [points_by_name[name] for name in keypoint_names]
     return {"index": index, "record": payload, "points_by_name": points_by_name}
@@ -166,6 +170,8 @@ def _build_quality_keypoint(
     name: str,
     raw_keypoint: Mapping[str, Any] | None,
     config: PoseQualityConfig,
+    *,
+    coordinate_system: str = "image_normalized_0_1",
 ) -> dict[str, Any]:
     if raw_keypoint is None:
         return _missing_keypoint(name)
@@ -185,6 +191,16 @@ def _build_quality_keypoint(
         point["y"] = None
         point["valid"] = False
         point["source"] = "missing"
+        point["quality_weight"] = 0.0
+        return point
+
+    if coordinate_system == "image_normalized_0_1" and not (
+        0.0 <= x <= 1.0 and 0.0 <= y <= 1.0
+    ):
+        point["x"] = None
+        point["y"] = None
+        point["valid"] = False
+        point["source"] = "out_of_bounds"
         point["quality_weight"] = 0.0
         return point
 

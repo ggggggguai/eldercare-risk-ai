@@ -23,17 +23,27 @@ class FallRiskPipeline:
     def __init__(
         self,
         *,
+        model_version: str | None = None,
         environment_mode: str = "disabled",
         environment_weight: float | None = None,
         environment_min_behavior_anchor: float | None = None,
         environment_policy_version: str | None = None,
+        near_fall_event_threshold: float = 0.7,
     ) -> None:
+        if model_version is not None:
+            normalized_version = str(model_version).strip()
+            if not normalized_version:
+                raise ValueError("model_version must not be empty")
+            self.model_version = normalized_version
         if environment_mode not in {"disabled", "shadow", "assist"}:
             raise ValueError("environment_mode must be disabled, shadow or assist")
         self.environment_mode = environment_mode
         self.environment_weight = environment_weight
         self.environment_min_behavior_anchor = environment_min_behavior_anchor
         self.environment_policy_version = environment_policy_version
+        if not 0.0 < near_fall_event_threshold < 1.0:
+            raise ValueError("near_fall_event_threshold must be within (0, 1)")
+        self.near_fall_event_threshold = float(near_fall_event_threshold)
 
     def predict_from_features(self, sample: Mapping[str, Any]) -> AlgorithmEvent:
         base_risk_score = weighted_fall_risk_score(sample)
@@ -53,9 +63,13 @@ class FallRiskPipeline:
         if max(fall_event_score, long_static_score) >= 0.8:
             risk_level = 4
             trigger_event = "fall_or_long_static"
-        elif near_fall_score >= 0.7 or risk_score >= 0.65:
+        elif near_fall_score >= self.near_fall_event_threshold or risk_score >= 0.65:
             risk_level = 3
-            trigger_event = "near_fall" if near_fall_score >= 0.7 else "combined_high_risk"
+            trigger_event = (
+                "near_fall"
+                if near_fall_score >= self.near_fall_event_threshold
+                else "combined_high_risk"
+            )
         elif risk_score >= 0.45:
             risk_level = 2
             trigger_event = "mobility_risk"
@@ -143,7 +157,10 @@ class FallRiskPipeline:
             factors.append("suspected_fall_event")
         if clamp_score(sample.get("long_static_score")) >= 0.8:
             factors.append("long_static_after_fall_risk")
-        if clamp_score(sample.get("near_fall_event_score")) >= 0.7:
+        if (
+            clamp_score(sample.get("near_fall_event_score"))
+            >= self.near_fall_event_threshold
+        ):
             factors.append("near_fall_event")
         if clamp_score(sample.get("gait_risk_score")) >= 0.5:
             factors.append("gait_instability")
@@ -178,7 +195,10 @@ class FallRiskPipeline:
             water = clamp_score(sample.get("water_interaction_score")) > 0
             gait = clamp_score(sample.get("gait_risk_score")) >= 0.5
             sit = clamp_score(sample.get("sit_stand_risk_score")) >= 0.5
-            near = clamp_score(sample.get("near_fall_event_score")) >= 0.7
+            near = (
+                clamp_score(sample.get("near_fall_event_score"))
+                >= self.near_fall_event_threshold
+            )
             if light and gait:
                 factors.append("unstable_gait_under_low_light")
             if light and sit:

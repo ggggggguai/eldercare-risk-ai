@@ -69,6 +69,15 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--min-partial-observed-frames", type=int, default=8)
     parser.add_argument("--min-valid-joint-ratio", type=float, default=0.50)
     parser.add_argument("--max-interpolated-joint-ratio", type=float, default=0.0)
+    parser.add_argument(
+        "--onset-loss-weight",
+        type=float,
+        default=0.0,
+        help=(
+            "Optional onset supervision weight for self-collected D01/D02 intervals; "
+            "default 0 preserves the presence-only adaptation baseline."
+        ),
+    )
     return parser
 
 
@@ -99,6 +108,8 @@ def prepare_adaptation_dataset(args: argparse.Namespace) -> dict[str, Any]:
         raise FileNotFoundError(f"pose root does not exist: {args.pose_root}")
     if args.output_dir.exists():
         raise FileExistsError(f"output exists: {args.output_dir}")
+    if args.onset_loss_weight < 0:
+        raise ValueError("onset-loss-weight must be non-negative")
     args.output_dir.mkdir(parents=True, exist_ok=False)
 
     manifest = _read_jsonl(args.manifest)
@@ -120,7 +131,12 @@ def prepare_adaptation_dataset(args: argparse.Namespace) -> dict[str, Any]:
     if not train_ids or not validation_ids or not holdout_ids:
         raise ValueError("adaptation split must contain train, validation and holdout videos")
 
-    governance_rows = _build_governance_rows(actions_by_video, split_by_video, manifest_by_video)
+    governance_rows = _build_governance_rows(
+        actions_by_video,
+        split_by_video,
+        manifest_by_video,
+        onset_loss_weight=args.onset_loss_weight,
+    )
     self_dir = args.output_dir / "self_collected_dataset"
     config = ContinuousFallDatasetConfig(
         window_sec=args.window_sec,
@@ -227,6 +243,8 @@ def _build_governance_rows(
     actions_by_video: Mapping[str, Sequence[Mapping[str, Any]]],
     split_by_video: Mapping[str, str],
     manifest_by_video: Mapping[str, Mapping[str, Any]],
+    *,
+    onset_loss_weight: float = 0.0,
 ) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     skipped = Counter()
@@ -271,9 +289,11 @@ def _build_governance_rows(
                     "action_id": action_id,
                     "action_name": action.get("action_name"),
                     "target_presence": int(positive),
-                    "allowed_heads": ["presence"],
+                    "allowed_heads": ["presence", "onset"]
+                    if positive and onset_loss_weight > 0
+                    else ["presence"],
                     "presence_loss_weight": 1.0 if positive else 0.8,
-                    "onset_loss_weight": 0.0,
+                    "onset_loss_weight": float(onset_loss_weight) if positive else 0.0,
                     "sampling_weight": 1.0,
                     "supervision_family": "self_collected_fall" if positive else "self_collected_hard_negative",
                     "supervision_strength": "adaptation",

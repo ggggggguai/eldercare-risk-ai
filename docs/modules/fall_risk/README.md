@@ -16,9 +16,15 @@ ESP32-S3 照度/水浸输入的 `EnvironmentStore`、因果快照、环境特征
 
 ## 当前研发阶段：正式模型替换完成并冻结
 
-当前模块已进入正式模型替换完成并冻结阶段。2026-08-19 项目负责人接受当前证据边界，将步态 seed 43、坐站 seed 42、跌倒事件三 seed TCN，以及现有近跌倒/个体基线/最终融合规则共同冻结为正式比赛交付基线。机器清单为 `configs/modules/fall_risk_release_v1.yaml`；后续更新必须创建新 release，不能覆盖 v1。
+当前模块已进入正式比赛交付 v2 冻结阶段。2026-08-27 项目负责人接受当前证据边界，将步态 seed 43、连续坐站 seed 42、跌倒事件三 seed TCN 和近跌倒 ExtraTrees seed 42 重评分链路冻结为 `fall-risk-competition-v2-20260827`；个体基线和最终融合继续使用统计/规则实现，模型失败保留规则 fallback。机器清单为 `configs/modules/fall_risk_release_v2.yaml`；v1 保持不可变，后续更新必须创建新 release。
 
 该阶段名称表示交付版本已经选定，不表示历史缺失的 test、老人域、连续背景或纵向真值被补齐。历史实验门禁结论继续有效，临床有效性和完整泛化验证仍不得宣称。
+
+### 自采评测候选解码（2026-08-27）
+
+统一评测脚本 `scripts/evaluate/evaluate_fall_nearfall_v1.py` 增加了仅用于实验回放的参数：跌倒事件尾部截断/告警前回溯、跌倒阈值、近跌倒阈值和近跌倒轨迹选择。默认值保持 v1 行为；参数会同时写入有效评测配置和合同，避免预测生成阈值与评分器二次过滤阈值不一致。
+
+在 2026-08-26 自采候选数据上，跌倒解码候选在独立 holdout 的一次复跑为 F1=0.759（11/12 命中）；该参数此前查看过整批结果，属于 development candidate，不能替代冻结 v1 或宣称独立泛化。近跌倒最长轨迹+阈值 0.35 的探索性事件 F1=0.250；再启用同视频跌倒告警后的近跌倒重复告警抑制后为 F1=0.364（TP=8、FP=9、FN=19），仍有较多漏报，未进入主路径。完整对照见 `reports/fall_risk/fall_self_eval_20260826_candidate_analysis.md`。
 
 当前仍保留规则分支用于 baseline、紧急事件安全覆盖、低质量输入降级和结果解释。个体行为基线及最终风险融合在 v1 中明确冻结为统计/规则实现；只有取得连续个人数据或 `risk_labels` 真值、冻结 split 和正式评估协议后，才能作为新 release 的模型候选，不能原地改写 v1。
 
@@ -81,7 +87,8 @@ ESP32-S3 照度/水浸输入的 `EnvironmentStore`、因果快照、环境特征
 | 跌倒事件训练 P0 审计 | 已实现；主路径门禁仍阻塞 | `scripts/audit/audit_fall_event_training.py` 不解析 test 标签内容，只绑定 manifest、v3 标签、split、formal/v3 报告和配置 hash。现有 P0 报告早于 SCF 发布，需按当前 `splitv3_3342705b7b1ac51570148337` 重建；formal、连续背景、老人域、冻结 split/协议和 test 保管门禁仍未通过。旧 candidate 报告不能作为当前 split 结果。见[P0 审计](../../../reports/fall_risk/fall_event_training_audit.md)和[阻塞清单](../../../reports/fall_risk/fall_event_blockers.md) |
 | 步态窗口、训练与运行 | v1 冻结 seed 43 主链；规则保留 fallback | observable-context v2 有 2,372 个窗口；transfer seed 43 validation F1=`0.857`、walking-gate F1=`0.919`、正常窗口误报约 `12.0/hour`。输入不足、任务/窗口契约不兼容或推理失败时自动使用规则分；test、老人域和研究协议限制继续保留。见[运行启用记录](../../../reports/fall_risk/gait_runtime_activation_20260818.md) |
 | 坐站训练准备与因果 TCN | v1 冻结 seed 42 主链；规则保留 fallback | SCF 发布后专项 v2 发布 1,942 个事件、5,512 个显式背景和 229 个 ignore，生成 11,373 个多 cutoff 窗口。同 split 完整流上，TCN event F1/Recall/FP-hour 为 0.449/0.419/158.8；这些历史指标未达到原研究门禁，但负责人已接受其作为 v1 比赛交付模型。test、背景时长和困难负例限制继续保留。见[v2 治理与训练报告](../../../reports/fall_risk/sit_stand_event_v2/README.md) |
-| 近跌倒恢复确认 | v1 冻结规则主链；TCN 候选不接入 | 三 seed与 A01/A04 辅助消融属于历史候选，P05 负例波动较大且 test 未读取，因此 v1 保持规则实现，不纳入 checkpoint 清单。见[v2 治理与训练报告](../../../reports/fall_risk/near_fall_event_v2/README.md) |
+| 坐站片段识别候选 | development provisional；不接实时主链 | Random Forest 在保护组隔离的内部确认集上 Precision=`0.9292`、Recall=`0.9807`、F1=`0.9543`、PR-AUC=`0.9922`，通过片段级优秀门槛。该口径只判断动作片段是否包含坐下/起立，不是连续事件定位，也未读取锁定 test；不能用来覆盖上一行的连续流指标。见[候选报告](../../../reports/fall_risk/sit_stand_clip_presence_v1/README.md) |
+| 近跌倒恢复确认 | v2 冻结规则候选 + ExtraTrees seed 42 重评分；规则 fallback | 阈值 `0.3815`，近跌倒告警冷却 15 秒；暗光开发验证 F1=`0.800`，hall 开发挑战 F1=`0.714`，115 段工程回放 F1=`0.7931`。证据仍是单成人、单家庭、同批次，不能外推老人域。见[v2 冻结记录](../../../reports/fall_risk/fall_risk_release_freeze_20260827.md) |
 | SCF_MVP_V1 自采增强 | P01/P02/P04 已进入训练根标签；E1-E3 No-Go | 150 个视频、298 条动作进入 v2/v3，派生 153 条任务事件；451 条 assignment 全部固定在 train。P05 challenge、P03 excluded 不变；规则和原 checkpoint 保持主路径。见[执行报告](../../../reports/fall_risk/self_collected_scf_mvp_v1/README.md) |
 | `fall_nearfall_v1` 居家评估候选 | 已完成开发性工程评测；未 frozen | 115 条单人单住宅视频、24 条跌倒和 27 条近跌倒事件真值，另有 64 条无目标事件视频。修复单人多轨迹和重复事件后，跌倒事件 `P=0.2500/R=0.4167/F1=0.3125/PR-AUC=0.1647`；视频内任意/首条告警落入标注区间均为 `22/24`，9 个负视频产生告警。近跌倒规则 `P=0.0357/R=0.0370/F1=0.0364/PR-AUC=0.0015`。结果为 `development_provisional`，单人单批次、未独立双审，不能报告老人域泛化或临床指标。见[候选集](../../../data/evaluations/fall_risk/fall_nearfall_v1/README.md)和[评测报告](../../../reports/fall_risk/fall_nearfall_v1/README.md) |
 | 标注导入与严格校验 | v2 根标签已发布；formal 阻塞 | 根标签为 9,612 条动作、6,338 条事件；SCF 新增 298 条动作。结构错误为 0；formal 为 `errors=0`、`blockers=285`、`formal_ready=false` |
@@ -91,7 +98,7 @@ ESP32-S3 照度/水浸输入的 `EnvironmentStore`、因果快照、环境特征
 | 模型训练标签 v3 | 事件监督门禁通过；动作类型门禁仍阻塞 | 独立输出 9,612 条动作和 9,651 条事件：fall 正/负=2,303/1,827，near-fall 正/负=981/4,282，ignore=258。统一 split 覆盖 19,263 条标签、6,666 个资产、187 个泄漏组且跨分区泄漏为 0；SCF 451 条均在 train。`training_ready.fall_event=true`、`training_ready.near_fall_event=true`，`action_type=false` |
 | 四任务独立 split | 两个 provisional ready、两个 blocked | 基于 v2 根事件的专项 split 与 19,263 条 assignment 的 v3 统一训练 split 用途不同，当前均不是 frozen split |
 | 跌倒/近跌倒事件评估器 | 已实现；仅完成合成烟测 | 入口为 `scripts/evaluate/evaluate_fall_events.py`，开发协议位于 `configs/evaluation/`；`reports/fall_risk/workflow_a_synthetic_evaluation/bundle/` 证明 bundle 生成链路可运行，但协议是 `development_provisional`、输入是合成数据，任何数值都不是比赛指标或真实模型效果 |
-| 正式比赛交付版本 | v1 已冻结 | 当前混合运行基线的配置与六个模型产物已由 SHA-256 清单锁定；研究数据版本与正式指标的既有缺口继续单独记录，不由交付批准替代 |
+| 正式比赛交付版本 | v2 已冻结，v1 保留回滚 | 当前混合运行基线的配置、七个正式模型产物和关键运行源码已由 SHA-256 清单锁定；研究数据版本与正式指标的既有缺口继续单独记录，不由交付批准替代 |
 
 ### 全视频姿态缓存批次
 
@@ -513,7 +520,7 @@ conda run -n eldercare-ai python scripts/train/train_sit_stand_continuous_tcn.py
 - `core_keypoint_quality`
 - `window_quality.usable_for_near_fall`
 
-训练侧另有隔离的“恢复后近跌倒确认”候选链：`publish_near_fall_labels_v3.py` 发布人工 v3 候选，`prepare_near_fall_event_dataset.py` 构建因果 `[T,10,8]` train/validation 数据，`train_near_fall_tcn.py` 训练 binary TCN。它尚未接入这里的规则主路径。现行真实 v3 事件监督门禁已经通过，当前 split 的三 seed开发训练已完成；train 已覆盖 5 个来源，但 validation 的困难负例仍只有快速可控坐下一类，不能替代连续背景和老人域验证。人工决策格式和门禁顺序见 `scripts/annotation/README.md`。
+训练侧的 binary TCN 仍是隔离的历史研究候选。当前 v2 实时主路径复用其因果 `[T,10,8]` 输入契约，但使用 ExtraTrees 对规则候选重评分；这不表示旧 TCN 已晋级。现行真实 v3 事件监督门禁已经通过，但连续背景、跨人员和老人域验证仍不足。人工决策格式和门禁顺序见 `scripts/annotation/README.md`。
 
 腕部关键点只用于“疑似支撑接触”的弱 proxy；腕部缺失不会阻断横向失衡、快速下沉恢复、急停恢复等基础近跌倒线索识别。
 
@@ -717,6 +724,8 @@ payload = event.to_dict()
 现行 v3 的 `training_ready.fall_event=true`，但这只解除事件监督结构门禁。旧 pilot 的 validation 保护组只有 9 个、来源以 NTU 为主，且未读取 test；其分数不能写成当前 split 结果、“已确认跌倒概率”、连续视频召回率、误报率或临床有效性。该 profile 的 `subtype_loss_weight=0.0`，方向头没有训练；报告显式返回 `subtype.status=not_trained`，不能从 checkpoint 推断跌倒方向。
 
 `fall_event_continuous.py` 建立 `[T,17,20]` 因果输入：joint、motion/acceleration、bone、image y/bbox height、quality/valid/interpolated/jump/frame mask、实际 source `delta_t`、相对时间、有效 FPS、gap 和 track continuity。时刻 `t` 的 slot 只可使用 `<=t` 的观测；重复采样、缺帧、长 gap 或跳变不会伪造速度。现有 cleaned pose 的短 gap 插值可能使用未来帧，因此治理契约要求屏蔽插值坐标及其派生 motion；完成这一策略和真实连续窗口 builder 前，不应称为连续跌倒模型。
+
+2026-08-27 项目负责人接受现有证据边界后，近跌倒 ExtraTrees seed 42 由开发候选晋级为比赛交付 v2 主评分器，最终事实源改为 `configs/modules/fall_risk_release_v2.yaml`。实时链路先由规则生成候选，再使用 3 秒因果窗口（不足时尝试 2 秒）重评分；阈值为 `0.3815`，模型窗口不可用或推理失败时回退规则。三种子在暗光验证运行链均得到 F1=0.800，按预声明同分规则选择 seed 42；固定参数后 hall 开发挑战 F1=0.714，完整 115 段工程回放近跌倒 F1=0.793。所有数据仍来自同一成人和同一采集批次，不能据此宣称跨人员或老人域泛化。离线评测使用的 `event_hold_sec=0.75` 只定义匹配区间，不参与实时未来观察。
 
 ```bash
 conda run -n eldercare-ai python scripts/prepare/govern_fall_event_training_data.py

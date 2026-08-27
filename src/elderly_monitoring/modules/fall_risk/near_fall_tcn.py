@@ -204,7 +204,11 @@ def train_near_fall_tcn(
     metadata = json.loads(metadata_file.read_text(encoding="utf-8"))
     _validate_metadata(metadata, data_path, allow_synthetic=allow_synthetic)
     arrays = _load_dataset(data_path)
-    _validate_dataset(arrays)
+    split_policy = metadata.get("split_policy", {})
+    _validate_dataset(
+        arrays,
+        allow_subject_overlap=bool(split_policy.get("allow_subject_overlap", False)),
+    )
 
     destination = Path(output_dir)
     if destination.exists():
@@ -536,7 +540,9 @@ def _validate_metadata(
         raise ValueError("near-fall normalization was not fit on train only")
 
 
-def _validate_dataset(arrays: Mapping[str, np.ndarray]) -> None:
+def _validate_dataset(
+    arrays: Mapping[str, np.ndarray], *, allow_subject_overlap: bool = False
+) -> None:
     features = np.asarray(arrays["features"], dtype=np.float32)
     labels = np.asarray(arrays["labels"], dtype=np.int64)
     partitions = np.asarray(arrays["partitions"]).astype(str)
@@ -560,7 +566,15 @@ def _validate_dataset(arrays: Mapping[str, np.ndarray]) -> None:
     for partition in ("train", "validation"):
         if set(labels[partitions == partition].tolist()) != {0, 1}:
             raise ValueError(f"near-fall {partition} partition lacks a binary class")
-    for field in ("event_ids", "subject_ids", "source_group_ids", "sample_group_ids", "split_group_ids"):
+    leakage_fields = [
+        "event_ids",
+        "source_group_ids",
+        "sample_group_ids",
+        "split_group_ids",
+    ]
+    if not allow_subject_overlap:
+        leakage_fields.append("subject_ids")
+    for field in leakage_fields:
         seen: dict[str, set[str]] = {}
         for value, partition in zip(np.asarray(arrays[field]).astype(str), partitions, strict=True):
             normalized = value.strip()

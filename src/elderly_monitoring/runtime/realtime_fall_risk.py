@@ -35,13 +35,19 @@ class RealtimeFallRiskEngine:
         self.pipeline = pipeline or FallRiskPipeline()
         self._last_fusion: float | None = None
         self.last_snapshot: Any | None = None
+        self.current_event: AlgorithmEvent | None = None
         self.last_fusion_duration_ms: float | None = None
         self.shadow_logger = shadow_logger
 
     def process_pose(self, record: Mapping[str, Any], *, monotonic_sec: float) -> AlgorithmEvent | None:
         snapshot = self.assembler.add_pose(record, monotonic_sec=monotonic_sec)
-        self.last_snapshot = snapshot
         if snapshot is None:
+            return None
+        self.last_snapshot = snapshot
+        if not snapshot.usable:
+            # A completed but unusable window supersedes any older event for the
+            # current view. Historical versions remain in the callback outbox.
+            self.current_event = None
             return None
         if self.shadow_logger is not None:
             self.shadow_logger.log({
@@ -54,8 +60,6 @@ class RealtimeFallRiskEngine:
                 "environment_evidence": snapshot.features.get("environment_evidence", {}),
                 "branch_diagnostics": snapshot.branch_diagnostics.get("environment", {}),
             })
-        if not snapshot.usable:
-            return None
         if self._last_fusion is not None and monotonic_sec - self._last_fusion < self.fusion_interval_sec and not snapshot.urgent:
             return None
         self._last_fusion = monotonic_sec
@@ -64,6 +68,7 @@ class RealtimeFallRiskEngine:
         self.last_fusion_duration_ms = round(
             (time.perf_counter() - started) * 1000.0, 4
         )
+        self.current_event = event
         return event
 
     def update_baseline_period(self, record: Mapping[str, Any] | None) -> dict[str, Any] | None:
@@ -81,6 +86,7 @@ class RealtimeFallRiskEngine:
     ) -> None:
         self._last_fusion = None
         self.last_snapshot = None
+        self.current_event = None
         self.last_fusion_duration_ms = None
         self.assembler.reset(reason=reason, stream_epoch=stream_epoch)
 
@@ -132,6 +138,27 @@ class FallRiskSessionEngine:
             raise ValueError(
                 "sit_stand_runtime_mode must be rule_baseline or experimental_tcn"
             )
+        near_fall_predictor = None
+        near_fall_runtime_mode = str(
+            kwargs.get("near_fall_runtime_mode", "rule_baseline")
+        )
+        if near_fall_runtime_mode == "tabular_rescorer":
+            near_fall_model_path = kwargs.get("near_fall_model_path")
+            if not near_fall_model_path:
+                raise ValueError(
+                    "near_fall_model_path is required for tabular_rescorer"
+                )
+            from elderly_monitoring.modules.fall_risk.near_fall_tabular import (
+                NearFallTabularRuntimePredictor,
+            )
+
+            near_fall_predictor = NearFallTabularRuntimePredictor(
+                near_fall_model_path
+            )
+        elif near_fall_runtime_mode != "rule_baseline":
+            raise ValueError(
+                "near_fall_runtime_mode must be rule_baseline or tabular_rescorer"
+            )
         fall_event_predictor = None
         fall_event_runtime_mode = str(
             kwargs.get("fall_event_runtime_mode", "shadow")
@@ -166,6 +193,7 @@ class FallRiskSessionEngine:
             fall_state_config=FallStateConfig(**dict(kwargs.get("fall_state") or {})),
             gait_predictor=gait_predictor,
             sit_stand_predictor=sit_stand_predictor,
+            near_fall_predictor=near_fall_predictor,
             fall_event_predictor=fall_event_predictor,
             fall_event_runtime_mode=fall_event_runtime_mode,
             environment_store=kwargs.get("environment_store"),
@@ -180,10 +208,14 @@ class FallRiskSessionEngine:
             else None
         )
         pipeline = FallRiskPipeline(
+            model_version=str(kwargs.get("release_id", "fall-risk-v0.1")),
             environment_mode=environment_settings.mode,
             environment_weight=environment_settings.assist_weight,
             environment_min_behavior_anchor=environment_settings.assist_min_behavior_anchor,
             environment_policy_version=environment_settings.assist_policy_version,
+            near_fall_event_threshold=float(
+                kwargs.get("near_fall_score_threshold", 0.7)
+            ),
         )
         self.engine = RealtimeFallRiskEngine(
             assembler=self.assembler,
@@ -191,7 +223,14 @@ class FallRiskSessionEngine:
             pipeline=pipeline,
             shadow_logger=self.environment_shadow_logger,
         )
-        self.policy = EventPolicy(cooldown_sec=float(kwargs.get("event_cooldown_sec", 30.0)))
+        self.policy = EventPolicy(
+            cooldown_sec=float(kwargs.get("event_cooldown_sec", 30.0)),
+            cooldown_by_trigger={
+                "near_fall": float(
+                    kwargs.get("near_fall_alert_cooldown_sec", 30.0)
+                )
+            },
+        )
         configured_outbox = kwargs.get("callback_outbox")
         if configured_outbox is not None:
             self.outbox = configured_outbox
@@ -375,13 +414,18 @@ class FallRiskSessionEngine:
             self._expire_episode(monotonic_sec=received)
             return
         self.primary_pose_count += 1
+        previous_snapshot = self.engine.last_snapshot
         event = self.engine.process_pose(result.primary_pose.to_dict(), monotonic_sec=received)
         snapshot = self.engine.last_snapshot
+        if snapshot is not previous_snapshot:
+            self.latest_event = getattr(self.engine, "current_event", None)
         if snapshot is not None:
             self.last_frame_diagnostics["window"] = {
                 "usable": snapshot.usable,
                 "quality_flags": list(snapshot.quality_flags),
                 "branches": snapshot.branch_diagnostics,
+                "coverage": snapshot.features.get("feature_coverage"),
+                "fusion_mask": snapshot.features.get("fusion_mask"),
             }
             self.last_frame_diagnostics["stage_timings_ms"].update(
                 snapshot.stage_timings_ms
@@ -495,7 +539,7 @@ class FallRiskSessionEngine:
         if version is not None:
             self.outbox.enqueue(self.session.callback_url, version)
         if transition is not None and transition.to_state == EpisodeState.RECOVERED:
-            self.policy.reset()
+            self.policy.reset(preserve_trigger_cooldowns=True)
 
     def _expire_episode(self, *, monotonic_sec: float) -> None:
         transition = self.episode.expire(monotonic_sec=monotonic_sec)

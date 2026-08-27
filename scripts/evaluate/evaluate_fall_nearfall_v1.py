@@ -17,6 +17,10 @@ from elderly_monitoring.modules.fall_risk.fall_event_continuous_tcn import (
     ContinuousFallTCNShadowPredictor,
 )
 from elderly_monitoring.modules.fall_risk.near_fall import extract_near_fall_events
+from elderly_monitoring.modules.fall_risk.near_fall_tabular import (
+    NearFallTabularPredictor,
+    rescore_near_fall_events,
+)
 from elderly_monitoring.modules.fall_risk.pose import run_yolov8_pose, write_jsonl
 from elderly_monitoring.modules.fall_risk.pose_quality import (
     PoseQualityConfig,
@@ -32,6 +36,8 @@ FALL_TARGET_FPS = 8.0
 FALL_MAX_GAP_SEC = 0.25
 FALL_STRIDE_SEC = 0.5
 FALL_EVENT_RESET_GAP_SEC = 2.0
+FALL_EVENT_END_CAP_SEC_DEFAULT = None
+FALL_EVENT_PRE_ALERT_SEC_DEFAULT = None
 FALL_MIN_OBSERVED_FRAMES = 16
 FALL_THRESHOLD = 0.5
 NEAR_FALL_THRESHOLD = 0.5
@@ -60,6 +66,68 @@ def build_parser() -> argparse.ArgumentParser:
         help="Prediction split ID; defaults to the frozen candidate split.",
     )
     parser.add_argument("--device", choices=("cpu", "cuda", "mps", "auto"), default="cpu")
+    parser.add_argument(
+        "--fall-score-threshold",
+        type=float,
+        default=FALL_THRESHOLD,
+        help="Experimental fall score threshold; omitted keeps v1 behavior.",
+    )
+    parser.add_argument(
+        "--fall-event-end-cap-sec",
+        type=float,
+        default=FALL_EVENT_END_CAP_SEC_DEFAULT,
+        help="Experimental post-processing cap after the first fall alert; omitted keeps v1 behavior.",
+    )
+    parser.add_argument(
+        "--fall-event-pre-alert-sec",
+        type=float,
+        default=FALL_EVENT_PRE_ALERT_SEC_DEFAULT,
+        help="Experimental event start window before the first fall alert; omitted keeps v1 behavior.",
+    )
+    parser.add_argument(
+        "--fall-event-alert-cooldown-sec",
+        type=float,
+        default=None,
+        help=(
+            "Experimental per-subject alert cooldown after a fall event; "
+            "omitted keeps all independently decoded events."
+        ),
+    )
+    parser.add_argument(
+        "--near-fall-score-threshold",
+        type=float,
+        default=NEAR_FALL_THRESHOLD,
+        help="Experimental near-fall score threshold; omitted keeps v1 behavior.",
+    )
+    parser.add_argument(
+        "--near-fall-track-policy",
+        choices=("per_frame", "longest_track"),
+        default="per_frame",
+        help="Experimental near-fall stream selection; omitted keeps per-frame v1 behavior.",
+    )
+    parser.add_argument(
+        "--near-fall-suppress-on-fall",
+        action="store_true",
+        help="Experimental cross-branch deduplication: suppress near-fall alerts when a fall event is emitted.",
+    )
+    parser.add_argument(
+        "--near-fall-tabular-checkpoint",
+        type=Path,
+        default=None,
+        help="Optional development checkpoint used to rescore rule-generated near-fall candidates.",
+    )
+    parser.add_argument(
+        "--near-fall-alert-cooldown-sec",
+        type=float,
+        default=None,
+        help="Optional causal cooldown used to suppress repeated near-fall alerts.",
+    )
+    parser.add_argument(
+        "--near-fall-event-hold-sec",
+        type=float,
+        default=0.0,
+        help="Optional post-alert duration retained in the decoded near-fall event interval.",
+    )
     parser.add_argument("--max-videos", type=int, default=None)
     parser.add_argument("--overwrite", action="store_true")
     return parser
@@ -84,11 +152,29 @@ def run(args: argparse.Namespace) -> int:
         args.pose_model,
         *args.fall_checkpoint,
     ]
+    if args.near_fall_tabular_checkpoint is not None:
+        required_files.append(args.near_fall_tabular_checkpoint)
     missing = [str(path) for path in required_files if not path.is_file()]
     if missing:
         raise FileNotFoundError("missing input files: " + ", ".join(missing))
     if args.max_videos is not None and args.max_videos < 1:
         raise ValueError("max-videos must be positive")
+    if not 0.0 < args.fall_score_threshold < 1.0:
+        raise ValueError("fall score threshold must be within (0, 1)")
+    if not 0.0 < args.near_fall_score_threshold < 1.0:
+        raise ValueError("near-fall score threshold must be within (0, 1)")
+    if (
+        args.fall_event_alert_cooldown_sec is not None
+        and args.fall_event_alert_cooldown_sec <= 0
+    ):
+        raise ValueError("fall event alert cooldown must be positive")
+    if (
+        args.near_fall_alert_cooldown_sec is not None
+        and args.near_fall_alert_cooldown_sec <= 0
+    ):
+        raise ValueError("near-fall alert cooldown must be positive")
+    if args.near_fall_event_hold_sec < 0:
+        raise ValueError("near-fall event hold must be non-negative")
     if len(args.fall_checkpoint) != 3:
         raise ValueError("the frozen release requires exactly three fall checkpoints")
 
@@ -96,8 +182,12 @@ def run(args: argparse.Namespace) -> int:
     if args.max_videos is not None:
         manifest = manifest[: args.max_videos]
     ground_truth = _read_jsonl(args.ground_truth)
-    fall_config = _load_yaml(args.fall_config)
-    near_fall_config = _load_yaml(args.near_fall_config)
+    fall_config = _effective_evaluation_config(
+        _load_yaml(args.fall_config), args.fall_score_threshold
+    )
+    near_fall_config = _effective_evaluation_config(
+        _load_yaml(args.near_fall_config), args.near_fall_score_threshold
+    )
     fall_config_hash = _canonical_hash(fall_config)
     near_fall_config_hash = _canonical_hash(near_fall_config)
     release = _load_yaml(args.release)
@@ -117,11 +207,16 @@ def run(args: argparse.Namespace) -> int:
     predictor = ContinuousFallTCNShadowPredictor(
         args.fall_checkpoint,
         device=args.device,
-        threshold=FALL_THRESHOLD,
+        threshold=args.fall_score_threshold,
         window_sec=FALL_WINDOW_SEC,
         target_fps=FALL_TARGET_FPS,
         max_gap_sec=FALL_MAX_GAP_SEC,
         min_observed_frames=FALL_MIN_OBSERVED_FRAMES,
+    )
+    near_fall_predictor = (
+        NearFallTabularPredictor(args.near_fall_tabular_checkpoint)
+        if args.near_fall_tabular_checkpoint is not None
+        else None
     )
     all_fall_predictions: list[dict[str, Any]] = []
     all_near_fall_predictions: list[dict[str, Any]] = []
@@ -145,22 +240,54 @@ def run(args: argparse.Namespace) -> int:
             evaluation_records, track_selection = _select_single_subject_stream(
                 cleaned, video_id=video_id
             )
-            fall_windows, fall_events = _fall_event_predictions(
-                evaluation_records, video_id=video_id, predictor=predictor
-            )
-            near_events = extract_near_fall_events(evaluation_records)
-            near_predictions = _near_fall_predictions(
-                near_events,
+            near_fall_records = _select_near_fall_stream(
+                cleaned,
                 video_id=video_id,
-                config_hash=near_fall_config_hash,
-                split_id=str(args.split_id or SPLIT_ID),
+                policy=args.near_fall_track_policy,
             )
+            fall_windows, fall_events = _fall_event_predictions(
+                evaluation_records,
+                video_id=video_id,
+                predictor=predictor,
+                threshold=args.fall_score_threshold,
+                end_cap_sec=args.fall_event_end_cap_sec,
+                pre_alert_sec=args.fall_event_pre_alert_sec,
+            )
+            fall_events = _suppress_fall_event_realerts(
+                fall_events,
+                cooldown_sec=args.fall_event_alert_cooldown_sec,
+            )
+            near_events = extract_near_fall_events(near_fall_records)
+            if near_fall_predictor is not None:
+                near_events = rescore_near_fall_events(
+                    near_events,
+                    near_fall_records,
+                    predictor=near_fall_predictor,
+                    fallback_to_rule=False,
+                )
             fall_predictions = _fall_prediction_rows(
                 fall_events,
                 video_id=video_id,
                 config_hash=fall_config_hash,
                 model_version=predictor.model_version,
                 split_id=str(args.split_id or SPLIT_ID),
+            )
+            near_predictions = _near_fall_predictions(
+                near_events,
+                video_id=video_id,
+                config_hash=near_fall_config_hash,
+                split_id=str(args.split_id or SPLIT_ID),
+                threshold=args.near_fall_score_threshold,
+                hold_sec=args.near_fall_event_hold_sec,
+            )
+            near_predictions = _suppress_near_fall_realerts(
+                near_predictions,
+                cooldown_sec=args.near_fall_alert_cooldown_sec,
+            )
+            near_predictions = _suppress_near_fall_on_fall(
+                near_predictions,
+                fall_predictions,
+                enabled=args.near_fall_suppress_on_fall,
             )
             all_fall_predictions.extend(fall_predictions)
             all_near_fall_predictions.extend(near_predictions)
@@ -176,7 +303,11 @@ def run(args: argparse.Namespace) -> int:
                 "fall_event": {
                     "window_count": len(fall_windows),
                     "valid_window_count": sum(row["status"] == "valid" for row in fall_windows),
-                    "positive_window_count": sum(row["score"] is not None and row["score"] >= FALL_THRESHOLD for row in fall_windows),
+                    "positive_window_count": sum(
+                        row["score"] is not None
+                        and row["score"] >= args.fall_score_threshold
+                        for row in fall_windows
+                    ),
                     "event_count": len(fall_predictions),
                     "events": fall_predictions,
                 },
@@ -185,7 +316,11 @@ def run(args: argparse.Namespace) -> int:
                     "positive_event_count": len(near_predictions),
                     "events": near_predictions,
                     "max_score": max(
-                        (float(item.get("near_fall_event_score", 0.0)) for item in near_events),
+                        (
+                            float(item["near_fall_event_score"])
+                            for item in near_events
+                            if item.get("near_fall_event_score") is not None
+                        ),
                         default=None,
                     ),
                 },
@@ -359,6 +494,51 @@ def _select_single_subject_stream(
     }
 
 
+def _select_near_fall_stream(
+    records: Sequence[Mapping[str, Any]],
+    *,
+    video_id: str,
+    policy: str,
+) -> list[dict[str, Any]]:
+    """Select a temporally coherent stream for the near-fall branch.
+
+    The default keeps the v1 per-frame stream.  The experimental longest-track
+    policy avoids stitching unrelated tracker fragments into one motion series.
+    """
+    if policy == "per_frame":
+        selected, _ = _select_single_subject_stream(records, video_id=video_id)
+        return selected
+    if policy != "longest_track":
+        raise ValueError(f"unsupported near-fall track policy: {policy}")
+    groups: defaultdict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
+    for source in records:
+        groups[
+            (str(source.get("person_id", "unknown")), str(source.get("track_id", "none")))
+        ].append(dict(source))
+    if not groups:
+        return []
+    key = max(
+        groups,
+        key=lambda item: (
+            len(groups[item]),
+            sum(float(row.get("core_keypoint_quality", 0.0) or 0.0) for row in groups[item]),
+            item,
+        ),
+    )
+    selected = sorted(
+        groups[key],
+        key=lambda row: (
+            float(row.get("timestamp_sec", 0.0)),
+            int(row.get("frame_id", 0)),
+        ),
+    )
+    for row in selected:
+        row["source_track_id"] = row.get("track_id")
+        row["person_id"] = f"{video_id}_primary"
+        row["track_id"] = "primary"
+    return selected
+
+
 def _single_subject_rank(row: Mapping[str, Any]) -> tuple[float, float, float]:
     bbox = row.get("bbox")
     area = 0.0
@@ -381,7 +561,16 @@ def _fall_event_predictions(
     *,
     video_id: str,
     predictor: ContinuousFallTCNShadowPredictor,
+    threshold: float = FALL_THRESHOLD,
+    end_cap_sec: float | None = FALL_EVENT_END_CAP_SEC_DEFAULT,
+    pre_alert_sec: float | None = FALL_EVENT_PRE_ALERT_SEC_DEFAULT,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    if not 0.0 < threshold < 1.0:
+        raise ValueError("fall score threshold must be within (0, 1)")
+    if end_cap_sec is not None and end_cap_sec <= 0:
+        raise ValueError("fall event end cap must be positive")
+    if pre_alert_sec is not None and pre_alert_sec <= 0:
+        raise ValueError("fall event pre-alert window must be positive")
     groups: defaultdict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
     for record in records:
         groups[(str(record.get("person_id", "unknown")), str(record.get("track_id", "none")))].append(dict(record))
@@ -419,14 +608,29 @@ def _fall_event_predictions(
                 "valid_joint_ratio": item.get("fall_event_tcn_shadow_valid_joint_ratio"),
             }
             windows.append(window)
-            if score is not None and float(score) >= FALL_THRESHOLD:
+            if score is not None and float(score) >= threshold:
                 positive_windows.append(window)
-        events.extend(_merge_fall_windows(positive_windows, video_id=video_id, person_id=key[0], track_id=key[1]))
+        events.extend(
+            _merge_fall_windows(
+                positive_windows,
+                video_id=video_id,
+                person_id=key[0],
+                track_id=key[1],
+                end_cap_sec=end_cap_sec,
+                pre_alert_sec=pre_alert_sec,
+            )
+        )
     return windows, events
 
 
 def _merge_fall_windows(
-    windows: Sequence[Mapping[str, Any]], *, video_id: str, person_id: str, track_id: str
+    windows: Sequence[Mapping[str, Any]],
+    *,
+    video_id: str,
+    person_id: str,
+    track_id: str,
+    end_cap_sec: float | None = FALL_EVENT_END_CAP_SEC_DEFAULT,
+    pre_alert_sec: float | None = FALL_EVENT_PRE_ALERT_SEC_DEFAULT,
 ) -> list[dict[str, Any]]:
     if not windows:
         return []
@@ -440,22 +644,82 @@ def _merge_fall_windows(
         ):
             current.append(dict(row))
         else:
-            merged.append(_merged_fall_event(current, video_id, person_id, track_id))
+            merged.append(_merged_fall_event(current, video_id, person_id, track_id, end_cap_sec=end_cap_sec, pre_alert_sec=pre_alert_sec))
             current = [dict(row)]
-    merged.append(_merged_fall_event(current, video_id, person_id, track_id))
+    merged.append(_merged_fall_event(current, video_id, person_id, track_id, end_cap_sec=end_cap_sec, pre_alert_sec=pre_alert_sec))
     return merged
 
 
-def _merged_fall_event(rows: Sequence[Mapping[str, Any]], video_id: str, person_id: str, track_id: str) -> dict[str, Any]:
+def _suppress_fall_event_realerts(
+    events: Sequence[Mapping[str, Any]], *, cooldown_sec: float | None
+) -> list[dict[str, Any]]:
+    """Keep the first alert in a causal incident cooldown window.
+
+    A fallen person often remains in a pose that keeps consecutive causal
+    windows positive.  This opt-in gate prevents that one incident from
+    repeatedly emitting a new alert while retaining a later incident once the
+    cooldown has elapsed.
+    """
+    if cooldown_sec is None:
+        return [dict(event) for event in events]
+    if cooldown_sec <= 0:
+        raise ValueError("fall event alert cooldown must be positive")
+    grouped: defaultdict[tuple[str, str, str], list[dict[str, Any]]] = defaultdict(list)
+    for event in events:
+        grouped[
+            (
+                str(event["video_id"]),
+                str(event["person_id"]),
+                str(event["track_id"]),
+            )
+        ].append(dict(event))
+    retained: list[dict[str, Any]] = []
+    for key in sorted(grouped):
+        last_alert: float | None = None
+        for event in sorted(grouped[key], key=lambda row: float(row["alert_time"])):
+            alert_time = float(event["alert_time"])
+            if last_alert is not None and alert_time - last_alert < cooldown_sec:
+                continue
+            retained.append(event)
+            last_alert = alert_time
+    return sorted(
+        retained,
+        key=lambda row: (
+            str(row["video_id"]),
+            str(row["person_id"]),
+            str(row["track_id"]),
+            float(row["alert_time"]),
+        ),
+    )
+
+
+def _merged_fall_event(
+    rows: Sequence[Mapping[str, Any]],
+    video_id: str,
+    person_id: str,
+    track_id: str,
+    *,
+    end_cap_sec: float | None = FALL_EVENT_END_CAP_SEC_DEFAULT,
+    pre_alert_sec: float | None = FALL_EVENT_PRE_ALERT_SEC_DEFAULT,
+) -> dict[str, Any]:
     onset_values = [float(row["onset_time"]) for row in rows if row.get("onset_time") is not None]
+    alert_time = float(rows[0]["cutoff_time"])
+    onset_time = min(onset_values) if onset_values else alert_time
+    start_time = min(float(row["window_start"]) for row in rows)
+    if pre_alert_sec is not None:
+        start_time = max(0.0, alert_time - float(pre_alert_sec))
+        start_time = min(start_time, onset_time)
+    end_time = max(float(row["cutoff_time"]) for row in rows)
+    if end_cap_sec is not None:
+        end_time = min(end_time, alert_time + float(end_cap_sec))
     return {
         "video_id": video_id,
         "person_id": person_id,
         "track_id": track_id,
-        "start_time": min(float(row["window_start"]) for row in rows),
-        "end_time": max(float(row["cutoff_time"]) for row in rows),
-        "onset_time": min(onset_values) if onset_values else float(rows[0]["cutoff_time"]),
-        "alert_time": float(rows[0]["cutoff_time"]),
+        "start_time": start_time,
+        "end_time": end_time,
+        "onset_time": onset_time,
+        "alert_time": alert_time,
         "score": max(float(row["score"]) for row in rows),
         "window_count": len(rows),
     }
@@ -491,14 +755,19 @@ def _fall_prediction_rows(
 def _near_fall_predictions(
     events: Sequence[Mapping[str, Any]], *, video_id: str, config_hash: str,
     split_id: str = SPLIT_ID,
+    threshold: float = NEAR_FALL_THRESHOLD,
+    hold_sec: float = 0.0,
 ) -> list[dict[str, Any]]:
+    if hold_sec < 0:
+        raise ValueError("near-fall event hold must be non-negative")
     predictions = []
     for index, event in enumerate(events, 1):
         score = event.get("near_fall_event_score")
-        if score is None or float(score) < NEAR_FALL_THRESHOLD:
+        if score is None or float(score) < threshold:
             continue
         start = float(event["start_time"])
-        end = max(start, float(event["end_time"]))
+        alert_time = max(start, float(event["end_time"]))
+        end = alert_time + hold_sec
         predictions.append(
             {
                 "video_id": video_id,
@@ -509,7 +778,7 @@ def _near_fall_predictions(
                 "start_time": round(start, 4),
                 "end_time": round(end, 4),
                 "onset_time": round(start, 4),
-                "alert_time": round(end, 4),
+                "alert_time": round(alert_time, 4),
                 "status": "emitted",
                 "quality_state": "valid",
                 "model_version": str(event.get("model_version", "near-fall-rule-v0.1")),
@@ -520,6 +789,42 @@ def _near_fall_predictions(
             }
         )
     return predictions
+
+
+def _suppress_near_fall_on_fall(
+    near_predictions: Sequence[Mapping[str, Any]],
+    fall_predictions: Sequence[Mapping[str, Any]],
+    *,
+    enabled: bool,
+) -> list[dict[str, Any]]:
+    if enabled and fall_predictions:
+        return []
+    return [dict(row) for row in near_predictions]
+
+
+def _suppress_near_fall_realerts(
+    predictions: Sequence[Mapping[str, Any]],
+    *,
+    cooldown_sec: float | None,
+) -> list[dict[str, Any]]:
+    if cooldown_sec is None:
+        return [dict(row) for row in predictions]
+    if cooldown_sec <= 0:
+        raise ValueError("near-fall alert cooldown must be positive")
+    retained: list[dict[str, Any]] = []
+    last_alert_by_video: dict[str, float] = {}
+    for row in sorted(
+        (dict(item) for item in predictions),
+        key=lambda item: (str(item["video_id"]), float(item["alert_time"])),
+    ):
+        video_id = str(row["video_id"])
+        alert_time = float(row["alert_time"])
+        last_alert = last_alert_by_video.get(video_id)
+        if last_alert is not None and alert_time - last_alert < cooldown_sec:
+            continue
+        retained.append(row)
+        last_alert_by_video[video_id] = alert_time
+    return retained
 
 
 def _result_payload(result: Any) -> dict[str, Any]:
@@ -680,15 +985,32 @@ def _contract(
         "pose_model": {"path": args.pose_model.as_posix(), "sha256": _sha256(args.pose_model)},
         "fall_checkpoints": [{"path": path.as_posix(), "sha256": _sha256(path)} for path in args.fall_checkpoint],
         "fall_config_sha256": fall_config_hash,
+        "fall_config_file_sha256": _sha256(args.fall_config),
         "near_fall_config_sha256": near_fall_config_hash,
+        "near_fall_config_file_sha256": _sha256(args.near_fall_config),
         "fall_window_sec": FALL_WINDOW_SEC,
         "fall_target_fps": FALL_TARGET_FPS,
         "fall_max_gap_sec": FALL_MAX_GAP_SEC,
         "fall_min_observed_frames": FALL_MIN_OBSERVED_FRAMES,
         "fall_stride_sec": FALL_STRIDE_SEC,
         "fall_event_reset_gap_sec": FALL_EVENT_RESET_GAP_SEC,
-        "fall_score_threshold": FALL_THRESHOLD,
-        "near_fall_score_threshold": NEAR_FALL_THRESHOLD,
+        "fall_event_end_cap_sec": args.fall_event_end_cap_sec,
+        "fall_event_pre_alert_sec": args.fall_event_pre_alert_sec,
+        "fall_event_alert_cooldown_sec": args.fall_event_alert_cooldown_sec,
+        "fall_score_threshold": args.fall_score_threshold,
+        "near_fall_score_threshold": args.near_fall_score_threshold,
+        "near_fall_track_policy": args.near_fall_track_policy,
+        "near_fall_suppress_on_fall": args.near_fall_suppress_on_fall,
+        "near_fall_alert_cooldown_sec": args.near_fall_alert_cooldown_sec,
+        "near_fall_event_hold_sec": args.near_fall_event_hold_sec,
+        "near_fall_tabular_checkpoint": (
+            {
+                "path": args.near_fall_tabular_checkpoint.as_posix(),
+                "sha256": _sha256(args.near_fall_tabular_checkpoint),
+            }
+            if args.near_fall_tabular_checkpoint is not None
+            else None
+        ),
         "device": args.device,
         "protocol_status": "development_provisional",
         "test_pose_read": False,
@@ -750,6 +1072,14 @@ def _load_yaml(path: Path) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise ValueError(f"YAML root must be a mapping: {path}")
     return dict(value)
+
+
+def _effective_evaluation_config(
+    config: Mapping[str, Any], score_threshold: float
+) -> dict[str, Any]:
+    effective = dict(config)
+    effective["score_threshold"] = float(score_threshold)
+    return effective
 
 
 def _read_jsonl(path: Path) -> list[dict[str, Any]]:

@@ -101,7 +101,9 @@ def dataclass_fields(cls: Any) -> tuple[Any, ...]:
 
 @dataclass(frozen=True)
 class ServiceSettings:
+    release_id: str = "fall-risk-v0.1"
     model_path: Path = Path("models/yolov8n-pose.pt")
+    demo_stream_url: str | None = None
     gait_model_path: Path | None = None
     gait_model_device: str = "auto"
     gait_model_window_frames: int = 16
@@ -109,6 +111,10 @@ class ServiceSettings:
     sit_stand_model_path: Path | None = None
     sit_stand_model_device: str = "cpu"
     sit_stand_model_batch_size: int = 128
+    near_fall_runtime_mode: str = "rule_baseline"
+    near_fall_model_path: Path | None = None
+    near_fall_score_threshold: float = 0.7
+    near_fall_alert_cooldown_sec: float = 30.0
     fall_event_runtime_mode: str = "shadow"
     fall_event_shadow_checkpoint_paths: tuple[Path, ...] = ()
     fall_event_shadow_device: str = "cpu"
@@ -143,14 +149,30 @@ class ServiceSettings:
     environment: EnvironmentSettings = field(default_factory=EnvironmentSettings)
 
     def __post_init__(self) -> None:
+        normalized_release_id = str(self.release_id).strip()
+        if not normalized_release_id:
+            raise ValueError("release_id must not be empty")
+        object.__setattr__(self, "release_id", normalized_release_id)
         if not isinstance(self.model_path, Path):
             object.__setattr__(self, "model_path", Path(self.model_path))
+        if self.demo_stream_url is not None:
+            stream_url = self.demo_stream_url.strip()
+            scheme, separator, remainder = stream_url.partition("://")
+            if not separator or scheme.lower() not in {"rtsp", "rtmp", "http", "https"} or not remainder:
+                raise ValueError("demo_stream_url must be a supported stream URL")
+            object.__setattr__(self, "demo_stream_url", stream_url)
         if self.baseline_history_path is not None and not isinstance(self.baseline_history_path, Path):
             object.__setattr__(self, "baseline_history_path", Path(self.baseline_history_path))
         if self.gait_model_path is not None and not isinstance(self.gait_model_path, Path):
             object.__setattr__(self, "gait_model_path", Path(self.gait_model_path))
         if self.sit_stand_model_path is not None and not isinstance(self.sit_stand_model_path, Path):
             object.__setattr__(self, "sit_stand_model_path", Path(self.sit_stand_model_path))
+        if self.near_fall_model_path is not None and not isinstance(
+            self.near_fall_model_path, Path
+        ):
+            object.__setattr__(
+                self, "near_fall_model_path", Path(self.near_fall_model_path)
+            )
         object.__setattr__(
             self,
             "fall_event_shadow_checkpoint_paths",
@@ -171,6 +193,21 @@ class ServiceSettings:
             raise ValueError("sit_stand_model_path is required for experimental_tcn")
         if self.sit_stand_model_batch_size < 1:
             raise ValueError("sit_stand_model_batch_size must be positive")
+        if self.near_fall_runtime_mode not in {"rule_baseline", "tabular_rescorer"}:
+            raise ValueError(
+                "near_fall_runtime_mode must be rule_baseline or tabular_rescorer"
+            )
+        if (
+            self.near_fall_runtime_mode == "tabular_rescorer"
+            and self.near_fall_model_path is None
+        ):
+            raise ValueError(
+                "near_fall_model_path is required for tabular_rescorer"
+            )
+        if not 0.0 < self.near_fall_score_threshold < 1.0:
+            raise ValueError("near_fall_score_threshold must be within (0, 1)")
+        if self.near_fall_alert_cooldown_sec <= 0:
+            raise ValueError("near_fall_alert_cooldown_sec must be positive")
         if self.fall_event_runtime_mode not in {"shadow", "experimental_tcn"}:
             raise ValueError(
                 "fall_event_runtime_mode must be shadow or experimental_tcn"
@@ -212,7 +249,12 @@ class ServiceSettings:
     @classmethod
     def load(cls, path: Path | None = None, environ: Mapping[str, str] | None = None) -> "ServiceSettings":
         env = os.environ if environ is None else environ
-        config_path = path or Path(env.get("FALL_RISK_SERVICE_CONFIG", "configs/modules/fall_risk_service.yaml"))
+        config_path = path or Path(
+            env.get(
+                "FALL_RISK_SERVICE_CONFIG",
+                "configs/modules/fall_risk_service_v2.yaml",
+            )
+        )
         raw: dict[str, Any] = {}
         if config_path.exists():
             loaded = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
@@ -224,7 +266,9 @@ class ServiceSettings:
             raw["environment"] = EnvironmentSettings.from_mapping(environment_raw)
 
         overrides: dict[str, tuple[str, Any]] = {
+            "FALL_RISK_RELEASE_ID": ("release_id", str),
             "MODEL_PATH": ("model_path", Path),
+            "DEMO_FALL_RISK_STREAM_URL": ("demo_stream_url", str),
             "GAIT_MODEL_PATH": ("gait_model_path", Path),
             "GAIT_MODEL_DEVICE": ("gait_model_device", str),
             "GAIT_MODEL_WINDOW_FRAMES": ("gait_model_window_frames", int),
@@ -232,6 +276,13 @@ class ServiceSettings:
             "SIT_STAND_MODEL_PATH": ("sit_stand_model_path", Path),
             "SIT_STAND_MODEL_DEVICE": ("sit_stand_model_device", str),
             "SIT_STAND_MODEL_BATCH_SIZE": ("sit_stand_model_batch_size", int),
+            "NEAR_FALL_RUNTIME_MODE": ("near_fall_runtime_mode", str),
+            "NEAR_FALL_MODEL_PATH": ("near_fall_model_path", Path),
+            "NEAR_FALL_SCORE_THRESHOLD": ("near_fall_score_threshold", float),
+            "NEAR_FALL_ALERT_COOLDOWN_SEC": (
+                "near_fall_alert_cooldown_sec",
+                float,
+            ),
             "FALL_EVENT_RUNTIME_MODE": ("fall_event_runtime_mode", str),
             "ALGORITHM_API_TOKEN": ("api_token", str),
             "CALLBACK_TOKEN": ("callback_token", str),
@@ -270,6 +321,8 @@ class ServiceSettings:
             raw["gait_model_path"] = Path(raw["gait_model_path"])
         if raw.get("sit_stand_model_path"):
             raw["sit_stand_model_path"] = Path(raw["sit_stand_model_path"])
+        if raw.get("near_fall_model_path"):
+            raw["near_fall_model_path"] = Path(raw["near_fall_model_path"])
         if raw.get("fall_event_shadow_checkpoint_paths"):
             raw["fall_event_shadow_checkpoint_paths"] = tuple(
                 Path(value) for value in raw["fall_event_shadow_checkpoint_paths"]

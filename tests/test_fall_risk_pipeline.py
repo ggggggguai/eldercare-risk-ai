@@ -1,4 +1,5 @@
 import unittest
+import math
 
 from elderly_monitoring.modules.fall_risk.features import (
     feature_coverage,
@@ -8,6 +9,18 @@ from elderly_monitoring.modules.fall_risk import FallRiskPipeline
 
 
 class FallRiskPipelineTest(unittest.TestCase):
+    def test_non_finite_scores_are_treated_as_unavailable(self) -> None:
+        event = FallRiskPipeline().predict_from_features(
+            {
+                "fall_event_score": math.nan,
+                "long_static_score": math.inf,
+                "gait_risk_score": -math.inf,
+            }
+        )
+
+        self.assertEqual(event.risk_level, 0)
+        self.assertEqual(event.risk_score, 0.0)
+        self.assertIn("no_obvious_risk", event.risk_factors)
     def test_near_fall_produces_high_risk_event(self) -> None:
         event = FallRiskPipeline().predict_from_features(
             {
@@ -32,6 +45,26 @@ class FallRiskPipelineTest(unittest.TestCase):
         self.assertEqual(event.recommended_action, "notify_guardian")
         self.assertIn("near_fall_event", event.risk_factors)
         self.assertEqual(event.model_version, "fall-risk-v0.1")
+
+    def test_release_can_use_validated_near_fall_threshold(self) -> None:
+        event = FallRiskPipeline(
+            model_version="fall-risk-competition-v2-20260827",
+            near_fall_event_threshold=0.3815,
+        ).predict_from_features(
+            {
+                "person_id": "p01",
+                "near_fall_event_score": 0.3815,
+                "fusion_mask": {"near_fall_event_score": True},
+            }
+        )
+
+        self.assertEqual(event.risk_level, 3)
+        self.assertEqual(event.trigger_event, "near_fall")
+        self.assertIn("near_fall_event", event.risk_factors)
+        self.assertEqual(
+            event.model_version,
+            "fall-risk-competition-v2-20260827",
+        )
 
     def test_fall_or_long_static_produces_emergency_warning_with_explanation(self) -> None:
         event = FallRiskPipeline().predict_from_features(

@@ -10,7 +10,7 @@ from elderly_monitoring.runtime.fall_state import (
 )
 
 
-def _pose(timestamp, hip_y, angle, center_y=None, quality=0.9, motion=0.0):
+def _pose(timestamp, hip_y, angle, center_y=None, quality=0.9, motion=0.0, geometry_valid=1.0):
     return {
         "timestamp_sec": timestamp,
         "hip_center_y": hip_y,
@@ -18,6 +18,7 @@ def _pose(timestamp, hip_y, angle, center_y=None, quality=0.9, motion=0.0):
         "bbox_center_y": hip_y if center_y is None else center_y,
         "core_keypoint_quality": quality,
         "motion_score": motion,
+        "trunk_geometry_valid": geometry_valid,
     }
 
 
@@ -58,13 +59,20 @@ class FallStateDetectorTest(unittest.TestCase):
         after_reset = self.detector.update(_pose(3.0, 0.65, 80, motion=0.0))
         self.assertEqual(after_reset.long_static_score, 0.0)
 
-    def test_upright_motion_clears_suspected_signal_for_episode_recovery(self) -> None:
+    def test_upright_motion_requires_confirmation_before_episode_recovery(self) -> None:
         self.detector.update(_pose(0.0, 0.35, 10, center_y=0.35))
         fall = self.detector.update(_pose(0.7, 0.62, 75, center_y=0.60))
         self.assertTrue(fall.suspected_fall)
 
-        recovered_signal = self.detector.update(
+        recovery_candidate = self.detector.update(
             _pose(1.2, 0.45, 20, center_y=0.45, motion=0.08)
+        )
+
+        self.assertTrue(recovery_candidate.suspected_fall)
+        self.assertGreaterEqual(recovery_candidate.fall_event_score, 0.8)
+
+        recovered_signal = self.detector.update(
+            _pose(4.3, 0.45, 20, center_y=0.45, motion=0.08)
         )
 
         self.assertFalse(recovered_signal.suspected_fall)
@@ -81,6 +89,67 @@ class FallStateDetectorTest(unittest.TestCase):
         )
 
         self.assertEqual(unavailable.long_static_score, 0.0)
+
+    def test_small_post_fall_motion_does_not_reset_static_timer(self) -> None:
+        self.detector.update(_pose(0.0, 0.35, 10, center_y=0.35))
+        self.detector.update(_pose(0.7, 0.62, 75, center_y=0.60))
+        self.detector.update(_pose(1.0, 0.62, 75, motion=0.03))
+
+        static = self.detector.update(_pose(3.1, 0.62, 75, motion=0.03))
+
+        self.assertGreaterEqual(static.static_duration_sec, 2.0)
+        self.assertGreaterEqual(static.long_static_score, 0.8)
+
+    def test_missing_trunk_geometry_cannot_trigger_recovery(self) -> None:
+        self.detector.update(_pose(0.0, 0.35, 10, center_y=0.35))
+        self.detector.update(_pose(0.7, 0.62, 75, center_y=0.60))
+
+        still_suspected = self.detector.update(
+            _pose(1.2, 0.45, 20, center_y=0.45, motion=0.08, geometry_valid=0.0)
+        )
+
+        self.assertTrue(still_suspected.suspected_fall)
+        self.assertGreaterEqual(still_suspected.fall_event_score, 0.8)
+
+    def test_hold_preserves_fall_signal_during_invalid_window(self) -> None:
+        self.detector.update(_pose(0.0, 0.35, 10, center_y=0.35))
+        self.detector.update(_pose(0.7, 0.62, 75, center_y=0.60))
+        self.detector.update(_pose(1.0, 0.62, 75, motion=0.01))
+
+        held = self.detector.hold(3.2)
+
+        self.assertTrue(held.suspected_fall)
+        self.assertEqual(held.long_static_score, 0.0)
+
+    def test_invalid_hold_does_not_advance_static_duration(self) -> None:
+        self.detector.update(_pose(0.0, 0.35, 10, center_y=0.35))
+        self.detector.update(_pose(0.7, 0.62, 75, center_y=0.60))
+        self.detector.update(_pose(1.0, 0.62, 75, motion=0.01))
+
+        held = self.detector.hold(99.0)
+
+        self.assertLess(held.static_duration_sec, 0.1)
+        self.assertEqual(held.long_static_score, 0.0)
+
+    def test_missing_trunk_geometry_cannot_trigger_fall(self) -> None:
+        self.detector.update(_pose(0.0, 0.35, 10, center_y=0.35))
+
+        result = self.detector.update(
+            _pose(0.7, 0.62, 75, center_y=0.60, geometry_valid=0.0)
+        )
+
+        self.assertFalse(result.suspected_fall)
+        self.assertEqual(result.fall_event_score, 0.0)
+
+    def test_out_of_order_timestamp_cannot_create_new_fall(self) -> None:
+        self.detector.update(_pose(2.0, 0.35, 10, center_y=0.35))
+
+        result = self.detector.update(
+            _pose(1.0, 0.65, 80, center_y=0.60)
+        )
+
+        self.assertFalse(result.suspected_fall)
+        self.assertEqual(result.fall_event_score, 0.0)
 
 
 class FallEpisodeStateMachineTest(unittest.TestCase):
