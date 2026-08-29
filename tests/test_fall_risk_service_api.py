@@ -235,6 +235,63 @@ class ServiceApiTest(unittest.TestCase):
         self.assertIn("naturalWidth", response.text)
         self.assertIn("Math.min(frameWidth / sourceWidth", response.text)
 
+    def test_demo_polls_visual_status_at_live_frame_rate_without_overlap(self):
+        response = self.client.get("/demo/fall-risk")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("const LIVE_STATUS_POLL_MS = 150", response.text)
+        self.assertIn("pollInFlight: false", response.text)
+        self.assertIn("if (state.pollInFlight) return", response.text)
+        self.assertIn("finally { state.pollInFlight = false; }", response.text)
+        self.assertIn("}, LIVE_STATUS_POLL_MS)", response.text)
+
+    def test_demo_start_rebinds_its_fixed_synthetic_baseline_period(self):
+        response = self.client.get("/demo/fall-risk")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("DEMO_BASELINE_REQUEST_URL", response.text)
+        self.assertIn("/baseline-period", response.text)
+        self.assertIn("if (state.defaultStreamConfigured) await bindDemoBaseline", response.text)
+
+    def test_demo_poll_rebinds_baseline_for_existing_live_session(self):
+        response = self.client.get("/demo/fall-risk")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("baselineBindInFlight: false", response.text)
+        self.assertIn("!payload.runtime_diagnostics?.baseline_comparison", response.text)
+        self.assertIn("await bindDemoBaseline(payload.session_id)", response.text)
+
+    def test_demo_timeline_click_renders_selected_event_evidence(self):
+        response = self.client.get("/demo/fall-risk")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('id="eventDetail"', response.text)
+        self.assertIn("renderTimelineEventDetail", response.text)
+        self.assertIn("selectedTimelineEventKey", response.text)
+
+    def test_demo_page_reload_does_not_stop_active_live_session(self):
+        response = self.client.get("/demo/fall-risk")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn("navigator.sendBeacon(`/demo/live-stop/", response.text)
+
+    def test_demo_diagnostics_support_live_runtime_field_names(self):
+        response = self.client.get("/demo/fall-risk")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("last_frame_age_sec", response.text)
+        self.assertIn("max_gap_sec", response.text)
+        self.assertIn("dropped_oldest", response.text)
+        self.assertIn("正在积累有效观测", response.text)
+
+    def test_demo_discloses_synthetic_personal_baseline(self):
+        response = self.client.get("/demo/fall-risk")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("合成正常基线", response.text)
+        self.assertIn("仅用于算法机制演示", response.text)
+        self.assertIn("baseline_comparison", response.text)
+
     def test_ready_requires_ffmpeg_tools_for_ffmpeg_backend(self):
         from elderly_monitoring.service.settings import ServiceSettings
 

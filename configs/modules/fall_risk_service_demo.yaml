@@ -1,0 +1,97 @@
+# 本地比赛演示配置。正式冻结配置保持不变。
+# 跌倒状态只依赖肩髋躯干几何；演示画面中膝踝低置信度时仍允许规则判定。
+release_id: fall-risk-demo-20260829
+model_path: models/yolov8n-pose.pt
+gait_model_path: reports/fall_risk/gait_observable_context_v2/splitv3-3342705-scfaux-v1/pretrained-seed43/best_model.pt
+gait_model_device: cpu
+gait_model_window_frames: 16
+sit_stand_runtime_mode: experimental_tcn
+sit_stand_model_path: reports/fall_risk/sit_stand_continuous_tcn_v2/sitstandsplit_11e163684e3bb898a5c3508d/seed42-pilot-loss-scale-fixed/best_model.pt
+sit_stand_model_device: cpu
+sit_stand_model_batch_size: 128
+near_fall_runtime_mode: tabular_rescorer
+near_fall_model_path: reports/fall_risk/fall_self_near_fall_tabular_v2/seed42/best_model.joblib
+near_fall_score_threshold: 0.3815
+near_fall_alert_cooldown_sec: 15.0
+# 演示主评分使用可解释的跌倒状态规则；连续 TCN 只做影子诊断，避免
+# provisional 候选未命中时覆盖已经命中的规则跌倒分数。
+fall_event_runtime_mode: shadow
+fall_event_shadow_checkpoint_paths:
+  - reports/fall_risk/fall_event_continuous_tcn_v2/seed42/best_model.pt
+  - reports/fall_risk/fall_event_continuous_tcn_v2/seed43/best_model.pt
+  - reports/fall_risk/fall_event_continuous_tcn_v2/seed44/best_model.pt
+fall_event_shadow_device: cpu
+fall_event_shadow_threshold: 0.5
+api_token: change-me
+callback_token: change-me
+baseline_history_path: reports/fall_risk/runtime/demo_baseline/synthetic-normal-history.jsonl
+max_inference_fps: 10.0
+pose_inference_size: 640
+stream_reader_backend: ffmpeg
+ffmpeg_scale_width: 640
+pose_window_sec: 10.0
+analysis_interval_sec: 0.5
+fusion_interval_sec: 2.0
+primary_lost_timeout_sec: 2.0
+event_cooldown_sec: 30.0
+callback_timeout_sec: 5.0
+callback_retry_delays_sec: [0.5, 1.0, 2.0]
+outbox_capacity: 32
+outbox_drain_timeout_sec: 3.0
+frame_queue_capacity: 2
+stream_open_timeout_ms: 5000
+stream_read_timeout_ms: 5000
+reconnect_attempts: 3
+reconnect_delay_sec: 1.0
+reconnect_stable_after_sec: 30.0
+reconnect_stable_after_frames: 120
+scene_risk_scores:
+  bathroom: 0.7
+  bedroom_bedside: 0.5
+  stairs: 0.8
+  living_room: 0.1
+  home: 0.1
+branch_quality:
+  gait:
+    min_frames: 8
+    min_valid_frame_ratio: 0.6
+    min_keypoint_coverage: 0.7
+    min_window_coverage_sec: 1.0
+    min_effective_fps: 4.0
+    max_gap_sec: 1.0
+  sit_stand:
+    min_frames: 8
+    min_valid_frame_ratio: 0.6
+    min_keypoint_coverage: 0.7
+    min_window_coverage_sec: 1.0
+    min_effective_fps: 4.0
+    max_gap_sec: 1.0
+  near_fall:
+    min_frames: 5
+    min_valid_frame_ratio: 0.6
+    min_keypoint_coverage: 0.6
+    min_window_coverage_sec: 0.5
+    min_effective_fps: 6.0
+    max_gap_sec: 0.75
+  fall_state:
+    min_frames: 2
+    min_valid_frame_ratio: 0.20
+    min_keypoint_coverage: 0.45
+    min_window_coverage_sec: 0.1
+    min_effective_fps: 6.0
+    max_gap_sec: 0.75
+fall_state:
+  # 实拍落地动作可能跨越 1 秒以上；保留更长的因果参考窗。
+  observation_window_sec: 2.0
+  min_quality: 0.6
+  hip_drop_threshold: 0.12
+  center_drop_threshold: 0.08
+  # 真实自采前向/侧向跌倒在 0.5 秒分析采样下的姿态角峰值约 25-30 度；
+  # 仍同时要求髋部和人体框中心下降，避免正常行走/坐下单独触发。
+  horizontal_angle_threshold: 25.0
+  static_duration_sec: 10.0
+  static_motion_threshold: 0.02
+  recovery_upright_angle_threshold: 45.0
+  recovery_motion_threshold: 0.05
+  recovery_confirmation_sec: 3.0
+  episode_ttl_sec: 30.0

@@ -70,6 +70,8 @@ ESP32-S3 照度/水浸输入的 `EnvironmentStore`、因果快照、环境特征
 - `process_frame()` 不执行 HTTP、重试等待或证据生成等待，只做不可变版本创建和非阻塞入队。默认容量 32 的进程内 outbox 独立记录 `pending/retrying/delivered/failed`；队列满时优先保留 4 级和唯一终止版本，所有替换或拒绝都有计数和最后决策。重连不会取消旧 epoch 事件。
 - 停止给 outbox 默认 3 秒排空预算、会话线程默认 5 秒停止预算；诊断记录 delivered、failed、unfinished、rejected 和投递线程预算结束状态。HTTP 单次尝试有超时，因此推理线程不受网络等待影响；若停止预算短于在途 HTTP，API 按预算返回并明确报告仍在结束的投递线程。
 - `GET /v1/monitoring/sessions/{session_id}` 可查询 `stream_epoch`、frame queue、目标、分支窗口、阶段耗时和 epoch 清理诊断；不返回直播地址、token 或原始视频。
+- 实时诊断按当前 epoch 保留最近 32 个有效融合风险分数和最近 12 个去重后的非零风险状态变化，供演示工作台绘制真实时间轴；重连时清空当前图表历史。工作台把采样器的秒制帧龄和最大 gap 换算为毫秒显示，并实时合并当前 latest-frame 队列的 `dropped_oldest` 计数。
+- 演示台每次以固定直播源创建会话后，都会从 `reports/fall_risk/runtime/demo/synthetic-current-normal-request.json` 重新绑定当前正常周期。该周期和历史都明确标记为合成数据，只用于算法机制演示；手动输入流和标准业务会话不自动注入该数据。
 - [`reports/fall_risk/runtime/`](../../../reports/fall_risk/runtime/README.md) 中现有 LE2I 报告仍是先前阶段证据，不能据此宣称阶段 3 的真实设备、长时资源、识别准确率、泛化或临床有效性。
 
 当前固定窗口对完全相同输入使用 memoization；每次加入新姿态后仍需重做质量平滑和分支分析，真正的增量时序计算及固定硬件资源收益证据尚未完成。YOLOv8-Pose/ByteTrack 后端目前只能提供检测、跟踪、姿态合并耗时，无法从该后端拆出三个独立计时。outbox 是进程内实现，不提供数据库持久化或进程重启恢复。
@@ -614,6 +616,8 @@ conda run -n eldercare-ai python scripts/collect/run_fall_baseline.py \
 - `reduced_baseline_quality`
 
 低样本量和低质量数据不会被当成高风险：`none/cold` 阶段输出 `baseline_deviation_score=null`；`initial` 阶段按版本化配置限制分数；低质量历史/当前周期降置信并限制分数。`PersonalBaselineTracker` 另外提供快 EWMA、单向 CUSUM、连续异常冻结和三周期恢复候选规则；这些阈值均为 provisional，只由合成序列验证，不能解释为真实效果结论。
+
+比赛现场可使用 `scripts/prepare/build_fall_baseline_demo_fixture.py` 生成确定性的合成正常基线，用于说明周期数据进入实时融合的工程机制。生成数据和工作台必须持续标注“合成正常基线，仅用于算法机制演示，不代表真人历史采集”。正式直播动作对照只允许加载生成目录中的 `synthetic-current-normal-request.json`；`synthetic-current-deviation-request.json` 只允许在单独的机制说明中使用，不能混入正常、受控失衡或受控跌倒的现场结果，也不能作为个体化有效性的比赛证据。
 
 Phase 2 算法侧基础设施已经实现，但真实效果仍未验收：
 

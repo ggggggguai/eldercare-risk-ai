@@ -1,8 +1,14 @@
 import threading
 import time
 import unittest
+from types import SimpleNamespace
 
-from elderly_monitoring.service.session import SessionManager, SessionStatus
+from elderly_monitoring.service.frame_buffer import FramePacket, LatestFrameBuffer
+from elderly_monitoring.service.session import (
+    MonitoringSession,
+    SessionManager,
+    SessionStatus,
+)
 
 
 class FakeReader:
@@ -262,6 +268,149 @@ class SessionServiceTest(unittest.TestCase):
         self.assertGreater(session.frame_diagnostics["dropped_oldest"], 0)
         self.assertLess(len(SlowEngine.instances[-1].processed), 50)
         self.assertTrue(all(item["capacity"] == 2 for item in session.epoch_history))
+
+    def test_runtime_diagnostics_include_active_frame_queue_counts(self):
+        session = MonitoringSession(
+            session_id="live-diagnostics",
+            request_id="live-diagnostics",
+            stream_url="https://example/live",
+            device_id="cam",
+            person_id="elder",
+            scene_region="home",
+            callback_url="https://backend/events",
+        )
+        session.frame_diagnostics = {
+            "put_count": 5,
+            "get_count": 4,
+            "dropped_oldest": 1,
+        }
+        buffer = LatestFrameBuffer(capacity=1)
+        buffer.put(FramePacket("first", 1, 1.0, 1.0))
+        buffer.put(FramePacket("second", 1, 2.0, 2.0))
+        session.active_frame_buffer = buffer
+        session.engine = FakeEngine()
+
+        SessionManager._refresh_runtime_diagnostics(session)
+
+        queue = session.runtime_diagnostics["frame_queue"]
+        self.assertEqual(queue["put_count"], 7)
+        self.assertEqual(queue["get_count"], 4)
+        self.assertEqual(queue["dropped_oldest"], 2)
+        self.assertEqual(queue["depth"], 1)
+
+    def test_baseline_period_update_exposes_synthetic_demo_provenance(self):
+        session = MonitoringSession(
+            session_id="baseline-demo",
+            request_id="baseline-demo",
+            stream_url="https://example/live",
+            device_id="live-demo-camera",
+            person_id="live-demo-person",
+            scene_region="home",
+            callback_url="https://backend/events",
+        )
+        result = {
+            "baseline_deviation_score": 0.73,
+            "baseline_state": "stable",
+            "baseline_confidence": 0.91,
+            "deviation_factors": ["gait_speed_drop_from_baseline"],
+            "baseline_quality": {
+                "history_day_count": 10,
+                "history_record_count": 20,
+            },
+        }
+        session.engine = SimpleNamespace(
+            update_baseline_period=lambda period: result,
+            runtime_diagnostics={},
+        )
+        self.manager.sessions[session.session_id] = session
+
+        updated = self.manager.update_baseline_period(
+            session.session_id,
+            {
+                "period_id": "synthetic-demo-current",
+                "data_provenance": {
+                    "data_type": "synthetic",
+                    "display_label": "合成正常基线",
+                    "disclosure": "仅用于算法机制演示，不代表真人历史采集。",
+                },
+            },
+        )
+
+        self.assertIs(updated, session)
+        comparison = session.runtime_diagnostics["baseline_comparison"]
+        self.assertEqual(comparison["data_type"], "synthetic")
+        self.assertEqual(comparison["display_label"], "合成正常基线")
+        self.assertEqual(comparison["baseline_deviation_score"], 0.73)
+        self.assertEqual(comparison["history_day_count"], 10)
+        self.assertEqual(
+            comparison["deviation_factors"],
+            ["gait_speed_drop_from_baseline"],
+        )
+
+    def test_runtime_diagnostics_accumulate_distinct_live_risk_history(self):
+        session = MonitoringSession(
+            session_id="live-history",
+            request_id="live-history",
+            stream_url="https://example/live",
+            device_id="cam",
+            person_id="elder",
+            scene_region="home",
+            callback_url="https://backend/events",
+            stream_epoch=1,
+        )
+        event = {
+            "timestamp": "2026-08-28T12:00:00+08:00",
+            "risk_level": 3,
+            "risk_score": 0.8,
+            "trigger_event": "near_fall_suspected",
+            "evidence_window": {"start_time": 60.0, "end_time": 65.0},
+        }
+        session.engine = SimpleNamespace(
+            runtime_diagnostics={
+                "latest_event": event,
+                "last_frame": {"source_pts_sec": 65.0},
+            },
+            frame_id=1,
+            primary_pose_count=1,
+            assembler=SimpleNamespace(analysis_count=1),
+            time_boundary_count=0,
+            last_time_boundary_reason=None,
+        )
+
+        SessionManager._refresh_runtime_diagnostics(session)
+        SessionManager._refresh_runtime_diagnostics(session)
+
+        self.assertEqual(session.runtime_diagnostics["risk_history"], [0.8])
+        timeline_event = session.runtime_diagnostics["event_history"][0]
+        self.assertEqual(timeline_event["timestamp"], "01:05")
+        self.assertEqual(timeline_event["trigger_event"], "near_fall_suspected")
+        self.assertEqual(timeline_event["risk_level"], 3)
+        self.assertEqual(timeline_event["risk_score"], 0.8)
+        self.assertEqual(timeline_event["evidence_window"], {"start_time": 60.0, "end_time": 65.0})
+
+        event["timestamp"] = "2026-08-28T12:00:02+08:00"
+        event["risk_score"] = 0.9
+        SessionManager._refresh_runtime_diagnostics(session)
+
+        self.assertEqual(session.runtime_diagnostics["risk_history"], [0.8, 0.9])
+        self.assertEqual(len(session.runtime_diagnostics["event_history"]), 1)
+
+        event.update({
+            "timestamp": "2026-08-28T12:00:04+08:00",
+            "risk_level": 0,
+            "risk_score": 0.0,
+            "trigger_event": "normal",
+        })
+        SessionManager._refresh_runtime_diagnostics(session)
+        event.update({
+            "timestamp": "2026-08-28T12:00:06+08:00",
+            "risk_level": 3,
+            "risk_score": 0.85,
+            "trigger_event": "near_fall_suspected",
+        })
+        SessionManager._refresh_runtime_diagnostics(session)
+
+        self.assertEqual(len(session.runtime_diagnostics["event_history"]), 2)
 
 
 if __name__ == "__main__":
